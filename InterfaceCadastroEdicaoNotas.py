@@ -1,0 +1,2535 @@
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog
+from conexao import conectar_bd
+import pandas as pd
+from datetime import datetime
+import mysql.connector
+import os
+
+class InterfaceCadastroEdicaoNotas:
+    def __init__(self, root=None, aluno_id=None, janela_principal=None):
+        # Armazenar referência à janela principal
+        self.janela_principal = janela_principal
+        
+        # Se root for None, cria uma nova janela
+        if root is None:
+            self.janela = tk.Toplevel()
+            self.janela.title("Cadastro/Edição de Notas")
+            self.janela.geometry("1000x700")
+            self.janela.grab_set()  # Torna a janela modal
+            self.janela.focus_force()
+            
+            # Configurar evento de fechamento
+            self.janela.protocol("WM_DELETE_WINDOW", self.ao_fechar_janela)
+        else:
+            self.janela = root
+
+        # Definir as cores para a interface - mesmas cores da main.py
+        self.co0 = "#F5F5F5"  # Branco suave para o fundo
+        self.co1 = "#003A70"  # Azul escuro (principal)
+        self.co2 = "#77B341"  # Verde
+        self.co3 = "#E2418E"  # Rosa/Magenta
+        self.co4 = "#4A86E8"  # Azul mais claro
+        self.co7 = "#333333"  # Cinza escuro
+        self.co8 = "#BF3036"  # Vermelho
+        self.co9 = "#999999"  # Cinza claro
+        
+        # Variável para controle de ajustes agendados
+        self._ajuste_agendado = None
+        
+        # Configurar a janela
+        self.janela.configure(bg=self.co0)
+        
+        # Obter ano letivo atual
+        self.ano_letivo_atual = self.obter_ano_letivo_atual()
+        
+        # Inicializar interface
+        if self.ano_letivo_atual is not None:
+            self.criar_interface()
+        else:
+            messagebox.showerror("Erro", "Não foi possível obter o ano letivo. A interface será fechada.")
+            self.janela.destroy()
+    
+    def obter_ano_letivo_atual(self):
+        try:
+            conn = conectar_bd()
+            if conn is None:
+                messagebox.showerror("Erro de Conexão", "Não foi possível conectar ao banco de dados.")
+                return None
+                
+            cursor = conn.cursor()
+                
+            # Primeiro tenta obter o ano letivo do ano atual
+            cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = YEAR(CURDATE())")
+            resultado_ano = cursor.fetchone()
+            
+            if not resultado_ano:
+                # Se não encontrar o ano atual, busca o mais recente
+                cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
+                resultado_ano = cursor.fetchone()
+                
+            if not resultado_ano:
+                messagebox.showwarning("Aviso", "Não foi possível determinar o ano letivo atual.")
+                return None
+                    
+            ano_letivo_id = resultado_ano[0]
+                
+            cursor.close()
+            conn.close()
+            
+            return ano_letivo_id
+            
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao obter ano letivo atual: {e}")
+            return None
+    
+    def criar_barra_menu(self):
+        """Cria a barra de menu no topo da janela (estilo página principal)"""
+        # Criar a barra de menu
+        self.menubar = tk.Menu(self.janela)
+        self.janela.config(menu=self.menubar)
+        
+        # Menu GEDUC
+        menu_geduc = tk.Menu(self.menubar, tearoff=0)
+        self.menubar.add_cascade(label="🌐 GEDUC", menu=menu_geduc)
+        
+        menu_geduc.add_command(
+            label="🔄 Preencher do GEDUC",
+            command=self.abrir_preenchimento_automatico
+        )
+        menu_geduc.add_command(
+            label="📥 Extrair Todas Disciplinas",
+            command=self.extrair_todas_disciplinas_geduc
+        )
+        menu_geduc.add_command(
+            label="📝 Recuperação Bimestral",
+            command=self.processar_recuperacao_bimestral
+        )
+        
+        # Menu Importar/Exportar
+        menu_io = tk.Menu(self.menubar, tearoff=0)
+        self.menubar.add_cascade(label="📊 Importar/Exportar", menu=menu_io)
+        
+        menu_io.add_command(
+            label="📥 Importar do Excel",
+            command=self.importar_do_excel
+        )
+        menu_io.add_separator()
+        menu_io.add_command(
+            label="📄 Exportar Template",
+            command=self.exportar_template_excel
+        )
+        menu_io.add_command(
+            label="📤 Exportar para Excel",
+            command=self.exportar_para_excel
+        )
+        
+        # Menu Ações (botões que sobraram)
+        menu_acoes = tk.Menu(self.menubar, tearoff=0)
+        self.menubar.add_cascade(label="⚙️ Ações", menu=menu_acoes)
+        
+        menu_acoes.add_command(
+            label="💾 Salvar Notas",
+            command=self.salvar_notas
+        )
+        menu_acoes.add_command(
+            label="🧹 Limpar Campos",
+            command=self.limpar_campos
+        )
+        menu_acoes.add_separator()
+        menu_acoes.add_command(
+            label="🔄 Atualizar",
+            command=self.carregar_notas_alunos
+        )
+    
+    def criar_interface(self):
+        # Verificar se o ano letivo foi obtido com sucesso
+        if self.ano_letivo_atual is None:
+            messagebox.showerror("Erro", "Não foi possível obter o ano letivo atual. A interface será fechada.")
+            self.janela.destroy()
+            return
+        
+        # Criar barra de menu no topo (estilo página principal)
+        self.criar_barra_menu()
+        
+        # Criar frames principais (seguindo o modelo do main.py)
+        self.criar_frames()
+        
+        # Criar título da janela
+        self.criar_cabecalho("Cadastro e Edição de Notas")
+        
+        # Criar área de seleção
+        self.criar_area_selecao()
+        
+        # Criar área de notas (inicialmente vazia)
+        self.criar_area_notas()
+    
+    def criar_frames(self):
+        # Frame superior para título
+        self.frame_titulo = tk.Frame(self.janela, bg=self.co1)
+        self.frame_titulo.pack(side="top", fill="x")
+        
+        # Frame para seleções
+        self.frame_selecao = tk.Frame(self.janela, bg=self.co0)
+        self.frame_selecao.pack(side="top", fill="x", padx=10, pady=5)
+        
+        # Frame para estatísticas
+        self.frame_estatisticas = tk.LabelFrame(self.janela, text="Estatísticas", bg=self.co0, font=("Arial", 10, "bold"))
+        self.frame_estatisticas.pack(side="bottom", fill="x", padx=10, pady=5)
+        
+        # Frame para tabela de notas (deve ser o último para preencher o espaço restante)
+        self.frame_notas = tk.Frame(self.janela, bg=self.co0)
+        self.frame_notas.pack(side="top", fill="both", expand=True, padx=10, pady=5)
+    
+    def criar_cabecalho(self, titulo):
+        # Limpar frame de título
+        for widget in self.frame_titulo.winfo_children():
+            widget.destroy()
+        
+        # Título principal
+        label_titulo = tk.Label(self.frame_titulo, text=titulo, font=("Arial", 14, "bold"), bg=self.co1, fg="white")
+        label_titulo.pack(fill="x", padx=10, pady=10)
+    
+    def criar_area_selecao(self):
+        # Limpar frame de seleção
+        for widget in self.frame_selecao.winfo_children():
+            widget.destroy()
+        
+        # Criar grid para componentes de seleção
+        for i in range(3):
+            self.frame_selecao.columnconfigure(i, weight=1)
+        
+        # Seção 1: Seleção de Nível, Série e Turma
+        frame_sec1 = tk.LabelFrame(self.frame_selecao, text="Selecione a Turma", bg=self.co0, font=("Arial", 10, "bold"))
+        frame_sec1.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
+        
+        tk.Label(frame_sec1, text="Nível de Ensino:", bg=self.co0).grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.cb_nivel = ttk.Combobox(frame_sec1, width=25, state="readonly")
+        self.cb_nivel.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        self.cb_nivel.bind("<<ComboboxSelected>>", lambda e: [self.carregar_series(e), self.carregar_disciplinas(e)])
+        
+        tk.Label(frame_sec1, text="Série:", bg=self.co0).grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.cb_serie = ttk.Combobox(frame_sec1, width=25, state="readonly")
+        self.cb_serie.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+        self.cb_serie.bind("<<ComboboxSelected>>", self.carregar_turmas)
+        
+        tk.Label(frame_sec1, text="Turma:", bg=self.co0).grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        self.cb_turma = ttk.Combobox(frame_sec1, width=25, state="readonly")
+        self.cb_turma.grid(row=2, column=1, padx=5, pady=5, sticky="w")
+        # Não associamos mais ao carregar_disciplinas, apenas atualiza notas quando a turma mudar
+        self.cb_turma.bind("<<ComboboxSelected>>", self.carregar_notas_alunos)
+        
+        # Seção 2: Seleção de Disciplina
+        frame_sec2 = tk.LabelFrame(self.frame_selecao, text="Selecione a Disciplina", bg=self.co0, font=("Arial", 10, "bold"))
+        frame_sec2.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        
+        tk.Label(frame_sec2, text="Disciplina:", bg=self.co0).grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.cb_disciplina = ttk.Combobox(frame_sec2, width=30, state="readonly")
+        self.cb_disciplina.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        self.cb_disciplina.bind("<<ComboboxSelected>>", self.carregar_notas_alunos)
+        
+        # Seção 3: Seleção de Bimestre
+        frame_sec3 = tk.LabelFrame(self.frame_selecao, text="Selecione o Bimestre", bg=self.co0, font=("Arial", 10, "bold"))
+        frame_sec3.grid(row=0, column=2, padx=5, pady=5, sticky="ew")
+        
+        tk.Label(frame_sec3, text="Bimestre:", bg=self.co0).grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.cb_bimestre = ttk.Combobox(frame_sec3, width=15, state="readonly", 
+                                      values=["1º bimestre", "2º bimestre", "3º bimestre", "4º bimestre"])
+        self.cb_bimestre.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        self.cb_bimestre.current(0)
+        self.cb_bimestre.bind("<<ComboboxSelected>>", self.carregar_notas_alunos)
+        
+        # Botão para carregar
+        btn_carregar = tk.Button(frame_sec3, text="Carregar Notas", 
+                               command=self.carregar_notas_alunos,
+                               bg=self.co4, fg="white", font=("Arial", 10, "bold"))
+        btn_carregar.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="ew")
+        
+        # Carregar níveis de ensino inicialmente
+        self.carregar_niveis_ensino()
+    
+    def criar_area_notas(self):
+        # Limpar frame de notas
+        for widget in self.frame_notas.winfo_children():
+            widget.destroy()
+        
+        # Adicionar mensagem inicial
+        label_msg = tk.Label(self.frame_notas, text="Selecione um Nível de Ensino, Série, Turma e Disciplina para carregar as notas",
+                           font=("Arial", 12), bg=self.co0)
+        label_msg.pack(expand=True, fill="both", padx=20, pady=20)
+    
+    def criar_estatisticas(self):
+        # Limpar frame de estatísticas
+        for widget in self.frame_estatisticas.winfo_children():
+            widget.destroy()
+        
+        # Grid para estatísticas - distribuição mais equilibrada
+        for i in range(6):
+            self.frame_estatisticas.columnconfigure(i, weight=1)
+        
+        # Labels para estatísticas
+        tk.Label(self.frame_estatisticas, text="Média da Turma:", bg=self.co0).grid(row=0, column=0, padx=5, pady=5, sticky="e")
+        self.lbl_media_turma = tk.Label(self.frame_estatisticas, text="--", bg=self.co0, font=("Arial", 10, "bold"), width=5)
+        self.lbl_media_turma.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        
+        tk.Label(self.frame_estatisticas, text="Maior Nota:", bg=self.co0).grid(row=0, column=2, padx=5, pady=5, sticky="e")
+        self.lbl_maior_nota = tk.Label(self.frame_estatisticas, text="--", bg=self.co0, font=("Arial", 10, "bold"), width=5)
+        self.lbl_maior_nota.grid(row=0, column=3, padx=5, pady=5, sticky="w")
+        
+        tk.Label(self.frame_estatisticas, text="Menor Nota:", bg=self.co0).grid(row=0, column=4, padx=5, pady=5, sticky="e")
+        self.lbl_menor_nota = tk.Label(self.frame_estatisticas, text="--", bg=self.co0, font=("Arial", 10, "bold"), width=5)
+        self.lbl_menor_nota.grid(row=0, column=5, padx=5, pady=5, sticky="w")
+        
+        tk.Label(self.frame_estatisticas, text="Abaixo da Média:", bg=self.co0).grid(row=1, column=0, padx=5, pady=5, sticky="e")
+        self.lbl_abaixo_media = tk.Label(self.frame_estatisticas, text="--", bg=self.co0, font=("Arial", 10, "bold"), width=5)
+        self.lbl_abaixo_media.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+        
+        tk.Label(self.frame_estatisticas, text="Acima da Média:", bg=self.co0).grid(row=1, column=2, padx=5, pady=5, sticky="e")
+        self.lbl_acima_media = tk.Label(self.frame_estatisticas, text="--", bg=self.co0, font=("Arial", 10, "bold"), width=5)
+        self.lbl_acima_media.grid(row=1, column=3, padx=5, pady=5, sticky="w")
+        
+        tk.Label(self.frame_estatisticas, text="Total de Alunos:", bg=self.co0).grid(row=1, column=4, padx=5, pady=5, sticky="e")
+        self.lbl_total_alunos = tk.Label(self.frame_estatisticas, text="0", bg=self.co0, font=("Arial", 10, "bold"), width=5)
+        self.lbl_total_alunos.grid(row=1, column=5, padx=5, pady=5, sticky="w")
+    
+    def carregar_niveis_ensino(self):
+        try:
+            conn = conectar_bd()
+            if conn is None:
+                messagebox.showerror("Erro de Conexão", "Não foi possível conectar ao banco de dados.")
+                return
+                
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, nome FROM niveisensino ORDER BY nome")
+            niveis = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            if not niveis:
+                messagebox.showinfo("Informação", "Nenhum nível de ensino encontrado no banco de dados.")
+                return
+            
+            self.niveis_map = {nivel[1]: nivel[0] for nivel in niveis}
+            self.cb_nivel['values'] = list(self.niveis_map.keys())
+            if self.cb_nivel['values']:
+                self.cb_nivel.current(0)
+                self.carregar_series()
+                # Também carregar disciplinas inicialmente
+                self.carregar_disciplinas()
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao carregar níveis de ensino: {e}")
+    
+    def carregar_series(self, event=None):
+        if not self.cb_nivel.get():
+            return
+        
+        nivel_id = self.niveis_map.get(self.cb_nivel.get())
+        if nivel_id is None:
+            return
+        
+        try:
+            conn = conectar_bd()
+            if conn is None:
+                messagebox.showerror("Erro de Conexão", "Não foi possível conectar ao banco de dados.")
+                return
+                
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, nome FROM serie WHERE nivel_id = %s ORDER BY nome", (nivel_id,))
+            series = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            self.series_map = {serie[1]: serie[0] for serie in series}
+            self.cb_serie['values'] = list(self.series_map.keys())
+            if self.cb_serie['values']:
+                self.cb_serie.current(0)
+                self.carregar_turmas()
+            else:
+                self.cb_serie.set("")
+                self.cb_turma.set("")
+                self.cb_turma['values'] = []
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao carregar séries: {e}")
+    
+    def carregar_turmas(self, event=None):
+        if not self.cb_serie.get():
+            return
+        
+        serie_id = self.series_map.get(self.cb_serie.get())
+        if serie_id is None:
+            return
+        
+        try:
+            conn = conectar_bd()
+            if conn is None:
+                messagebox.showerror("Erro de Conexão", "Não foi possível conectar ao banco de dados.")
+                return
+                
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT t.id, CONCAT(t.nome, ' - ', t.turno) AS turma_nome 
+                FROM turmas t 
+                WHERE t.serie_id = %s AND t.ano_letivo_id = %s
+                ORDER BY t.nome
+            """, (serie_id, self.ano_letivo_atual))
+            turmas = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            self.turmas_map = {turma[1]: turma[0] for turma in turmas}
+            self.cb_turma['values'] = list(self.turmas_map.keys())
+            if self.cb_turma['values']:
+                self.cb_turma.current(0)
+                # Sempre recarregar as disciplinas quando a turma mudar
+                self.carregar_disciplinas()
+            else:
+                self.cb_turma.set("")
+                self.cb_disciplina.set("")
+                self.cb_disciplina['values'] = []
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao carregar turmas: {e}")
+            print(f"Erro detalhado ao carregar turmas: {str(e)}")
+    
+    def carregar_disciplinas(self, event=None):
+        if not self.cb_nivel.get():
+            return
+        
+        nivel_id = self.niveis_map.get(self.cb_nivel.get())
+        if nivel_id is None:
+            return
+        
+        try:
+            conn = conectar_bd()
+            if conn is None:
+                messagebox.showerror("Erro de Conexão", "Não foi possível conectar ao banco de dados.")
+                return
+            
+            cursor = conn.cursor()
+            
+            # Usar uma consulta mais simples que carrega todas as disciplinas com o nivel_id correto
+            cursor.execute("""
+                SELECT id, nome 
+                FROM disciplinas 
+                WHERE nivel_id = %s AND escola_id = 60
+                ORDER BY nome
+            """, (nivel_id,))
+            
+            disciplinas = cursor.fetchall()
+            
+            # Se não encontrar disciplinas com nivel_id, tenta buscar todas as disciplinas da escola
+            if not disciplinas:
+                cursor.execute("""
+                    SELECT id, nome 
+                    FROM disciplinas 
+                    WHERE escola_id = 60
+                    ORDER BY nome
+                """)
+                disciplinas = cursor.fetchall()
+            
+            cursor.close()
+            conn.close()
+            
+            if not disciplinas:
+                messagebox.showinfo("Informação", "Não há disciplinas cadastradas para esta escola.")
+                self.cb_disciplina.set("")
+                self.cb_disciplina['values'] = []
+                return
+            
+            # Mostrar o que foi carregado para debug
+            # print(f"Disciplinas carregadas: {disciplinas}")
+            
+            self.disciplinas_map = {disc[1]: disc[0] for disc in disciplinas}
+            self.cb_disciplina['values'] = list(self.disciplinas_map.keys())
+            if self.cb_disciplina['values']:
+                self.cb_disciplina.current(0)
+            # Carrega automaticamente as notas quando a disciplina for selecionada
+            self.janela.after(100, self.carregar_notas_alunos)
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao carregar disciplinas: {e}")
+            print(f"Erro detalhado: {str(e)}")
+    
+    def carregar_notas_alunos(self, event=None):
+        # Verificações iniciais
+        if not self.cb_turma.get():
+            print("Nenhuma turma selecionada. Não é possível carregar notas.")
+            return
+            
+        if not self.cb_disciplina.get():
+            print("Nenhuma disciplina selecionada. Não é possível carregar notas.")
+            return
+            
+        if not self.cb_bimestre.get():
+            print("Nenhum bimestre selecionado. Não é possível carregar notas.")
+            return
+        
+        # Limpar frame de notas
+        for widget in self.frame_notas.winfo_children():
+            widget.destroy()
+        
+        # Verificar se os dicionários de mapeamento foram criados corretamente
+        if not hasattr(self, 'turmas_map') or not self.turmas_map:
+            messagebox.showerror("Erro", "O mapeamento de turmas não foi criado corretamente.")
+            print("Erro: turmas_map não existe ou está vazio")
+            return
+            
+        if not hasattr(self, 'disciplinas_map') or not self.disciplinas_map:
+            messagebox.showerror("Erro", "O mapeamento de disciplinas não foi criado corretamente.")
+            print("Erro: disciplinas_map não existe ou está vazio")
+            return
+        
+        # Validar seleções
+        turma = self.cb_turma.get()
+        disciplina = self.cb_disciplina.get()
+        bimestre = self.cb_bimestre.get()
+        
+        # print(f"Validando - Turma: {turma}, Disciplina: {disciplina}, Bimestre: {bimestre}")
+        # print(f"Mapeamento de turmas: {self.turmas_map}")
+        # print(f"Mapeamento de disciplinas: {self.disciplinas_map}")
+        
+        # Obter IDs das seleções
+        turma_id = self.turmas_map.get(turma)
+        disciplina_id = self.disciplinas_map.get(disciplina)
+        
+        # Verificar se os IDs foram obtidos corretamente
+        if turma_id is None:
+            messagebox.showerror("Erro", f"Não foi possível obter o ID da turma: '{turma}'")
+            print(f"Turmas disponíveis: {self.turmas_map}")
+            return
+            
+        if disciplina_id is None:
+            messagebox.showerror("Erro", f"Não foi possível obter o ID da disciplina: '{disciplina}'")
+            print(f"Disciplinas disponíveis: {self.disciplinas_map}")
+            return
+        
+        # Guardar IDs para uso em outras funções
+        self.turma_id = turma_id
+        self.disciplina_id = disciplina_id
+        self.bimestre = bimestre
+        
+        # print(f"Carregando notas - Turma: {turma_id}, Disciplina: {disciplina_id}, Bimestre: {bimestre}")
+        
+        try:
+            conn = conectar_bd()
+            cursor = conn.cursor()
+            
+            # Buscar alunos da turma em ordem alfabética
+            cursor.execute("""
+                SELECT a.id, a.nome, m.status 
+                FROM alunos a
+                JOIN matriculas m ON a.id = m.aluno_id
+                WHERE m.turma_id = %s 
+                AND m.ano_letivo_id = %s 
+                AND m.status IN ('Ativo', 'Transferido')
+                AND a.escola_id = 60
+                ORDER BY a.nome
+            """, (turma_id, self.ano_letivo_atual))
+            
+            alunos = cursor.fetchall()
+            
+            cursor.close()
+            conn.close()
+            
+            print(f"Alunos encontrados: {len(alunos)}")
+            
+            if not alunos:
+                messagebox.showinfo("Informação", "Não há alunos matriculados nesta turma.")
+                return
+            
+            # Armazenar dados para uso posterior
+            self.alunos = alunos
+            self.disciplina_id = disciplina_id
+            self.bimestre = bimestre
+            
+            # print("Criando tabela de notas...")
+            # Criar tabela de notas
+            self.criar_tabela_notas(alunos)
+            
+            print("Atualizando estatísticas...")
+            # Atualizar estatísticas
+            self.criar_estatisticas()
+            self.atualizar_estatisticas()
+            print("Notas carregadas com sucesso!")
+            
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao carregar dados: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def criar_tabela_notas(self, alunos):
+        # Frame com scroll para a tabela
+        frame_tabela = tk.Frame(self.frame_notas, bg=self.co0)
+        frame_tabela.pack(fill="both", expand=True)
+        
+        # Criar tabela Treeview
+        colunas = ["num", "nome", "nota"]
+        self.tabela = ttk.Treeview(frame_tabela, columns=colunas, show="headings", height=15)
+        
+        # Definir cabeçalhos
+        self.tabela.heading("num", text="Nº")
+        self.tabela.heading("nome", text="Nome do Aluno")
+        self.tabela.heading("nota", text="Nota")
+        
+        # Configurar colunas
+        self.tabela.column("num", width=40, anchor="center")
+        self.tabela.column("nome", width=460, anchor="w")
+        self.tabela.column("nota", width=80, anchor="center")
+        
+        # Scrollbars
+        scrollbar_y = ttk.Scrollbar(frame_tabela, orient="vertical", command=self.tabela.yview)
+        scrollbar_x = ttk.Scrollbar(frame_tabela, orient="horizontal", command=self.tabela.xview)
+        self.tabela.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
+        
+        # Posicionar elementos
+        self.tabela.pack(side="left", fill="both", expand=True)
+        scrollbar_y.pack(side="right", fill="y")
+        scrollbar_x.pack(side="bottom", fill="x")
+        
+        # Preencher tabela com alunos e campo de nota editável
+        self.entradas_notas = {}
+        self.alunos_ids = []  # Lista para manter a ordem dos IDs dos alunos
+        self.num_para_id = {}  # Mapeamento de número sequencial para ID do aluno
+        self.id_para_num = {}  # Mapeamento de ID do aluno para número sequencial
+        
+        primeiro_campo = None  # Para armazenar referência ao primeiro campo
+        
+        # Configurando um estilo para destacar os alunos transferidos
+        style = ttk.Style()
+        style.configure("Transferido.Treeview.Row", foreground="blue")
+        
+        # Numerar os alunos sequencialmente (começando de 1)
+        for num, aluno in enumerate(alunos, 1):
+            aluno_id = aluno[0]
+            nome_aluno = aluno[1]
+            status_aluno = aluno[2] if len(aluno) > 2 else "Ativo"
+            
+            # Adiciona um indicador visual para alunos transferidos
+            nome_display = f"{nome_aluno} (Transferido)" if status_aluno == "Transferido" else nome_aluno
+            
+            self.alunos_ids.append(aluno_id)  # Adiciona o ID à lista ordenada
+            self.num_para_id[num] = aluno_id  # Guarda mapeamento número -> ID
+            self.id_para_num[aluno_id] = num  # Guarda mapeamento ID -> número
+            
+            # Inserir na tabela usando o número sequencial em vez do ID
+            item_id = self.tabela.insert("", "end", values=(num, nome_display, ""))
+            
+            # Definir tag para alunos transferidos
+            if status_aluno == "Transferido":
+                self.tabela.item(item_id, tags=("transferido",))
+            
+            # Buscar nota existente
+            nota = self.buscar_nota_existente(aluno_id, self.disciplina_id, self.bimestre)
+            
+            # Criar entrada para nota com fundo branco para destacar
+            entrada = tk.Entry(self.tabela, width=5, font=("Arial", 10), bg="white", relief="solid", borderwidth=1, justify="center")
+            if nota is not None:
+                entrada.insert(0, str(nota))
+            
+            # Configurar eventos para a entrada
+            entrada.bind("<KeyRelease>", self.atualizar_estatisticas)
+            entrada.bind("<Tab>", self.navegar_para_proxima_entrada)
+            entrada.bind("<Shift-Tab>", self.navegar_para_entrada_anterior)
+            entrada.bind("<Return>", self.navegar_para_proxima_entrada)
+            
+            # Configurar evento de clique para focar na entrada
+            entrada.bind("<FocusIn>", lambda e, id=aluno_id: self.selecionar_item_por_id(id))
+            
+            # Armazenar referência à entrada
+            self.entradas_notas[aluno_id] = entrada
+            
+            # Guardar referência ao primeiro campo
+            if primeiro_campo is None:
+                primeiro_campo = entrada
+            
+            # Obter bbox para posicionar entrada
+            bbox = self.tabela.bbox(item_id, "nota")
+            if bbox:  # Verificar se bbox é válido
+                x, y, width, height = bbox
+                entrada.place(x=x+5, y=y+2, width=width-10, height=height-4)
+        
+        # Configurar cor para os alunos transferidos
+        self.tabela.tag_configure("transferido", foreground="blue")
+        
+        # Configurar eventos de seleção para manter as entradas visíveis
+        self.tabela.bind("<ButtonRelease-1>", self.ajustar_entradas)
+        self.tabela.bind("<Motion>", self.ajustar_entradas)
+        self.tabela.bind("<Configure>", self.ajustar_entradas)
+        
+        # Configurar evento de clique na tabela para focar na entrada correspondente
+        self.tabela.bind("<<TreeviewSelect>>", self.focar_entrada_selecionada)
+        
+        # Eventos de redimensionamento da janela e frames
+        self.janela.bind("<Configure>", self.ajustar_entradas)
+        self.frame_notas.bind("<Configure>", self.ajustar_entradas)
+        
+        # Forçar o redesenho das entradas após um breve atraso
+        self.janela.after(200, self.forcar_redesenho_entradas)
+        
+        # Focar no primeiro campo após um breve atraso com verificação de existência
+        if primeiro_campo:
+            self.janela.after(300, lambda f=primeiro_campo: self.focar_campo_seguro(f))
+    
+    def forcar_redesenho_entradas(self):
+        """Força o redesenho de todas as entradas para garantir que elas sejam visíveis"""
+        try:
+            # print("Forçando redesenho das entradas...")
+            # Atualizar a interface
+            self.janela.update_idletasks()
+            
+            # Verificar se os dicionários necessários estão presentes
+            if not hasattr(self, 'entradas_notas') or not self.entradas_notas:
+                print("Não há entradas de notas para redesenhar")
+                return
+                
+            if not hasattr(self, 'id_para_num') or not self.id_para_num:
+                print("Mapeamento de ID para número não existe")
+                return
+            
+            # Reposicionar todas as entradas
+            for aluno_id, entrada in self.entradas_notas.items():
+                try:
+                    # Verificar se a entrada ainda existe
+                    if not entrada.winfo_exists():
+                        print(f"Entrada para aluno ID {aluno_id} não existe mais")
+                        continue
+                        
+                    entrada.place_forget()  # Remover temporariamente
+                except Exception as e:
+                    print(f"Erro ao esconder entrada do aluno {aluno_id}: {e}")
+            
+            # Aplicar ajuste de entradas que irá reposicionar tudo corretamente
+            self._realizar_ajuste_entradas()
+            
+        except Exception as e:
+            print(f"Erro ao redesenhar entradas: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def navegar_para_proxima_entrada(self, event):
+        """Move o foco para a próxima entrada de nota após pressionar Tab ou Enter"""
+        current_focus_id = None
+        # Encontra qual aluno está com o foco
+        for aluno_id, entrada in self.entradas_notas.items():
+            if entrada == self.janela.focus_get():
+                current_focus_id = aluno_id
+                break
+        
+        if current_focus_id is not None:
+            # Encontra a posição do aluno na lista ordenada
+            try:
+                index = self.alunos_ids.index(current_focus_id)
+                if index < len(self.alunos_ids) - 1:
+                    # Se não for o último aluno, move para o próximo
+                    proximo_id = self.alunos_ids[index + 1]
+                    proxima_entrada = self.entradas_notas[proximo_id]
+                    proxima_entrada.focus_set()
+                    proxima_entrada.select_range(0, tk.END)  # Seleciona todo o texto
+                    # Garantir que o item esteja visível na tabela
+                    self.selecionar_item_por_id(proximo_id)
+                    # Atualizar a posição do scrollbar
+                    self.tabela.see(self.tabela.selection()[0])
+                else:
+                    # Se for o último aluno, volta para o primeiro
+                    primeiro_id = self.alunos_ids[0]
+                    self.entradas_notas[primeiro_id].focus_set()
+                    self.entradas_notas[primeiro_id].select_range(0, tk.END)
+                    self.selecionar_item_por_id(primeiro_id)
+                    # Atualizar a posição do scrollbar
+                    self.tabela.see(self.tabela.selection()[0])
+            except (ValueError, IndexError):
+                pass
+        
+        return "break"  # Impede o comportamento padrão do Tab
+    
+    def navegar_para_entrada_anterior(self, event):
+        """Move o foco para a entrada de nota anterior após pressionar Shift+Tab"""
+        current_focus_id = None
+        # Encontra qual aluno está com o foco
+        for aluno_id, entrada in self.entradas_notas.items():
+            if entrada == self.janela.focus_get():
+                current_focus_id = aluno_id
+                break
+        
+        if current_focus_id is not None:
+            # Encontra a posição do aluno na lista ordenada
+            try:
+                index = self.alunos_ids.index(current_focus_id)
+                if index > 0:
+                    # Se não for o primeiro aluno, move para o anterior
+                    anterior_id = self.alunos_ids[index - 1]
+                    anterior_entrada = self.entradas_notas[anterior_id]
+                    anterior_entrada.focus_set()
+                    anterior_entrada.select_range(0, tk.END)  # Seleciona todo o texto
+                    # Garantir que o item esteja visível na tabela
+                    self.selecionar_item_por_id(anterior_id)
+                    # Atualizar a posição do scrollbar
+                    self.tabela.see(self.tabela.selection()[0])
+                else:
+                    # Se for o primeiro aluno, vai para o último
+                    ultimo_id = self.alunos_ids[-1]
+                    self.entradas_notas[ultimo_id].focus_set()
+                    self.entradas_notas[ultimo_id].select_range(0, tk.END)
+                    self.selecionar_item_por_id(ultimo_id)
+                    # Atualizar a posição do scrollbar
+                    self.tabela.see(self.tabela.selection()[0])
+            except (ValueError, IndexError):
+                pass
+        
+        return "break"  # Impede o comportamento padrão do Shift+Tab
+    
+    def focar_entrada_selecionada(self, event):
+        """Quando um item da tabela é selecionado, coloca o foco na entrada de nota correspondente"""
+        selection = self.tabela.selection()
+        if selection:
+            item = selection[0]
+            valores = self.tabela.item(item, "values")
+            if valores:
+                num_sequencial = int(valores[0])
+                aluno_id = self.num_para_id.get(num_sequencial)
+                if aluno_id in self.entradas_notas:
+                    self.entradas_notas[aluno_id].focus_set()
+                    self.entradas_notas[aluno_id].select_range(0, tk.END)  # Seleciona todo o texto
+    
+    def selecionar_item_por_id(self, aluno_id):
+        """Seleciona um item na tabela pelo ID do aluno e garante que ele esteja visível"""
+        num_sequencial = self.id_para_num.get(aluno_id)
+        if num_sequencial:
+            for item_id in self.tabela.get_children():
+                valores = self.tabela.item(item_id, "values")
+                if valores and str(valores[0]) == str(num_sequencial):
+                    self.tabela.selection_set(item_id)
+                    self.tabela.see(item_id)  # Certifica que o item está visível
+                    break  # Interrompe o loop quando encontrar o item
+    
+    def ajustar_entradas(self, event=None):
+        # Reposicionar todas as entradas conforme a tabela é rolada
+        try:
+            # Cancela ajuste anterior agendado para evitar múltiplas chamadas
+            if self._ajuste_agendado:
+                self.janela.after_cancel(self._ajuste_agendado)
+                self._ajuste_agendado = None
+            
+            # Agenda ajuste para dar tempo da geometria atualizar
+            self._ajuste_agendado = self.janela.after(10, self._realizar_ajuste_entradas)
+        except Exception as e:
+            print(f"Erro ao agendar ajuste: {e}")
+    
+    def _realizar_ajuste_entradas(self):
+        # Realiza o ajuste efetivo das entradas
+        try:
+            self._ajuste_agendado = None
+            
+            # Verificar se os dicionários necessários existem
+            if not hasattr(self, 'entradas_notas') or not self.entradas_notas:
+                return
+                
+            if not hasattr(self, 'id_para_num') or not self.id_para_num:
+                return
+            
+            # Força atualização da geometria da tabela antes de pegar bbox
+            self.tabela.update_idletasks()
+                
+            for aluno_id, entrada in self.entradas_notas.items():
+                try:
+                    # Verificar se a entrada ainda existe
+                    if not entrada.winfo_exists():
+                        continue
+                        
+                    # Identificar o número sequencial para este aluno_id
+                    num_sequencial = self.id_para_num.get(aluno_id)
+                    if not num_sequencial:
+                        continue
+                        
+                    # Encontrar o item da tabela para este número sequencial
+                    for item_id in self.tabela.get_children():
+                        valores = self.tabela.item(item_id, "values")
+                        if valores and str(valores[0]) == str(num_sequencial):
+                            bbox = self.tabela.bbox(item_id, "nota")
+                            if bbox:  # Verificar se o item está visível
+                                x, y, width, height = bbox
+                                # Configurar tamanho visível da entrada
+                                entrada.place(x=x+5, y=y+2, width=width-10, height=height-4)
+                                entrada.lift()  # Garantir que a entrada esteja acima de outros widgets
+                            else:
+                                entrada.place_forget()  # Esconder entradas de itens não visíveis
+                            break
+                except Exception as e:
+                    print(f"Erro ao ajustar entrada para aluno ID {aluno_id}: {e}")
+            
+            # Forçar a atualização da interface
+            self.janela.update_idletasks()
+        except Exception as e:
+            print(f"Erro geral ao ajustar entradas: {e}")
+    
+    def buscar_nota_existente(self, aluno_id, disciplina_id, bimestre):
+        try:
+            conn = conectar_bd()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT nota 
+                FROM notas 
+                WHERE aluno_id = %s AND disciplina_id = %s AND bimestre = %s AND ano_letivo_id = %s
+            """, (aluno_id, disciplina_id, bimestre, self.ano_letivo_atual))
+            resultado = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            if resultado:
+                return resultado[0]
+            return None
+        except Exception as e:
+            print(f"Erro ao buscar nota: {e}")
+            return None
+    
+    def atualizar_estatisticas(self, event=None):
+        # Coletar notas válidas
+        notas = []
+        
+        for entrada in self.entradas_notas.values():
+            try:
+                nota_texto = entrada.get().strip()
+                if nota_texto:
+                    nota = float(nota_texto.replace(',', '.'))
+                    notas.append(nota)
+            except ValueError:
+                pass
+        
+        # Atualizar estatísticas
+        if notas:
+            media = sum(notas) / len(notas)
+            maior = max(notas)
+            menor = min(notas)
+            
+            abaixo_media = sum(1 for nota in notas if nota < 60.0)
+            acima_media = sum(1 for nota in notas if nota >= 60.0)
+            
+            # Atualizar os labels
+            self.lbl_media_turma.config(text=f"{media:.1f}")
+            self.lbl_maior_nota.config(text=f"{maior:.1f}")
+            self.lbl_menor_nota.config(text=f"{menor:.1f}")
+            self.lbl_abaixo_media.config(text=str(abaixo_media))
+            self.lbl_acima_media.config(text=str(acima_media))
+            self.lbl_total_alunos.config(text=str(len(self.alunos)))
+            
+            # Definir cores para média da turma
+            if media < 60.0:
+                self.lbl_media_turma.config(fg="red")
+            else:
+                self.lbl_media_turma.config(fg="green")
+        else:
+            # Reiniciar labels se não houver notas
+            self.lbl_media_turma.config(text="--", fg="black")
+            self.lbl_maior_nota.config(text="--")
+            self.lbl_menor_nota.config(text="--")
+            self.lbl_abaixo_media.config(text="--")
+            self.lbl_acima_media.config(text="--")
+            self.lbl_total_alunos.config(text=str(len(self.alunos)))
+    
+    def salvar_notas(self):
+        if not hasattr(self, 'entradas_notas') or not self.entradas_notas:
+            messagebox.showinfo("Aviso", "Não há notas para salvar.")
+            return
+        
+        try:
+            conn = conectar_bd()
+            cursor = conn.cursor()
+            
+            count_inseridas = 0
+            count_atualizadas = 0
+            count_removidas = 0
+            
+            for aluno_id, entrada in self.entradas_notas.items():
+                nota_texto = entrada.get().strip()
+                
+                # Verificar se já existe uma nota para este aluno, disciplina e bimestre
+                cursor.execute("""
+                    SELECT id FROM notas 
+                    WHERE aluno_id = %s AND disciplina_id = %s AND bimestre = %s AND ano_letivo_id = %s
+                """, (aluno_id, self.disciplina_id, self.bimestre, self.ano_letivo_atual))
+                
+                resultado = cursor.fetchone()
+                
+                # Se a entrada estiver vazia e existir uma nota no banco, remover a nota
+                if not nota_texto and resultado:
+                    cursor.execute("""
+                        DELETE FROM notas 
+                        WHERE id = %s
+                    """, (resultado[0],))
+                    count_removidas += 1
+                    continue
+                
+                # Se a entrada estiver vazia e não existir nota, pular
+                if not nota_texto:
+                    continue
+                
+                try:
+                    # Converter para float e validar nota
+                    nota = float(nota_texto.replace(',', '.'))
+                    if nota < 0 or nota > 100:
+                        messagebox.showwarning("Aviso", f"Nota inválida para o aluno ID {aluno_id}. A nota deve estar entre 0 e 100.")
+                        continue
+                    
+                    if resultado:
+                        # Atualizar a nota existente
+                        cursor.execute("""
+                            UPDATE notas 
+                            SET nota = %s 
+                            WHERE id = %s
+                        """, (nota, resultado[0]))
+                        count_atualizadas += 1
+                    else:
+                        # Inserir nova nota
+                        cursor.execute("""
+                            INSERT INTO notas (aluno_id, disciplina_id, bimestre, nota, ano_letivo_id) 
+                            VALUES (%s, %s, %s, %s, %s)
+                        """, (aluno_id, self.disciplina_id, self.bimestre, nota, self.ano_letivo_atual))
+                        count_inseridas += 1
+                except ValueError:
+                    messagebox.showwarning("Aviso", f"Valor de nota inválido para o aluno ID {aluno_id}.")
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            messagebox.showinfo("Sucesso", f"Notas salvas com sucesso!\n\nNovas notas: {count_inseridas}\nNotas atualizadas: {count_atualizadas}\nNotas removidas: {count_removidas}")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao salvar notas: {e}")
+    
+    def limpar_campos(self):
+        # Limpar todas as entradas de notas
+        if hasattr(self, 'entradas_notas'):
+            for entrada in self.entradas_notas.values():
+                entrada.delete(0, tk.END)
+            
+            # Atualizar estatísticas
+            self.atualizar_estatisticas()
+    
+    def exportar_para_excel(self):
+        if not hasattr(self, 'entradas_notas') or not self.entradas_notas:
+            messagebox.showinfo("Aviso", "Não há notas para exportar.")
+            return
+        
+        try:
+            # Coletar dados para exportação
+            dados_notas = []
+            
+            for aluno in self.alunos:
+                aluno_id = aluno[0]
+                nota_texto = self.entradas_notas[aluno_id].get().strip()
+                nota = nota_texto if nota_texto else ""
+                
+                dados_notas.append({
+                    'ID': aluno_id,
+                    'Nome do Aluno': aluno[1],
+                    'Nota': nota
+                })
+            
+            # Criar DataFrame
+            df = pd.DataFrame(dados_notas)
+            
+            # Solicitar local para salvar
+            data_atual = datetime.now().strftime("%Y%m%d_%H%M%S")
+            nome_arquivo = f"Notas_{self.cb_turma.get().replace(' ', '_')}_{self.cb_disciplina.get().replace(' ', '_')}_{self.bimestre.replace(' ', '_')}_{data_atual}.xlsx"
+            
+            caminho_arquivo = filedialog.asksaveasfilename(
+                defaultextension=".xlsx",
+                filetypes=[("Excel files", "*.xlsx")],
+                initialfile=nome_arquivo
+            )
+            
+            if not caminho_arquivo:
+                return  # Usuário cancelou
+            
+            # Exportar para Excel
+            df.to_excel(caminho_arquivo, index=False)
+            
+            # Perguntar se deseja abrir o arquivo
+            if messagebox.askyesno("Sucesso", f"Arquivo exportado com sucesso!\n\nDeseja abrir o arquivo agora?"):
+                os.startfile(caminho_arquivo) if os.name == 'nt' else os.system(f"xdg-open {caminho_arquivo}")
+            
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao exportar notas: {e}")
+
+    def importar_do_excel(self):
+        if not hasattr(self, 'entradas_notas') or not self.entradas_notas:
+            messagebox.showinfo("Aviso", "Selecione uma turma e disciplina primeiro para poder importar notas.")
+            return
+        
+        try:
+            # Solicitar o arquivo Excel
+            caminho_arquivo = filedialog.askopenfilename(
+                filetypes=[("Arquivos Excel", "*.xlsx;*.xls")],
+                title="Selecione o arquivo Excel com as notas"
+            )
+            
+            if not caminho_arquivo:
+                return  # Usuário cancelou
+            
+            # Ler o arquivo Excel
+            df = pd.read_excel(caminho_arquivo)
+            
+            # Verificar se o formato é válido
+            colunas_necessarias = ["ID", "Nome do Aluno", "Nota"]
+            colunas_faltantes = [col for col in colunas_necessarias if col not in df.columns]
+            
+            if colunas_faltantes:
+                messagebox.showerror("Erro de Formato", 
+                                    f"O arquivo Excel não contém todas as colunas necessárias.\n"
+                                    f"Colunas faltantes: {', '.join(colunas_faltantes)}\n\n"
+                                    f"O arquivo deve conter as colunas: {', '.join(colunas_necessarias)}")
+                return
+            
+            # Dicionário para mapear ID do aluno para o objeto de entrada
+            alunos_encontrados = 0
+            notas_atualizadas = 0
+            
+            # Processar cada linha do Excel
+            for _, row in df.iterrows():
+                aluno_id = int(row["ID"])
+                nota_texto = str(row["Nota"]).strip()
+                
+                # Verificar se o aluno existe nas entradas
+                if aluno_id in self.entradas_notas:
+                    alunos_encontrados += 1
+                    
+                    # Atualizar a entrada com a nota do Excel
+                    if nota_texto and nota_texto.lower() != "nan":
+                        # Substituir vírgula por ponto (se necessário)
+                        nota_texto = nota_texto.replace(',', '.')
+                        
+                        try:
+                            # Validar se a nota é um número válido
+                            nota = float(nota_texto)
+                            
+                            if 0 <= nota <= 100:  # Alterado para 100
+                                self.entradas_notas[aluno_id].delete(0, tk.END)
+                                self.entradas_notas[aluno_id].insert(0, str(nota))
+                                notas_atualizadas += 1
+                            else:
+                                print(f"Nota fora do intervalo válido para aluno ID {aluno_id}: {nota}")
+                        except ValueError:
+                            print(f"Valor de nota inválido para aluno ID {aluno_id}: {nota_texto}")
+            
+            # Atualizar estatísticas
+            self.atualizar_estatisticas()
+            
+            # Mostrar resumo da importação
+            messagebox.showinfo("Importação Concluída", 
+                               f"Importação concluída com sucesso!\n\n"
+                               f"Alunos encontrados: {alunos_encontrados}\n"
+                               f"Notas atualizadas: {notas_atualizadas}")
+            
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao importar arquivo Excel: {e}")
+            import traceback
+            traceback.print_exc()
+            
+    def exportar_template_excel(self):
+        """Exporta um template Excel para preenchimento de notas"""
+        if not hasattr(self, 'alunos') or not self.alunos:
+            messagebox.showinfo("Aviso", "Selecione uma turma primeiro para exportar o template.")
+            return
+        
+        try:
+            # Criar DataFrame com informações dos alunos
+            dados = []
+            for aluno in self.alunos:
+                dados.append({
+                    'ID': aluno[0],
+                    'Nome do Aluno': aluno[1],
+                    'Nota': ''  # Célula vazia para preenchimento
+                })
+            
+            df = pd.DataFrame(dados)
+            
+            # Solicitar local para salvar
+            turma = self.cb_turma.get().replace(' ', '_') if hasattr(self, 'cb_turma') else "turma"
+            disciplina = self.cb_disciplina.get().replace(' ', '_') if hasattr(self, 'cb_disciplina') else "disciplina"
+            bimestre = self.bimestre.replace(' ', '_') if hasattr(self, 'bimestre') else "bimestre"
+            
+            nome_arquivo = f"Template_Notas_{turma}_{disciplina}_{bimestre}.xlsx"
+            
+            caminho_arquivo = filedialog.asksaveasfilename(
+                defaultextension=".xlsx",
+                filetypes=[("Excel files", "*.xlsx")],
+                initialfile=nome_arquivo
+            )
+            
+            if not caminho_arquivo:
+                return  # Usuário cancelou
+            
+            # Exportar para Excel
+            df.to_excel(caminho_arquivo, index=False)
+            
+            messagebox.showinfo("Sucesso", f"Template exportado com sucesso:\n{caminho_arquivo}")
+            
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao exportar template: {e}")
+            
+    def atualizar_interface(self):
+        """Atualiza a interface após mudanças na seleção"""
+        self.criar_estatisticas()
+        self.atualizar_estatisticas()
+
+    def abrir_preenchimento_automatico(self):
+        """Abre o assistente de preenchimento automático do GEDUC"""
+        try:
+            # Importar o integrador (apenas quando necessário)
+            from integrador_preenchimento import adicionar_preenchimento_automatico_na_interface
+            
+            # Verificar se já tem um integrador ativo
+            if not hasattr(self, 'integrador_preenchimento'):
+                # Criar integrador
+                self.integrador_preenchimento = adicionar_preenchimento_automatico_na_interface(self)
+            
+            # Iniciar preenchimento
+            self.integrador_preenchimento.iniciar_preenchimento_automatico()
+            
+        except ImportError as e:
+            messagebox.showerror(
+                "Erro", 
+                f"Módulo de preenchimento automático não encontrado!\n\n"
+                f"Certifique-se de que os arquivos estão presentes:\n"
+                f"- preencher_notas_automatico.py\n"
+                f"- integrador_preenchimento.py\n\n"
+                f"Erro: {str(e)}"
+            )
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao iniciar preenchimento automático:\n{str(e)}")
+            import traceback
+            traceback.print_exc()
+
+    def extrair_todas_disciplinas_geduc(self):
+        """
+        Extrai TODAS as disciplinas de uma turma do GEDUC e salva direto no banco
+        Retorna relatório de alunos não encontrados
+        """
+        try:
+            import threading
+            from automatizar_extracao_geduc import AutomacaoGEDUC
+            import unicodedata
+            
+            # Validar seleções
+            if not self.cb_serie.get():
+                messagebox.showerror("Erro", "Selecione uma série!")
+                return
+            
+            if not self.cb_turma.get():
+                messagebox.showerror("Erro", "Selecione uma turma!")
+                return
+            
+            if not self.cb_bimestre.get():
+                messagebox.showerror("Erro", "Selecione um bimestre!")
+                return
+            
+            # Preparar dados
+            serie_nome = self.cb_serie.get()
+            turma_completa = self.cb_turma.get()
+            bimestre_texto = self.cb_bimestre.get()
+            bimestre_num = int(bimestre_texto.split('º')[0].strip())
+            
+            # Extrair turma e turno
+            # Formato esperado: "XXX - TURNO" ou apenas "XXX" ou " - TURNO" (quando só tem turno)
+            if ' - ' in turma_completa:
+                partes = turma_completa.split(' - ')
+                turma_nome = partes[0].strip() if partes[0].strip() else ""
+                turma_turno = partes[1].strip() if len(partes) > 1 else ""
+            else:
+                turma_nome = turma_completa.strip()
+                turma_turno = ""
+            
+            # Construir nome para busca no GEDUC
+            # GEDUC usa formatos: "2º ANO-MATU", "6º ANO-VESP - A"
+            # Precisamos construir: SÉRIE + TURNO (com possíveis variações)
+            
+            # Se turma_nome está vazio, significa que só temos turno
+            if not turma_nome:
+                # Formato: "SÉRIE TURNO" (ex: "2º Ano MAT")
+                nome_busca_geduc = f"{serie_nome} {turma_turno}" if turma_turno else serie_nome
+            else:
+                # Tem letra de turma: "SÉRIE TURNO LETRA" (ex: "6º Ano VESP A")
+                if turma_turno:
+                    nome_busca_geduc = f"{serie_nome} {turma_turno} {turma_nome}"
+                else:
+                    nome_busca_geduc = f"{serie_nome} {turma_nome}"
+            
+            # Solicitar credenciais
+            credenciais = self._solicitar_credenciais_geduc()
+            if not credenciais:
+                return
+            
+            # Confirmar
+            msg = (
+                f"🔄 EXTRAÇÃO COMPLETA DO GEDUC\n\n"
+                f"📚 Turma: {turma_completa}\n"
+                f"📅 Bimestre: {bimestre_num}º\n\n"
+                f"⚙️ Este processo irá:\n"
+                f"1. Fazer login no GEDUC\n"
+                f"2. Buscar TODAS as disciplinas da turma\n"
+                f"3. Extrair notas de todos os alunos\n"
+                f"4. Salvar DIRETO no banco de dados\n"
+                f"5. Gerar relatório de inconsistências\n\n"
+                f"⏱️ Tempo estimado: 2-5 minutos\n\n"
+                f"Continuar?"
+            )
+            
+            if not messagebox.askyesno("Confirmar Extração Completa", msg):
+                return
+            
+            # Criar janela de progresso
+            janela_progresso = self._criar_janela_progresso()
+            
+            # Executar em thread
+            def executar():
+                self._executar_extracao_completa(
+                    credenciais,
+                    serie_nome,
+                    turma_nome,
+                    turma_turno,
+                    nome_busca_geduc,
+                    turma_completa,
+                    bimestre_num,
+                    janela_progresso
+                )
+            
+            thread = threading.Thread(target=executar, daemon=True)
+            thread.start()
+            
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao iniciar extração:\n{str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    def _solicitar_credenciais_geduc(self):
+        """Abre janela para solicitar credenciais do GEDUC"""
+        janela_cred = tk.Toplevel(self.janela)
+        janela_cred.title("Credenciais GEDUC")
+        janela_cred.geometry("400x200")
+        janela_cred.resizable(False, False)
+        janela_cred.grab_set()
+        
+        # Centralizar
+        janela_cred.update_idletasks()
+        x = (janela_cred.winfo_screenwidth() // 2) - (400 // 2)
+        y = (janela_cred.winfo_screenheight() // 2) - (200 // 2)
+        janela_cred.geometry(f'400x200+{x}+{y}')
+        
+        # Variáveis
+        usuario_var = tk.StringVar(value="01813518386")
+        senha_var = tk.StringVar(value="01813518386")
+        resultado = {'confirmado': False}
+        
+        # Conteúdo
+        tk.Label(
+            janela_cred,
+            text="Credenciais do GEDUC",
+            font=("Arial", 14, "bold")
+        ).pack(pady=10)
+        
+        tk.Label(
+            janela_cred,
+            text="⚠️ Você precisará resolver o reCAPTCHA no navegador",
+            font=("Arial", 9, "italic"),
+            fg="#E65100"
+        ).pack(pady=5)
+        
+        # Campos
+        frame_campos = tk.Frame(janela_cred)
+        frame_campos.pack(pady=10, padx=20)
+        
+        tk.Label(frame_campos, text="Usuário:", width=10, anchor="w").grid(row=0, column=0, pady=5)
+        entry_usuario = tk.Entry(frame_campos, textvariable=usuario_var, width=25)
+        entry_usuario.grid(row=0, column=1, pady=5)
+        
+        tk.Label(frame_campos, text="Senha:", width=10, anchor="w").grid(row=1, column=0, pady=5)
+        entry_senha = tk.Entry(frame_campos, textvariable=senha_var, width=25, show="*")
+        entry_senha.grid(row=1, column=1, pady=5)
+        
+        # Botões
+        frame_botoes = tk.Frame(janela_cred)
+        frame_botoes.pack(pady=10)
+        
+        def confirmar():
+            if not usuario_var.get() or not senha_var.get():
+                messagebox.showerror("Erro", "Preencha usuário e senha!", parent=janela_cred)
+                return
+            resultado['confirmado'] = True
+            resultado['usuario'] = usuario_var.get()
+            resultado['senha'] = senha_var.get()
+            janela_cred.destroy()
+        
+        def cancelar():
+            resultado['confirmado'] = False
+            janela_cred.destroy()
+        
+        tk.Button(
+            frame_botoes,
+            text="Confirmar",
+            command=confirmar,
+            bg="#4CAF50",
+            fg="white",
+            font=("Arial", 10, "bold"),
+            width=12
+        ).pack(side="left", padx=5)
+        
+        tk.Button(
+            frame_botoes,
+            text="Cancelar",
+            command=cancelar,
+            bg="#F44336",
+            fg="white",
+            font=("Arial", 10, "bold"),
+            width=12
+        ).pack(side="left", padx=5)
+        
+        entry_usuario.focus()
+        janela_cred.wait_window()
+        
+        if resultado['confirmado']:
+            return {
+                'usuario': resultado['usuario'],
+                'senha': resultado['senha']
+            }
+        return None
+    
+    def _criar_janela_progresso(self):
+        """Cria janela de progresso para extração"""
+        janela = tk.Toplevel(self.janela)
+        janela.title("Extraindo do GEDUC...")
+        janela.geometry("600x400")
+        janela.resizable(False, False)
+        
+        # Centralizar
+        janela.update_idletasks()
+        x = (janela.winfo_screenwidth() // 2) - (600 // 2)
+        y = (janela.winfo_screenheight() // 2) - (400 // 2)
+        janela.geometry(f'600x400+{x}+{y}')
+        
+        # Título
+        tk.Label(
+            janela,
+            text="🔄 Extração em Andamento",
+            font=("Arial", 14, "bold"),
+            bg=self.co1,
+            fg="white"
+        ).pack(fill="x", pady=10)
+        
+        # Área de log
+        frame_log = tk.Frame(janela)
+        frame_log.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        text_log = tk.Text(frame_log, height=15, font=("Consolas", 9), bg="white", fg="black")
+        text_log.pack(side="left", fill="both", expand=True)
+        
+        scrollbar = tk.Scrollbar(frame_log, command=text_log.yview)
+        scrollbar.pack(side="right", fill="y")
+        text_log.config(yscrollcommand=scrollbar.set)
+        
+        # Armazenar referências
+        janela.text_log = text_log
+        
+        return janela
+    
+    def _executar_extracao_completa(self, credenciais, serie_nome, turma_nome, turma_turno, 
+                                    nome_busca_geduc, turma_completa, bimestre_num, janela_progresso):
+        """Executa a extração completa de todas as disciplinas"""
+        from automatizar_extracao_geduc import AutomacaoGEDUC
+        import unicodedata
+        import time
+        
+        def log(msg):
+            """Adiciona mensagem ao log"""
+            janela_progresso.text_log.insert(tk.END, f"{msg}\n")
+            janela_progresso.text_log.see(tk.END)
+            janela_progresso.text_log.update()
+            print(msg)
+        
+        automacao = None
+        try:
+            log("="*60)
+            log("EXTRAÇÃO COMPLETA DO GEDUC")
+            log("="*60)
+            
+            # Iniciar automação
+            log("\n→ Iniciando navegador...")
+            automacao = AutomacaoGEDUC(headless=False)
+            
+            if not automacao.iniciar_navegador():
+                log("✗ Falha ao iniciar navegador")
+                self.janela.after(0, lambda: messagebox.showerror("Erro", "Falha ao iniciar navegador!"))
+                return
+            
+            log("✓ Navegador iniciado")
+            
+            # Login
+            log("\n→ Fazendo login no GEDUC...")
+            if not automacao.fazer_login(credenciais['usuario'], credenciais['senha'], timeout_recaptcha=120):
+                log("✗ Falha no login")
+                self.janela.after(0, lambda: messagebox.showerror("Erro", "Falha no login!"))
+                return
+            
+            log("✓ Login realizado")
+            
+            # Acessar registro de notas
+            log("\n→ Acessando registro de notas...")
+            if not automacao.acessar_registro_notas():
+                log("✗ Falha ao acessar página")
+                return
+            
+            log("✓ Página de notas carregada")
+            
+            # Buscar turma (usando lógica do integrador_preenchimento.py)
+            log(f"\n→ Procurando turma no GEDUC:")
+            log(f"   Série: {serie_nome}")
+            log(f"   Turno: {turma_turno}")
+            log(f"   Turma: {turma_nome}")
+            log(f"   Nome completo para busca: {nome_busca_geduc}")
+            log(f"   Ordem: {{SÉRIE}} + {{TURNO}} + {{TURMA}}")
+            
+            turmas = automacao.obter_opcoes_select('IDTURMA')
+            log(f"\n   Turmas disponíveis no GEDUC:")
+            for t in turmas[:10]:
+                log(f"     • {t['text']}")
+            if len(turmas) > 10:
+                log(f"     ... e mais {len(turmas) - 10} turmas")
+            
+            # Normalizar busca (função do integrador)
+            def normalizar_para_busca(texto):
+                """Remove acentos, símbolos, espaços extras e converte para maiúsculas"""
+                # Remover acentuação
+                texto = ''.join(c for c in unicodedata.normalize('NFD', texto) 
+                               if unicodedata.category(c) != 'Mn')
+                # Remover símbolos especiais
+                texto = texto.replace('º', '').replace('ª', '')
+                # Converter para maiúsculas e remover espaços extras
+                texto = ' '.join(texto.upper().split())
+                return texto
+            
+            # Preparar busca
+            nome_completo_norm = normalizar_para_busca(nome_busca_geduc)
+            log(f"\n   Valor normalizado para busca: '{nome_completo_norm}'")
+            
+            # Procurar turma
+            turma_id = None
+            turma_encontrada = None
+            
+            log(f"\n   Comparando com cada turma:")
+            
+            for turma in turmas:
+                turma_text = turma['text'].strip()
+                turma_text_norm = normalizar_para_busca(turma_text)
+                
+                # Debug: mostrar comparação
+                log(f"     • '{turma_text}' → '{turma_text_norm}'")
+                
+                # MÉTODO 1: Comparação EXATA
+                if turma_text_norm == nome_completo_norm:
+                    turma_id = turma['value']
+                    turma_encontrada = turma_text
+                    log(f"       ✓✓ MATCH EXATO!")
+                    break
+                
+                # MÉTODO 2: Formatos com hífen
+                # GEDUC: "7 ANO-VESP", "6 ANO-VESP - A", "2 ANO-MATU"
+                # Busca: "7 ANO VESP", "6 ANO VESP A", "2 ANO MAT"
+                partes_busca = nome_completo_norm.split()
+                
+                if len(partes_busca) >= 2:
+                    formatos_busca = []
+                    
+                    if len(partes_busca) == 3:
+                        # "2 ANO MAT" → testar "2 ANO-MAT" e "2 ANO-MATU"
+                        base = ' '.join(partes_busca[:-1])
+                        turno = partes_busca[-1]
+                        
+                        # Formatos padrão
+                        formatos_busca.append(f"{base}-{turno}")
+                        formatos_busca.append(f"{base} - {turno}")
+                        
+                        # Variações do turno (MAT→MATU, VESP→VESPERTINO, etc.)
+                        if turno == "MAT":
+                            formatos_busca.append(f"{base}-MATU")
+                            formatos_busca.append(f"{base} - MATU")
+                            formatos_busca.append(f"{base}-MATUTINO")
+                        elif turno == "VESP":
+                            formatos_busca.append(f"{base}-VESPERTINO")
+                            formatos_busca.append(f"{base} - VESPERTINO")
+                        elif turno == "NOT":
+                            formatos_busca.append(f"{base}-NOTURNO")
+                            formatos_busca.append(f"{base} - NOTURNO")
+                    
+                    elif len(partes_busca) == 4:
+                        # "6 ANO VESP A" → "6 ANO-VESP - A"
+                        formatos_busca.append(f"{partes_busca[0]} {partes_busca[1]}-{partes_busca[2]} - {partes_busca[3]}")
+                        formatos_busca.append(f"{partes_busca[0]} {partes_busca[1]}-{partes_busca[2]}-{partes_busca[3]}")
+                    
+                    for formato in formatos_busca:
+                        if turma_text_norm == formato:
+                            turma_id = turma['value']
+                            turma_encontrada = turma_text
+                            log(f"       ✓✓ MATCH com formato '{formato}'!")
+                            break
+                
+                if turma_id:
+                    break
+                
+                # MÉTODO 3: Começa com (para turmas com letras)
+                if turma_text_norm.startswith(nome_completo_norm):
+                    turma_id = turma['value']
+                    turma_encontrada = turma_text
+                    log(f"       ✓ MATCH: começa com '{nome_completo_norm}'")
+                    break
+                
+                # MÉTODO 4: Similaridade com turnos (buscar por série + parte do turno)
+                # Ex: "2 ANO MAT" deve encontrar "2 ANO-MATU"
+                if len(partes_busca) >= 3:
+                    serie_busca = ' '.join(partes_busca[:-1])  # "2 ANO"
+                    turno_busca = partes_busca[-1]  # "MAT"
+                    
+                    # Verificar se a turma do GEDUC começa com a série e contém parte do turno
+                    if turma_text_norm.startswith(serie_busca) and turno_busca in turma_text_norm:
+                        turma_id = turma['value']
+                        turma_encontrada = turma_text
+                        log(f"       ✓ MATCH PARCIAL: série '{serie_busca}' + turno contém '{turno_busca}'")
+                        break
+            
+            if not turma_id:
+                log(f"\n✗ Turma não encontrada no GEDUC")
+                log(f"   Nome buscado: '{nome_busca_geduc}' (normalizado: '{nome_completo_norm}')")
+                log(f"   Turma completa: {turma_completa}")
+                log(f"\n   💡 DICA: Compare com as turmas disponíveis acima")
+                log(f"   Ordem GEDUC: {{SÉRIE}} + {{TURNO}} + {{TURMA}}")
+                self.janela.after(0, lambda: messagebox.showerror(
+                    "Erro", 
+                    f"Turma não encontrada: {nome_busca_geduc}\n\n"
+                    f"Verifique o log para comparar com as turmas do GEDUC."
+                ))
+                return
+            
+            log(f"\n✓ Turma encontrada: {turma_encontrada}")
+            
+            # Selecionar turma
+            automacao.selecionar_opcao('IDTURMA', turma_id)
+            time.sleep(1)
+            
+            # Obter todas as disciplinas
+            log("\n→ Carregando disciplinas...")
+            disciplinas = automacao.obter_opcoes_select('IDTURMASDISP')
+            log(f"✓ {len(disciplinas)} disciplinas encontradas")
+            
+            # Buscar alunos da turma no banco local
+            log("\n→ Carregando alunos do banco local...")
+            alunos_local = self._buscar_alunos_turma_local(self.turma_id)
+            log(f"✓ {len(alunos_local)} alunos no banco local")
+            
+            # Buscar nivel_id da turma para filtrar disciplinas corretamente
+            log("\n→ Identificando nível de ensino da turma...")
+            nivel_id_turma = self._obter_nivel_turma(self.turma_id)
+            if nivel_id_turma:
+                log(f"✓ Nível de ensino: ID {nivel_id_turma}")
+            else:
+                log(f"⚠️ Não foi possível identificar o nível de ensino")
+            
+            # Estatísticas
+            total_notas_inseridas = 0
+            total_notas_atualizadas = 0
+            alunos_nao_encontrados = set()
+            disciplinas_processadas = []
+            
+            # Processar cada disciplina
+            for idx, disciplina in enumerate(disciplinas, 1):
+                log(f"\n[{idx}/{len(disciplinas)}] Processando: {disciplina['text']}")
+                
+                # Buscar ID da disciplina no banco local (com filtro de nível se disponível)
+                disciplina_id = self._buscar_disciplina_local(disciplina['text'], nivel_id_turma)
+                if not disciplina_id:
+                    log(f"  ⚠️ Disciplina não encontrada no banco local: {disciplina['text']}")
+                    continue
+                
+                # Selecionar disciplina
+                automacao.selecionar_opcao('IDTURMASDISP', disciplina['value'])
+                time.sleep(0.5)
+                
+                # Selecionar bimestre
+                automacao.selecionar_bimestre(bimestre_num)
+                time.sleep(0.5)
+                
+                # Carregar alunos
+                automacao.clicar_exibir_alunos()
+                time.sleep(2)
+                
+                # Extrair notas
+                dados = automacao.extrair_notas_pagina_atual(
+                    turma_nome=turma_completa,
+                    disciplina_nome=disciplina['text'],
+                    bimestre_numero=bimestre_num
+                )
+                
+                if not dados or not dados['alunos']:
+                    log(f"  ⚠️ Nenhuma nota encontrada")
+                    continue
+                
+                log(f"  ✓ {len(dados['alunos'])} alunos com notas")
+                
+                # Salvar no banco
+                inseridas, atualizadas, nao_encontrados = self._salvar_notas_banco(
+                    dados['alunos'],
+                    alunos_local,
+                    disciplina_id,
+                    bimestre_num,
+                    self.ano_letivo_atual
+                )
+                
+                total_notas_inseridas += inseridas
+                total_notas_atualizadas += atualizadas
+                alunos_nao_encontrados.update(nao_encontrados)
+                
+                log(f"  ✓ Salvo: {inseridas} novas, {atualizadas} atualizadas")
+                if nao_encontrados:
+                    log(f"  ⚠️ {len(nao_encontrados)} alunos não encontrados no sistema")
+                
+                disciplinas_processadas.append(disciplina['text'])
+            
+            # Relatório final
+            log("\n" + "="*60)
+            log("EXTRAÇÃO CONCLUÍDA!")
+            log("="*60)
+            log(f"📚 Disciplinas processadas: {len(disciplinas_processadas)}")
+            log(f"✅ Notas inseridas: {total_notas_inseridas}")
+            log(f"🔄 Notas atualizadas: {total_notas_atualizadas}")
+            log(f"⚠️ Alunos não encontrados: {len(alunos_nao_encontrados)}")
+            
+            if alunos_nao_encontrados:
+                log("\nAlunos do GEDUC não encontrados no sistema local:")
+                for nome in sorted(alunos_nao_encontrados):
+                    log(f"  • {nome}")
+            
+            log("\n" + "="*60)
+            
+            # Mostrar mensagem de sucesso
+            msg_final = (
+                f"✅ EXTRAÇÃO CONCLUÍDA!\n\n"
+                f"📚 Disciplinas: {len(disciplinas_processadas)}\n"
+                f"✅ Notas inseridas: {total_notas_inseridas}\n"
+                f"🔄 Notas atualizadas: {total_notas_atualizadas}\n"
+                f"⚠️ Alunos não encontrados: {len(alunos_nao_encontrados)}"
+            )
+            
+            if alunos_nao_encontrados:
+                msg_final += f"\n\nVerifique o log para detalhes dos alunos não encontrados."
+            
+            self.janela.after(0, lambda: messagebox.showinfo("Extração Concluída", msg_final))
+            
+        except Exception as e:
+            log(f"\n✗ ERRO: {e}")
+            import traceback
+            traceback.print_exc()
+            log(traceback.format_exc())
+            self.janela.after(0, lambda: messagebox.showerror("Erro", f"Erro durante extração:\n{str(e)}"))
+        
+        finally:
+            if automacao:
+                log("\n→ Fechando navegador em 5 segundos...")
+                time.sleep(5)
+                automacao.fechar()
+                log("✓ Navegador fechado")
+    
+    def _obter_nivel_turma(self, turma_id):
+        """
+        Obtém o nivel_id (Nível de Ensino) de uma turma
+        
+        Returns:
+            nivel_id ou None se não encontrar
+        """
+        try:
+            conn = conectar_bd()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT s.nivel_id
+                FROM turmas t
+                JOIN serie s ON t.serie_id = s.id
+                WHERE t.id = %s
+                LIMIT 1
+            """, (turma_id,))
+            
+            resultado = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            return resultado[0] if resultado else None
+            
+        except Exception as e:
+            print(f"Erro ao obter nível da turma: {e}")
+            return None
+    
+    def _buscar_alunos_turma_local(self, turma_id):
+        """Busca alunos da turma no banco local"""
+        import unicodedata
+        
+        try:
+            conn = conectar_bd()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT a.id, a.nome
+                FROM alunos a
+                JOIN matriculas m ON a.id = m.aluno_id
+                WHERE m.turma_id = %s 
+                AND m.ano_letivo_id = %s 
+                AND m.status IN ('Ativo', 'Transferido')
+                AND a.escola_id = 60
+                ORDER BY a.nome
+            """, (turma_id, self.ano_letivo_atual))
+            
+            alunos = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            # Criar dicionário com nomes normalizados
+            def normalizar_nome(nome):
+                # Remover acentuação
+                nome = ''.join(c for c in unicodedata.normalize('NFD', nome) 
+                              if unicodedata.category(c) != 'Mn')
+                # Remover sufixos comuns (do GEDUC e do sistema local)
+                sufixos = [
+                    '( Transferencia Externa )',  # GEDUC
+                    '( TRANSFERENCIA EXTERNA )',  # GEDUC maiúsculo
+                    ' (TRANSFERIDO)',              # Sistema local
+                    ' (EVADIDO)',                  # Sistema local
+                    ' - TRANSFERIDO',              # Sistema local
+                    '(Transferido)',               # Variações
+                    '(TRANSFERIDO)',
+                    ' - Transferido',
+                    ' (Evadido)',
+                    ' - Evadido'
+                ]
+                nome_upper = nome.upper()
+                for sufixo in sufixos:
+                    if nome_upper.endswith(sufixo.upper()):
+                        nome = nome[:-(len(sufixo))]
+                        break
+                return nome.upper().strip()
+            
+            alunos_dict = {}
+            for aluno_id, nome in alunos:
+                nome_norm = normalizar_nome(nome)
+                alunos_dict[nome_norm] = aluno_id
+            
+            return alunos_dict
+            
+        except Exception as e:
+            print(f"Erro ao buscar alunos locais: {e}")
+            return {}
+    
+    def _buscar_disciplina_local(self, nome_disciplina, nivel_id=None):
+        """
+        Busca ID da disciplina no banco local pelo nome e nível
+        
+        Args:
+            nome_disciplina: Nome da disciplina
+            nivel_id: ID do nível de ensino (opcional, mas recomendado)
+        """
+        try:
+            conn = conectar_bd()
+            cursor = conn.cursor()
+            
+            # Se nivel_id foi fornecido, buscar com filtro de nível
+            if nivel_id:
+                # Buscar por nome exato + nível
+                cursor.execute("""
+                    SELECT id FROM disciplinas 
+                    WHERE nome = %s AND nivel_id = %s AND escola_id = 60
+                    LIMIT 1
+                """, (nome_disciplina, nivel_id))
+                
+                resultado = cursor.fetchone()
+                
+                if resultado:
+                    cursor.close()
+                    conn.close()
+                    return resultado[0]
+                
+                # Se não encontrar, tentar busca parcial + nível
+                cursor.execute("""
+                    SELECT id FROM disciplinas 
+                    WHERE nome LIKE %s AND nivel_id = %s AND escola_id = 60
+                    LIMIT 1
+                """, (f"%{nome_disciplina}%", nivel_id))
+                
+                resultado = cursor.fetchone()
+                cursor.close()
+                conn.close()
+                
+                if resultado:
+                    return resultado[0]
+            
+            # Se não tem nivel_id OU não encontrou com nivel_id, buscar sem filtro
+            conn = conectar_bd()
+            cursor = conn.cursor()
+            
+            # Buscar por nome exato (sem nivel_id)
+            cursor.execute("""
+                SELECT id FROM disciplinas 
+                WHERE nome = %s AND escola_id = 60
+                LIMIT 1
+            """, (nome_disciplina,))
+            
+            resultado = cursor.fetchone()
+            
+            if resultado:
+                cursor.close()
+                conn.close()
+                return resultado[0]
+            
+            # Busca parcial (último recurso)
+            cursor.execute("""
+                SELECT id FROM disciplinas 
+                WHERE nome LIKE %s AND escola_id = 60
+                LIMIT 1
+            """, (f"%{nome_disciplina}%",))
+            
+            resultado = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            return resultado[0] if resultado else None
+            
+        except Exception as e:
+            print(f"Erro ao buscar disciplina: {e}")
+            return None
+    
+    def _salvar_notas_banco(self, alunos_geduc, alunos_local, disciplina_id, bimestre_num, ano_letivo_id):
+        """
+        Salva notas no banco de dados
+        
+        Returns:
+            (inseridas, atualizadas, nao_encontrados)
+        """
+        import unicodedata
+        
+        def normalizar_nome(nome):
+            nome = ''.join(c for c in unicodedata.normalize('NFD', nome) 
+                          if unicodedata.category(c) != 'Mn')
+            # Remover sufixos comuns (do GEDUC e do sistema local)
+            sufixos = [
+                '( Transferencia Externa )',  # GEDUC
+                '( TRANSFERENCIA EXTERNA )',  # GEDUC maiúsculo
+                ' (TRANSFERIDO)',              # Sistema local
+                ' (EVADIDO)',                  # Sistema local
+                ' - TRANSFERIDO',              # Sistema local
+                '(Transferido)',               # Variações
+                '(TRANSFERIDO)',
+                ' - Transferido',
+                ' (Evadido)',
+                ' - Evadido'
+            ]
+            nome_upper = nome.upper()
+            for sufixo in sufixos:
+                if nome_upper.endswith(sufixo.upper()):
+                    nome = nome[:-(len(sufixo))]
+                    break
+            return nome.upper().strip()
+        
+        try:
+            conn = conectar_bd()
+            cursor = conn.cursor()
+            
+            inseridas = 0
+            atualizadas = 0
+            nao_encontrados = []
+            
+            bimestre_texto = f"{bimestre_num}º bimestre"
+            
+            for aluno_geduc in alunos_geduc:
+                nome_geduc = aluno_geduc['nome']
+                nota_media = aluno_geduc.get('media')
+                
+                if nota_media is None or nota_media == '':
+                    continue
+                
+                # Normalizar nome
+                nome_norm = normalizar_nome(nome_geduc)
+                
+                # Buscar ID do aluno no banco local
+                aluno_id = alunos_local.get(nome_norm)
+                
+                if not aluno_id:
+                    nao_encontrados.append(nome_geduc)
+                    continue
+                
+                # Verificar se já existe nota
+                cursor.execute("""
+                    SELECT id, nota FROM notas 
+                    WHERE aluno_id = %s 
+                    AND disciplina_id = %s 
+                    AND bimestre = %s 
+                    AND ano_letivo_id = %s
+                """, (aluno_id, disciplina_id, bimestre_texto, ano_letivo_id))
+                
+                resultado = cursor.fetchone()
+                
+                if resultado:
+                    # Atualizar
+                    cursor.execute("""
+                        UPDATE notas 
+                        SET nota = %s 
+                        WHERE id = %s
+                    """, (nota_media, resultado[0]))
+                    atualizadas += 1
+                else:
+                    # Inserir
+                    cursor.execute("""
+                        INSERT INTO notas (aluno_id, disciplina_id, bimestre, nota, ano_letivo_id) 
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (aluno_id, disciplina_id, bimestre_texto, nota_media, ano_letivo_id))
+                    inseridas += 1
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return inseridas, atualizadas, nao_encontrados
+            
+        except Exception as e:
+            print(f"Erro ao salvar notas: {e}")
+            import traceback
+            traceback.print_exc()
+            return 0, 0, []
+
+    def processar_recuperacao_bimestral(self):
+        """
+        Processa recuperação bimestral para TODAS as turmas e disciplinas de um bimestre
+        """
+        try:
+            import threading
+            from automatizar_extracao_geduc import AutomacaoGEDUC
+            
+            # Validar seleção de bimestre
+            if not self.cb_bimestre.get():
+                messagebox.showerror("Erro", "Selecione um bimestre!")
+                return
+            
+            # Extrair número do bimestre
+            bimestre_texto = self.cb_bimestre.get()
+            bimestre_num = int(bimestre_texto.split('º')[0].strip())
+            
+            # Solicitar credenciais
+            credenciais = self._solicitar_credenciais_geduc()
+            if not credenciais:
+                return
+            
+            # Confirmar ação de produção
+            msg = (
+                f"🔄 PROCESSAMENTO DE RECUPERAÇÃO BIMESTRAL\n\n"
+                f"📅 Bimestre: {bimestre_num}º\n\n"
+                f"⚙️ Este processo irá:\n"
+                f"1. Fazer login no GEDUC\n"
+                f"2. Buscar TODAS as turmas da escola\n"
+                f"3. Para cada turma, processar TODAS as disciplinas\n"
+                f"4. Extrair 'Média Atual' e 'Recuperação'\n"
+                f"5. Atualizar banco: se (nota/10 < 6) e (nota/10 < Recuperação)\n"
+                f"   então nota = Recuperação * 10\n\n"
+                f"⏱️ Tempo estimado: 5-15 minutos\n\n"
+                f"⚠️ ATENÇÃO: Isso irá processar TODAS as turmas!\n\n"
+                f"Continuar?"
+            )
+            
+            if not messagebox.askyesno("Confirmar Recuperação Bimestral", msg):
+                return
+            
+            # Criar janela de progresso
+            janela_progresso = self._criar_janela_progresso()
+            
+            # Executar em thread (modo produção - sem debug)
+            def executar():
+                self._executar_recuperacao_completa(
+                    credenciais,
+                    bimestre_num,
+                    janela_progresso,
+                    modo_debug=False
+                )
+            
+            thread = threading.Thread(target=executar, daemon=True)
+            thread.start()
+            
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao iniciar recuperação:\n{str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    def _executar_recuperacao_completa(self, credenciais, bimestre_num, janela_progresso, modo_debug=False):
+        """Executa o processamento de recuperação para todas as turmas e disciplinas"""
+        from automatizar_extracao_geduc import AutomacaoGEDUC
+        import time
+        import unicodedata
+        
+        def log(msg):
+            """Adiciona mensagem ao log"""
+            janela_progresso.text_log.insert(tk.END, f"{msg}\n")
+            janela_progresso.text_log.see(tk.END)
+            janela_progresso.text_log.update()
+            print(msg)
+        
+        def normalizar_nome_turma(texto):
+            """Normaliza nome para comparação"""
+            texto = ''.join(c for c in unicodedata.normalize('NFD', texto) 
+                           if unicodedata.category(c) != 'Mn')
+            texto = texto.replace('º', '').replace('ª', '')
+            return ' '.join(texto.upper().split())
+        
+        automacao = None
+        try:
+            log("="*60)
+            log("PROCESSAMENTO DE RECUPERAÇÃO BIMESTRAL")
+            log("="*60)
+            
+            # Iniciar automação
+            log("\n→ Iniciando navegador...")
+            automacao = AutomacaoGEDUC(headless=False)
+            
+            if not automacao.iniciar_navegador():
+                log("✗ Falha ao iniciar navegador")
+                self.janela.after(0, lambda: messagebox.showerror("Erro", "Falha ao iniciar navegador!"))
+                return
+            
+            log("✓ Navegador iniciado")
+            
+            # Login
+            log("\n→ Fazendo login no GEDUC...")
+            if not automacao.fazer_login(credenciais['usuario'], credenciais['senha'], timeout_recaptcha=120):
+                log("✗ Falha no login")
+                self.janela.after(0, lambda: messagebox.showerror("Erro", "Falha no login!"))
+                return
+            
+            log("✓ Login realizado")
+            
+            # Acessar página de recuperação bimestral
+            log("\n→ Acessando recuperação bimestral...")
+            if not automacao.acessar_recuperacao_bimestral():
+                log("✗ Falha ao acessar página")
+                return
+            
+            log("✓ Página de recuperação bimestral carregada")
+            
+            # Obter todas as turmas
+            log("\n→ Carregando lista de turmas...")
+            turmas = automacao.obter_opcoes_select('IDTURMA')
+            log(f"✓ {len(turmas)} turmas encontradas")
+            
+            # Estatísticas
+            total_turmas_processadas = 0
+            total_disciplinas_processadas = 0
+            total_alunos_atualizados = 0
+            turmas_com_erro = []
+            
+            # Processar cada turma
+            for idx_turma, turma in enumerate(turmas, 1):
+                turma_nome = turma['text']
+                turma_id_geduc = turma['value']
+                
+                log(f"\n{'='*60}")
+                log(f"[{idx_turma}/{len(turmas)}] Processando turma: {turma_nome}")
+                log(f"{'='*60}")
+                
+                try:
+                    # Buscar turma no banco local
+                    turma_id_local = self._buscar_turma_local_por_nome(turma_nome)
+                    if not turma_id_local:
+                        log(f"  ⚠️ Turma não encontrada no banco local")
+                        continue
+                    
+                    # Obter nivel_id da turma
+                    nivel_id_turma = self._obter_nivel_turma(turma_id_local)
+                    if not nivel_id_turma:
+                        log(f"  ⚠️ Não foi possível identificar o nível de ensino")
+                        continue
+                    
+                    log(f"  ✓ Turma local: ID {turma_id_local}, Nível: {nivel_id_turma}")
+                    
+                    # Buscar alunos da turma no banco local
+                    alunos_local = self._buscar_alunos_turma_local(turma_id_local)
+                    log(f"  ✓ {len(alunos_local)} alunos no banco local")
+                    
+                    # Selecionar turma no GEDUC
+                    automacao.selecionar_opcao('IDTURMA', turma_id_geduc)
+                    time.sleep(1)
+                    
+                    # Obter disciplinas da turma
+                    disciplinas = automacao.obter_opcoes_select('IDTURMASDISP')
+                    log(f"  ✓ {len(disciplinas)} disciplinas encontradas")
+                    
+                    disciplinas_processadas_turma = 0
+                    
+                    # Processar cada disciplina
+                    for idx_disc, disciplina in enumerate(disciplinas, 1):
+                        disciplina_nome = disciplina['text']
+                        disciplina_id_geduc = disciplina['value']
+                        
+                        log(f"\n  [{idx_disc}/{len(disciplinas)}] {disciplina_nome}")
+                        
+                        # Buscar disciplina no banco local
+                        disciplina_id_local = self._buscar_disciplina_local(disciplina_nome, nivel_id_turma)
+                        if not disciplina_id_local:
+                            log(f"    ⚠️ Disciplina não encontrada no banco local")
+                            continue
+                        
+                        # Selecionar disciplina
+                        automacao.selecionar_opcao('IDTURMASDISP', disciplina_id_geduc)
+                        time.sleep(0.5)
+                        
+                        # Selecionar bimestre
+                        automacao.selecionar_bimestre(bimestre_num)
+                        time.sleep(0.5)
+                        
+                        # Carregar alunos
+                        automacao.clicar_exibir_alunos()
+                        time.sleep(2)
+                        
+                        # Extrair dados de recuperação usando função específica
+                        dados_recuperacao = automacao.extrair_recuperacao_pagina_atual()
+                        
+                        if not dados_recuperacao:
+                            log(f"    ⚠️ Nenhum dado extraído")
+                            continue
+                        
+                        log(f"    ✓ {len(dados_recuperacao)} registros extraídos")
+                        
+                        # Processar recuperação no banco
+                        atualizados = self._processar_recuperacao_banco(
+                            dados_recuperacao,
+                            alunos_local,
+                            disciplina_id_local,
+                            bimestre_num,
+                            self.ano_letivo_atual,
+                            log_debug=log if modo_debug else None
+                        )
+                        
+                        log(f"    ✓ {atualizados} alunos atualizados")
+                        
+                        total_alunos_atualizados += atualizados
+                        disciplinas_processadas_turma += 1
+                        total_disciplinas_processadas += 1
+                    
+                    log(f"\n  ✅ Turma concluída: {disciplinas_processadas_turma} disciplinas processadas")
+                    total_turmas_processadas += 1
+                    
+                except Exception as e:
+                    log(f"  ✗ ERRO ao processar turma: {e}")
+                    turmas_com_erro.append(turma_nome)
+                    continue
+            
+            # Relatório final
+            log("\n" + "="*60)
+            log("RECUPERAÇÃO BIMESTRAL CONCLUÍDA!")
+            log("="*60)
+            log(f"🏫 Turmas processadas: {total_turmas_processadas}/{len(turmas)}")
+            log(f"📚 Disciplinas processadas: {total_disciplinas_processadas}")
+            log(f"✅ Alunos atualizados: {total_alunos_atualizados}")
+            
+            if turmas_com_erro:
+                log(f"\n⚠️ Turmas com erro ({len(turmas_com_erro)}):")
+                for turma in turmas_com_erro:
+                    log(f"  • {turma}")
+            
+            log("\n" + "="*60)
+            
+            # Mensagem final
+            msg_final = (
+                f"✅ RECUPERAÇÃO CONCLUÍDA!\n\n"
+                f"🏫 Turmas: {total_turmas_processadas}/{len(turmas)}\n"
+                f"📚 Disciplinas: {total_disciplinas_processadas}\n"
+                f"✅ Alunos atualizados: {total_alunos_atualizados}"
+            )
+            
+            if turmas_com_erro:
+                msg_final += f"\n\n⚠️ {len(turmas_com_erro)} turmas com erro (veja o log)"
+            
+            self.janela.after(0, lambda: messagebox.showinfo("Recuperação Concluída", msg_final))
+            
+        except Exception as e:
+            log(f"\n✗ ERRO: {e}")
+            import traceback
+            traceback.print_exc()
+            log(traceback.format_exc())
+            self.janela.after(0, lambda: messagebox.showerror("Erro", f"Erro durante recuperação:\n{str(e)}"))
+        
+        finally:
+            if automacao:
+                log("\n→ Fechando navegador em 5 segundos...")
+                time.sleep(5)
+                automacao.fechar()
+                log("✓ Navegador fechado")
+    
+    def _buscar_turma_local_por_nome(self, nome_turma_geduc):
+        """
+        Busca ID da turma no banco local pelo nome do GEDUC
+        
+        Args:
+            nome_turma_geduc: Nome da turma como aparece no GEDUC (ex: "2º ANO-MATU", "6º ANO-VESP - A")
+        
+        Returns:
+            ID da turma ou None se não encontrar
+        """
+        import unicodedata
+        
+        def normalizar(texto):
+            """Remove acentos e converte para maiúsculas"""
+            texto = ''.join(c for c in unicodedata.normalize('NFD', texto) 
+                           if unicodedata.category(c) != 'Mn')
+            texto = texto.replace('º', '').replace('ª', '')
+            return ' '.join(texto.upper().split())
+        
+        try:
+            conn = conectar_bd()
+            cursor = conn.cursor()
+            
+            # Buscar todas as turmas da escola
+            cursor.execute("""
+                SELECT t.id, t.nome, s.nome as serie_nome, t.turno
+                FROM turmas t
+                JOIN serie s ON t.serie_id = s.id
+                WHERE t.escola_id = 60
+                AND t.ano_letivo_id = %s
+            """, (self.ano_letivo_atual,))
+            
+            turmas = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            # Normalizar nome do GEDUC
+            nome_geduc_norm = normalizar(nome_turma_geduc)
+            
+            # Tentar encontrar correspondência
+            for turma_id, turma_nome, serie_nome, turno in turmas:
+                # Construir nome completo da turma local
+                # Formato: "SÉRIE TURNO TURMA"
+                nome_completo = f"{serie_nome} {turno} {turma_nome}".strip()
+                nome_completo_norm = normalizar(nome_completo)
+                
+                # Tentar diferentes formatos
+                # 1. Comparação exata
+                if nome_geduc_norm == nome_completo_norm:
+                    return turma_id
+                
+                # 2. GEDUC usa hífen: "2 ANO-MATU" vs "2 ANO MATU"
+                nome_com_hifen = f"{serie_nome}-{turno} {turma_nome}".strip()
+                nome_com_hifen_norm = normalizar(nome_com_hifen)
+                if nome_geduc_norm == nome_com_hifen_norm:
+                    return turma_id
+                
+                # 3. GEDUC usa hífen e travessão: "6 ANO-VESP - A"
+                nome_hifen_travessao = f"{serie_nome}-{turno} - {turma_nome}".strip()
+                nome_hifen_travessao_norm = normalizar(nome_hifen_travessao)
+                if nome_geduc_norm == nome_hifen_travessao_norm:
+                    return turma_id
+                
+                # 4. Match parcial: "1 ANO-MATU" começa com "1 ANO MAT"
+                # ou "1 ANO MAT" está contido em "1 ANO-MATU"
+                if nome_completo_norm and nome_geduc_norm.startswith(nome_completo_norm):
+                    return turma_id
+                
+                if nome_com_hifen_norm and nome_geduc_norm.startswith(nome_com_hifen_norm):
+                    return turma_id
+            
+            return None
+            
+        except Exception as e:
+            print(f"Erro ao buscar turma local: {e}")
+            return None
+    
+
+    def _processar_recuperacao_banco(self, dados_recuperacao, alunos_local, disciplina_id, bimestre_num, ano_letivo_id, log_debug=None):
+        """
+        Processa recuperação: atualiza nota se (nota/10 < 6) e (nota/10 < Recuperação)
+        
+        Args:
+            dados_recuperacao: Lista de dicts com 'nome', 'recuperacao'
+            alunos_local: Dict {nome_normalizado: aluno_id}
+            disciplina_id: ID da disciplina
+            bimestre_num: Número do bimestre
+            ano_letivo_id: ID do ano letivo
+            log_debug: Função de log para modo debug (opcional)
+        
+        Returns:
+            Número de alunos atualizados
+        """
+        import unicodedata
+        
+        def normalizar_nome(nome):
+            nome = ''.join(c for c in unicodedata.normalize('NFD', nome) 
+                          if unicodedata.category(c) != 'Mn')
+            sufixos = [
+                '( Transferencia Externa )', '( TRANSFERENCIA EXTERNA )',
+                ' (TRANSFERIDO)', ' (EVADIDO)', ' - TRANSFERIDO',
+                '(Transferido)', '(TRANSFERIDO)', ' - Transferido',
+                ' (Evadido)', ' - Evadido'
+            ]
+            nome_upper = nome.upper()
+            for sufixo in sufixos:
+                if nome_upper.endswith(sufixo.upper()):
+                    nome = nome[:-(len(sufixo))]
+                    break
+            return nome.upper().strip()
+        
+        try:
+            conn = conectar_bd()
+            cursor = conn.cursor()
+            
+            atualizados = 0
+            bimestre_texto = f"{bimestre_num}º bimestre"
+            
+            # Debug: cabeçalho se log_debug está ativo
+            if log_debug:
+                log_debug("\n    " + "="*70)
+                log_debug("    📊 ANÁLISE DETALHADA POR ALUNO")
+                log_debug("    " + "="*70)
+            
+            for aluno_rec in dados_recuperacao:
+                nome = aluno_rec['nome']
+                recuperacao = aluno_rec.get('recuperacao')
+                
+                # Debug: mostrar aluno processado
+                if log_debug:
+                    log_debug(f"\n    👤 Aluno: {nome}")
+                    log_debug(f"       Recuperação GEDUC: {recuperacao if recuperacao is not None else 'SEM NOTA'}")
+                
+                # Verificar se tem nota de recuperação
+                if recuperacao is None or recuperacao == '':
+                    if log_debug:
+                        log_debug(f"       ⚠️ Sem nota de recuperação - IGNORADO")
+                    continue
+                
+                # Normalizar nome
+                nome_norm = normalizar_nome(nome)
+                
+                # Buscar ID do aluno
+                aluno_id = alunos_local.get(nome_norm)
+                if not aluno_id:
+                    if log_debug:
+                        log_debug(f"       ⚠️ Aluno não encontrado no banco local - IGNORADO")
+                    continue
+                
+                # Buscar nota atual no banco
+                cursor.execute("""
+                    SELECT id, nota FROM notas 
+                    WHERE aluno_id = %s 
+                    AND disciplina_id = %s 
+                    AND bimestre = %s 
+                    AND ano_letivo_id = %s
+                """, (aluno_id, disciplina_id, bimestre_texto, ano_letivo_id))
+                
+                resultado = cursor.fetchone()
+                
+                if not resultado:
+                    if log_debug:
+                        log_debug(f"       ⚠️ Sem nota no banco - IGNORADO")
+                    continue
+                
+                nota_id, nota_atual = resultado
+                
+                # Converter nota_atual para escala 0-10
+                nota_atual_decimal = float(nota_atual) / 10.0 if nota_atual else 0
+                
+                # Debug: mostrar nota do banco
+                if log_debug:
+                    log_debug(f"       Nota Banco: {nota_atual} (escala 100) = {nota_atual_decimal:.1f} (escala 10)")
+                
+                # Aplicar regra: se (nota/10 < 6) e (Recuperação >= nota/10)
+                condicao1 = nota_atual_decimal < 6.0
+                condicao2 = recuperacao >= nota_atual_decimal
+                
+                if log_debug:
+                    log_debug(f"       Verificações:")
+                    log_debug(f"         • nota/10 < 6? {nota_atual_decimal:.1f} < 6.0 = {condicao1}")
+                    log_debug(f"         • Recup >= nota/10? {recuperacao:.1f} >= {nota_atual_decimal:.1f} = {condicao2}")
+                
+                if condicao1 and condicao2:
+                    # Atualizar nota = Recuperação * 10
+                    nova_nota = recuperacao * 10
+                    
+                    if log_debug:
+                        log_debug(f"       ✅ SERÁ ATUALIZADO: {nota_atual} → {nova_nota:.0f}")
+                    
+                    cursor.execute("""
+                        UPDATE notas 
+                        SET nota = %s 
+                        WHERE id = %s
+                    """, (nova_nota, nota_id))
+                    
+                    atualizados += 1
+                else:
+                    if log_debug:
+                        log_debug(f"       ❌ NÃO será atualizado (não atende critérios)")
+            
+            # Debug: rodapé
+            if log_debug:
+                log_debug("    " + "="*70)
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return atualizados
+            
+        except Exception as e:
+            print(f"Erro ao processar recuperação no banco: {e}")
+            import traceback
+            traceback.print_exc()
+            return 0
+
+    def ao_fechar_janela(self):
+        """Método chamado quando a janela é fechada pelo usuário"""
+        try:
+            # Mostrar a janela principal novamente, se existir
+            if self.janela_principal:
+                self.janela_principal.deiconify()
+            
+            # Destruir a janela atual
+            self.janela.destroy()
+        except Exception as e:
+            print(f"Erro ao fechar a janela: {e}")
+
+    def focar_campo_seguro(self, campo):
+        """Tenta definir o foco em um campo de forma segura, verificando se ele ainda existe"""
+        try:
+            if campo.winfo_exists():
+                campo.focus_set()
+                campo.select_range(0, tk.END)  # Seleciona todo o texto para facilitar a edição
+        except Exception as e:
+            print(f"Erro ao tentar definir foco no campo: {e}")
+            # Não propaga o erro, apenas registra no console
+
+# Função para ser chamada a partir do sistema principal
+def abrir_interface_notas(janela_principal=None):
+    """
+    Abre a interface de cadastro e edição de notas.
+    
+    Args:
+        janela_principal: Referência à janela principal para restaurá-la quando a interface for fechada
+        
+    Retorna a instância da interface criada.
+    """
+    try:
+        # Esconder a janela principal se for fornecida
+        if janela_principal:
+            janela_principal.withdraw()
+            
+        # Criar a instância da interface
+        interface = InterfaceCadastroEdicaoNotas(janela_principal=janela_principal)
+        return interface
+    except Exception as e:
+        # Em caso de erro, garantir que a janela principal seja visível novamente
+        if janela_principal:
+            janela_principal.deiconify()
+            
+        import traceback
+        traceback.print_exc()
+        messagebox.showerror("Erro", f"Erro ao abrir interface de notas: {str(e)}")
+        return None
+
+# Se o arquivo for executado diretamente
+if __name__ == "__main__":
+    root = tk.Tk()
+    root.withdraw()  # Esconde a janela principal se executado diretamente
+    app = InterfaceCadastroEdicaoNotas(janela_principal=root)
+    root.mainloop()

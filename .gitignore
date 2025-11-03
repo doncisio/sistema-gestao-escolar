@@ -1,0 +1,74 @@
+# Arquivos Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+
+# Banco de dados - NÃO SINCRONIZAR
+*.db
+*.sqlite
+*.sql
+backup_redeescola.sql
+
+# Backups - NÃO SINCRONIZAR
+Backup_Sistema/
+*.backup
+backups/
+
+# PDFs gerados - NÃO SINCRONIZAR (muito pesado)
+*.pdf
+
+# Logs
+*.log
+
+# Configurações locais - NÃO SINCRONIZAR
+config_local.ini
+conexao_local.py
+
+# Arquivos temporários
+*.tmp
+~$*
+*.swp
+
+# VS Code
+.vscode/
+.history/
+*.code-workspace
+
+# PyCharm
+.idea/
+
+# Arquivos do Windows
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Credenciais - NUNCA SINCRONIZAR
+*credentials*
+*password*
+*secret*
+.env
+credentials.json
+
+# Chromedriver (pode ser baixado novamente)
+chromedriver.exe
+chromedriver/
+
+# Arquivos de debug e teste (temporários)
+debug_*.py
+testar_*.py
+verificar_*.py
+comparar_*.py
+contar_*.py
+ver_*.py
+
+# Arquivos Excel/CSV temporários
+~$*.xlsx
+~$*.xls
+~$*.csv
