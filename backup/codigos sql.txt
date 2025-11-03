@@ -1,0 +1,54 @@
+inserir aluno
+INSERT INTO alunos (nome, data_nascimento, sexo, local_nascimento, UF_nascimento, cpf)
+VALUES ('João Lucas Santana Mota', '2005-07-15', 'M', 'São José de Ribamar', 'MA', '08145434300');
+
+
+inserir responsaveis
+INSERT INTO responsaveis (nome, grau_parentesco)
+VALUES ('Ronilson Santos Bandeira', 'Pai');
+
+INSERT INTO responsaveis (nome, grau_parentesco)
+VALUES ('Graciele Soares Cabral', 'Mãe');
+
+
+inserir relacionamento
+INSERT INTO responsaveisalunos (responsavel_id, aluno_id)
+VALUES 
+    (896, 1639),  -- Substitua 817 pelo ID do aluno desejado
+    (897, 1639);  -- Substitua 817 pelo ID do aluno desejado
+
+
+commando gpt
+para aluno_id=535 tenho uma tabela:
+disciplina_id notas
+1 	85
+2	80
+3	90
+4 	90
+5 	75
+6 	90
+7 	75
+8 	80
+para ano_letivo_id=18 e serie_id=3 escola_id =8, inserir na tabela historico_escolar
+
+
+commando gpt
+para escola_id = 19, nivel_id = 2 tenho uma tabela:
+nome da disciplina carga horaria 
+PORTUGUÊS	200
+	
+MATEMÁTICA	200
+
+CIÊNCIAS	160
+
+HISTÓRIA	80
+
+GEOGRAFIA	80
+
+ARTE	80
+
+ENS. RELIGIOSO	40
+
+ED. FÍSICA	80
+inserir na tabela disciplinas
+

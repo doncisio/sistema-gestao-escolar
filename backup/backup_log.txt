@@ -1,0 +1,189 @@
+[30/01/2025 18:46:16,73]  
+[30/01/2025 18:47:47,79]  
+[30/01/2025 18:49:52,75] Iniciando backup do banco de dados. 
+[30/01/2025 18:49:52,75] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[30/01/2025 18:49:52,75] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[30/01/2025 18:50:46,04] Iniciando backup do banco de dados. 
+[30/01/2025 18:50:46,04] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[30/01/2025 18:50:46,04] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[31/01/2025 10:10:58,86] Iniciando backup do banco de dados. 
+[31/01/2025 10:10:58,86] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[31/01/2025 10:10:58,86] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[31/01/2025 11:18:11,56] Iniciando backup do banco de dados. 
+[31/01/2025 11:18:11,56] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[31/01/2025 11:18:11,56] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[01/02/2025  9:30:44,17] Iniciando backup do banco de dados. 
+[01/02/2025  9:30:44,17] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[01/02/2025  9:30:44,17] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[01/02/2025 10:07:22,63] Iniciando backup do banco de dados. 
+[01/02/2025 10:07:22,63] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[01/02/2025 10:07:22,63] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[01/02/2025 15:34:25,57] Iniciando backup do banco de dados. 
+[01/02/2025 15:34:25,57] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[01/02/2025 15:34:25,57] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[01/02/2025 21:55:07,41] Iniciando backup do banco de dados. 
+[01/02/2025 21:55:07,41] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[01/02/2025 21:55:07,41] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[02/02/2025 10:57:52,50] Iniciando backup do banco de dados. 
+[02/02/2025 10:57:52,50] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[02/02/2025 10:57:52,50] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[02/02/2025 11:07:23,90] Iniciando backup do banco de dados. 
+[02/02/2025 11:07:23,90] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[02/02/2025 11:07:23,90] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[04/02/2025 20:00:26,42] Iniciando backup do banco de dados. 
+[04/02/2025 20:00:26,42] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[04/02/2025 20:00:26,42] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[05/02/2025 15:58:38,72] Iniciando backup do banco de dados. 
+[05/02/2025 15:58:38,72] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[05/02/2025 15:58:38,72] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[06/02/2025 20:37:43,18] Iniciando backup do banco de dados. 
+[06/02/2025 20:37:43,18] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[06/02/2025 20:37:43,18] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[07/02/2025  9:22:07,61] Iniciando backup do banco de dados. 
+[07/02/2025  9:22:07,61] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[07/02/2025  9:22:07,61] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[07/02/2025 16:52:03,93] Iniciando backup do banco de dados. 
+[07/02/2025 16:52:03,93] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[07/02/2025 16:52:03,93] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[07/02/2025 17:02:53,45] Iniciando backup do banco de dados. 
+[07/02/2025 17:02:53,46] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[07/02/2025 17:02:53,46] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[07/02/2025 19:33:31,31] Iniciando backup do banco de dados. 
+[07/02/2025 19:33:31,31] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[07/02/2025 19:33:31,31] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[07/02/2025 20:38:24,83] Iniciando backup do banco de dados. 
+[07/02/2025 20:38:24,83] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[07/02/2025 20:38:24,83] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[08/02/2025 18:32:09,15] Iniciando backup do banco de dados. 
+[08/02/2025 18:32:09,15] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[08/02/2025 18:32:09,15] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[09/02/2025 14:04:28,92] Iniciando restauracao do banco de dados. 
+[09/02/2025 14:04:28,92] Banco de dados restaurado com sucesso a partir de "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[09/02/2025 15:19:13,95] Iniciando backup do banco de dados. 
+[09/02/2025 15:19:13,95] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[09/02/2025 15:19:13,95] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[09/02/2025 15:30:04,01] Iniciando backup do banco de dados. 
+[09/02/2025 15:30:04,01] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[09/02/2025 15:30:04,01] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[09/02/2025 20:50:10,00] Iniciando backup do banco de dados. 
+[09/02/2025 20:50:10,00] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[09/02/2025 20:50:10,00] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[09/02/2025 21:50:08,43] Iniciando backup do banco de dados. 
+[09/02/2025 21:50:08,43] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[09/02/2025 21:50:08,43] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[10/02/2025 21:55:44,17] Iniciando backup do banco de dados. 
+[10/02/2025 21:55:44,17] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[10/02/2025 21:55:44,17] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[11/02/2025 16:59:14,87] Iniciando backup do banco de dados. 
+[11/02/2025 16:59:14,87] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[11/02/2025 16:59:14,87] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[12/02/2025 23:55:51,99] Iniciando backup do banco de dados. 
+[12/02/2025 23:55:51,99] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[12/02/2025 23:55:51,99] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[13/02/2025  8:33:54,39] Iniciando backup do banco de dados. 
+[13/02/2025  8:33:54,39] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[13/02/2025  8:33:54,39] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[13/02/2025 10:39:40,40] Iniciando backup do banco de dados. 
+[13/02/2025 10:39:40,40] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[13/02/2025 10:39:40,40] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[13/02/2025 17:05:50,73] Iniciando backup do banco de dados. 
+[13/02/2025 17:05:50,73] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[13/02/2025 17:05:50,73] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[13/02/2025 22:18:05,02] Iniciando backup do banco de dados. 
+[13/02/2025 22:18:05,02] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[13/02/2025 22:18:05,02] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[14/02/2025 20:58:35,81] Iniciando backup do banco de dados. 
+[14/02/2025 20:58:35,81] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[14/02/2025 20:58:35,81] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[15/02/2025 12:19:37,56] Iniciando backup do banco de dados. 
+[15/02/2025 12:19:37,56] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[15/02/2025 12:19:37,56] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[15/02/2025 17:31:58,69] Iniciando backup do banco de dados. 
+[15/02/2025 17:31:58,69] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[15/02/2025 17:31:58,69] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[15/02/2025 18:18:46,97] Iniciando backup do banco de dados. 
+[15/02/2025 18:18:46,97] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[15/02/2025 18:18:46,97] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[15/02/2025 19:00:39,49] Iniciando backup do banco de dados. 
+[15/02/2025 19:00:39,49] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[15/02/2025 19:00:39,49] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[16/02/2025 10:15:54,16] Iniciando backup do banco de dados. 
+[16/02/2025 10:15:54,16] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[16/02/2025 10:15:54,16] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[16/02/2025 10:17:42,97] Iniciando backup do banco de dados. 
+[16/02/2025 10:17:42,97] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[16/02/2025 10:17:42,98] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[16/02/2025 11:26:50,13] Iniciando backup do banco de dados. 
+[16/02/2025 11:26:50,13] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[16/02/2025 11:26:50,13] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[16/02/2025 14:39:40,17] Iniciando backup do banco de dados. 
+[16/02/2025 14:39:40,17] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[16/02/2025 14:39:40,17] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[17/02/2025 15:36:08,27] Iniciando restauracao do banco de dados. 
+[17/02/2025 15:36:08,27] Banco de dados restaurado com sucesso a partir de "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[17/02/2025 21:06:27,95] Iniciando backup do banco de dados. 
+[17/02/2025 21:06:27,95] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[17/02/2025 21:06:27,95] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[18/02/2025  6:42:52,32] Iniciando backup do banco de dados. 
+[18/02/2025  6:42:52,32] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[18/02/2025  6:42:52,32] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[18/02/2025 14:39:53,96] Iniciando restauracao do banco de dados. 
+[18/02/2025 14:39:53,96] Banco de dados restaurado com sucesso a partir de "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[18/02/2025 15:29:40,77] Iniciando backup do banco de dados. 
+[18/02/2025 15:29:40,77] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[18/02/2025 15:29:40,77] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[18/02/2025 20:51:02,08] Iniciando backup do banco de dados. 
+[18/02/2025 20:51:02,08] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[18/02/2025 20:51:02,08] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[21/02/2025  7:42:15,51] Iniciando restauracao do banco de dados. 
+[21/02/2025  7:42:15,51] Banco de dados restaurado com sucesso a partir de "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[22/02/2025 18:12:23,84] Iniciando backup do banco de dados. 
+[22/02/2025 18:12:23,84] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[22/02/2025 18:12:23,84] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[22/02/2025 23:07:42,24] Iniciando backup do banco de dados. 
+[22/02/2025 23:07:42,24] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[22/02/2025 23:07:42,24] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[25/02/2025  6:24:30,40] Iniciando restauracao do banco de dados. 
+[25/02/2025  6:24:30,40] Banco de dados restaurado com sucesso a partir de "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[25/02/2025 15:40:04,38] Iniciando restauracao do banco de dados. 
+[25/02/2025 15:40:04,38] Banco de dados restaurado com sucesso a partir de "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[25/02/2025 15:41:33,57] Iniciando restauracao do banco de dados. 
+[25/02/2025 15:41:33,57] Banco de dados restaurado com sucesso a partir de "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[25/02/2025 17:01:09,46] Iniciando backup do banco de dados. 
+[25/02/2025 17:01:09,46] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[25/02/2025 17:01:09,46] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[25/02/2025 20:45:44,64] Iniciando backup do banco de dados. 
+[25/02/2025 20:45:44,64] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[25/02/2025 20:45:44,64] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2024\Backup\backup_redeescola.sql". 
+[25/02/2025 20:46:59,91] Iniciando backup do banco de dados. 
+[25/02/2025 20:46:59,91] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[25/02/2025 20:46:59,91] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql". 
+[26/02/2025 14:20:53,20] Iniciando restauracao do banco de dados. 
+[26/02/2025 14:20:53,20] Banco de dados restaurado com sucesso a partir de "H:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql". 
+[06/03/2025 15:31:10,65] Iniciando restauracao do banco de dados. 
+[06/03/2025 15:31:10,65] Banco de dados restaurado com sucesso a partir de "H:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql". 
+[06/03/2025 22:48:37,37] Iniciando backup do banco de dados. 
+[06/03/2025 22:48:37,37] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[06/03/2025 22:48:37,37] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql". 
+[08/03/2025 20:49:57,54] Iniciando backup do banco de dados. 
+[08/03/2025 20:49:57,54] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[08/03/2025 20:49:57,54] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql". 
+[09/03/2025  8:28:56,77] Iniciando backup do banco de dados. 
+[09/03/2025  8:28:56,77] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[09/03/2025  8:28:56,77] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql". 
+[09/03/2025 20:24:53,77] Iniciando backup do banco de dados. 
+[09/03/2025 20:24:53,77] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[09/03/2025 20:24:53,77] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql". 
+[09/03/2025 22:37:37,78] Iniciando backup do banco de dados. 
+[09/03/2025 22:37:37,78] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[09/03/2025 22:37:37,78] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql". 
+[09/03/2025 23:04:47,11] Iniciando backup do banco de dados. 
+[09/03/2025 23:04:47,11] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[09/03/2025 23:04:47,11] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql". 
+[10/03/2025 18:50:37,54] Iniciando restauracao do banco de dados. 
+[10/03/2025 18:50:37,54] Banco de dados restaurado com sucesso a partir de "H:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql". 
+[10/03/2025 23:12:19,83] Iniciando backup do banco de dados. 
+[10/03/2025 23:12:19,83] Backup realizado com sucesso em "G:\Meu Drive\Arquivos Escola PNNM\Meus projetos\GestaoEscolar1\backup_redeescola.sql". 
+[10/03/2025 23:12:19,83] Backup copiado com sucesso para "H:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql". 
+[11/03/2025 13:24:49,79] Iniciando restauracao do banco de dados. 
+[11/03/2025 13:24:49,79] Banco de dados restaurado com sucesso a partir de "H:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql". 

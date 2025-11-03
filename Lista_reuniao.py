@@ -1,0 +1,141 @@
+import io
+import os
+import pandas as pd
+import datetime
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.colors import black, white, grey
+from gerarPDF import salvar_e_abrir_pdf, create_pdf_buffer_letter
+from Lista_atualizada import fetch_student_data
+
+def lista_reuniao():
+    ano_letivo = 2025
+    dados_aluno = fetch_student_data(ano_letivo)
+    if not dados_aluno:
+        return
+
+    df = pd.DataFrame(dados_aluno)
+    # print(df[['NOME_SERIE', 'NOME_TURMA', 'TURNO']].isnull().sum())
+
+    # Informações do cabeçalho
+    cabecalho = [
+        "SECRETARIA MUNICIPAL DE EDUCAÇÃO",
+        "<b>ESCOLA MUNICIPAL PROFª. NADIR NASCIMENTO MORAES</b>",
+        "<b>INEP: 21008485</b>",
+        "<b>CNPJ: 01.394.462/0001-01</b>"
+    ]
+
+    # Criar o documento PDF
+    doc, buffer = create_pdf_buffer_letter()
+    elements = []
+
+    # Caminhos das figuras
+    figura_superior = os.path.join(os.path.dirname(__file__), 'logosemed.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.jpg')
+
+
+    # Adicionar a capa
+    data = [
+        [Image(figura_superior, width=1 * inch, height=1 * inch),
+         Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1)),
+         Image(figura_inferior, width=1.5 * inch, height=1 * inch)]
+    ]
+    table = Table(data, colWidths=[1.32 * inch, 4 * inch, 1.32 * inch])
+    table_style = TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+    ])
+    table.setStyle(table_style)
+    elements.append(table)
+    elements.append(Spacer(1, 3.3 * inch))
+    elements.append(Paragraph("<b>LISTA PARA REUNIÃO</b>", ParagraphStyle(name='Capa', fontSize=24, alignment=1)))
+    elements.append(Spacer(1, 4 * inch))
+    elements.append(Paragraph(f"<b>{datetime.datetime.now().year}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
+    elements.append(PageBreak())
+
+    # Função para formatar os números de telefone
+    def formatar_telefone(telefone):
+        return f"{telefone[:5]}-{telefone[5:]}"
+
+    # Lista de itens da pauta
+    pauta_items = [
+        "Atividades sequenciais do Projeto",
+        "Atividades do projeto como atividades avaliadas 2º período",
+        "Culminância do Projeto: cada professor(a) deverá levar seu subtema já definido e a proposta metodológica de apresentação",
+        "Entrega de nota do 2º período",
+        "Encerramento do Período dia 30/06, segunda-feira",
+        "Primeira semana de AGOSTO"
+    ]
+
+    # Agrupar os dados por nome_serie, nome_turma e turno
+    for (nome_serie, nome_turma, turno), turma_df in df.groupby(['NOME_SERIE', 'NOME_TURMA', 'TURNO']):
+        # Extraindo o nome do professor da turma
+        nome_professor = turma_df['NOME_PROFESSOR'].iloc[0] if not turma_df['NOME_PROFESSOR'].isnull().all() else 'Sem Professor'
+        
+        # Filtrar apenas os alunos com a situação "Ativo"
+        turma_df = turma_df[turma_df['SITUAÇÃO'] == 'Ativo']
+
+        # Adicionar o cabeçalho antes de cada tabela
+        data = [
+            [Image(figura_superior, width=1 * inch, height=1 * inch),
+             Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=11, alignment=1)),
+             Image(figura_inferior, width=1.5 * inch, height=1 * inch)]
+        ]
+        table = Table(data, colWidths=[1.32 * inch, 4 * inch, 1.32 * inch])
+        table_style = TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+        ])
+        table.setStyle(table_style)
+        elements.append(table)
+
+        elements.append(Spacer(1, 0.125 * inch))
+
+        # Adicionar o título da turma
+        elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno} - {datetime.datetime.now().year}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=12, alignment=1)))
+        elements.append(Spacer(1, 0.1 * inch))
+
+        # Adicionar a pauta da reunião
+        elements.append(Paragraph("<b>PAUTA DA REUNIÃO</b>", ParagraphStyle(name='PautaTitulo', fontSize=14, alignment=1)))
+        elements.append(Spacer(1, 0.2 * inch))
+        
+        for item in pauta_items:
+            elements.append(Paragraph(f"• {item}", ParagraphStyle(name='PautaItem', fontSize=11, leftIndent=20)))
+            elements.append(Spacer(1, 0.1 * inch))
+        
+        elements.append(Spacer(1, 0.2 * inch))
+
+        # Criar a tabela para a turma
+        data = [['Nº', 'Nome', 'Telefone', 'Assinatura do Responsavél']]
+        # Função para formatar os dados, garantindo que 'NASCIMENTO' não seja None
+        for row_num, (index, row) in enumerate(turma_df.iterrows(), start=1):
+            nome = row['NOME DO ALUNO']
+            assinatura = ''
+            telefones_str = ''
+
+            data.append([row_num, nome, telefones_str, assinatura])
+
+        table = Table(data, colWidths=[0.33 * inch, 3 * inch, 1.25 * inch, 3 * inch])
+        table_style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), white),
+            ('TEXTCOLOR', (0, 0), (-1, 0), black),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 14),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), white),
+            ('GRID', (0, 0), (-1, -1), 1, black)
+        ])
+        table.setStyle(table_style)
+        elements.append(table)
+
+        # Adicionar a quebra de página após a última tabela
+        elements.append(PageBreak())
+
+    doc.build(elements)
+
+    # Resetar o buffer para o início
+    buffer.seek(0)
+
+    salvar_e_abrir_pdf(buffer)

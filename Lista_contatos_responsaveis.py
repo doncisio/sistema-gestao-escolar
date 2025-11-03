@@ -1,0 +1,141 @@
+import os
+import pandas as pd
+from reportlab.lib.colors import black, white, grey
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
+from reportlab.lib.styles import ParagraphStyle
+from conexao import conectar_bd
+from Lista_atualizada import data_ano_letivo, create_pdf_buffer, add_cover_page, format_phone_numbers
+from gerarPDF import salvar_e_abrir_pdf
+from biblio_editor import formatar_telefone
+
+
+def buscar_contatos_alunos(ano_letivo: int):
+    conn = conectar_bd()
+    cursor = conn.cursor(dictionary=True)
+
+    query = """
+        SELECT 
+            a.nome AS ALUNO,
+            s.nome AS NOME_SERIE,
+            t.nome AS NOME_TURMA,
+            t.turno AS TURNO,
+            GROUP_CONCAT(DISTINCT r.nome ORDER BY r.id SEPARATOR ', ') AS RESPONSAVEIS,
+            GROUP_CONCAT(DISTINCT r.telefone ORDER BY r.id SEPARATOR '/') AS TELEFONES
+        FROM Alunos a
+        JOIN Matriculas m ON a.id = m.aluno_id
+        JOIN Turmas t ON m.turma_id = t.id
+        JOIN Serie s ON t.serie_id = s.id
+        LEFT JOIN ResponsaveisAlunos ra ON a.id = ra.aluno_id
+        LEFT JOIN Responsaveis r ON ra.responsavel_id = r.id
+        WHERE m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
+          AND a.escola_id = 60
+          AND (m.status = 'Ativo' OR m.status = 'Transferido' OR m.status = 'Transferida')
+        GROUP BY a.id, a.nome, s.nome, t.nome, t.turno
+        ORDER BY s.nome, t.nome, a.nome
+    """
+
+    cursor.execute(query, (ano_letivo,))
+    registros = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return registros
+
+
+def formatar_responsaveis_multilinha(responsaveis_concatenados: str) -> str:
+    if not responsaveis_concatenados:
+        return ''
+    nomes = [n.strip() for n in responsaveis_concatenados.split(',') if n and n.strip()]
+    return '<br/>'.join(nomes)
+
+
+def add_contacts_table(elements, turma_df, nome_serie, nome_turma, turno, figura_inferior, cabecalho):
+    # Cabeçalho por página/turma no mesmo modelo
+    datacabecalho = [
+        [Image(figura_inferior, width=3 * inch, height=0.7 * inch)],
+        [Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1))]
+    ]
+    tablecabecalho = Table(datacabecalho, colWidths=[5 * inch])
+    table_style = TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER')
+    ])
+    tablecabecalho.setStyle(table_style)
+    elements.append(tablecabecalho)
+
+    elements.append(Spacer(1, 0.25 * inch))
+    elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=12, alignment=1)))
+    elements.append(Spacer(1, 0.15 * inch))
+
+    data = [['Nº', 'Nome', 'Responsáveis', 'Telefone']]
+    for row_num, (index, row) in enumerate(turma_df.iterrows(), start=1):
+        nome = row['ALUNO']
+        responsaveis = formatar_responsaveis_multilinha(row['RESPONSAVEIS'] or '')
+        telefones = format_phone_numbers(row['TELEFONES'])
+        data.append([
+            row_num,
+            nome,
+            Paragraph(responsaveis, ParagraphStyle(name='Responsaveis', fontSize=10)),
+            Paragraph(telefones, ParagraphStyle(name='Telefones', fontSize=10))
+        ])
+
+    # Larguras ajustadas para melhor quebra e aproveitamento da página (total ~7.75in)
+    table = Table(data, colWidths=[0.35 * inch, 2.8 * inch, 2.95 * inch, 1.65 * inch])
+    table_style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), white),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+        ('ALIGN', (2, 1), (2, -1), 'LEFT'),
+        ('ALIGN', (3, 1), (3, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), '#f0f0f0'),
+        ('GRID', (0, 0), (-1, -1), 1, black)
+    ])
+    table.setStyle(table_style)
+    elements.append(table)
+    elements.append(PageBreak())
+
+
+def gerar_pdf_contatos(ano_letivo: int):
+    registros = buscar_contatos_alunos(ano_letivo)
+    if not registros:
+        print('Nenhum dado encontrado.')
+        return None
+
+    df = pd.DataFrame(registros)
+
+    # Não pré-formata telefones aqui; usa a função padrão do relatório na montagem
+
+    cabecalho = [
+        "SECRETARIA MUNICIPAL DE EDUCAÇÃO",
+        "<b>ESCOLA MUNICIPAL PROFª. NADIR NASCIMENTO MORAES</b>",
+        "<b>INEP: 21008485</b>",
+        "<b>CNPJ: 01.394.462/0001-01</b>"
+    ]
+
+    figura_superior = os.path.join(os.path.dirname(__file__), 'logosemed.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
+
+    doc, buffer = create_pdf_buffer()
+    elements = []
+
+    add_cover_page(doc, elements, cabecalho, figura_superior, figura_inferior)
+
+    # Gera as tabelas por turma
+    for (nome_serie, nome_turma, turno), turma_df in df.groupby(['NOME_SERIE', 'NOME_TURMA', 'TURNO']):
+        add_contacts_table(elements, turma_df, nome_serie, nome_turma, turno, figura_inferior, cabecalho)
+
+    doc.build(elements)
+    buffer.seek(0)
+    salvar_e_abrir_pdf(buffer)
+
+
+if __name__ == '__main__':
+    ano = 2025
+    gerar_pdf_contatos(ano)
+
+
