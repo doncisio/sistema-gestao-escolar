@@ -323,22 +323,58 @@ def selecionar_item(event):
     # Adiciona os botões de ações específicas para o item selecionado
     criar_botoes_frame_detalhes(tipo_item, valores)
     
-    # Mostra outros detalhes do item, se necessário
-    # Usando um frame dedicado para os detalhes para não sobrescrever os botões
+    # Mostra outros detalhes do item em formato de grid (múltiplas colunas)
     detalhes_info_frame = Frame(frame_detalhes, bg=co1)
-    detalhes_info_frame.pack(fill=X, expand=True, padx=10, pady=5)
+    detalhes_info_frame.pack(fill=BOTH, expand=True, padx=10, pady=5)
+    
+    # Configurar o grid para 3 colunas
+    for i in range(3):
+        detalhes_info_frame.grid_columnconfigure(i, weight=1, uniform="col")
     
     if tipo_item == "Aluno":
-        Label(detalhes_info_frame, text=f"ID: {valores[0]}", bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
-        Label(detalhes_info_frame, text=f"Nome: {valores[1]}", bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
-        Label(detalhes_info_frame, text=f"Data de Nascimento: {valores[4]}", bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+        # Linha 1: ID, Nome e Data de Nascimento
+        Label(detalhes_info_frame, text=f"ID: {valores[0]}", bg=co1, fg=co0, 
+              font=('Ivy 10 bold'), anchor=W).grid(row=0, column=0, sticky=EW, padx=5, pady=3)
+        Label(detalhes_info_frame, text=f"Nome: {valores[1]}", bg=co1, fg=co0, 
+              font=('Ivy 10 bold'), anchor=W).grid(row=0, column=1, columnspan=2, sticky=EW, padx=5, pady=3)
         
-        # Verificar matrícula do aluno
+        Label(detalhes_info_frame, text=f"Data de Nascimento: {valores[4]}", bg=co1, fg=co0, 
+              font=('Ivy 10'), anchor=W).grid(row=1, column=0, sticky=EW, padx=5, pady=3)
+        
+        # Verificar matrícula do aluno e buscar responsáveis
         conn = None
         cursor = None
         try:
             conn = conectar_bd()
             cursor = conn.cursor()
+            
+            # Buscar responsáveis do aluno (Pai e Mãe)
+            cursor.execute("""
+                SELECT DISTINCT r.nome, r.grau_parentesco
+                FROM responsaveis r
+                INNER JOIN responsaveisalunos ra ON r.id = ra.responsavel_id
+                WHERE ra.aluno_id = %s AND r.grau_parentesco IN ('Mãe', 'Pai')
+                ORDER BY r.grau_parentesco DESC
+            """, (id_item,))
+            responsaveis = cursor.fetchall()
+            
+            nome_mae = None
+            nome_pai = None
+            
+            for resp in responsaveis:
+                if resp[1] == 'Mãe':
+                    nome_mae = resp[0]
+                elif resp[1] == 'Pai':
+                    nome_pai = resp[0]
+            
+            # Exibir nomes dos pais na linha 2
+            if nome_mae:
+                Label(detalhes_info_frame, text=f"Mãe: {nome_mae}", bg=co1, fg=co0, 
+                      font=('Ivy 10'), anchor=W).grid(row=2, column=0, columnspan=2, sticky=EW, padx=5, pady=3)
+            
+            if nome_pai:
+                Label(detalhes_info_frame, text=f"Pai: {nome_pai}", bg=co1, fg=co0, 
+                      font=('Ivy 10'), anchor=W).grid(row=2, column=2, sticky=EW, padx=5, pady=3)
             
             # Obtém o ID do ano letivo atual
             cursor.execute("SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
@@ -379,21 +415,23 @@ def selecionar_item(event):
                 if resultado:
                     status, data_matricula, data_transferencia, serie_nome, turma_nome = resultado
                     
+                    row_atual = 3  # Começar na linha 3, pois linhas 0, 1 e 2 já foram usadas
+                    
                     if status == 'Ativo' and data_matricula:
                         Label(detalhes_info_frame, 
                               text=f"Data de Matrícula: {data_matricula.strftime('%d/%m/%Y')}", 
-                              bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+                              bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
                         
                         # Adicionar informações de série e turma para alunos ativos
                         if serie_nome:
                             Label(detalhes_info_frame, 
                                   text=f"Série: {serie_nome}", 
-                                  bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
                         
                         if turma_nome and turma_nome.strip():
                             Label(detalhes_info_frame, 
                                   text=f"Turma: {turma_nome}", 
-                                  bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
                         else:
                             # Se o nome da turma estiver vazio, mostrar "Turma Única" ou o ID
                             cursor.execute("""
@@ -411,30 +449,26 @@ def selecionar_item(event):
                             turma_info = cursor.fetchone()
                             if turma_info:
                                 turma_id, total_turmas = turma_info
-                                if total_turmas == 1:
-                                    Label(detalhes_info_frame, 
-                                          text="Turma: Turma Única", 
-                                          bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
-                                else:
-                                    Label(detalhes_info_frame, 
-                                          text=f"Turma: Turma {turma_id}", 
-                                          bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+                                turma_texto = "Turma: Turma Única" if total_turmas == 1 else f"Turma: Turma {turma_id}"
+                                Label(detalhes_info_frame, 
+                                      text=turma_texto, 
+                                      bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
                     
                     elif status == 'Transferido' and data_transferencia:
                         Label(detalhes_info_frame, 
                               text=f"Data de Transferência: {data_transferencia.strftime('%d/%m/%Y')}", 
-                              bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+                              bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
                         
                         # Para alunos transferidos, também mostrar a série/turma da última matrícula
                         if serie_nome:
                             Label(detalhes_info_frame, 
                                   text=f"Última Série: {serie_nome}", 
-                                  bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
                         
                         if turma_nome and turma_nome.strip():
                             Label(detalhes_info_frame, 
                                   text=f"Última Turma: {turma_nome}", 
-                                  bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
                         else:
                             # Se o nome da turma estiver vazio, mostrar "Turma Única" ou o ID
                             cursor.execute("""
@@ -452,14 +486,10 @@ def selecionar_item(event):
                             turma_info = cursor.fetchone()
                             if turma_info:
                                 turma_id, total_turmas = turma_info
-                                if total_turmas == 1:
-                                    Label(detalhes_info_frame, 
-                                          text="Última Turma: Turma Única", 
-                                          bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
-                                else:
-                                    Label(detalhes_info_frame, 
-                                          text=f"Última Turma: Turma {turma_id}", 
-                                          bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+                                turma_texto = "Última Turma: Turma Única" if total_turmas == 1 else f"Última Turma: Turma {turma_id}"
+                                Label(detalhes_info_frame, 
+                                      text=turma_texto, 
+                                      bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
         
         except Exception as e:
             print(f"Erro ao verificar matrícula: {str(e)}")
@@ -470,10 +500,17 @@ def selecionar_item(event):
                 conn.close()
                 
     elif tipo_item == "Funcionário":
-        Label(detalhes_info_frame, text=f"ID: {valores[0]}", bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
-        Label(detalhes_info_frame, text=f"Nome: {valores[1]}", bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
-        Label(detalhes_info_frame, text=f"Cargo: {valores[3]}", bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
-        Label(detalhes_info_frame, text=f"Data de Nascimento: {valores[4]}", bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+        # Linha 1: ID e Nome
+        Label(detalhes_info_frame, text=f"ID: {valores[0]}", bg=co1, fg=co0, 
+              font=('Ivy 10 bold'), anchor=W).grid(row=0, column=0, sticky=EW, padx=5, pady=3)
+        Label(detalhes_info_frame, text=f"Nome: {valores[1]}", bg=co1, fg=co0, 
+              font=('Ivy 10 bold'), anchor=W).grid(row=0, column=1, columnspan=2, sticky=EW, padx=5, pady=3)
+        
+        # Linha 2: Cargo e Data de Nascimento
+        Label(detalhes_info_frame, text=f"Cargo: {valores[3]}", bg=co1, fg=co0, 
+              font=('Ivy 10'), anchor=W).grid(row=1, column=0, columnspan=2, sticky=EW, padx=5, pady=3)
+        Label(detalhes_info_frame, text=f"Data de Nascimento: {valores[4]}", bg=co1, fg=co0, 
+              font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
 
 def on_select(event):
     # Função para eventos de teclado - aguarda um pouco para a seleção ser atualizada
@@ -524,22 +561,59 @@ def on_select(event):
         # Criar botões de ação primeiro (no topo)
         criar_botoes_frame_detalhes(tipo_item, valores)
         
-        # Frame para exibir os detalhes (abaixo dos botões)
+        # Frame para exibir os detalhes em grid (abaixo dos botões)
         detalhes_info_frame = Frame(frame_detalhes, bg=co1)
-        detalhes_info_frame.pack(fill=X, expand=True, padx=10, pady=5)
+        detalhes_info_frame.pack(fill=BOTH, expand=True, padx=10, pady=5)
+        
+        # Configurar o grid para 3 colunas
+        for i in range(3):
+            detalhes_info_frame.grid_columnconfigure(i, weight=1, uniform="col")
         
         # Exibir informações conforme o tipo
         if tipo_item == "Aluno":
-            Label(detalhes_info_frame, text=f"ID: {valores[0]}", bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
-            Label(detalhes_info_frame, text=f"Nome: {valores[1]}", bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
-            Label(detalhes_info_frame, text=f"Data de Nascimento: {valores[4]}", bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+            # Linha 1: ID, Nome
+            Label(detalhes_info_frame, text=f"ID: {valores[0]}", bg=co1, fg=co0, 
+                  font=('Ivy 10 bold'), anchor=W).grid(row=0, column=0, sticky=EW, padx=5, pady=3)
+            Label(detalhes_info_frame, text=f"Nome: {valores[1]}", bg=co1, fg=co0, 
+                  font=('Ivy 10 bold'), anchor=W).grid(row=0, column=1, columnspan=2, sticky=EW, padx=5, pady=3)
             
-            # Verificar matrícula do aluno (igual à função selecionar_item)
+            Label(detalhes_info_frame, text=f"Data de Nascimento: {valores[4]}", bg=co1, fg=co0, 
+                  font=('Ivy 10'), anchor=W).grid(row=1, column=0, sticky=EW, padx=5, pady=3)
+            
+            # Verificar matrícula do aluno e buscar responsáveis
             conn = None
             cursor = None
             try:
                 conn = conectar_bd()
                 cursor = conn.cursor()
+                
+                # Buscar responsáveis do aluno (Pai e Mãe)
+                cursor.execute("""
+                    SELECT DISTINCT r.nome, r.grau_parentesco
+                    FROM responsaveis r
+                    INNER JOIN responsaveisalunos ra ON r.id = ra.responsavel_id
+                    WHERE ra.aluno_id = %s AND r.grau_parentesco IN ('Mãe', 'Pai')
+                    ORDER BY r.grau_parentesco DESC
+                """, (id_item,))
+                responsaveis = cursor.fetchall()
+                
+                nome_mae = None
+                nome_pai = None
+                
+                for resp in responsaveis:
+                    if resp[1] == 'Mãe':
+                        nome_mae = resp[0]
+                    elif resp[1] == 'Pai':
+                        nome_pai = resp[0]
+                
+                # Exibir nomes dos pais na linha 2
+                if nome_mae:
+                    Label(detalhes_info_frame, text=f"Mãe: {nome_mae}", bg=co1, fg=co0, 
+                          font=('Ivy 10'), anchor=W).grid(row=2, column=0, columnspan=2, sticky=EW, padx=5, pady=3)
+                
+                if nome_pai:
+                    Label(detalhes_info_frame, text=f"Pai: {nome_pai}", bg=co1, fg=co0, 
+                          font=('Ivy 10'), anchor=W).grid(row=2, column=2, sticky=EW, padx=5, pady=3)
                 
                 # Obtém o ID do ano letivo atual
                 cursor.execute("SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
@@ -580,21 +654,23 @@ def on_select(event):
                     if resultado:
                         status, data_matricula, data_transferencia, serie_nome, turma_nome = resultado
                         
+                        row_atual = 3  # Começar na linha 3
+                        
                         if status == 'Ativo' and data_matricula:
                             Label(detalhes_info_frame, 
                                   text=f"Data de Matrícula: {data_matricula.strftime('%d/%m/%Y')}", 
-                                  bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
                             
                             # Adicionar informações de série e turma para alunos ativos
                             if serie_nome:
                                 Label(detalhes_info_frame, 
                                       text=f"Série: {serie_nome}", 
-                                      bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+                                      bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
                             
                             if turma_nome and turma_nome.strip():
                                 Label(detalhes_info_frame, 
                                       text=f"Turma: {turma_nome}", 
-                                      bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+                                      bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
                             else:
                                 # Se o nome da turma estiver vazio, mostrar "Turma Única" ou o ID
                                 cursor.execute("""
@@ -612,30 +688,26 @@ def on_select(event):
                                 turma_info = cursor.fetchone()
                                 if turma_info:
                                     turma_id, total_turmas = turma_info
-                                    if total_turmas == 1:
-                                        Label(detalhes_info_frame, 
-                                              text="Turma: Turma Única", 
-                                              bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
-                                    else:
-                                        Label(detalhes_info_frame, 
-                                              text=f"Turma: Turma {turma_id}", 
-                                              bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+                                    turma_texto = "Turma: Turma Única" if total_turmas == 1 else f"Turma: Turma {turma_id}"
+                                    Label(detalhes_info_frame, 
+                                          text=turma_texto, 
+                                          bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
                         
                         elif status == 'Transferido' and data_transferencia:
                             Label(detalhes_info_frame, 
                                   text=f"Data de Transferência: {data_transferencia.strftime('%d/%m/%Y')}", 
-                                  bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
                             
                             # Para alunos transferidos, também mostrar a série/turma da última matrícula
                             if serie_nome:
                                 Label(detalhes_info_frame, 
                                       text=f"Última Série: {serie_nome}", 
-                                      bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+                                      bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
                             
                             if turma_nome and turma_nome.strip():
                                 Label(detalhes_info_frame, 
                                       text=f"Última Turma: {turma_nome}", 
-                                      bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+                                      bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
                             else:
                                 # Se o nome da turma estiver vazio, mostrar "Turma Única" ou o ID
                                 cursor.execute("""
@@ -653,14 +725,10 @@ def on_select(event):
                                 turma_info = cursor.fetchone()
                                 if turma_info:
                                     turma_id, total_turmas = turma_info
-                                    if total_turmas == 1:
-                                        Label(detalhes_info_frame, 
-                                              text="Última Turma: Turma Única", 
-                                              bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
-                                    else:
-                                        Label(detalhes_info_frame, 
-                                              text=f"Última Turma: Turma {turma_id}", 
-                                              bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+                                    turma_texto = "Última Turma: Turma Única" if total_turmas == 1 else f"Última Turma: Turma {turma_id}"
+                                    Label(detalhes_info_frame, 
+                                          text=turma_texto, 
+                                          bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
             
             except Exception as e:
                 print(f"Erro ao verificar matrícula: {str(e)}")
@@ -671,10 +739,17 @@ def on_select(event):
                     conn.close()
                     
         elif tipo_item == "Funcionário":
-            Label(detalhes_info_frame, text=f"ID: {valores[0]}", bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
-            Label(detalhes_info_frame, text=f"Nome: {valores[1]}", bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
-            Label(detalhes_info_frame, text=f"Cargo: {valores[3]}", bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
-            Label(detalhes_info_frame, text=f"Data de Nascimento: {valores[4]}", bg=co1, fg=co0).pack(anchor=W, padx=10, pady=5)
+            # Linha 1: ID e Nome
+            Label(detalhes_info_frame, text=f"ID: {valores[0]}", bg=co1, fg=co0, 
+                  font=('Ivy 10 bold'), anchor=W).grid(row=0, column=0, sticky=EW, padx=5, pady=3)
+            Label(detalhes_info_frame, text=f"Nome: {valores[1]}", bg=co1, fg=co0, 
+                  font=('Ivy 10 bold'), anchor=W).grid(row=0, column=1, columnspan=2, sticky=EW, padx=5, pady=3)
+            
+            # Linha 2: Cargo e Data de Nascimento
+            Label(detalhes_info_frame, text=f"Cargo: {valores[3]}", bg=co1, fg=co0, 
+                  font=('Ivy 10'), anchor=W).grid(row=1, column=0, columnspan=2, sticky=EW, padx=5, pady=3)
+            Label(detalhes_info_frame, text=f"Data de Nascimento: {valores[4]}", bg=co1, fg=co0, 
+                  font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
     
     # Agendar processamento após a seleção ser atualizada
     treeview.after(10, processar_selecao)
