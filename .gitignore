@@ -55,6 +55,8 @@ $RECYCLE.BIN/
 *secret*
 .env
 credentials.json
+token.pickle
+*.pickle
 
 # Chromedriver (pode ser baixado novamente)
 chromedriver.exe
