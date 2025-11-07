@@ -156,10 +156,166 @@ class GerenciadorDocumentos:
         
         return folder['id']
 
+    def verificar_documento_recente(self, tipo_documento, aluno_id=None, funcionario_id=None, 
+                                    finalidade=None, intervalo_minutos=5):
+        """
+        Verifica se já existe um documento similar registrado recentemente.
+        
+        Args:
+            tipo_documento (str): Tipo do documento
+            aluno_id (int, optional): ID do aluno
+            funcionario_id (int, optional): ID do funcionário
+            finalidade (str, optional): Finalidade do documento
+            intervalo_minutos (int): Intervalo mínimo em minutos entre uploads
+        
+        Returns:
+            tuple: (existe_recente, documento_id, link_drive)
+        """
+        conn = self.conectar_bd()
+        if not conn:
+            return False, None, None
+        
+        cursor = conn.cursor()
+        try:
+            query = """
+                SELECT id, link_no_drive, data_de_upload
+                FROM documentos_emitidos
+                WHERE tipo_documento = %s
+                AND TIMESTAMPDIFF(MINUTE, data_de_upload, NOW()) < %s
+            """
+            params = [tipo_documento, intervalo_minutos]
+            
+            # Adicionar filtros adicionais
+            if aluno_id is not None:
+                query += " AND aluno_id = %s"
+                params.append(aluno_id)
+            else:
+                query += " AND aluno_id IS NULL"
+            
+            if funcionario_id is not None:
+                query += " AND funcionario_id = %s"
+                params.append(funcionario_id)
+            else:
+                query += " AND funcionario_id IS NULL"
+            
+            if finalidade is not None:
+                query += " AND finalidade = %s"
+                params.append(finalidade)
+            
+            query += " ORDER BY data_de_upload DESC LIMIT 1"
+            
+            cursor.execute(query, params)
+            resultado = cursor.fetchone()
+            
+            if resultado:
+                return True, resultado[0], resultado[1]
+            return False, None, None
+            
+        except mysql.connector.Error as e:
+            print(f"Erro ao verificar documento recente: {e}")
+            return False, None, None
+        finally:
+            cursor.close()
+            conn.close()
+    
+    def atualizar_documento_existente(self, doc_id, caminho_arquivo, tipo_documento, pasta_drive=None):
+        """
+        Atualiza um documento existente, substituindo o arquivo antigo no Drive.
+        
+        Args:
+            doc_id (int): ID do documento no banco de dados
+            caminho_arquivo (str): Caminho do novo arquivo
+            tipo_documento (str): Tipo do documento
+            pasta_drive (str, optional): ID da pasta pai
+        
+        Returns:
+            tuple: (sucesso, mensagem, link_documento)
+        """
+        from utilitarios.tipos_documentos import get_categoria_documento
+        
+        conn = self.conectar_bd()
+        if not conn:
+            return False, "Erro ao conectar ao banco de dados", None
+        
+        cursor = conn.cursor()
+        try:
+            # Buscar link antigo do Drive
+            cursor.execute("SELECT link_no_drive FROM documentos_emitidos WHERE id = %s", (doc_id,))
+            resultado = cursor.fetchone()
+            
+            if resultado and resultado[0]:
+                # Extrair file_id do link antigo
+                link_antigo = resultado[0]
+                try:
+                    if '/d/' in link_antigo:
+                        file_id_antigo = link_antigo.split('/d/')[1].split('/')[0]
+                    elif 'id=' in link_antigo:
+                        file_id_antigo = link_antigo.split('id=')[1].split('&')[0]
+                    else:
+                        file_id_antigo = link_antigo.split('/')[-1]
+                    
+                    # Excluir arquivo antigo do Drive
+                    self.service.files().delete(fileId=file_id_antigo).execute()
+                    print(f"Arquivo antigo removido do Drive: {file_id_antigo}")
+                except Exception as e:
+                    print(f"Aviso: Não foi possível excluir arquivo antigo do Drive: {e}")
+            
+            # Criar estrutura de pastas
+            ano_atual = datetime.now().year
+            pasta_principal = self.get_or_create_folder(f"Documentos Gerados {ano_atual}", 
+                                                      pasta_drive or self.pasta_raiz_id)
+            categoria = get_categoria_documento(tipo_documento)
+            pasta_categoria = self.get_or_create_folder(categoria, pasta_principal)
+            pasta_tipo = self.get_or_create_folder(tipo_documento, pasta_categoria)
+            
+            # Upload novo arquivo
+            nome_arquivo = os.path.basename(caminho_arquivo)
+            file_metadata = {
+                'name': nome_arquivo,
+                'parents': [pasta_tipo]
+            }
+            
+            mimetype = mimetypes.guess_type(caminho_arquivo)[0]
+            media = MediaFileUpload(caminho_arquivo, mimetype=mimetype, resumable=True)
+            
+            file = self.service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields='id, webViewLink'
+            ).execute()
+            
+            # Configurar permissão
+            permission = {
+                'type': 'anyone',
+                'role': 'reader'
+            }
+            self.service.permissions().create(
+                fileId=file['id'],
+                body=permission
+            ).execute()
+            
+            # Atualizar registro no banco
+            cursor.execute("""
+                UPDATE documentos_emitidos 
+                SET nome_arquivo = %s, data_de_upload = %s, link_no_drive = %s
+                WHERE id = %s
+            """, (nome_arquivo, datetime.now(), file['webViewLink'], doc_id))
+            
+            conn.commit()
+            return True, "Documento atualizado com sucesso (substituiu versão anterior)!", file['webViewLink']
+            
+        except Exception as e:
+            conn.rollback()
+            return False, f"Erro ao atualizar documento: {str(e)}", None
+        finally:
+            cursor.close()
+            conn.close()
+
     def salvar_documento(self, caminho_arquivo, tipo_documento, aluno_id=None, funcionario_id=None, 
-                        finalidade=None, descricao=None, pasta_drive=None):
+                        finalidade=None, descricao=None, pasta_drive=None, intervalo_minutos=5):
         """
         Salva um documento no Google Drive e registra no banco de dados.
+        Verifica se já existe um documento similar recente e, se sim, atualiza ao invés de criar novo.
         
         Args:
             caminho_arquivo (str): Caminho completo do arquivo a ser salvo
@@ -169,11 +325,21 @@ class GerenciadorDocumentos:
             finalidade (str, optional): Finalidade do documento
             descricao (str, optional): Descrição adicional do documento
             pasta_drive (str, optional): ID da pasta pai onde criar a estrutura
+            intervalo_minutos (int): Intervalo mínimo em minutos entre uploads (padrão: 5)
         
         Returns:
             tuple: (sucesso, mensagem, link_documento)
         """
         from utilitarios.tipos_documentos import get_categoria_documento
+        
+        # Verificar se já existe documento recente similar
+        existe_recente, doc_id, link_antigo = self.verificar_documento_recente(
+            tipo_documento, aluno_id, funcionario_id, finalidade, intervalo_minutos
+        )
+        
+        if existe_recente:
+            # Atualizar documento existente ao invés de criar novo
+            return self.atualizar_documento_existente(doc_id, caminho_arquivo, tipo_documento, pasta_drive)
         
         # Criar estrutura de pastas usando a pasta raiz como base
         ano_atual = datetime.now().year

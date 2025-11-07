@@ -112,7 +112,7 @@ class GerenciadorDocumentosSistema:
                                 bg=self.co1, fg=self.co0, font=('Ivy', 10, 'bold'))
         filter_frame.pack(fill=X, pady=(0, 10))
         
-        # Grid de filtros
+        # Grid de filtros - Linha 0
         Label(filter_frame, text="Tipo:", bg=self.co1, fg=self.co0,
               font=('Ivy', 10)).grid(row=0, column=0, padx=5, pady=5)
         
@@ -121,7 +121,7 @@ class GerenciadorDocumentosSistema:
                                      width=30, font=('Ivy', 10))
         self.tipo_combo['values'] = (
             'Todos', 'Declaração', 'Boletim', 'Histórico Escolar', 
-            'Lista Atualizada', 'Ata', 'Outros'
+            'Lista Atualizada', 'Ata', 'Transferência', 'Outros'
         )
         self.tipo_combo.grid(row=0, column=1, padx=5, pady=5)
         self.tipo_combo.set('Todos')
@@ -138,9 +138,18 @@ class GerenciadorDocumentosSistema:
         self.data_combo.grid(row=0, column=3, padx=5, pady=5)
         self.data_combo.set('Todos')
         
+        # Grid de filtros - Linha 1
+        Label(filter_frame, text="Nome:", bg=self.co1, fg=self.co0,
+              font=('Ivy', 10)).grid(row=1, column=0, padx=5, pady=5)
+        
+        self.nome_var = StringVar()
+        self.nome_entry = ttk.Entry(filter_frame, textvariable=self.nome_var,
+                                    width=32, font=('Ivy', 10))
+        self.nome_entry.grid(row=1, column=1, padx=5, pady=5)
+        
         Button(filter_frame, text="Filtrar", command=self.carregar_documentos,
                font=('Ivy', 10), bg=self.co4, fg=self.co0,
-               relief=RAISED, overrelief=RIDGE).grid(row=0, column=4, padx=5, pady=5)
+               relief=RAISED, overrelief=RIDGE).grid(row=1, column=2, padx=5, pady=5)
         
         # Frame da tabela
         table_frame = Frame(main_frame, bg=self.co1)
@@ -208,6 +217,14 @@ class GerenciadorDocumentosSistema:
         Button(button_frame, text="Atualizar Lista", command=self.carregar_documentos,
                font=('Ivy', 10, 'bold'), bg=self.co4, fg=self.co0, width=18,
                relief=RAISED, overrelief=RIDGE, cursor="hand2").pack(side=LEFT, padx=5, pady=5)
+        
+        Button(button_frame, text="Relatório Duplicados", command=self.mostrar_relatorio_duplicados,
+               font=('Ivy', 10, 'bold'), bg=self.co6, fg=self.co7, width=18,
+               relief=RAISED, overrelief=RIDGE, cursor="hand2").pack(side=LEFT, padx=5, pady=5)
+        
+        Button(button_frame, text="Limpar Duplicados", command=self.limpar_duplicados,
+               font=('Ivy', 10, 'bold'), bg=self.co5, fg=self.co0, width=18,
+               relief=RAISED, overrelief=RIDGE, cursor="hand2").pack(side=LEFT, padx=5, pady=5)
     
     def carregar_documentos(self):
         """Carrega os documentos com base nos filtros selecionados"""
@@ -254,6 +271,13 @@ class GerenciadorDocumentosSistema:
                     query += " AND data_de_upload >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)"
                 elif data_filtro == 'Este ano':
                     query += " AND YEAR(data_de_upload) = YEAR(CURDATE())"
+            
+            # Adicionar filtro de nome (Aluno ou Funcionário)
+            nome_filtro = self.nome_var.get().strip()
+            if nome_filtro:
+                query += " AND (a.nome LIKE %s OR f.nome LIKE %s)"
+                params.append(f"%{nome_filtro}%")
+                params.append(f"%{nome_filtro}%")
             
             query += " ORDER BY data_de_upload DESC"
             
@@ -336,8 +360,15 @@ class GerenciadorDocumentosSistema:
             
             if resultado and resultado[0]:
                 # Extrair ID do arquivo do Drive do link
-                drive_id = resultado[0].split('/')[-2]
+                link = resultado[0]
                 try:
+                    if '/d/' in link:
+                        drive_id = link.split('/d/')[1].split('/')[0]
+                    elif 'id=' in link:
+                        drive_id = link.split('id=')[1].split('&')[0]
+                    else:
+                        drive_id = link.split('/')[-2]
+                    
                     # Tentar excluir do Drive
                     self.service.files().delete(fileId=drive_id).execute()
                 except Exception as e:
@@ -361,6 +392,232 @@ class GerenciadorDocumentosSistema:
         except Exception as e:
             self.conn.rollback()
             messagebox.showerror("Erro", f"Erro ao excluir documento: {e}")
+    
+    def identificar_duplicados(self):
+        """Identifica documentos duplicados no banco de dados"""
+        if not self.conn or not self.conn.is_connected():
+            messagebox.showerror("Erro", "Sem conexão com o banco de dados.")
+            return []
+        
+        try:
+            # Buscar documentos agrupados por tipo, aluno/funcionário e finalidade
+            # Considera duplicados aqueles com mesmas características mas datas diferentes
+            query = """
+                SELECT 
+                    tipo_documento,
+                    aluno_id,
+                    funcionario_id,
+                    finalidade,
+                    COUNT(*) as total,
+                    GROUP_CONCAT(id ORDER BY data_de_upload DESC) as ids,
+                    GROUP_CONCAT(data_de_upload ORDER BY data_de_upload DESC) as datas
+                FROM documentos_emitidos
+                GROUP BY tipo_documento, aluno_id, funcionario_id, finalidade
+                HAVING COUNT(*) > 1
+                ORDER BY total DESC, tipo_documento
+            """
+            
+            self.cursor.execute(query)
+            duplicados = self.cursor.fetchall()
+            
+            return duplicados
+            
+        except mysql.connector.Error as e:
+            messagebox.showerror("Erro", f"Erro ao identificar duplicados: {e}")
+            return []
+    
+    def limpar_duplicados(self):
+        """Remove documentos duplicados, mantendo apenas o mais recente"""
+        if not messagebox.askyesno(
+            "Confirmar Limpeza",
+            "Esta ação irá identificar documentos duplicados e manter apenas a versão mais recente de cada um.\n\n"
+            "Os documentos antigos serão excluídos do banco de dados e do Google Drive.\n\n"
+            "Deseja continuar?"
+        ):
+            return
+        
+        duplicados = self.identificar_duplicados()
+        
+        if not duplicados:
+            messagebox.showinfo("Limpeza de Duplicados", "Nenhum documento duplicado foi encontrado!")
+            return
+        
+        # Criar janela de progresso
+        progresso_window = tk.Toplevel(self.root)
+        progresso_window.title("Limpeza de Duplicados")
+        progresso_window.geometry("600x400")
+        progresso_window.configure(bg=self.co1)
+        
+        Label(progresso_window, text="Removendo documentos duplicados...", 
+              font=('Ivy', 12, 'bold'), bg=self.co1, fg=self.co0).pack(pady=10)
+        
+        # Text widget para mostrar progresso
+        text_widget = tk.Text(progresso_window, height=15, width=70, 
+                             font=('Consolas', 9), bg=self.co0, fg=self.co7)
+        text_widget.pack(padx=10, pady=10, fill=BOTH, expand=True)
+        
+        scrollbar = ttk.Scrollbar(text_widget, command=text_widget.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        text_widget.config(yscrollcommand=scrollbar.set)
+        
+        total_removidos = 0
+        total_grupos = len(duplicados)
+        
+        try:
+            for idx, dup in enumerate(duplicados, 1):
+                tipo, aluno_id, func_id, finalidade, total, ids_str, datas_str = dup
+                
+                ids = [int(x) for x in ids_str.split(',')]
+                # Manter o primeiro ID (mais recente) e remover os outros
+                ids_para_remover = ids[1:]
+                
+                pessoa = f"Aluno ID: {aluno_id}" if aluno_id else f"Funcionário ID: {func_id}" if func_id else "Sem vínculo"
+                
+                text_widget.insert(tk.END, f"\n[{idx}/{total_grupos}] {tipo} - {pessoa}\n", "titulo")
+                text_widget.insert(tk.END, f"  Total de versões: {total}\n")
+                text_widget.insert(tk.END, f"  Mantendo versão mais recente (ID: {ids[0]})\n", "sucesso")
+                text_widget.insert(tk.END, f"  Removendo {len(ids_para_remover)} versão(ões) antiga(s)...\n", "aviso")
+                
+                # Remover versões antigas
+                for doc_id in ids_para_remover:
+                    try:
+                        # Buscar link do Drive
+                        self.cursor.execute(
+                            "SELECT link_no_drive, nome_arquivo FROM documentos_emitidos WHERE id = %s",
+                            (doc_id,)
+                        )
+                        resultado = self.cursor.fetchone()
+                        
+                        if resultado and resultado[0]:
+                            link = resultado[0]
+                            nome = resultado[1]
+                            
+                            # Extrair file_id e excluir do Drive
+                            try:
+                                if '/d/' in link:
+                                    drive_id = link.split('/d/')[1].split('/')[0]
+                                elif 'id=' in link:
+                                    drive_id = link.split('id=')[1].split('&')[0]
+                                else:
+                                    drive_id = link.split('/')[-2]
+                                
+                                self.service.files().delete(fileId=drive_id).execute()
+                                text_widget.insert(tk.END, f"    ✓ Removido do Drive: {nome}\n", "detalhe")
+                            except Exception as e:
+                                text_widget.insert(tk.END, f"    ⚠ Erro ao remover do Drive: {str(e)[:50]}\n", "erro")
+                        
+                        # Excluir do banco de dados
+                        self.cursor.execute("DELETE FROM documentos_emitidos WHERE id = %s", (doc_id,))
+                        total_removidos += 1
+                        
+                    except Exception as e:
+                        text_widget.insert(tk.END, f"    ✗ Erro ao processar ID {doc_id}: {str(e)[:50]}\n", "erro")
+                
+                self.conn.commit()
+                text_widget.see(tk.END)
+                progresso_window.update()
+            
+            # Configurar tags de cores
+            text_widget.tag_config("titulo", foreground=self.co1, font=('Consolas', 9, 'bold'))
+            text_widget.tag_config("sucesso", foreground=self.co2)
+            text_widget.tag_config("aviso", foreground=self.co5)
+            text_widget.tag_config("erro", foreground=self.co8)
+            text_widget.tag_config("detalhe", foreground=self.co7)
+            
+            text_widget.insert(tk.END, f"\n{'='*60}\n", "titulo")
+            text_widget.insert(tk.END, f"Limpeza concluída!\n", "titulo")
+            text_widget.insert(tk.END, f"Total de documentos removidos: {total_removidos}\n", "sucesso")
+            text_widget.insert(tk.END, f"Total de grupos processados: {total_grupos}\n", "sucesso")
+            text_widget.see(tk.END)
+            
+            # Botão para fechar
+            Button(progresso_window, text="Fechar", command=progresso_window.destroy,
+                   font=('Ivy', 10, 'bold'), bg=self.co2, fg=self.co0, width=15,
+                   relief=RAISED, overrelief=RIDGE, cursor="hand2").pack(pady=10)
+            
+            # Atualizar lista de documentos
+            self.carregar_documentos()
+            
+        except Exception as e:
+            self.conn.rollback()
+            text_widget.insert(tk.END, f"\n✗ ERRO GERAL: {str(e)}\n", "erro")
+            text_widget.see(tk.END)
+    
+    def mostrar_relatorio_duplicados(self):
+        """Mostra relatório de documentos duplicados sem removê-los"""
+        duplicados = self.identificar_duplicados()
+        
+        if not duplicados:
+            messagebox.showinfo("Relatório de Duplicados", "Nenhum documento duplicado foi encontrado!")
+            return
+        
+        # Criar janela de relatório
+        relatorio_window = tk.Toplevel(self.root)
+        relatorio_window.title("Relatório de Documentos Duplicados")
+        relatorio_window.geometry("800x600")
+        relatorio_window.configure(bg=self.co1)
+        
+        Label(relatorio_window, text="Documentos Duplicados Encontrados", 
+              font=('Ivy', 14, 'bold'), bg=self.co1, fg=self.co0).pack(pady=10)
+        
+        # Frame para a tabela
+        frame_tabela = Frame(relatorio_window, bg=self.co1)
+        frame_tabela.pack(fill=BOTH, expand=True, padx=10, pady=10)
+        
+        # Criar Treeview
+        colunas = ('Tipo', 'Pessoa', 'Finalidade', 'Total', 'IDs')
+        tree = ttk.Treeview(frame_tabela, columns=colunas, show='headings',
+                           style="Custom.Treeview", height=20)
+        
+        tree.heading('Tipo', text='Tipo Documento')
+        tree.heading('Pessoa', text='Aluno/Funcionário')
+        tree.heading('Finalidade', text='Finalidade')
+        tree.heading('Total', text='Qtd Duplicados')
+        tree.heading('IDs', text='IDs no Banco')
+        
+        tree.column('Tipo', width=150)
+        tree.column('Pessoa', width=150)
+        tree.column('Finalidade', width=150)
+        tree.column('Total', width=100)
+        tree.column('IDs', width=200)
+        
+        # Scrollbar
+        scrollbar = ttk.Scrollbar(frame_tabela, orient=VERTICAL, command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        
+        tree.pack(side=LEFT, fill=BOTH, expand=True)
+        scrollbar.pack(side=RIGHT, fill=Y)
+        
+        # Preencher dados
+        total_docs_duplicados = 0
+        for dup in duplicados:
+            tipo, aluno_id, func_id, finalidade, total, ids_str, datas_str = dup
+            
+            pessoa = f"Aluno: {aluno_id}" if aluno_id else f"Func: {func_id}" if func_id else "N/A"
+            final = finalidade if finalidade else "N/A"
+            
+            tree.insert('', 'end', values=(tipo, pessoa, final, total, ids_str))
+            total_docs_duplicados += (total - 1)  # -1 porque vamos manter um
+        
+        # Frame de informações
+        info_frame = Frame(relatorio_window, bg=self.co1)
+        info_frame.pack(fill=X, padx=10, pady=10)
+        
+        Label(info_frame, 
+              text=f"Total de grupos duplicados: {len(duplicados)} | Documentos que serão removidos: {total_docs_duplicados}",
+              font=('Ivy', 10, 'bold'), bg=self.co1, fg=self.co6).pack()
+        
+        # Botões
+        button_frame = Frame(relatorio_window, bg=self.co1)
+        button_frame.pack(pady=10)
+        
+        Button(button_frame, text="Limpar Duplicados", command=lambda: [relatorio_window.destroy(), self.limpar_duplicados()],
+               font=('Ivy', 10, 'bold'), bg=self.co8, fg=self.co0, width=20,
+               relief=RAISED, overrelief=RIDGE, cursor="hand2").pack(side=LEFT, padx=5)
+        
+        Button(button_frame, text="Fechar", command=relatorio_window.destroy,
+               font=('Ivy', 10, 'bold'), bg=self.co4, fg=self.co0, width=20,
+               relief=RAISED, overrelief=RIDGE, cursor="hand2").pack(side=LEFT, padx=5)
     
     def __del__(self):
         """Fecha a conexão com o banco ao destruir o objeto"""
