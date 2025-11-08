@@ -38,4 +38,4 @@ echo ====================================
 echo.
 echo Você está pronto para trabalhar!
 echo.
-pause
+timeout /t 5

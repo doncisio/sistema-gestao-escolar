@@ -67,4 +67,4 @@ echo ====================================
 echo.
 echo Suas alterações foram salvas na nuvem!
 echo.
-pause
+timeout /t 5
