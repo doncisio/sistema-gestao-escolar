@@ -1,9 +1,11 @@
 import sys
 import os
+from typing import Optional, Union, Tuple, Any, List, Dict
+from datetime import datetime, date, timedelta
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from tkinter import *
+from tkinter import Tk, Frame, Label, Button, Entry, Toplevel, StringVar, IntVar, BooleanVar, OptionMenu, Radiobutton, Checkbutton, NSEW, EW, NS, W, E, X, Y, BOTH, TRUE, FALSE, LEFT, RIGHT, BOTTOM, TOP, RAISED, RIDGE, SOLID, HORIZONTAL, DISABLED, NORMAL, Menu
 from tkinter import ttk
-from tkinter.ttk import Style, Progressbar
+from tkinter.ttk import Style, Progressbar, Separator
 from tkinter import messagebox
 from tkinter import TclError  # Importar TclError explicitamente para tratamento de erros
 from PIL import ImageTk, Image
@@ -86,6 +88,12 @@ ORDER BY
     tipo, 
     nome;
 """
+
+# Verificar se a conexão foi estabelecida
+if conn is None:
+    messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+    exit()
+
 cursor = conn.cursor()
 cursor.execute(query)
 resultados = cursor.fetchall()
@@ -109,28 +117,32 @@ conn.close()
 
 # Conexão com o banco de dados
 conn = conectar_bd()
-cursor = conn.cursor()
+if conn is None:
+    messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados para verificar anos letivos.")
+else:
+    cursor = conn.cursor()
 
-# Verificar se o ano letivo 2024 com ID 1 existe
-cursor.execute("SELECT COUNT(*) FROM anosletivos WHERE id = 1 AND ano_letivo = 2024")
-tem_ano_2024 = cursor.fetchone()[0]
+    # Verificar se o ano letivo 2024 com ID 1 existe
+    cursor.execute("SELECT COUNT(*) FROM anosletivos WHERE id = 1 AND ano_letivo = 2024")
+    result = cursor.fetchone()
+    tem_ano_2024 = result[0] if result else 0
 
-# Se não existir, inserir o ano letivo 2024 com ID 1
-if tem_ano_2024 == 0:
-    print("Inserindo ano letivo 2024 com ID 1...")
-    try:
-        cursor.execute("""
-            INSERT INTO anosletivos (id, ano_letivo, data_inicio, data_fim, ativo, numero_dias_aula) 
-            VALUES (1, 2024, '2024-01-08', '2024-12-20', 1, 200)
-            ON DUPLICATE KEY UPDATE ano_letivo = 2024
-        """)
-        conn.commit()
-        print("Ano letivo 2024 inserido com sucesso!")
-    except Exception as e:
-        print(f"Erro ao inserir ano letivo 2024: {e}")
+    # Se não existir, inserir o ano letivo 2024 com ID 1
+    if tem_ano_2024 == 0:
+        print("Inserindo ano letivo 2024 com ID 1...")
+        try:
+            cursor.execute("""
+                INSERT INTO anosletivos (id, ano_letivo, data_inicio, data_fim, ativo, numero_dias_aula) 
+                VALUES (1, 2024, '2024-01-08', '2024-12-20', 1, 200)
+                ON DUPLICATE KEY UPDATE ano_letivo = 2024
+            """)
+            conn.commit()
+            print("Ano letivo 2024 inserido com sucesso!")
+        except Exception as e:
+            print(f"Erro ao inserir ano letivo 2024: {e}")
 
-cursor.close()
-conn.close()
+    cursor.close()
+    conn.close()
 
 # Criar a janela
 janela = Tk()
@@ -246,8 +258,10 @@ def criar_tabela():
                 if isinstance(row[4], str):
                     # Tenta converter string para data
                     data = datetime.strptime(row[4], '%Y-%m-%d')
-                else:
+                elif isinstance(row[4], (datetime, date)):
                     data = row[4]
+                else:
+                    continue  # Pula se não for um tipo de data válido
                 row[4] = data.strftime('%d/%m/%Y')
             except Exception:
                 pass  # Se não conseguir converter, deixa como está
@@ -346,6 +360,9 @@ def selecionar_item(event):
         cursor = None
         try:
             conn = conectar_bd()
+            if conn is None:
+                print("Erro: Não foi possível conectar ao banco de dados.")
+                return
             cursor = conn.cursor()
             
             # Buscar responsáveis do aluno (Pai e Mãe)
@@ -355,7 +372,7 @@ def selecionar_item(event):
                 INNER JOIN responsaveisalunos ra ON r.id = ra.responsavel_id
                 WHERE ra.aluno_id = %s AND r.grau_parentesco IN ('Mãe', 'Pai')
                 ORDER BY r.grau_parentesco DESC
-            """, (id_item,))
+            """, (int(str(id_item)),))
             responsaveis = cursor.fetchall()
             
             nome_mae = None
@@ -386,7 +403,8 @@ def selecionar_item(event):
                 resultado_ano = cursor.fetchone()
                 
             if resultado_ano:
-                ano_letivo_id = resultado_ano[0]
+                # Garantir que ano_letivo_id é um inteiro válido
+                ano_letivo_id = int(str(resultado_ano[0])) if resultado_ano[0] is not None else 1
                 
                 # Verifica a matrícula do aluno no ano letivo atual
                 cursor.execute("""
@@ -408,7 +426,7 @@ def selecionar_item(event):
                     AND m.status IN ('Ativo', 'Transferido')
                     ORDER BY m.data_matricula DESC
                     LIMIT 1
-                """, (id_item, ano_letivo_id))
+                """, (int(str(id_item)), ano_letivo_id))
                 
                 resultado = cursor.fetchone()
                 
@@ -418,8 +436,19 @@ def selecionar_item(event):
                     row_atual = 3  # Começar na linha 3, pois linhas 0, 1 e 2 já foram usadas
                     
                     if status == 'Ativo' and data_matricula:
+                        # Formatar data de matrícula adequadamente
+                        try:
+                            if isinstance(data_matricula, str):
+                                data_formatada = datetime.strptime(data_matricula, '%Y-%m-%d').strftime('%d/%m/%Y')
+                            elif isinstance(data_matricula, (datetime, date)):
+                                data_formatada = data_matricula.strftime('%d/%m/%Y')
+                            else:
+                                data_formatada = str(data_matricula)
+                        except Exception:
+                            data_formatada = str(data_matricula)
+                            
                         Label(detalhes_info_frame, 
-                              text=f"Data de Matrícula: {data_matricula.strftime('%d/%m/%Y')}", 
+                              text=f"Data de Matrícula: {data_formatada}", 
                               bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
                         
                         # Adicionar informações de série e turma para alunos ativos
@@ -428,7 +457,7 @@ def selecionar_item(event):
                                   text=f"Série: {serie_nome}", 
                                   bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
                         
-                        if turma_nome and turma_nome.strip():
+                        if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
                             Label(detalhes_info_frame, 
                                   text=f"Turma: {turma_nome}", 
                                   bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
@@ -444,7 +473,7 @@ def selecionar_item(event):
                                 AND t.escola_id = 60
                                 AND m.status = 'Ativo'
                                 AND s.nome = %s
-                            """, (id_item, ano_letivo_id, serie_nome))
+                            """, (int(str(id_item)), ano_letivo_id, str(serie_nome) if serie_nome else ""))
                             
                             turma_info = cursor.fetchone()
                             if turma_info:
@@ -455,8 +484,19 @@ def selecionar_item(event):
                                       bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
                     
                     elif status == 'Transferido' and data_transferencia:
+                        # Formatar data de transferência adequadamente
+                        try:
+                            if isinstance(data_transferencia, str):
+                                data_transf_formatada = datetime.strptime(data_transferencia, '%Y-%m-%d').strftime('%d/%m/%Y')
+                            elif isinstance(data_transferencia, (datetime, date)):
+                                data_transf_formatada = data_transferencia.strftime('%d/%m/%Y')
+                            else:
+                                data_transf_formatada = str(data_transferencia)
+                        except Exception:
+                            data_transf_formatada = str(data_transferencia)
+                            
                         Label(detalhes_info_frame, 
-                              text=f"Data de Transferência: {data_transferencia.strftime('%d/%m/%Y')}", 
+                              text=f"Data de Transferência: {data_transf_formatada}", 
                               bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
                         
                         # Para alunos transferidos, também mostrar a série/turma da última matrícula
@@ -465,7 +505,7 @@ def selecionar_item(event):
                                   text=f"Última Série: {serie_nome}", 
                                   bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
                         
-                        if turma_nome and turma_nome.strip():
+                        if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
                             Label(detalhes_info_frame, 
                                   text=f"Última Turma: {turma_nome}", 
                                   bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
@@ -481,7 +521,7 @@ def selecionar_item(event):
                                 AND t.escola_id = 60
                                 AND m.status = 'Transferido'
                                 AND s.nome = %s
-                            """, (id_item, ano_letivo_id, serie_nome))
+                            """, (int(str(id_item)), ano_letivo_id, str(serie_nome) if serie_nome else ""))
                             
                             turma_info = cursor.fetchone()
                             if turma_info:
@@ -550,7 +590,8 @@ def on_select(event):
             titulo_texto = f"Detalhes do {tipo_item}"
             app_logo = Label(titulo_frame, image=app_lp, text=titulo_texto, compound=LEFT,
                             anchor=W, font=('Ivy 15 bold'), bg=co0, fg=co1, padx=10, pady=5)
-            app_logo.image = app_lp  # Manter referência
+            # Manter referência à imagem para evitar garbage collection
+            setattr(app_logo, '_image_ref', app_lp)
             app_logo.pack(fill=X, expand=True)
         except:
             titulo_texto = f"Detalhes do {tipo_item}"
@@ -585,6 +626,9 @@ def on_select(event):
             cursor = None
             try:
                 conn = conectar_bd()
+                if conn is None:
+                    print("Erro: Não foi possível conectar ao banco de dados.")
+                    return
                 cursor = conn.cursor()
                 
                 # Buscar responsáveis do aluno (Pai e Mãe)
@@ -594,7 +638,7 @@ def on_select(event):
                     INNER JOIN responsaveisalunos ra ON r.id = ra.responsavel_id
                     WHERE ra.aluno_id = %s AND r.grau_parentesco IN ('Mãe', 'Pai')
                     ORDER BY r.grau_parentesco DESC
-                """, (id_item,))
+                """, (int(str(id_item)),))
                 responsaveis = cursor.fetchall()
                 
                 nome_mae = None
@@ -625,7 +669,8 @@ def on_select(event):
                     resultado_ano = cursor.fetchone()
                     
                 if resultado_ano:
-                    ano_letivo_id = resultado_ano[0]
+                    # Garantir que ano_letivo_id é um inteiro válido
+                    ano_letivo_id = int(str(resultado_ano[0])) if resultado_ano[0] is not None else 1
                     
                     # Verifica a matrícula do aluno no ano letivo atual
                     cursor.execute("""
@@ -647,7 +692,7 @@ def on_select(event):
                         AND m.status IN ('Ativo', 'Transferido')
                         ORDER BY m.data_matricula DESC
                         LIMIT 1
-                    """, (id_item, ano_letivo_id))
+                    """, (int(str(id_item)), ano_letivo_id))
                     
                     resultado = cursor.fetchone()
                     
@@ -657,8 +702,19 @@ def on_select(event):
                         row_atual = 3  # Começar na linha 3
                         
                         if status == 'Ativo' and data_matricula:
+                            # Formatar data de matrícula adequadamente
+                            try:
+                                if isinstance(data_matricula, str):
+                                    data_formatada = datetime.strptime(data_matricula, '%Y-%m-%d').strftime('%d/%m/%Y')
+                                elif isinstance(data_matricula, (datetime, date)):
+                                    data_formatada = data_matricula.strftime('%d/%m/%Y')
+                                else:
+                                    data_formatada = str(data_matricula)
+                            except Exception:
+                                data_formatada = str(data_matricula)
+                                
                             Label(detalhes_info_frame, 
-                                  text=f"Data de Matrícula: {data_matricula.strftime('%d/%m/%Y')}", 
+                                  text=f"Data de Matrícula: {data_formatada}", 
                                   bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
                             
                             # Adicionar informações de série e turma para alunos ativos
@@ -667,7 +723,7 @@ def on_select(event):
                                       text=f"Série: {serie_nome}", 
                                       bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
                             
-                            if turma_nome and turma_nome.strip():
+                            if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
                                 Label(detalhes_info_frame, 
                                       text=f"Turma: {turma_nome}", 
                                       bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
@@ -683,7 +739,7 @@ def on_select(event):
                                     AND t.escola_id = 60
                                     AND m.status = 'Ativo'
                                     AND s.nome = %s
-                                """, (id_item, ano_letivo_id, serie_nome))
+                                """, (int(str(id_item)), ano_letivo_id, str(serie_nome) if serie_nome else ""))
                                 
                                 turma_info = cursor.fetchone()
                                 if turma_info:
@@ -694,8 +750,19 @@ def on_select(event):
                                           bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
                         
                         elif status == 'Transferido' and data_transferencia:
+                            # Formatar data de transferência adequadamente
+                            try:
+                                if isinstance(data_transferencia, str):
+                                    data_transf_formatada = datetime.strptime(data_transferencia, '%Y-%m-%d').strftime('%d/%m/%Y')
+                                elif isinstance(data_transferencia, (datetime, date)):
+                                    data_transf_formatada = data_transferencia.strftime('%d/%m/%Y')
+                                else:
+                                    data_transf_formatada = str(data_transferencia)
+                            except Exception:
+                                data_transf_formatada = str(data_transferencia)
+                                
                             Label(detalhes_info_frame, 
-                                  text=f"Data de Transferência: {data_transferencia.strftime('%d/%m/%Y')}", 
+                                  text=f"Data de Transferência: {data_transf_formatada}", 
                                   bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
                             
                             # Para alunos transferidos, também mostrar a série/turma da última matrícula
@@ -704,7 +771,7 @@ def on_select(event):
                                       text=f"Última Série: {serie_nome}", 
                                       bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
                             
-                            if turma_nome and turma_nome.strip():
+                            if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
                                 Label(detalhes_info_frame, 
                                       text=f"Última Turma: {turma_nome}", 
                                       bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
@@ -720,7 +787,7 @@ def on_select(event):
                                     AND t.escola_id = 60
                                     AND m.status = 'Transferido'
                                     AND s.nome = %s
-                                """, (id_item, ano_letivo_id, serie_nome))
+                                """, (int(str(id_item)), ano_letivo_id, str(serie_nome) if serie_nome else ""))
                                 
                                 turma_info = cursor.fetchone()
                                 if turma_info:
@@ -836,6 +903,8 @@ def verificar_matricula_ativa(aluno_id):
     cursor = None
     try:
         conn = conectar_bd()
+        if conn is None:
+            return False
         cursor = conn.cursor()
         
         # Obtém o ID do ano letivo atual
@@ -862,7 +931,7 @@ def verificar_matricula_ativa(aluno_id):
             AND m.ano_letivo_id = %s 
             AND t.escola_id = 60
             AND m.status IN ('Ativo', 'Transferido')
-        """, (aluno_id, ano_letivo_id))
+        """, (int(str(aluno_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
         
         resultado = cursor.fetchone()
         
@@ -918,6 +987,8 @@ def verificar_historico_matriculas(aluno_id):
     cursor = None
     try:
         conn = conectar_bd()
+        if conn is None:
+            return False, []
         cursor = conn.cursor()
         
         # Verifica se o aluno possui matrícula em qualquer ano letivo
@@ -942,8 +1013,9 @@ def verificar_historico_matriculas(aluno_id):
                 cursor.execute("""
                     SELECT COUNT(*) FROM matriculas 
                     WHERE aluno_id = %s AND ano_letivo_id = 1
-                """, (aluno_id,))
-                tem_matricula = cursor.fetchone()[0] > 0
+                """, (int(str(aluno_id)),))
+                resultado_count = cursor.fetchone()
+                tem_matricula = bool(resultado_count and resultado_count[0] and int(str(resultado_count[0])) > 0)
                 
                 if tem_matricula:
                     resultados = [(ano_2024[0], ano_2024[1], 'Ativo')]
@@ -985,11 +1057,18 @@ def matricular_aluno(aluno_id):
     try:
         # Obter informações do aluno
         conn = conectar_bd()
+        if conn is None:
+            messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+            return
         cursor = conn.cursor()
         
         # Obter nome do aluno
-        cursor.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
-        nome_aluno = cursor.fetchone()[0]
+        cursor.execute("SELECT nome FROM alunos WHERE id = %s", (int(str(aluno_id)),))
+        resultado_nome = cursor.fetchone()
+        if resultado_nome is None:
+            messagebox.showerror("Erro", "Aluno não encontrado.")
+            return
+        nome_aluno = resultado_nome[0]
         
         # Obter ano letivo atual
         cursor.execute("SELECT id, ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
@@ -1071,6 +1150,9 @@ def matricular_aluno(aluno_id):
         def carregar_series():
             nonlocal cursor
             try:
+                if cursor is None:
+                    messagebox.showerror("Erro", "Conexão com o banco de dados não está disponível.")
+                    return
                 cursor.execute("""
                     SELECT DISTINCT s.id, s.nome 
                     FROM serie s
@@ -1078,7 +1160,7 @@ def matricular_aluno(aluno_id):
                     WHERE t.escola_id = 60
                     AND t.ano_letivo_id = %s
                     ORDER BY s.nome
-                """, (ano_letivo_id,))
+                """, (int(str(ano_letivo_id)) if ano_letivo_id is not None else 1,))
                 series = cursor.fetchall()
                 
                 if not series:
@@ -1120,12 +1202,15 @@ def matricular_aluno(aluno_id):
             serie_id = series_map[serie_nome]
             
             try:
+                if cursor is None:
+                    messagebox.showerror("Erro", "Conexão com o banco de dados não está disponível.")
+                    return
                 cursor.execute("""
                     SELECT id, nome, serie_id
                     FROM turmas 
                     WHERE serie_id = %s AND escola_id = 60 AND ano_letivo_id = %s
                     ORDER BY nome
-                """, (serie_id, ano_letivo_id))
+                """, (int(str(serie_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
                 
                 turmas = cursor.fetchall()
                 
@@ -1139,7 +1224,7 @@ def matricular_aluno(aluno_id):
                     turma_id, turma_nome, turma_serie_id = turma
                     
                     # Se o nome da turma estiver vazio, usar "Turma Única" ou o ID como nome
-                    if not turma_nome or turma_nome.strip() == "":
+                    if not turma_nome or str(turma_nome).strip() == "":
                         # Se houver apenas uma turma nesta série, use "Turma Única"
                         if len(turmas) == 1:
                             turma_nome = f"Turma Única"
@@ -1212,6 +1297,9 @@ def matricular_aluno(aluno_id):
             
             try:
                 # Verificar se já existe matrícula para o aluno neste ano letivo (qualquer status)
+                if cursor is None:
+                    messagebox.showerror("Erro", "Conexão com o banco de dados não está disponível.")
+                    return
                 cursor.execute(
                     """
                     SELECT id, status 
@@ -1220,7 +1308,7 @@ def matricular_aluno(aluno_id):
                     ORDER BY id DESC
                     LIMIT 1
                     """,
-                    (aluno_id, ano_letivo_id)
+                    (int(str(aluno_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1)
                 )
                 registro_existente = cursor.fetchone()
 
@@ -1233,7 +1321,7 @@ def matricular_aluno(aluno_id):
                         SET turma_id = %s, status = 'Ativo', data_matricula = CURDATE()
                         WHERE id = %s
                         """,
-                        (turma_id, matricula_id)
+                        (int(str(turma_id)), int(str(matricula_id)) if matricula_id is not None else 0)
                     )
 
                     # Registrar histórico da mudança de status (de status_atual -> 'Ativo') com data personalizada
@@ -1243,7 +1331,7 @@ def matricular_aluno(aluno_id):
                             INSERT INTO historico_matricula (matricula_id, status_anterior, status_novo, data_mudanca)
                             VALUES (%s, %s, %s, %s)
                             """,
-                            (matricula_id, status_atual, 'Ativo', data_formatada)
+                            (int(str(matricula_id)) if matricula_id is not None else 0, str(status_atual) if status_atual is not None else '', 'Ativo', data_formatada)
                         )
                     except Exception as hist_err:
                         print(f"Falha ao registrar histórico da matrícula (update): {hist_err}")
@@ -1254,7 +1342,7 @@ def matricular_aluno(aluno_id):
                         INSERT INTO matriculas (aluno_id, turma_id, data_matricula, ano_letivo_id, status)
                         VALUES (%s, %s, CURDATE(), %s, 'Ativo')
                         """,
-                        (aluno_id, turma_id, ano_letivo_id)
+                        (int(str(aluno_id)), int(str(turma_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1)
                     )
 
                     novo_matricula_id = cursor.lastrowid
@@ -1271,7 +1359,8 @@ def matricular_aluno(aluno_id):
                     except Exception as hist_err:
                         print(f"Falha ao registrar histórico da matrícula (insert): {hist_err}")
 
-                conn.commit()
+                if conn is not None:
+                    conn.commit()
                 messagebox.showinfo("Sucesso", f"Aluno {nome_aluno} matriculado/atualizado com sucesso na turma {turma_nome}!")
                 
                 # Fechar conexões antes de destruir a janela
@@ -1356,6 +1445,9 @@ def excluir_funcionario_com_confirmacao(funcionario_id):
         try:
             # Conecta ao banco de dados
             conexao = conectar_bd()
+            if conexao is None:
+                messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+                return False
             cursor = conexao.cursor()
             
             # Verifica se o funcionário existe
@@ -1467,6 +1559,9 @@ def gerar_declaracao(id_pessoa=None):
         # Se o ID foi fornecido diretamente, precisamos determinar o tipo da pessoa
         try:
             conn = conectar_bd()
+            if conn is None:
+                messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+                return
             cursor = conn.cursor()
             
             # Verificar se é um aluno
@@ -1611,7 +1706,7 @@ def criar_logo():
             app_logo_label.grid(row=0, column=0, sticky=W, padx=10)
 
     # Título da escola
-    escola_label = Label(logo_frame, text=nome_escola.upper(), font=("Ivy 15 bold"), bg=co0, fg=co1)  # Alterado o fundo para branco e texto para azul
+    escola_label = Label(logo_frame, text=str(nome_escola).upper(), font=("Ivy 15 bold"), bg=co0, fg=co1)  # Alterado o fundo para branco e texto para azul
     escola_label.grid(row=0, column=1, sticky=W, padx=10)
 
 def criar_pesquisa():
@@ -1650,8 +1745,10 @@ def pesquisar(event=None):
                 try:
                     if isinstance(resultado[4], str):
                         data = datetime.strptime(resultado[4], '%Y-%m-%d')
-                    else:
+                    elif isinstance(resultado[4], (datetime, date)):
                         data = resultado[4]
+                    else:
+                        continue  # Pula se não for um tipo de data válido
                     resultado[4] = data.strftime('%d/%m/%Y')
                 except Exception:
                     pass
@@ -1677,8 +1774,10 @@ def pesquisar(event=None):
                 try:
                     if isinstance(resultado[4], str):
                         data = datetime.strptime(resultado[4], '%Y-%m-%d')
-                    else:
+                    elif isinstance(resultado[4], (datetime, date)):
                         data = resultado[4]
+                    else:
+                        continue  # Pula se não for um tipo de data válido
                     resultado[4] = data.strftime('%d/%m/%Y')
                 except Exception:
                     pass
@@ -1822,7 +1921,8 @@ def criar_acoes():
         app_cadastro = Button(botoes_frame, command=cadastrar_novo_aluno, text="+ Novo Aluno",
                             compound=LEFT, overrelief=RIDGE, font=('Ivy 11'), bg=co2, fg=co0)
     app_cadastro.grid(row=0, column=0, padx=5, pady=5, sticky=EW)
-    app_cadastro.image = app_img_cadastro if 'app_img_cadastro' in locals() else None
+    if 'app_img_cadastro' in locals():
+        setattr(app_cadastro, '_image_ref', app_img_cadastro)
     
     global app_img_funcionario
     try:
@@ -1837,7 +1937,8 @@ def criar_acoes():
                                 compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                                 bg=co3, fg=co0)
     app_funcionario.grid(row=0, column=1, padx=5, pady=5, sticky=EW)
-    app_funcionario.image = app_img_funcionario if 'app_img_funcionario' in locals() else None
+    if 'app_img_funcionario' in locals():
+        setattr(app_funcionario, '_image_ref', app_img_funcionario)
     
     global app_img_matricula
     try:
@@ -1862,7 +1963,8 @@ def criar_acoes():
                               compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                               bg=co4, fg=co0)
     app_historico.grid(row=0, column=2, padx=5, pady=5, sticky=EW)
-    app_historico.image = app_img_historico if 'app_img_historico' in locals() else None
+    if 'app_img_historico' in locals():
+        setattr(app_historico, '_image_ref', app_img_historico)
     
     # Função para abrir a interface administrativa
     def abrir_interface_administrativa():
@@ -1886,7 +1988,8 @@ def criar_acoes():
                           compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                           bg=co5, fg=co0)
     app_admin.grid(row=0, column=3, padx=5, pady=5, sticky=EW)
-    app_admin.image = app_img_admin if 'app_img_admin' in locals() else None
+    if 'app_img_admin' in locals():
+        setattr(app_admin, '_image_ref', app_img_admin)
     
     def relatorio():
         # Criar menu de meses
@@ -2143,6 +2246,9 @@ def criar_acoes():
             
             try:
                 conn = conectar_bd()
+                if conn is None:
+                    messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+                    return
                 cursor = conn.cursor()
                 
                 # Obter ano letivo atual
@@ -2168,7 +2274,7 @@ def criar_acoes():
                         AND a.nome LIKE %s
                         ORDER BY a.nome
                     """
-                    cursor.execute(query, (ano_letivo_id, f"%{filtro}%"))
+                    cursor.execute(query, (int(str(ano_letivo_id)) if ano_letivo_id is not None else 1, f"%{filtro}%"))
                 else:
                     query = """
                         SELECT DISTINCT a.id, a.nome, s.nome as serie, t.nome as turma
@@ -2181,7 +2287,7 @@ def criar_acoes():
                         AND m.status IN ('Ativo', 'Transferido')
                         ORDER BY a.nome
                     """
-                    cursor.execute(query, (ano_letivo_id,))
+                    cursor.execute(query, (int(str(ano_letivo_id)) if ano_letivo_id is not None else 1,))
                 
                 resultados = cursor.fetchall()
                 
@@ -2196,8 +2302,10 @@ def criar_acoes():
                     listbox_alunos.insert(END, texto)
                     alunos_dict[idx] = aluno_id
                 
-                cursor.close()
-                conn.close()
+                if cursor is not None:
+                    cursor.close()
+                if conn is not None:
+                    conn.close()
                 
             except Exception as e:
                 messagebox.showerror("Erro", f"Erro ao carregar alunos: {str(e)}")
@@ -2277,6 +2385,9 @@ def criar_acoes():
             if aluno_id:
                 try:
                     conn = conectar_bd()
+                    if conn is None:
+                        print("Erro: Não foi possível conectar ao banco de dados.")
+                        return
                     cursor = conn.cursor()
                     
                     # Buscar responsáveis do aluno
@@ -2298,8 +2409,10 @@ def criar_acoes():
                         if row[0]:
                             responsaveis.append(row[0])
                     
-                    cursor.close()
-                    conn.close()
+                    if cursor is not None:
+                        cursor.close()
+                    if conn is not None:
+                        conn.close()
                     
                     # Atualizar combobox
                     if responsaveis:
@@ -2549,13 +2662,16 @@ def criar_acoes():
                 ano = ano_var.get()
                 nome_mes = nome_mes_pt_folha(mes)
                 saida = os.path.join(pasta_var.get(), f"Folhas_de_Ponto_{nome_mes}_{ano}.pdf")
-                status_label.config(text=f"Gerando folhas de ponto de {nome_mes}/{ano}…")
+                if status_label is not None:
+                    status_label.config(text=f"Gerando folhas de ponto de {nome_mes}/{ano}…")
                 janela.update()
                 gerar_folhas_de_ponto(base_pdf, saida, mes_referencia=mes, ano_referencia=ano)
-                status_label.config(text="Folhas de ponto geradas com sucesso.")
+                if status_label is not None:
+                    status_label.config(text="Folhas de ponto geradas com sucesso.")
                 messagebox.showinfo("Concluído", f"Arquivo gerado em:\n{saida}")
             except Exception as e:
-                status_label.config(text="")
+                if status_label is not None:
+                    status_label.config(text="")
                 messagebox.showerror("Erro", str(e))
 
         botoes = Frame(dialog, padx=15, pady=10)
@@ -2589,13 +2705,16 @@ def criar_acoes():
                 mes = mes_var.get()
                 ano = ano_var.get()
                 nome_mes = nome_mes_pt_resumo(mes)
-                status_label.config(text=f"Gerando resumo de ponto de {nome_mes}/{ano}…")
+                if status_label is not None:
+                    status_label.config(text=f"Gerando resumo de ponto de {nome_mes}/{ano}…")
                 janela.update()
                 gerar_resumo_ponto(mes, ano)
-                status_label.config(text="Resumo de ponto gerado com sucesso.")
+                if status_label is not None:
+                    status_label.config(text="Resumo de ponto gerado com sucesso.")
                 messagebox.showinfo("Concluído", "Resumo gerado na pasta configurada no script.")
             except Exception as e:
-                status_label.config(text="")
+                if status_label is not None:
+                    status_label.config(text="")
                 messagebox.showerror("Erro", str(e))
 
         botoes = Frame(dialog, padx=15, pady=10)
@@ -2658,7 +2777,7 @@ def criar_acoes():
         
         # Ano letivo
         Label(frame_principal, text="Ano letivo:", anchor=W).grid(row=3, column=0, sticky=W, pady=5)
-        anos = [2023, 2024, 2025, 2026, 2027]
+        anos = ["2023", "2024", "2025", "2026", "2027"]
         combo_ano = ttk.Combobox(frame_principal, textvariable=ano_letivo_var, values=anos, state="readonly", width=20)
         combo_ano.grid(row=3, column=1, sticky=W, pady=5)
         
@@ -2696,7 +2815,8 @@ def criar_acoes():
             janela_relatorio.destroy()
             
             # Exibir feedback ao usuário
-            status_label.config(text=f"Gerando relatório de notas para {bimestre} ({nivel})...")
+            if status_label is not None:
+                status_label.config(text=f"Gerando relatório de notas para {bimestre} ({nivel})...")
             janela.update()
             
             # Gerar o relatório
@@ -2710,13 +2830,16 @@ def criar_acoes():
                 )
                 
                 if resultado:
-                    status_label.config(text=f"Relatório gerado com sucesso!")
+                    if status_label is not None:
+                        status_label.config(text=f"Relatório gerado com sucesso!")
                 else:
-                    status_label.config(text=f"Nenhum dado encontrado para o relatório.")
+                    if status_label is not None:
+                        status_label.config(text=f"Nenhum dado encontrado para o relatório.")
                     messagebox.showwarning("Sem dados", f"Não foram encontrados dados para o {bimestre} no nível {nivel}.")
             except Exception as e:
                 messagebox.showerror("Erro", f"Falha ao gerar relatório: {str(e)}")
-                status_label.config(text="")
+                if status_label is not None:
+                    status_label.config(text="")
         
         # Botões
         Button(frame_botoes, text="Cancelar", command=janela_relatorio.destroy, width=10).pack(side=RIGHT, padx=5)
@@ -2795,7 +2918,8 @@ def criar_acoes():
                              compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                              bg=co3, fg=co0)
     app_horarios.grid(row=0, column=6, padx=5, pady=5, sticky=EW)
-    app_horarios.image = app_img_horarios if 'app_img_horarios' in locals() else None
+    if 'app_img_horarios' in locals():
+        setattr(app_horarios, '_image_ref', app_img_horarios)
 
     # Remover o OptionMenu e variáveis relacionadas
     def opcao_selecionada(value):
@@ -2906,6 +3030,9 @@ def verificar_e_gerar_boletim(aluno_id, ano_letivo_id=None):
     cursor = None
     try:
         conn = conectar_bd()
+        if conn is None:
+            messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+            return
         cursor = conn.cursor()
         
         # Se o ano_letivo_id não foi fornecido, obtém o ID do ano letivo atual
@@ -2937,7 +3064,7 @@ def verificar_e_gerar_boletim(aluno_id, ano_letivo_id=None):
             AND m.status IN ('Ativo', 'Transferido')
             ORDER BY m.data_matricula DESC
             LIMIT 1
-        """, (aluno_id, ano_letivo_id))
+        """, (int(str(aluno_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
         
         resultado = cursor.fetchone()
         
@@ -2998,6 +3125,9 @@ def atualizar_tabela_principal():
             
         # Conectar ao banco de dados
         conn = conectar_bd()
+        if conn is None:
+            messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+            return False
         cursor = conn.cursor()
         
         # Executar a consulta original novamente para obter dados atualizados
@@ -3027,7 +3157,8 @@ def atualizar_tabela_principal():
                             data = datetime.strptime(resultado[4], '%Y-%m-%d')
                         else:
                             data = resultado[4]
-                        resultado[4] = data.strftime('%d/%m/%Y')
+                        if isinstance(data, (datetime, date)):
+                            resultado[4] = data.strftime('%d/%m/%Y')
                     except Exception:
                         pass
                 treeview.insert("", "end", values=resultado)
@@ -3112,11 +3243,18 @@ def selecionar_ano_para_boletim(aluno_id):
     cursor = None
     try:
         conn = conectar_bd()
+        if conn is None:
+            messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+            return
         cursor = conn.cursor()
         
         # Obter nome do aluno
         cursor.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
-        nome_aluno = cursor.fetchone()[0]
+        resultado_nome = cursor.fetchone()
+        if resultado_nome is None:
+            messagebox.showerror("Erro", "Aluno não encontrado.")
+            return
+        nome_aluno = resultado_nome[0]
         
         # Obter anos letivos nos quais o aluno teve matrícula
         tem_historico, anos_letivos = verificar_historico_matriculas(aluno_id)
@@ -3161,7 +3299,7 @@ def selecionar_ano_para_boletim(aluno_id):
                 AND m.ano_letivo_id = %s 
                 ORDER BY m.data_matricula DESC
                 LIMIT 1
-            """, (aluno_id, ano_letivo_id))
+            """, (int(str(aluno_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
             
             status_result = cursor.fetchone()
             status = status_result[0] if status_result else "Desconhecido"
@@ -3290,6 +3428,9 @@ def criar_menu_boletim(parent_frame, aluno_id, tem_matricula_ativa):
     cursor = None
     try:
         conn = conectar_bd()
+        if conn is None:
+            messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+            return
         cursor = conn.cursor()
         
         for ano_letivo, ano_letivo_id in anos_letivos:
@@ -3302,7 +3443,7 @@ def criar_menu_boletim(parent_frame, aluno_id, tem_matricula_ativa):
                 AND m.ano_letivo_id = %s 
                 ORDER BY m.data_matricula DESC
                 LIMIT 1
-            """, (aluno_id, ano_letivo_id))
+            """, (int(str(aluno_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
             
             status_result = cursor.fetchone()
             status = status_result[0] if status_result else "Desconhecido"
@@ -3382,11 +3523,18 @@ def editar_matricula(aluno_id):
     try:
         # Obter informações do aluno e da matrícula atual
         conn = conectar_bd()
+        if conn is None:
+            messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+            return
         cursor = conn.cursor()
         
         # Obter nome do aluno
         cursor.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
-        nome_aluno = cursor.fetchone()[0]
+        resultado_nome = cursor.fetchone()
+        if not resultado_nome:
+            messagebox.showerror("Erro", "Aluno não encontrado.")
+            return
+        nome_aluno = resultado_nome[0]
         
         # Obter ano letivo atual
         cursor.execute("SELECT id, ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
@@ -3412,7 +3560,7 @@ def editar_matricula(aluno_id):
             WHERE m.aluno_id = %s AND m.ano_letivo_id = %s
             ORDER BY m.data_matricula DESC, m.id DESC
             LIMIT 1
-        """, (aluno_id, ano_letivo_id))
+        """, (int(str(aluno_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
         
         resultado_matricula = cursor.fetchone()
         
@@ -3481,7 +3629,7 @@ def editar_matricula(aluno_id):
         cb_status.pack(fill=X, pady=(0, 5))
         
         # Definir valor inicial para o status
-        status_var.set(status_atual)
+        status_var.set(str(status_atual) if status_atual is not None else "")
         
         # Data da mudança de status
         data_frame = Frame(frame_matricula, bg=co1)
@@ -3503,6 +3651,9 @@ def editar_matricula(aluno_id):
         def carregar_series():
             nonlocal cursor
             try:
+                if cursor is None:
+                    messagebox.showerror("Erro", "Conexão com o banco de dados não está disponível.")
+                    return
                 cursor.execute("""
                     SELECT DISTINCT s.id, s.nome 
                     FROM serie s
@@ -3510,7 +3661,7 @@ def editar_matricula(aluno_id):
                     WHERE t.escola_id = 60
                     AND t.ano_letivo_id = %s
                     ORDER BY s.nome
-                """, (ano_letivo_id,))
+                """, (int(str(ano_letivo_id)) if ano_letivo_id is not None else 1,))
                 series = cursor.fetchall()
                 
                 if not series:
@@ -3525,7 +3676,7 @@ def editar_matricula(aluno_id):
                 
                 # Selecionar a série atual do aluno
                 if serie_nome_atual in series_map:
-                    serie_var.set(serie_nome_atual)
+                    serie_var.set(str(serie_nome_atual) if serie_nome_atual is not None else "")
                     # Carregar turmas para a série atual
                     carregar_turmas()
                 elif len(series_map) == 1:
@@ -3551,12 +3702,15 @@ def editar_matricula(aluno_id):
             serie_id = series_map[serie_nome]
             
             try:
+                if cursor is None:
+                    messagebox.showerror("Erro", "Conexão com o banco de dados não está disponível.")
+                    return
                 cursor.execute("""
                     SELECT id, nome, serie_id
                     FROM turmas 
                     WHERE serie_id = %s AND escola_id = 60 AND ano_letivo_id = %s
                     ORDER BY nome
-                """, (serie_id, ano_letivo_id))
+                """, (int(str(serie_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
                 
                 turmas = cursor.fetchall()
                 
@@ -3570,7 +3724,7 @@ def editar_matricula(aluno_id):
                     turma_id, turma_nome, turma_serie_id = turma
                     
                     # Se o nome da turma estiver vazio, usar "Turma Única" ou o ID como nome
-                    if not turma_nome or turma_nome.strip() == "":
+                    if not turma_nome or str(turma_nome).strip() == "":
                         if len(turmas) == 1:
                             turma_nome = f"Turma Única"
                         else:
@@ -3584,7 +3738,7 @@ def editar_matricula(aluno_id):
                 
                 # Selecionar a turma atual do aluno se estiver na mesma série
                 if serie_id == serie_id_atual and turma_nome_atual in turmas_map:
-                    turma_var.set(turma_nome_atual)
+                    turma_var.set(str(turma_nome_atual) if turma_nome_atual is not None else "")
                 # Caso contrário, selecionar automaticamente se houver apenas uma turma
                 elif len(turmas_map) == 1:
                     turma_nome = turmas_nomes[0]
@@ -3631,6 +3785,11 @@ def editar_matricula(aluno_id):
             turma_id = turmas_map[turma_nome]
             
             try:
+                # Verificar se cursor está disponível
+                if cursor is None:
+                    messagebox.showerror("Erro", "Conexão com o banco de dados não está disponível.")
+                    return
+                
                 # Verificar se já existe um registro no histórico para esta mudança de status
                 cursor.execute("""
                     SELECT id FROM historico_matricula 
@@ -3639,7 +3798,7 @@ def editar_matricula(aluno_id):
                     AND status_novo = %s
                     ORDER BY id DESC
                     LIMIT 1
-                """, (matricula_id, status_atual, novo_status))
+                """, (int(str(matricula_id)) if matricula_id is not None else 0, str(status_atual) if status_atual is not None else '', novo_status))
                 
                 historico_existente = cursor.fetchone()
                 
@@ -3649,13 +3808,13 @@ def editar_matricula(aluno_id):
                         UPDATE historico_matricula 
                         SET data_mudanca = %s
                         WHERE id = %s
-                    """, (data_formatada, historico_existente[0]))
+                    """, (data_formatada, int(str(historico_existente[0])) if historico_existente and historico_existente[0] is not None else 0))
                 else:
                     # Inserir novo registro no histórico se não existir
                     cursor.execute("""
                         INSERT INTO historico_matricula (matricula_id, status_anterior, status_novo, data_mudanca)
                         VALUES (%s, %s, %s, %s)
-                    """, (matricula_id, status_atual, novo_status, data_formatada))
+                    """, (int(str(matricula_id)) if matricula_id is not None else 0, str(status_atual) if status_atual is not None else '', novo_status, data_formatada))
                 
                 # Verificar se a turma mudou
                 if turma_id != turma_id_atual:
@@ -3664,16 +3823,17 @@ def editar_matricula(aluno_id):
                         UPDATE matriculas 
                         SET turma_id = %s, status = %s
                         WHERE id = %s
-                    """, (turma_id, novo_status, matricula_id))
+                    """, (int(str(turma_id)), novo_status, int(str(matricula_id)) if matricula_id is not None else 0))
                 else:
                     # Atualizar apenas o status na matrícula (mantém a data_matricula original)
                     cursor.execute("""
                         UPDATE matriculas 
                         SET status = %s
                         WHERE id = %s
-                    """, (novo_status, matricula_id))
+                    """, (novo_status, int(str(matricula_id)) if matricula_id is not None else 0))
                 
-                conn.commit()
+                if conn is not None:
+                    conn.commit()
                 messagebox.showinfo("Sucesso", f"Matrícula do aluno {nome_aluno} atualizada com sucesso!")
                 
                 # Fechar conexões antes de destruir a janela
@@ -3861,7 +4021,7 @@ def abrir_relatorio_avancado_com_assinatura():
     
     # Ano letivo
     Label(frame_principal, text="Ano letivo:", anchor=W).grid(row=3, column=0, sticky=W, pady=5)
-    anos = [2023, 2024, 2025, 2026, 2027]
+    anos = ["2023", "2024", "2025", "2026", "2027"]
     combo_ano = ttk.Combobox(frame_principal, textvariable=ano_letivo_var, values=anos, state="readonly", width=20)
     combo_ano.grid(row=3, column=1, sticky=W, pady=5)
     
@@ -3904,7 +4064,8 @@ def abrir_relatorio_avancado_com_assinatura():
         janela_relatorio.destroy()
         
         # Exibir feedback ao usuário
-        status_label.config(text=f"Gerando relatório de notas com assinatura para {bimestre} ({nivel})...")
+        if status_label is not None:
+            status_label.config(text=f"Gerando relatório de notas com assinatura para {bimestre} ({nivel})...")
         janela.update()
         
         # Gerar o relatório
@@ -3918,13 +4079,16 @@ def abrir_relatorio_avancado_com_assinatura():
             )
             
             if resultado:
-                status_label.config(text=f"Relatório com assinatura gerado com sucesso!")
+                if status_label is not None:
+                    status_label.config(text=f"Relatório com assinatura gerado com sucesso!")
             else:
-                status_label.config(text=f"Nenhum dado encontrado para o relatório.")
+                if status_label is not None:
+                    status_label.config(text=f"Nenhum dado encontrado para o relatório.")
                 messagebox.showwarning("Sem dados", f"Não foram encontrados dados para o {bimestre} no nível {nivel}.")
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao gerar relatório: {str(e)}")
-            status_label.config(text="")
+            if status_label is not None:
+                status_label.config(text="")
     
     # Botões
     Button(frame_botoes, text="Cancelar", command=janela_relatorio.destroy, width=10).pack(side=RIGHT, padx=5)
@@ -3993,7 +4157,7 @@ def abrir_relatorio_pendencias():
     # Ano letivo
     Label(frame_principal, text="Ano letivo:", anchor=W, bg=co0,
           font=("Arial", 10, "bold")).grid(row=4, column=0, sticky=W, pady=8, padx=(0, 10))
-    anos = [2023, 2024, 2025, 2026, 2027]
+    anos = ["2023", "2024", "2025", "2026", "2027"]
     combo_ano = ttk.Combobox(frame_principal, textvariable=ano_letivo_var, 
                              values=anos, state="readonly", width=22, font=("Arial", 10))
     combo_ano.grid(row=4, column=1, sticky=W, pady=8)
@@ -4023,7 +4187,8 @@ def abrir_relatorio_pendencias():
         janela_pendencias.destroy()
         
         # Exibir feedback
-        status_label.config(text=f"Gerando relatório de pendências para {bimestre} ({nivel})...")
+        if status_label is not None:
+            status_label.config(text=f"Gerando relatório de pendências para {bimestre} ({nivel})...")
         janela.update()
         
         # Gerar o relatório
@@ -4037,16 +4202,19 @@ def abrir_relatorio_pendencias():
             )
             
             if resultado:
-                status_label.config(text=f"Relatório de pendências gerado com sucesso!")
+                if status_label is not None:
+                    status_label.config(text=f"Relatório de pendências gerado com sucesso!")
             else:
-                status_label.config(text=f"Nenhuma pendência encontrada.")
+                if status_label is not None:
+                    status_label.config(text=f"Nenhuma pendência encontrada.")
                 messagebox.showinfo("Sem pendências", 
                                    f"Não foram encontradas pendências para o {bimestre} no nível {nivel}.")
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao gerar relatório: {str(e)}")
             import traceback
             traceback.print_exc()
-            status_label.config(text="")
+            if status_label is not None:
+                status_label.config(text="")
     
     # Botões estilizados
     btn_gerar = Button(frame_botoes, text="📄 Gerar Relatório", command=gerar_relatorio, 
