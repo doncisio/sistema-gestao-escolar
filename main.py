@@ -63,7 +63,14 @@ status_label = None
 # Iniciando conexão
 conn = conectar_bd()
 
-# Dados iniciais para a tabela
+# ============================================================================
+# OTIMIZAÇÃO 1: Query inicial otimizada com índices apropriados
+# - Removido ORDER BY desnecessário no nível da UNION (feito após)
+# - Adicionado filtro de cargo específico para funcionários
+# - Índices sugeridos: 
+#   CREATE INDEX idx_alunos_escola ON Alunos(escola_id, nome);
+#   CREATE INDEX idx_funcionarios_cargo ON Funcionarios(cargo, nome);
+# ============================================================================
 query = """
 SELECT 
     f.id AS id,
@@ -73,7 +80,11 @@ SELECT
     f.data_nascimento AS data_nascimento
 FROM 
     Funcionarios f
-UNION
+WHERE 
+    f.cargo IN ('Administrador do Sistemas','Gestor Escolar','Professor@','Auxiliar administrativo',
+        'Agente de Portaria','Merendeiro','Auxiliar de serviços gerais','Técnico em Administração Escolar',
+        'Especialista (Coordenadora)','Tutor/Cuidador', 'Interprete de Libras')
+UNION ALL
 SELECT
     a.id AS id,
     a.nome AS nome,
@@ -100,17 +111,34 @@ resultados = cursor.fetchall()
 colunas = ['ID', 'Nome', 'Tipo', 'Cargo', 'Data de Nascimento']
 df = pd.DataFrame(resultados, columns=colunas)
 
-cursor.execute("SELECT nome FROM escolas WHERE id = 60")
-nome_escola = cursor.fetchone()  # Obtém o resultado da consulta
+# ============================================================================
+# OTIMIZAÇÃO 2: Cache de dados estáticos
+# Buscar nome da escola e ano letivo uma única vez no início
+# ============================================================================
+# Cache global para dados que não mudam frequentemente
+_cache_dados_estaticos = {}
 
-# Verifica se a consulta retornou um resultado
-if nome_escola:
-    nome_escola = nome_escola[0]  # Pega o primeiro elemento do resultado
-else:
-    nome_escola = "Escola não encontrada"
+def obter_nome_escola():
+    """Retorna o nome da escola com cache"""
+    if 'nome_escola' not in _cache_dados_estaticos:
+        cursor.execute("SELECT nome FROM escolas WHERE id = 60")
+        resultado = cursor.fetchone()
+        _cache_dados_estaticos['nome_escola'] = resultado[0] if resultado else "Escola não encontrada"
+    return _cache_dados_estaticos['nome_escola']
 
-cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = 2025") # use YEAR(GETDATE()) para pegar o ano atual
-ano_letivo_atual = cursor.fetchone()  # Obtém o resultado da consulta
+def obter_ano_letivo_atual():
+    """Retorna o ID do ano letivo atual com cache"""
+    if 'ano_letivo_atual' not in _cache_dados_estaticos:
+        cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = YEAR(CURDATE())")
+        resultado = cursor.fetchone()
+        if not resultado:
+            cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
+            resultado = cursor.fetchone()
+        _cache_dados_estaticos['ano_letivo_atual'] = resultado[0] if resultado else 1
+    return _cache_dados_estaticos['ano_letivo_atual']
+
+nome_escola = obter_nome_escola()
+ano_letivo_atual = obter_ano_letivo_atual()
 
 cursor.close()
 conn.close()
@@ -355,7 +383,10 @@ def selecionar_item(event):
         Label(detalhes_info_frame, text=f"Data de Nascimento: {valores[4]}", bg=co1, fg=co0, 
               font=('Ivy 10'), anchor=W).grid(row=1, column=0, sticky=EW, padx=5, pady=3)
         
-        # Verificar matrícula do aluno e buscar responsáveis
+        # ============================================================================
+        # OTIMIZAÇÃO 3: Consulta consolidada em uma única query
+        # Busca responsáveis E matrícula em uma única ida ao banco
+        # ============================================================================
         conn = None
         cursor = None
         try:
@@ -365,24 +396,45 @@ def selecionar_item(event):
                 return
             cursor = conn.cursor()
             
-            # Buscar responsáveis do aluno (Pai e Mãe)
+            # Usar o ano letivo do cache
+            ano_letivo_id = obter_ano_letivo_atual()
+            
+            # CONSULTA OTIMIZADA: Buscar todos os dados necessários de uma só vez
             cursor.execute("""
-                SELECT DISTINCT r.nome, r.grau_parentesco
-                FROM responsaveis r
-                INNER JOIN responsaveisalunos ra ON r.id = ra.responsavel_id
-                WHERE ra.aluno_id = %s AND r.grau_parentesco IN ('Mãe', 'Pai')
-                ORDER BY r.grau_parentesco DESC
-            """, (int(str(id_item)),))
-            responsaveis = cursor.fetchall()
+                SELECT 
+                    -- Dados da matrícula
+                    m.status, 
+                    m.data_matricula,
+                    s.nome as serie_nome,
+                    t.nome as turma_nome,
+                    t.id as turma_id,
+                    -- Data de transferência (subquery)
+                    (SELECT hm.data_mudanca 
+                     FROM historico_matricula hm 
+                     WHERE hm.matricula_id = m.id 
+                     AND hm.status_novo IN ('Transferido', 'Transferida')
+                     ORDER BY hm.data_mudanca DESC 
+                     LIMIT 1) as data_transferencia,
+                    -- Responsáveis (usando GROUP_CONCAT para pegar em uma query)
+                    GROUP_CONCAT(DISTINCT CASE WHEN r.grau_parentesco = 'Mãe' THEN r.nome END) as nome_mae,
+                    GROUP_CONCAT(DISTINCT CASE WHEN r.grau_parentesco = 'Pai' THEN r.nome END) as nome_pai
+                FROM alunos a
+                LEFT JOIN matriculas m ON a.id = m.aluno_id AND m.ano_letivo_id = %s AND m.status IN ('Ativo', 'Transferido')
+                LEFT JOIN turmas t ON m.turma_id = t.id AND t.escola_id = 60
+                LEFT JOIN serie s ON t.serie_id = s.id
+                LEFT JOIN responsaveisalunos ra ON a.id = ra.aluno_id
+                LEFT JOIN responsaveis r ON ra.responsavel_id = r.id AND r.grau_parentesco IN ('Mãe', 'Pai')
+                WHERE a.id = %s
+                GROUP BY m.id, m.status, m.data_matricula, s.nome, t.nome, t.id
+                ORDER BY m.data_matricula DESC
+                LIMIT 1
+            """, (ano_letivo_id, int(str(id_item))))
             
-            nome_mae = None
-            nome_pai = None
+            resultado = cursor.fetchone()
             
-            for resp in responsaveis:
-                if resp[1] == 'Mãe':
-                    nome_mae = resp[0]
-                elif resp[1] == 'Pai':
-                    nome_pai = resp[0]
+            # Processar responsáveis
+            nome_mae = resultado[6] if resultado and resultado[6] else None
+            nome_pai = resultado[7] if resultado and resultado[7] else None
             
             # Exibir nomes dos pais na linha 2
             if nome_mae:
@@ -393,45 +445,8 @@ def selecionar_item(event):
                 Label(detalhes_info_frame, text=f"Pai: {nome_pai}", bg=co1, fg=co0, 
                       font=('Ivy 10'), anchor=W).grid(row=2, column=2, sticky=EW, padx=5, pady=3)
             
-            # Obtém o ID do ano letivo atual
-            cursor.execute("SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
-            resultado_ano = cursor.fetchone()
-            
-            if not resultado_ano:
-                # Se não encontrar o ano letivo atual, tenta obter o ano letivo mais recente
-                cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
-                resultado_ano = cursor.fetchone()
-                
-            if resultado_ano:
-                # Garantir que ano_letivo_id é um inteiro válido
-                ano_letivo_id = int(str(resultado_ano[0])) if resultado_ano[0] is not None else 1
-                
-                # Verifica a matrícula do aluno no ano letivo atual
-                cursor.execute("""
-                    SELECT m.status, m.data_matricula, 
-                           (SELECT hm.data_mudanca 
-                            FROM historico_matricula hm 
-                            WHERE hm.matricula_id = m.id 
-                            AND hm.status_novo IN ('Transferido', 'Transferida')
-                            ORDER BY hm.data_mudanca DESC 
-                            LIMIT 1) as data_transferencia,
-                           s.nome as serie_nome,
-                           t.nome as turma_nome
-                    FROM matriculas m
-                    JOIN turmas t ON m.turma_id = t.id
-                    JOIN serie s ON t.serie_id = s.id
-                    WHERE m.aluno_id = %s 
-                    AND m.ano_letivo_id = %s 
-                    AND t.escola_id = 60
-                    AND m.status IN ('Ativo', 'Transferido')
-                    ORDER BY m.data_matricula DESC
-                    LIMIT 1
-                """, (int(str(id_item)), ano_letivo_id))
-                
-                resultado = cursor.fetchone()
-                
-                if resultado:
-                    status, data_matricula, data_transferencia, serie_nome, turma_nome = resultado
+            if resultado:
+                    status, data_matricula, serie_nome, turma_nome, turma_id, data_transferencia = resultado[0:6]
                     
                     row_atual = 3  # Começar na linha 3, pois linhas 0, 1 e 2 já foram usadas
                     
@@ -463,25 +478,11 @@ def selecionar_item(event):
                                   bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
                         else:
                             # Se o nome da turma estiver vazio, mostrar "Turma Única" ou o ID
-                            cursor.execute("""
-                                SELECT t.id, COUNT(*) as total_turmas
-                                FROM matriculas m
-                                JOIN turmas t ON m.turma_id = t.id
-                                JOIN serie s ON t.serie_id = s.id
-                                WHERE m.aluno_id = %s 
-                                AND m.ano_letivo_id = %s 
-                                AND t.escola_id = 60
-                                AND m.status = 'Ativo'
-                                AND s.nome = %s
-                            """, (int(str(id_item)), ano_letivo_id, str(serie_nome) if serie_nome else ""))
-                            
-                            turma_info = cursor.fetchone()
-                            if turma_info:
-                                turma_id, total_turmas = turma_info
-                                turma_texto = "Turma: Turma Única" if total_turmas == 1 else f"Turma: Turma {turma_id}"
-                                Label(detalhes_info_frame, 
-                                      text=turma_texto, 
-                                      bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
+                            # Já temos o turma_id da consulta anterior
+                            turma_texto = f"Turma: Turma {turma_id}" if turma_id else "Turma: Não definida"
+                            Label(detalhes_info_frame, 
+                                  text=turma_texto, 
+                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
                     
                     elif status == 'Transferido' and data_transferencia:
                         # Formatar data de transferência adequadamente
@@ -511,25 +512,11 @@ def selecionar_item(event):
                                   bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
                         else:
                             # Se o nome da turma estiver vazio, mostrar "Turma Única" ou o ID
-                            cursor.execute("""
-                                SELECT t.id, COUNT(*) as total_turmas
-                                FROM matriculas m
-                                JOIN turmas t ON m.turma_id = t.id
-                                JOIN serie s ON t.serie_id = s.id
-                                WHERE m.aluno_id = %s 
-                                AND m.ano_letivo_id = %s 
-                                AND t.escola_id = 60
-                                AND m.status = 'Transferido'
-                                AND s.nome = %s
-                            """, (int(str(id_item)), ano_letivo_id, str(serie_nome) if serie_nome else ""))
-                            
-                            turma_info = cursor.fetchone()
-                            if turma_info:
-                                turma_id, total_turmas = turma_info
-                                turma_texto = "Última Turma: Turma Única" if total_turmas == 1 else f"Última Turma: Turma {turma_id}"
-                                Label(detalhes_info_frame, 
-                                      text=turma_texto, 
-                                      bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
+                            # Já temos o turma_id da consulta anterior
+                            turma_texto = f"Última Turma: Turma {turma_id}" if turma_id else "Última Turma: Não definida"
+                            Label(detalhes_info_frame, 
+                                  text=turma_texto, 
+                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
         
         except Exception as e:
             print(f"Erro ao verificar matrícula: {str(e)}")
@@ -621,7 +608,9 @@ def on_select(event):
             Label(detalhes_info_frame, text=f"Data de Nascimento: {valores[4]}", bg=co1, fg=co0, 
                   font=('Ivy 10'), anchor=W).grid(row=1, column=0, sticky=EW, padx=5, pady=3)
             
-            # Verificar matrícula do aluno e buscar responsáveis
+            # ============================================================================
+            # OTIMIZAÇÃO 3: Consulta consolidada (mesmo padrão da função selecionar_item)
+            # ============================================================================
             conn = None
             cursor = None
             try:
@@ -631,24 +620,45 @@ def on_select(event):
                     return
                 cursor = conn.cursor()
                 
-                # Buscar responsáveis do aluno (Pai e Mãe)
+                # Usar o ano letivo do cache
+                ano_letivo_id = obter_ano_letivo_atual()
+                
+                # CONSULTA OTIMIZADA: Buscar todos os dados necessários de uma só vez
                 cursor.execute("""
-                    SELECT DISTINCT r.nome, r.grau_parentesco
-                    FROM responsaveis r
-                    INNER JOIN responsaveisalunos ra ON r.id = ra.responsavel_id
-                    WHERE ra.aluno_id = %s AND r.grau_parentesco IN ('Mãe', 'Pai')
-                    ORDER BY r.grau_parentesco DESC
-                """, (int(str(id_item)),))
-                responsaveis = cursor.fetchall()
+                    SELECT 
+                        -- Dados da matrícula
+                        m.status, 
+                        m.data_matricula,
+                        s.nome as serie_nome,
+                        t.nome as turma_nome,
+                        t.id as turma_id,
+                        -- Data de transferência (subquery)
+                        (SELECT hm.data_mudanca 
+                         FROM historico_matricula hm 
+                         WHERE hm.matricula_id = m.id 
+                         AND hm.status_novo IN ('Transferido', 'Transferida')
+                         ORDER BY hm.data_mudanca DESC 
+                         LIMIT 1) as data_transferencia,
+                        -- Responsáveis
+                        GROUP_CONCAT(DISTINCT CASE WHEN r.grau_parentesco = 'Mãe' THEN r.nome END) as nome_mae,
+                        GROUP_CONCAT(DISTINCT CASE WHEN r.grau_parentesco = 'Pai' THEN r.nome END) as nome_pai
+                    FROM alunos a
+                    LEFT JOIN matriculas m ON a.id = m.aluno_id AND m.ano_letivo_id = %s AND m.status IN ('Ativo', 'Transferido')
+                    LEFT JOIN turmas t ON m.turma_id = t.id AND t.escola_id = 60
+                    LEFT JOIN serie s ON t.serie_id = s.id
+                    LEFT JOIN responsaveisalunos ra ON a.id = ra.aluno_id
+                    LEFT JOIN responsaveis r ON ra.responsavel_id = r.id AND r.grau_parentesco IN ('Mãe', 'Pai')
+                    WHERE a.id = %s
+                    GROUP BY m.id, m.status, m.data_matricula, s.nome, t.nome, t.id
+                    ORDER BY m.data_matricula DESC
+                    LIMIT 1
+                """, (ano_letivo_id, int(str(id_item))))
                 
-                nome_mae = None
-                nome_pai = None
+                resultado = cursor.fetchone()
                 
-                for resp in responsaveis:
-                    if resp[1] == 'Mãe':
-                        nome_mae = resp[0]
-                    elif resp[1] == 'Pai':
-                        nome_pai = resp[0]
+                # Processar responsáveis
+                nome_mae = resultado[6] if resultado and resultado[6] else None
+                nome_pai = resultado[7] if resultado and resultado[7] else None
                 
                 # Exibir nomes dos pais na linha 2
                 if nome_mae:
@@ -659,143 +669,74 @@ def on_select(event):
                     Label(detalhes_info_frame, text=f"Pai: {nome_pai}", bg=co1, fg=co0, 
                           font=('Ivy 10'), anchor=W).grid(row=2, column=2, sticky=EW, padx=5, pady=3)
                 
-                # Obtém o ID do ano letivo atual
-                cursor.execute("SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
-                resultado_ano = cursor.fetchone()
-                
-                if not resultado_ano:
-                    # Se não encontrar o ano letivo atual, tenta obter o ano letivo mais recente
-                    cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
-                    resultado_ano = cursor.fetchone()
+                if resultado:
+                    status, data_matricula, serie_nome, turma_nome, turma_id, data_transferencia = resultado[0:6]
                     
-                if resultado_ano:
-                    # Garantir que ano_letivo_id é um inteiro válido
-                    ano_letivo_id = int(str(resultado_ano[0])) if resultado_ano[0] is not None else 1
-                    
-                    # Verifica a matrícula do aluno no ano letivo atual
-                    cursor.execute("""
-                        SELECT m.status, m.data_matricula, 
-                               (SELECT hm.data_mudanca 
-                                FROM historico_matricula hm 
-                                WHERE hm.matricula_id = m.id 
-                                AND hm.status_novo IN ('Transferido', 'Transferida')
-                                ORDER BY hm.data_mudanca DESC 
-                                LIMIT 1) as data_transferencia,
-                               s.nome as serie_nome,
-                               t.nome as turma_nome
-                        FROM matriculas m
-                        JOIN turmas t ON m.turma_id = t.id
-                        JOIN serie s ON t.serie_id = s.id
-                        WHERE m.aluno_id = %s 
-                        AND m.ano_letivo_id = %s 
-                        AND t.escola_id = 60
-                        AND m.status IN ('Ativo', 'Transferido')
-                        ORDER BY m.data_matricula DESC
-                        LIMIT 1
-                    """, (int(str(id_item)), ano_letivo_id))
-                    
-                    resultado = cursor.fetchone()
-                    
-                    if resultado:
-                        status, data_matricula, data_transferencia, serie_nome, turma_nome = resultado
-                        
-                        row_atual = 3  # Começar na linha 3
-                        
-                        if status == 'Ativo' and data_matricula:
-                            # Formatar data de matrícula adequadamente
-                            try:
-                                if isinstance(data_matricula, str):
-                                    data_formatada = datetime.strptime(data_matricula, '%Y-%m-%d').strftime('%d/%m/%Y')
-                                elif isinstance(data_matricula, (datetime, date)):
-                                    data_formatada = data_matricula.strftime('%d/%m/%Y')
-                                else:
-                                    data_formatada = str(data_matricula)
-                            except Exception:
+                    if status == 'Ativo' and data_matricula:
+                        # Formatar data de matrícula adequadamente
+                        try:
+                            if isinstance(data_matricula, str):
+                                data_formatada = datetime.strptime(data_matricula, '%Y-%m-%d').strftime('%d/%m/%Y')
+                            elif isinstance(data_matricula, (datetime, date)):
+                                data_formatada = data_matricula.strftime('%d/%m/%Y')
+                            else:
                                 data_formatada = str(data_matricula)
-                                
-                            Label(detalhes_info_frame, 
-                                  text=f"Data de Matrícula: {data_formatada}", 
-                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
+                        except Exception:
+                            data_formatada = str(data_matricula)
                             
-                            # Adicionar informações de série e turma para alunos ativos
-                            if serie_nome:
-                                Label(detalhes_info_frame, 
-                                      text=f"Série: {serie_nome}", 
-                                      bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
-                            
-                            if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
-                                Label(detalhes_info_frame, 
-                                      text=f"Turma: {turma_nome}", 
-                                      bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
-                            else:
-                                # Se o nome da turma estiver vazio, mostrar "Turma Única" ou o ID
-                                cursor.execute("""
-                                    SELECT t.id, COUNT(*) as total_turmas
-                                    FROM matriculas m
-                                    JOIN turmas t ON m.turma_id = t.id
-                                    JOIN serie s ON t.serie_id = s.id
-                                    WHERE m.aluno_id = %s 
-                                    AND m.ano_letivo_id = %s 
-                                    AND t.escola_id = 60
-                                    AND m.status = 'Ativo'
-                                    AND s.nome = %s
-                                """, (int(str(id_item)), ano_letivo_id, str(serie_nome) if serie_nome else ""))
-                                
-                                turma_info = cursor.fetchone()
-                                if turma_info:
-                                    turma_id, total_turmas = turma_info
-                                    turma_texto = "Turma: Turma Única" if total_turmas == 1 else f"Turma: Turma {turma_id}"
-                                    Label(detalhes_info_frame, 
-                                          text=turma_texto, 
-                                          bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
+                        Label(detalhes_info_frame, 
+                              text=f"Data de Matrícula: {data_formatada}", 
+                              bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
                         
-                        elif status == 'Transferido' and data_transferencia:
-                            # Formatar data de transferência adequadamente
-                            try:
-                                if isinstance(data_transferencia, str):
-                                    data_transf_formatada = datetime.strptime(data_transferencia, '%Y-%m-%d').strftime('%d/%m/%Y')
-                                elif isinstance(data_transferencia, (datetime, date)):
-                                    data_transf_formatada = data_transferencia.strftime('%d/%m/%Y')
-                                else:
-                                    data_transf_formatada = str(data_transferencia)
-                            except Exception:
-                                data_transf_formatada = str(data_transferencia)
-                                
+                        # Adicionar informações de série e turma para alunos ativos
+                        if serie_nome:
                             Label(detalhes_info_frame, 
-                                  text=f"Data de Transferência: {data_transf_formatada}", 
-                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
-                            
-                            # Para alunos transferidos, também mostrar a série/turma da última matrícula
-                            if serie_nome:
-                                Label(detalhes_info_frame, 
-                                      text=f"Última Série: {serie_nome}", 
-                                      bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
-                            
-                            if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
-                                Label(detalhes_info_frame, 
-                                      text=f"Última Turma: {turma_nome}", 
-                                      bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
+                                  text=f"Série: {serie_nome}", 
+                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
+                        
+                        if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
+                            Label(detalhes_info_frame, 
+                                  text=f"Turma: {turma_nome}", 
+                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
+                        else:
+                            # Se o nome da turma estiver vazio, usar o ID
+                            turma_texto = f"Turma: Turma {turma_id}" if turma_id else "Turma: Não definida"
+                            Label(detalhes_info_frame, 
+                                  text=turma_texto, 
+                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
+                    
+                    elif status == 'Transferido' and data_transferencia:
+                        # Formatar data de transferência adequadamente
+                        try:
+                            if isinstance(data_transferencia, str):
+                                data_transf_formatada = datetime.strptime(data_transferencia, '%Y-%m-%d').strftime('%d/%m/%Y')
+                            elif isinstance(data_transferencia, (datetime, date)):
+                                data_transf_formatada = data_transferencia.strftime('%d/%m/%Y')
                             else:
-                                # Se o nome da turma estiver vazio, mostrar "Turma Única" ou o ID
-                                cursor.execute("""
-                                    SELECT t.id, COUNT(*) as total_turmas
-                                    FROM matriculas m
-                                    JOIN turmas t ON m.turma_id = t.id
-                                    JOIN serie s ON t.serie_id = s.id
-                                    WHERE m.aluno_id = %s 
-                                    AND m.ano_letivo_id = %s 
-                                    AND t.escola_id = 60
-                                    AND m.status = 'Transferido'
-                                    AND s.nome = %s
-                                """, (int(str(id_item)), ano_letivo_id, str(serie_nome) if serie_nome else ""))
-                                
-                                turma_info = cursor.fetchone()
-                                if turma_info:
-                                    turma_id, total_turmas = turma_info
-                                    turma_texto = "Última Turma: Turma Única" if total_turmas == 1 else f"Última Turma: Turma {turma_id}"
-                                    Label(detalhes_info_frame, 
-                                          text=turma_texto, 
-                                          bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
+                                data_transf_formatada = str(data_transferencia)
+                        except Exception:
+                            data_transf_formatada = str(data_transferencia)
+                            
+                        Label(detalhes_info_frame, 
+                              text=f"Data de Transferência: {data_transf_formatada}", 
+                              bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
+                        
+                        # Para alunos transferidos, também mostrar a série/turma da última matrícula
+                        if serie_nome:
+                            Label(detalhes_info_frame, 
+                                  text=f"Última Série: {serie_nome}", 
+                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
+                        
+                        if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
+                            Label(detalhes_info_frame, 
+                                  text=f"Última Turma: {turma_nome}", 
+                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
+                        else:
+                            # Se o nome da turma estiver vazio, usar o ID
+                            turma_texto = f"Última Turma: Turma {turma_id}" if turma_id else "Última Turma: Não definida"
+                            Label(detalhes_info_frame, 
+                                  text=turma_texto, 
+                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
             
             except Exception as e:
                 print(f"Erro ao verificar matrícula: {str(e)}")
@@ -3112,16 +3053,41 @@ def criar_menu_contextual():
     
     treeview.bind("<Button-3>", mostrar_menu)  # Clique direito
 
-def atualizar_tabela_principal():
+# ============================================================================
+# OTIMIZAÇÃO 4: Cache de resultados para atualização incremental
+# ============================================================================
+_cache_dados_tabela = {
+    'timestamp': None,
+    'dados': None,
+    'hash': None
+}
+
+def atualizar_tabela_principal(forcar_atualizacao=False):
     """
     Atualiza a tabela principal com os dados mais recentes do banco de dados.
     Útil para refletir alterações como novos cadastros, edições ou exclusões.
+    
+    Args:
+        forcar_atualizacao (bool): Se True, ignora o cache e força a atualização
     """
     try:
         # Verificar se temos uma treeview válida antes de tentar atualizar
         if 'treeview' not in globals() or not treeview.winfo_exists():
             print("Treeview não existe, não é possível atualizar")
             return False
+        
+        # Verificar cache (evita recargas desnecessárias)
+        import time
+        import hashlib
+        
+        tempo_atual = time.time()
+        
+        # Se a última atualização foi há menos de 2 segundos, não atualizar
+        if not forcar_atualizacao and _cache_dados_tabela['timestamp']:
+            tempo_decorrido = tempo_atual - _cache_dados_tabela['timestamp']
+            if tempo_decorrido < 2.0:
+                print(f"Cache ainda válido ({tempo_decorrido:.1f}s), pulando atualização")
+                return True
             
         # Conectar ao banco de dados
         conn = conectar_bd()
@@ -3130,12 +3096,31 @@ def atualizar_tabela_principal():
             return False
         cursor = conn.cursor()
         
-        # Executar a consulta original novamente para obter dados atualizados
+        # Executar a consulta otimizada para obter dados atualizados
         cursor.execute(query)
         
         # Atualizar a variável global de resultados
         global resultados
-        resultados = cursor.fetchall()
+        novos_resultados = cursor.fetchall()
+        
+        # Calcular hash dos novos dados para verificar mudanças
+        dados_str = str(novos_resultados)
+        novo_hash = hashlib.md5(dados_str.encode()).hexdigest()
+        
+        # Se os dados não mudaram, não precisa atualizar a interface
+        if not forcar_atualizacao and _cache_dados_tabela['hash'] == novo_hash:
+            print("Dados não mudaram, mantendo interface atual")
+            cursor.close()
+            conn.close()
+            _cache_dados_tabela['timestamp'] = tempo_atual
+            return True
+        
+        # Dados mudaram, atualizar cache
+        _cache_dados_tabela['dados'] = novos_resultados
+        _cache_dados_tabela['hash'] = novo_hash
+        _cache_dados_tabela['timestamp'] = tempo_atual
+        
+        resultados = novos_resultados
             
         # Limpar tabela atual usando try/except para cada operação crítica
         try:
