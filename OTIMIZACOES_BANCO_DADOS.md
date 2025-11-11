@@ -136,10 +136,12 @@ ORDER BY tipo, nome;
 ## 🎯 Melhorias Futuras Sugeridas
 
 ### 1. Dashboard com Gráfico de Pizza dos Alunos Matriculados e Ativos do Ano Corrente
-Preciso no futuro melhorar a performance do sistema para múltiplos usuários:
+Substituir a lista principal por um dashboard visual, mantendo o campo de pesquisa:
+- Remover a lista completa de alunos/funcionários da tela inicial
 - Implementar dashboard visual com gráficos de pizza
-- Mostrar estatísticas de alunos matriculados e ativos
+- Mostrar estatísticas de alunos matriculados e ativos do ano corrente
 - Adicionar filtros por ano letivo, série e turma
+- Manter campo de pesquisa funcional para buscar alunos/funcionários específicos
 - Otimizar queries agregadas para múltiplos usuários simultâneos
 - Considerar cache de dados estatísticos (atualização a cada 5 minutos)
 
