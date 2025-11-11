@@ -26,7 +26,7 @@ from Gerar_Declaracao_Aluno import gerar_declaracao_aluno
 import Lista_atualizada
 import Lista_atualizada_semed
 import Seguranca
-from conexao import conectar_bd
+from conexao import conectar_bd, inicializar_pool, fechar_pool
 import aluno
 from NotaAta import nota_bimestre, nota_bimestre2, gerar_relatorio_notas, nota_bimestre_com_assinatura, nota_bimestre2_com_assinatura, gerar_relatorio_notas_com_assinatura
 from Ata_1a5ano import ata_geral
@@ -69,6 +69,13 @@ selected_item = None
 label_rodape = None
 status_label = None
 
+
+# ============================================================================
+# MELHORIA 4: Inicializar Connection Pool
+# Inicializa o pool de conexões no início da aplicação para melhor performance
+# ============================================================================
+print("Inicializando sistema...")
+inicializar_pool()
 
 # Iniciando conexão
 conn = conectar_bd()
@@ -4724,6 +4731,14 @@ def ao_fechar_programa():
     except Exception as e:
         print(f"Erro ao executar backup final: {e}")
     finally:
+        # ============================================================================
+        # MELHORIA 4: Fechar Connection Pool ao encerrar
+        # ============================================================================
+        try:
+            fechar_pool()
+        except Exception as e:
+            print(f"Erro ao fechar connection pool: {e}")
+        
         # Fechar a janela
         janela.destroy()
 
