@@ -135,11 +135,13 @@ ORDER BY tipo, nome;
 
 ## 🎯 Melhorias Futuras Sugeridas
 
-### 1. Paginação da Lista Principal
-Se a escola tiver mais de 500 alunos/funcionários, considere implementar paginação:
-- Carregar 50-100 registros por vez
-- Botões "Próximo" e "Anterior"
-- Filtros por série/turma/cargo
+### 1. Dashboard com Gráfico de Pizza dos Alunos Matriculados e Ativos do Ano Corrente
+Preciso no futuro melhorar a performance do sistema para múltiplos usuários:
+- Implementar dashboard visual com gráficos de pizza
+- Mostrar estatísticas de alunos matriculados e ativos
+- Adicionar filtros por ano letivo, série e turma
+- Otimizar queries agregadas para múltiplos usuários simultâneos
+- Considerar cache de dados estatísticos (atualização a cada 5 minutos)
 
 ### 2. Índice Full-Text para Pesquisa
 Para melhorar a busca por nome:
