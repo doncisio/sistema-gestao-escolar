@@ -1887,7 +1887,7 @@ def criar_pesquisa():
     botao_pesquisar.grid(row=0, column=1, padx=5, pady=5, sticky=EW)
 
 def pesquisar(event=None):
-    texto_pesquisa = e_nome_pesquisa.get().lower().strip()  # Obtém o texto da pesquisa
+    texto_pesquisa = e_nome_pesquisa.get().strip()  # Obtém o texto da pesquisa (sem lower() para FULLTEXT)
     
     if not texto_pesquisa:  # Se a busca estiver vazia, mostrar dashboard
         # Ocultar tabela
@@ -1919,12 +1919,111 @@ def pesquisar(event=None):
     for item in treeview.get_children():
         treeview.delete(item)
     
-    # Filtra os resultados
+    # ============================================================================
+    # OTIMIZAÇÃO 5: Pesquisa com FULLTEXT (mais rápida que LIKE)
+    # Busca diretamente no banco com índice FULLTEXT para melhor performance
+    # ============================================================================
+    conn = None
+    cursor = None
     resultados_filtrados = []
-    for row in resultados:
-        # O nome está no índice 1 da tupla row
-        if texto_pesquisa in str(row[1]).lower():  # Verifica se o texto está no nome
-            resultados_filtrados.append(row)
+    
+    try:
+        conn = conectar_bd()
+        if conn is None:
+            raise Exception("Falha ao conectar ao banco de dados")
+        
+        cursor = conn.cursor()
+        
+        # Tentar usar FULLTEXT primeiro (mais rápido)
+        # Se falhar (índice não existe), usar LIKE tradicional
+        try:
+            # Query otimizada com FULLTEXT
+            query_fulltext = """
+            SELECT 
+                f.id AS id,
+                f.nome AS nome,
+                'Funcionário' AS tipo,
+                f.cargo AS cargo,
+                f.data_nascimento AS data_nascimento,
+                MATCH(f.nome) AGAINST(%s IN NATURAL LANGUAGE MODE) AS relevancia
+            FROM 
+                Funcionarios f
+            WHERE 
+                MATCH(f.nome) AGAINST(%s IN NATURAL LANGUAGE MODE)
+                AND f.cargo IN ('Administrador do Sistemas','Gestor Escolar','Professor@','Auxiliar administrativo',
+                    'Agente de Portaria','Merendeiro','Auxiliar de serviços gerais','Técnico em Administração Escolar',
+                    'Especialista (Coordenadora)','Tutor/Cuidador', 'Interprete de Libras')
+            UNION ALL
+            SELECT
+                a.id AS id,
+                a.nome AS nome,
+                'Aluno' AS tipo,
+                NULL AS cargo,
+                a.data_nascimento AS data_nascimento,
+                MATCH(a.nome) AGAINST(%s IN NATURAL LANGUAGE MODE) AS relevancia
+            FROM
+                Alunos a
+            WHERE 
+                MATCH(a.nome) AGAINST(%s IN NATURAL LANGUAGE MODE)
+                AND a.escola_id = 60
+            ORDER BY 
+                relevancia DESC, tipo, nome;
+            """
+            
+            cursor.execute(query_fulltext, (texto_pesquisa, texto_pesquisa, texto_pesquisa, texto_pesquisa))
+            resultados_filtrados = cursor.fetchall()
+            
+            # Remover coluna de relevância antes de exibir
+            resultados_filtrados = [row[:-1] for row in resultados_filtrados]
+            
+        except Error as e:
+            # Se FULLTEXT falhar, usar LIKE tradicional (fallback)
+            if "Can't find FULLTEXT index" in str(e) or "function" in str(e).lower():
+                query_like = """
+                SELECT 
+                    f.id AS id,
+                    f.nome AS nome,
+                    'Funcionário' AS tipo,
+                    f.cargo AS cargo,
+                    f.data_nascimento AS data_nascimento
+                FROM 
+                    Funcionarios f
+                WHERE 
+                    f.nome LIKE %s
+                    AND f.cargo IN ('Administrador do Sistemas','Gestor Escolar','Professor@','Auxiliar administrativo',
+                        'Agente de Portaria','Merendeiro','Auxiliar de serviços gerais','Técnico em Administração Escolar',
+                        'Especialista (Coordenadora)','Tutor/Cuidador', 'Interprete de Libras')
+                UNION ALL
+                SELECT
+                    a.id AS id,
+                    a.nome AS nome,
+                    'Aluno' AS tipo,
+                    NULL AS cargo,
+                    a.data_nascimento AS data_nascimento
+                FROM
+                    Alunos a
+                WHERE 
+                    a.nome LIKE %s
+                    AND a.escola_id = 60
+                ORDER BY 
+                    tipo, nome;
+                """
+                
+                termo_like = f'%{texto_pesquisa}%'
+                cursor.execute(query_like, (termo_like, termo_like))
+                resultados_filtrados = cursor.fetchall()
+            else:
+                raise  # Re-lançar outros erros
+    
+    except Exception as e:
+        messagebox.showerror("Erro", f"Erro ao realizar pesquisa no banco: {str(e)}")
+        return
+    
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
     
     # Adiciona os resultados filtrados ao Treeview
     if resultados_filtrados:

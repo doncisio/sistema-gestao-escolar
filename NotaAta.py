@@ -10,6 +10,81 @@ from reportlab.lib.colors import black, white
 import platform
 from conexao import conectar_bd
 from decimal import Decimal, ROUND_HALF_UP
+import re
+
+
+# ============================================================================
+# MELHORIA 3: Funções de Validação para Segurança SQL
+# Valida inputs antes de interpolação em queries dinâmicas
+# ============================================================================
+
+def validar_nome_disciplina(nome):
+    """
+    Valida que o nome de disciplina contém apenas caracteres seguros.
+    Previne SQL Injection em queries dinâmicas.
+    
+    Args:
+        nome (str): Nome da disciplina a validar
+        
+    Returns:
+        str: Nome validado
+        
+    Raises:
+        ValueError: Se o nome contiver caracteres inválidos
+    """
+    if not nome:
+        raise ValueError("Nome de disciplina não pode ser vazio")
+    
+    # Permite letras (incluindo acentuadas), números, espaços, pontos, hífens e parênteses
+    if not re.match(r'^[A-Za-zÀ-ÿ0-9\s\.\-\(\)]+$', nome):
+        raise ValueError(f"Nome de disciplina contém caracteres inválidos: {nome}")
+    
+    # Limita tamanho máximo
+    if len(nome) > 100:
+        raise ValueError(f"Nome de disciplina muito longo: {nome}")
+    
+    return nome
+
+
+def validar_bimestre(bimestre):
+    """
+    Valida formato do bimestre.
+    
+    Args:
+        bimestre (str): Bimestre a validar
+        
+    Returns:
+        str: Bimestre validado
+        
+    Raises:
+        ValueError: Se o bimestre for inválido
+    """
+    bimestres_validos = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre']
+    if bimestre not in bimestres_validos:
+        raise ValueError(f"Bimestre inválido: {bimestre}")
+    return bimestre
+
+
+def validar_nivel_id(nivel_id):
+    """
+    Valida e converte nivel_id para inteiro.
+    
+    Args:
+        nivel_id: ID do nível (pode ser int ou str)
+        
+    Returns:
+        int: nivel_id validado
+        
+    Raises:
+        ValueError: Se não puder ser convertido para int
+    """
+    try:
+        nivel_int = int(nivel_id)
+        if nivel_int < 1 or nivel_int > 10:  # Assumindo faixa válida
+            raise ValueError(f"nivel_id fora da faixa válida: {nivel_int}")
+        return nivel_int
+    except (ValueError, TypeError):
+        raise ValueError(f"nivel_id inválido: {nivel_id}")
 
 
 def obter_disciplinas_iniciais():
@@ -215,8 +290,19 @@ def construir_consulta_sql(bimestre, filtro_serie, disciplinas, nivel_id, ano_le
         nome_display = disciplina['nome']
         nome_bd = mapeamento_disciplinas.get(nome_display, nome_display)
         
+        # ============================================================================
+        # MELHORIA 3: Validar nome da disciplina antes de interpolar na query
+        # ============================================================================
+        try:
+            nome_bd_validado = validar_nome_disciplina(nome_bd)
+            bimestre_validado = validar_bimestre(bimestre)
+            nivel_id_validado = validar_nivel_id(nivel_id)
+        except ValueError as e:
+            print(f"ERRO DE VALIDAÇÃO: {e}")
+            continue  # Pula disciplina inválida
+        
         query += f"""
-            MAX(CASE WHEN d.nome = '{nome_bd}' AND d.nivel_id = {nivel_id} AND n.bimestre = '{bimestre}' THEN n.nota END) AS '{disciplina['coluna']}',
+            MAX(CASE WHEN d.nome = '{nome_bd_validado}' AND d.nivel_id = {nivel_id_validado} AND n.bimestre = '{bimestre_validado}' THEN n.nota END) AS '{disciplina['coluna']}',
         """
     
     # Remover a última vírgula e espaço
