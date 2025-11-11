@@ -38,7 +38,6 @@ conexao_local.py
 # VS Code
 .vscode/
 .history/
-*.code-workspace
 
 # PyCharm
 .idea/

@@ -28,6 +28,26 @@ import Lista_atualizada_semed
 import Seguranca
 from conexao import conectar_bd, inicializar_pool, fechar_pool
 import aluno
+
+def converter_para_int_seguro(valor: Any) -> int:
+    """
+    Converte qualquer valor para int de forma segura.
+    Lida com None, strings, floats, Decimal, etc.
+    """
+    if valor is None:
+        return 0
+    
+    try:
+        # Se já é int, retorna diretamente
+        if isinstance(valor, int):
+            return valor
+        # Se é string vazia ou None-like, retorna 0
+        if not valor or str(valor).strip() == '':
+            return 0
+        # Tenta converter para float primeiro, depois para int
+        return int(float(str(valor)))
+    except (ValueError, TypeError, AttributeError):
+        return 0
 from NotaAta import nota_bimestre, nota_bimestre2, gerar_relatorio_notas, nota_bimestre_com_assinatura, nota_bimestre2_com_assinatura, gerar_relatorio_notas_com_assinatura
 from Ata_1a5ano import ata_geral
 from Ata_6a9ano import ata_geral_6a9ano
@@ -143,7 +163,7 @@ def obter_nome_escola():
         _cache_dados_estaticos['nome_escola'] = resultado[0] if resultado else "Escola não encontrada"
     return _cache_dados_estaticos['nome_escola']
 
-def obter_ano_letivo_atual():
+def obter_ano_letivo_atual() -> int:
     """Retorna o ID do ano letivo atual (2025) com cache"""
     if 'ano_letivo_atual' not in _cache_dados_estaticos:
         # Buscar especificamente o ano letivo 2025
@@ -157,8 +177,9 @@ def obter_ano_letivo_atual():
             # Se ainda não encontrou, pegar o mais recente
             cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
             resultado = cursor.fetchone()
-        _cache_dados_estaticos['ano_letivo_atual'] = resultado[0] if resultado else 1
-    return _cache_dados_estaticos['ano_letivo_atual']
+        # Garantir que sempre retorna um int
+        _cache_dados_estaticos['ano_letivo_atual'] = converter_para_int_seguro(resultado[0]) if resultado else 1
+    return int(_cache_dados_estaticos['ano_letivo_atual'])
 
 nome_escola = obter_nome_escola()
 ano_letivo_atual = obter_ano_letivo_atual()
@@ -324,15 +345,18 @@ def criar_dashboard():
     # Buscar o ano letivo atual para exibir no título
     try:
         conn_temp = conectar_bd()
-        cursor_temp = conn_temp.cursor()
-        cursor_temp.execute("SELECT ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
-        resultado_ano = cursor_temp.fetchone()
-        if not resultado_ano:
-            cursor_temp.execute("SELECT ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
+        if conn_temp:
+            cursor_temp = conn_temp.cursor()
+            cursor_temp.execute("SELECT ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
             resultado_ano = cursor_temp.fetchone()
-        ano_letivo_exibir = resultado_ano[0] if resultado_ano else "Corrente"
-        cursor_temp.close()
-        conn_temp.close()
+            if not resultado_ano:
+                cursor_temp.execute("SELECT ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
+                resultado_ano = cursor_temp.fetchone()
+            ano_letivo_exibir = resultado_ano[0] if resultado_ano else "Corrente"
+            cursor_temp.close()
+            conn_temp.close()
+        else:
+            ano_letivo_exibir = "Corrente"
     except:
         ano_letivo_exibir = "Corrente"
     
@@ -391,7 +415,7 @@ def criar_dashboard():
              '#0097a7', '#5d4037', '#455a64', '#c2185b', '#afb42b']
     
     # Criar gráfico de pizza
-    wedges, texts, autotexts = ax.pie(
+    resultado_pie = ax.pie(
         quantidades,
         labels=series,
         autopct='%1.1f%%',
@@ -401,10 +425,14 @@ def criar_dashboard():
     )
     
     # Melhorar aparência dos textos
-    for autotext in autotexts:
-        autotext.set_color('white')
-        autotext.set_fontsize(10)
-        autotext.set_weight('bold')
+    if len(resultado_pie) >= 3:
+        wedges, texts, autotexts = resultado_pie
+        for autotext in autotexts:
+            autotext.set_color('white')
+            autotext.set_fontsize(10)
+            autotext.set_fontweight('bold')
+    else:
+        wedges, texts = resultado_pie
     
     # Título com mais espaço e cor ajustada
     ax.set_title('Distribuição de Alunos por Série', 
@@ -420,7 +448,7 @@ def criar_dashboard():
         text.set_color(co0)
     
     # Ajustar layout com mais espaço para a legenda e título
-    fig.tight_layout(rect=[0, 0, 0.85, 0.95])
+    fig.tight_layout(rect=(0, 0, 0.85, 0.95))
     
     # Integrar com Tkinter
     canvas = FigureCanvasTkAgg(fig, master=grafico_frame)
@@ -649,7 +677,7 @@ def selecionar_item(event):
                 GROUP BY m.id, m.status, m.data_matricula, s.nome, t.nome, t.id
                 ORDER BY m.data_matricula DESC
                 LIMIT 1
-            """, (ano_letivo_id, int(str(id_item))))
+            """, (ano_letivo_id, converter_para_int_seguro(id_item)))
             
             resultado = cursor.fetchone()
             
@@ -873,7 +901,7 @@ def on_select(event):
                     GROUP BY m.id, m.status, m.data_matricula, s.nome, t.nome, t.id
                     ORDER BY m.data_matricula DESC
                     LIMIT 1
-                """, (ano_letivo_id, int(str(id_item))))
+                """, (ano_letivo_id, converter_para_int_seguro(id_item)))
                 
                 resultado = cursor.fetchone()
                 
@@ -3427,7 +3455,9 @@ def criar_menu_contextual():
 # ============================================================================
 # OTIMIZAÇÃO 4: Cache de resultados para atualização incremental
 # ============================================================================
-_cache_dados_tabela = {
+from typing import Dict, List, Any, Optional
+
+_cache_dados_tabela: Dict[str, Any] = {
     'timestamp': None,
     'dados': None,
     'hash': None
@@ -3437,7 +3467,7 @@ _cache_dados_tabela = {
 # MELHORIA 1: Dashboard com Estatísticas de Alunos
 # Cache para dados estatísticos do dashboard (atualização a cada 5 minutos)
 # ============================================================================
-_cache_estatisticas_dashboard = {
+_cache_estatisticas_dashboard: Dict[str, Any] = {
     'timestamp': None,
     'dados': None
 }
@@ -3495,8 +3525,12 @@ def obter_estatisticas_alunos():
         """, (ano_letivo_id,))
         
         resultado_geral = cursor.fetchone()
-        total_ativos = resultado_geral[0] if resultado_geral[0] else 0
-        total_transferidos = resultado_geral[1] if resultado_geral[1] else 0
+        if resultado_geral:
+            total_ativos = converter_para_int_seguro(resultado_geral[0])
+            total_transferidos = converter_para_int_seguro(resultado_geral[1])
+        else:
+            total_ativos = 0
+            total_transferidos = 0
         total_matriculados = total_ativos + total_transferidos
         
         # Estatísticas por série E TURMA - conta ALUNOS ÚNICOS e ATIVOS
