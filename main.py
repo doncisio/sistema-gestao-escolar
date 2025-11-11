@@ -1,5 +1,6 @@
 import sys
 import os
+import traceback
 from typing import Optional, Union, Tuple, Any, List, Dict
 from datetime import datetime, date, timedelta
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -10,6 +11,15 @@ from tkinter import messagebox
 from tkinter import TclError  # Importar TclError explicitamente para tratamento de erros
 from PIL import ImageTk, Image
 import pandas as pd
+
+# Importações para o dashboard com gráficos
+import matplotlib
+matplotlib.use('TkAgg')  # Backend para integração com Tkinter
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from mpl_toolkits.mplot3d import Axes3D  # Para gráficos 3D
+import numpy as np  # Para cálculos matemáticos do gráfico 3D
+
 from Funcionario import gerar_declaracao_funcionario
 import Funcionario
 from Gerar_Declaracao_Aluno import gerar_declaracao_aluno
@@ -127,11 +137,17 @@ def obter_nome_escola():
     return _cache_dados_estaticos['nome_escola']
 
 def obter_ano_letivo_atual():
-    """Retorna o ID do ano letivo atual com cache"""
+    """Retorna o ID do ano letivo atual (2025) com cache"""
     if 'ano_letivo_atual' not in _cache_dados_estaticos:
-        cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = YEAR(CURDATE())")
+        # Buscar especificamente o ano letivo 2025
+        cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = 2025")
         resultado = cursor.fetchone()
         if not resultado:
+            # Se não existe 2025, buscar pelo ano atual do sistema
+            cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = YEAR(CURDATE())")
+            resultado = cursor.fetchone()
+        if not resultado:
+            # Se ainda não encontrou, pegar o mais recente
             cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
             resultado = cursor.fetchone()
         _cache_dados_estaticos['ano_letivo_atual'] = resultado[0] if resultado else 1
@@ -149,6 +165,26 @@ if conn is None:
     messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados para verificar anos letivos.")
 else:
     cursor = conn.cursor()
+
+    # Verificar se o ano letivo 2025 existe
+    cursor.execute("SELECT COUNT(*) FROM anosletivos WHERE ano_letivo = 2025")
+    result = cursor.fetchone()
+    tem_ano_2025 = result[0] if result else 0
+
+    # Se não existir, inserir o ano letivo 2025
+    if tem_ano_2025 == 0:
+        print("Inserindo ano letivo 2025...")
+        try:
+            cursor.execute("""
+                INSERT INTO anosletivos (ano_letivo, data_inicio, data_fim, ativo, numero_dias_aula) 
+                VALUES (2025, '2025-01-13', '2025-12-19', 1, 200)
+            """)
+            conn.commit()
+            print("Ano letivo 2025 inserido com sucesso!")
+            # Limpar cache para forçar nova busca
+            _cache_dados_estaticos.pop('ano_letivo_atual', None)
+        except Exception as e:
+            print(f"Erro ao inserir ano letivo 2025: {e}")
 
     # Verificar se o ano letivo 2024 com ID 1 existe
     cursor.execute("SELECT COUNT(*) FROM anosletivos WHERE id = 1 AND ano_letivo = 2024")
@@ -236,12 +272,187 @@ def criar_frames():
     # Separador 4 (entre a tabela e o rodapé)
     ttk.Separator(janela, orient=HORIZONTAL).grid(row=7, column=0, sticky=EW)
 
+# ============================================================================
+# MELHORIA 1: Dashboard com Gráfico de Pizza
+# ============================================================================
+
+# Variável global para controlar o canvas do dashboard
+dashboard_canvas = None
+
+def criar_dashboard():
+    """
+    Cria e exibe um dashboard com gráfico de pizza mostrando a distribuição
+    de alunos matriculados por série no ano letivo atual.
+    """
+    global dashboard_canvas
+    
+    # Limpar dashboard anterior se existir
+    if dashboard_canvas is not None:
+        dashboard_canvas.get_tk_widget().destroy()
+        dashboard_canvas = None
+    
+    # Obter dados estatísticos
+    dados = obter_estatisticas_alunos()
+    
+    if dados is None or not dados['por_serie']:
+        # Mostrar mensagem se não houver dados
+        label_vazio = Label(
+            frame_tabela, 
+            text="Nenhum dado disponível para exibir no dashboard",
+            font=('Calibri', 14),
+            bg=co1,
+            fg=co0
+        )
+        label_vazio.pack(pady=50)
+        return
+    
+    # Criar frame para o dashboard
+    dashboard_frame = Frame(frame_tabela, bg=co1)
+    dashboard_frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
+    
+    # Frame para informações gerais (topo)
+    info_frame = Frame(dashboard_frame, bg=co1)
+    info_frame.pack(fill=X, pady=(0, 10))
+    
+    # Buscar o ano letivo atual para exibir no título
+    try:
+        conn_temp = conectar_bd()
+        cursor_temp = conn_temp.cursor()
+        cursor_temp.execute("SELECT ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
+        resultado_ano = cursor_temp.fetchone()
+        if not resultado_ano:
+            cursor_temp.execute("SELECT ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
+            resultado_ano = cursor_temp.fetchone()
+        ano_letivo_exibir = resultado_ano[0] if resultado_ano else "Corrente"
+        cursor_temp.close()
+        conn_temp.close()
+    except:
+        ano_letivo_exibir = "Corrente"
+    
+    # Título
+    Label(
+        info_frame,
+        text=f"Dashboard - Alunos Matriculados no Ano Letivo de {ano_letivo_exibir}",
+        font=('Calibri', 16, 'bold'),
+        bg=co1,
+        fg=co0
+    ).pack(pady=(0, 10))
+    
+    # Informações totais
+    totais_frame = Frame(info_frame, bg=co1)
+    totais_frame.pack()
+    
+    Label(
+        totais_frame,
+        text=f"Total Matriculados: {dados['total_matriculados']}",
+        font=('Calibri', 12, 'bold'),
+        bg=co1,
+        fg=co0
+    ).pack(side=LEFT, padx=20)
+    
+    Label(
+        totais_frame,
+        text=f"Ativos: {dados['total_ativos']}",
+        font=('Calibri', 12, 'bold'),
+        bg=co1,
+        fg=co0
+    ).pack(side=LEFT, padx=20)
+    
+    Label(
+        totais_frame,
+        text=f"Transferidos: {dados['total_transferidos']}",
+        font=('Calibri', 12, 'bold'),
+        bg=co1,
+        fg=co0
+    ).pack(side=LEFT, padx=20)
+    
+    # Frame para o gráfico
+    grafico_frame = Frame(dashboard_frame, bg=co1)
+    grafico_frame.pack(fill=BOTH, expand=True)
+    
+    # Preparar dados para o gráfico
+    series = [item['serie'] for item in dados['por_serie']]
+    quantidades = [item['quantidade'] for item in dados['por_serie']]
+    
+    # Criar figura do matplotlib com fundo ajustado
+    fig = Figure(figsize=(11, 6.5), dpi=100, facecolor=co1)
+    ax = fig.add_subplot(111)
+    ax.set_facecolor(co1)
+    
+    # Cores personalizadas para o gráfico
+    cores = ['#1976d2', '#388e3c', '#d32f2f', '#f57c00', '#7b1fa2', 
+             '#0097a7', '#5d4037', '#455a64', '#c2185b', '#afb42b']
+    
+    # Criar gráfico de pizza
+    wedges, texts, autotexts = ax.pie(
+        quantidades,
+        labels=series,
+        autopct='%1.1f%%',
+        startangle=90,
+        colors=cores[:len(series)],
+        textprops={'fontsize': 10, 'weight': 'bold', 'color': co0}
+    )
+    
+    # Melhorar aparência dos textos
+    for autotext in autotexts:
+        autotext.set_color('white')
+        autotext.set_fontsize(10)
+        autotext.set_weight('bold')
+    
+    # Título com mais espaço e cor ajustada
+    ax.set_title('Distribuição de Alunos por Série', 
+                 fontsize=14, weight='bold', pad=25, color=co0)
+    
+    # Adicionar legenda com quantidades - reposicionada para não sobrepor
+    legendas = [f'{s}: {q} alunos' for s, q in zip(series, quantidades)]
+    legend = ax.legend(legendas, loc='center left', bbox_to_anchor=(1.15, 0.5), 
+                      fontsize=9, frameon=True, facecolor=co1, edgecolor=co0)
+    
+    # Ajustar cor do texto da legenda
+    for text in legend.get_texts():
+        text.set_color(co0)
+    
+    # Ajustar layout com mais espaço para a legenda e título
+    fig.tight_layout(rect=[0, 0, 0.85, 0.95])
+    
+    # Integrar com Tkinter
+    canvas = FigureCanvasTkAgg(fig, master=grafico_frame)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=BOTH, expand=True)
+    
+    dashboard_canvas = canvas
+    
+    # Botão para atualizar dashboard
+    btn_atualizar = Button(
+        dashboard_frame,
+        text="🔄 Atualizar Dashboard",
+        font=('Calibri', 11, 'bold'),
+        bg=co4,
+        fg=co1,
+        relief=RAISED,
+        command=lambda: atualizar_dashboard()
+    )
+    btn_atualizar.pack(pady=10)
+
+def atualizar_dashboard():
+    """
+    Força a atualização do cache e recria o dashboard.
+    """
+    # Limpar cache
+    _cache_estatisticas_dashboard['timestamp'] = None
+    _cache_estatisticas_dashboard['dados'] = None
+    
+    # Recriar dashboard
+    criar_dashboard()
+    
+    messagebox.showinfo("Dashboard", "Dashboard atualizado com sucesso!")
+
 def criar_tabela():
-    global treeview
+    global treeview, tabela_frame
     
     # Frame para conter a tabela e sua barra de rolagem
     tabela_frame = Frame(frame_tabela)
-    tabela_frame.pack(fill=BOTH, expand=True, padx=5, pady=5)
+    # NÃO fazer pack aqui - será controlado pelo sistema de pesquisa
     
     # Configurando o gerenciador de layout
     tabela_frame.grid_rowconfigure(0, weight=1)
@@ -310,7 +521,10 @@ def criar_tabela():
     # Adicionar dica/instrução visual para o usuário
     instrucao_label = Label(frame_tabela, text="Clique ou use as setas do teclado para selecionar um item", 
                          font=('Ivy 10 italic'), bg=co1, fg=co0)
-    instrucao_label.pack(side=BOTTOM, pady=5)
+    # NÃO fazer pack do label - será mostrado junto com a tabela quando necessário
+    
+    # IMPORTANTE: Exibir dashboard por padrão ao invés da tabela
+    criar_dashboard()
 
 def selecionar_item(event):
     # Obtém o item selecionado
@@ -1675,26 +1889,31 @@ def criar_pesquisa():
 def pesquisar(event=None):
     texto_pesquisa = e_nome_pesquisa.get().lower().strip()  # Obtém o texto da pesquisa
     
-    if not texto_pesquisa:  # Se a busca estiver vazia, mostrar todos os registros
-        # Limpa o Treeview
-        for item in treeview.get_children():
-            treeview.delete(item)
-        # Adiciona todos os resultados ao Treeview novamente
-        for resultado in resultados:
-            resultado = list(resultado)
-            if resultado[4]:
-                try:
-                    if isinstance(resultado[4], str):
-                        data = datetime.strptime(resultado[4], '%Y-%m-%d')
-                    elif isinstance(resultado[4], (datetime, date)):
-                        data = resultado[4]
-                    else:
-                        continue  # Pula se não for um tipo de data válido
-                    resultado[4] = data.strftime('%d/%m/%Y')
-                except Exception:
-                    pass
-            treeview.insert("", "end", values=resultado)
+    if not texto_pesquisa:  # Se a busca estiver vazia, mostrar dashboard
+        # Ocultar tabela
+        if tabela_frame.winfo_ismapped():
+            tabela_frame.pack_forget()
+        
+        # Limpar frame_tabela e mostrar dashboard
+        for widget in frame_tabela.winfo_children():
+            if widget != tabela_frame:  # Preservar tabela_frame oculto
+                widget.destroy()
+        
+        criar_dashboard()
         return
+    
+    # Se há texto de pesquisa, mostrar tabela
+    # Limpar dashboard
+    global dashboard_canvas
+    if dashboard_canvas is not None:
+        for widget in frame_tabela.winfo_children():
+            if widget != tabela_frame:
+                widget.destroy()
+        dashboard_canvas = None
+    
+    # Mostrar tabela_frame
+    if not tabela_frame.winfo_ismapped():
+        tabela_frame.pack(fill=BOTH, expand=True, padx=5, pady=5)
     
     # Limpa o Treeview primeiro
     for item in treeview.get_children():
@@ -2552,6 +2771,52 @@ def criar_acoes():
         command=abrir_importacao_notas_html,
         font=menu_font
     )
+    
+    # Função para abrir a transição de ano letivo
+    def abrir_transicao_ano_letivo():
+        """Abre interface para transição de ano letivo"""
+        import os
+        from dotenv import load_dotenv
+        from tkinter import simpledialog
+        
+        # Carregar senha do banco de dados
+        load_dotenv()
+        senha_correta = os.getenv('DB_PASSWORD')
+        
+        # Solicitar senha ao usuário
+        senha_digitada = simpledialog.askstring(
+            "Autenticação Necessária",
+            "Digite a senha do banco de dados para acessar a Transição de Ano Letivo:",
+            show='*'
+        )
+        
+        # Verificar se o usuário cancelou
+        if senha_digitada is None:
+            return
+        
+        # Verificar senha
+        if senha_digitada != senha_correta:
+            messagebox.showerror(
+                "Acesso Negado",
+                "Senha incorreta! A transição de ano letivo é uma operação crítica\n"
+                "e requer autenticação para prosseguir."
+            )
+            return
+        
+        # Se a senha estiver correta, abrir a interface
+        try:
+            from transicao_ano_letivo import abrir_interface_transicao
+            abrir_interface_transicao(janela_principal=janela)
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao abrir transição de ano letivo: {e}")
+            traceback.print_exc()
+    
+    servicos_menu.add_separator()
+    servicos_menu.add_command(
+        label="🔄 Transição de Ano Letivo",
+        command=abrir_transicao_ano_letivo,
+        font=menu_font
+    )
 
     menu_bar.add_cascade(label="Serviços", menu=servicos_menu)
 
@@ -3061,6 +3326,123 @@ _cache_dados_tabela = {
     'dados': None,
     'hash': None
 }
+
+# ============================================================================
+# MELHORIA 1: Dashboard com Estatísticas de Alunos
+# Cache para dados estatísticos do dashboard (atualização a cada 5 minutos)
+# ============================================================================
+_cache_estatisticas_dashboard = {
+    'timestamp': None,
+    'dados': None
+}
+
+def obter_estatisticas_alunos():
+    """
+    Retorna estatísticas de alunos matriculados e ativos do ano corrente.
+    Usa cache de 5 minutos para melhorar performance.
+    
+    Returns:
+        dict: {
+            'total_matriculados': int,
+            'total_ativos': int,
+            'total_transferidos': int,
+            'por_serie': [{'serie': str, 'quantidade': int, 'ativos': int}, ...]
+        }
+    """
+    import time
+    
+    tempo_atual = time.time()
+    
+    # Verificar cache (5 minutos = 300 segundos)
+    if _cache_estatisticas_dashboard['timestamp']:
+        tempo_decorrido = tempo_atual - _cache_estatisticas_dashboard['timestamp']
+        if tempo_decorrido < 300:  # 5 minutos
+            return _cache_estatisticas_dashboard['dados']
+    
+    # Buscar dados atualizados
+    conn = None
+    cursor = None
+    try:
+        conn = conectar_bd()
+        if conn is None:
+            return None
+        cursor = conn.cursor()
+        
+        # Obter ano letivo atual do cache
+        ano_letivo_id = obter_ano_letivo_atual()
+        
+        escola_id = 60  # ID fixo da escola
+        
+        # Query otimizada para obter todas as estatísticas de uma vez
+        # CORRIGIDO: Conta ALUNOS ÚNICOS da tabela Alunos (não registros de matrícula)
+        # Usa a.escola_id ao invés de t.escola_id para corresponder à Lista_atualizada.py
+        cursor.execute("""
+            SELECT 
+                COUNT(DISTINCT CASE WHEN m.status = 'Ativo' THEN a.id END) as total_ativos,
+                COUNT(DISTINCT CASE WHEN m.status IN ('Transferido', 'Transferida') THEN a.id END) as total_transferidos
+            FROM Alunos a
+            JOIN Matriculas m ON a.id = m.aluno_id
+            JOIN turmas t ON m.turma_id = t.id
+            WHERE m.ano_letivo_id = %s 
+            AND a.escola_id = 60
+            AND m.status IN ('Ativo', 'Transferido', 'Transferida')
+        """, (ano_letivo_id,))
+        
+        resultado_geral = cursor.fetchone()
+        total_ativos = resultado_geral[0] if resultado_geral[0] else 0
+        total_transferidos = resultado_geral[1] if resultado_geral[1] else 0
+        total_matriculados = total_ativos + total_transferidos
+        
+        # Estatísticas por série E TURMA - conta ALUNOS ÚNICOS e ATIVOS
+        # CORRIGIDO: Usa Alunos a e filtra por a.escola_id
+        cursor.execute("""
+            SELECT 
+                CONCAT(s.nome, ' ', t.nome) as serie_turma,
+                COUNT(DISTINCT a.id) as quantidade,
+                COUNT(DISTINCT CASE WHEN m.status = 'Ativo' THEN a.id END) as ativos
+            FROM Alunos a
+            JOIN Matriculas m ON a.id = m.aluno_id
+            JOIN turmas t ON m.turma_id = t.id
+            JOIN serie s ON t.serie_id = s.id
+            WHERE m.ano_letivo_id = %s 
+            AND a.escola_id = 60
+            AND m.status = 'Ativo'
+            GROUP BY t.id, s.nome, t.nome
+            ORDER BY s.nome, t.nome
+        """, (ano_letivo_id,))
+        
+        por_serie = []
+        for row in cursor.fetchall():
+            por_serie.append({
+                'serie': row[0],
+                'quantidade': row[1],
+                'ativos': row[2]
+            })
+        
+        # Montar resultado
+        dados = {
+            'total_matriculados': total_matriculados,
+            'total_ativos': total_ativos,
+            'total_transferidos': total_transferidos,
+            'por_serie': por_serie
+        }
+        
+        # Atualizar cache
+        _cache_estatisticas_dashboard['dados'] = dados
+        _cache_estatisticas_dashboard['timestamp'] = tempo_atual
+        
+        cursor.close()
+        conn.close()
+        
+        return dados
+        
+    except Exception as e:
+        print(f"Erro ao obter estatísticas: {str(e)}")
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+        return None
 
 def atualizar_tabela_principal(forcar_atualizacao=False):
     """
