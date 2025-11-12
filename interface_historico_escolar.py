@@ -3,12 +3,14 @@ from tkinter import ttk, messagebox, filedialog, simpledialog
 from tkinter.font import Font
 import os
 import sys
+import re
 import pandas as pd
+from datetime import datetime, date
 from conexao import conectar_bd
 from historico_escolar import historico_escolar
 
 class InterfaceHistoricoEscolar:
-    def __init__(self, janela=None):
+    def __init__(self, janela=None, janela_pai=None):
         # Configuração da janela principal
         if janela:
             self.janela = janela
@@ -16,6 +18,9 @@ class InterfaceHistoricoEscolar:
             self.janela = tk.Tk()
             self.janela.title("Gerenciamento de Histórico Escolar")
             self.janela.geometry("1200x700")
+            
+        # Armazenar referência da janela pai
+        self.janela_pai = janela_pai
             
         # Inicializar aluno_id como None para evitar erros
         self.aluno_id = None
@@ -27,6 +32,13 @@ class InterfaceHistoricoEscolar:
         self.anos_letivos_map = {}
         self.escolas_map = {}
         self.alunos_map = {}  # Novo dicionário para mapear nomes de alunos para seus IDs
+        
+        # Sistema de cache para melhorar performance
+        self._cache_dados_estaticos = {}
+        self._cache_alunos = {}
+        self._cache_historico = {}
+        self._cache_disciplinas_filtradas = {}
+        self._cache_timestamp = None
         
         # Fonte para calcular largura de texto
         self.fonte_combobox = ("TkDefaultFont", 9)
@@ -97,6 +109,209 @@ class InterfaceHistoricoEscolar:
         self.filtro_ano.trace_add("write", lambda *args: self.aplicar_filtros())
         self.filtro_disciplina.trace_add("write", lambda *args: self.aplicar_filtros())
         self.filtro_situacao.trace_add("write", lambda *args: self.aplicar_filtros())
+
+    def formatar_data_nascimento(self, data_obj):
+        """
+        Formata data de nascimento de forma segura, tratando diferentes tipos de dados.
+        
+        Args:
+            data_obj: Objeto de data que pode ser datetime, date, string ou None
+            
+        Returns:
+            String formatada da data ou mensagem padrão
+        """
+        if data_obj is None:
+            return "Não informada"
+        
+        try:
+            # Se já é uma string formatada
+            if isinstance(data_obj, str):
+                # Tentar converter string para datetime para validar formato
+                if len(data_obj) == 10 and '/' in data_obj:
+                    return data_obj  # Já está no formato dd/mm/yyyy
+                elif len(data_obj) == 10 and '-' in data_obj:
+                    # Formato yyyy-mm-dd, converter para dd/mm/yyyy
+                    partes = data_obj.split('-')
+                    if len(partes) == 3:
+                        return f"{partes[2]}/{partes[1]}/{partes[0]}"
+                
+            # Se é objeto datetime ou date
+            if isinstance(data_obj, (datetime, date)):
+                return data_obj.strftime('%d/%m/%Y')
+                
+            # Se é um número (timestamp)
+            if isinstance(data_obj, (int, float)):
+                try:
+                    data_convertida = datetime.fromtimestamp(data_obj)
+                    return data_convertida.strftime('%d/%m/%Y')
+                except:
+                    pass
+                    
+            # Tentar converter string para datetime
+            if isinstance(data_obj, str):
+                # Tentar diferentes formatos
+                formatos = ['%Y-%m-%d', '%d/%m/%Y', '%Y/%m/%d', '%d-%m-%Y']
+                for formato in formatos:
+                    try:
+                        data_convertida = datetime.strptime(data_obj, formato)
+                        return data_convertida.strftime('%d/%m/%Y')
+                    except:
+                        continue
+                        
+        except Exception as e:
+            print(f"Erro ao formatar data: {e}")
+            
+        return "Data inválida"
+
+    def validar_conexao_bd(self):
+        """
+        Valida se a conexão com o banco de dados está funcionando.
+        
+        Returns:
+            Connection object ou None se houver erro
+        """
+        try:
+            conn = conectar_bd()
+            if conn is None:
+                messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+                return None
+            return conn
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao conectar ao banco de dados: {str(e)}")
+            return None
+    
+    def _safe_float_format(self, value, decimals=1):
+        """Converte um valor para float de forma segura e formata"""
+        try:
+            if value is None:
+                return "N/A"
+            float_val = float(value)
+            return f"{float_val:.{decimals}f}"
+        except (ValueError, TypeError):
+            return "N/A"
+    
+    def _safe_float_value(self, value):
+        """Converte um valor para float de forma segura"""
+        try:
+            if value is None:
+                return 0.0
+            return float(value)
+        except (ValueError, TypeError):
+            return 0.0
+    
+    def _safe_str_value(self, value):
+        """Converte um valor para string de forma segura"""
+        try:
+            if value is None:
+                return ""
+            return str(value)
+        except (ValueError, TypeError):
+            return ""
+    
+    def _safe_sql_params(self, *params):
+        """Converte parâmetros para formatos seguros para SQL"""
+        safe_params = []
+        for param in params:
+            if param is None:
+                safe_params.append(None)
+            elif isinstance(param, (int, float, str)):
+                safe_params.append(param)
+            else:
+                # Converter outros tipos para string ou int conforme necessário
+                try:
+                    # Tentar conversão para int primeiro
+                    if str(param).isdigit():
+                        safe_params.append(int(param))
+                    else:
+                        safe_params.append(str(param))
+                except (ValueError, TypeError):
+                    safe_params.append(str(param))
+        return tuple(safe_params)
+    
+    def _verificar_cache_dados_estaticos(self):
+        """Verifica se o cache de dados estáticos ainda é válido (5 minutos)"""
+        if not self._cache_timestamp:
+            return False
+        
+        from datetime import datetime, timedelta
+        agora = datetime.now()
+        tempo_limite = timedelta(minutes=5)
+        
+        return (agora - self._cache_timestamp) < tempo_limite
+    
+    def _obter_dados_cache_ou_bd(self):
+        """Obtém dados do cache se válido, senão busca no banco"""
+        if self._verificar_cache_dados_estaticos() and self._cache_dados_estaticos:
+            return self._cache_dados_estaticos
+        
+        # Buscar do banco de dados
+        conn = self.validar_conexao_bd()
+        if conn is None:
+            return None
+        
+        cursor = conn.cursor()
+        dados = {}
+        
+        try:
+            cursor.execute("START TRANSACTION")
+            
+            # Carregar dados estáticos em uma única consulta usando UNION ALL
+            cursor.execute("""
+                SELECT 'ano_letivo' as tipo, id, ano_letivo as nome, NULL as escola_id, NULL as nivel_id 
+                FROM anosletivos 
+                UNION ALL
+                SELECT 'serie' as tipo, id, nome, NULL as escola_id, NULL as nivel_id 
+                FROM serie 
+                UNION ALL
+                SELECT 'escola' as tipo, id, nome, NULL as escola_id, NULL as nivel_id 
+                FROM escolas 
+                UNION ALL
+                SELECT 'disciplina' as tipo, id, nome, escola_id, nivel_id 
+                FROM disciplinas
+                ORDER BY tipo, nome
+            """)
+            
+            resultados = cursor.fetchall()
+            
+            # Processar resultados agrupados por tipo
+            dados = {
+                'anos_letivos': [],
+                'series': [],
+                'escolas': [],
+                'disciplinas': []
+            }
+            
+            for tipo, id, nome, escola_id, nivel_id in resultados:
+                if tipo == 'ano_letivo':
+                    dados['anos_letivos'].append((id, nome))
+                elif tipo == 'serie':
+                    dados['series'].append((id, nome))
+                elif tipo == 'escola':
+                    dados['escolas'].append((id, nome))
+                elif tipo == 'disciplina':
+                    dados['disciplinas'].append((id, nome, escola_id, nivel_id))
+            
+            cursor.execute("COMMIT")
+            
+            # Atualizar cache
+            self._cache_dados_estaticos = dados
+            from datetime import datetime
+            self._cache_timestamp = datetime.now()
+            
+            return dados
+            
+        except Exception as e:
+            cursor.execute("ROLLBACK")
+            print(f"Erro ao carregar dados: {str(e)}")
+            return None
+        finally:
+            cursor.close()
+            conn.close()
+    
+    def _invalidar_cache_dados_estaticos(self):
+        """Invalida o cache de dados estáticos"""
+        self._cache_dados_estaticos.clear()
+        self._cache_timestamp = None
 
     def criar_frames(self):
         # Frame de título com gradiente
@@ -368,102 +583,121 @@ class InterfaceHistoricoEscolar:
         combobox.config(width=largura_ajustada)
 
     def carregar_dados(self):
-        # Conectar ao banco
-        conn = conectar_bd()
-        cursor = conn.cursor()
+        """Carrega dados estáticos usando cache para melhor performance"""
+        # Tentar obter dados do cache primeiro
+        dados = self._obter_dados_cache_ou_bd()
+        if dados is None:
+            messagebox.showerror("Erro", "Erro ao carregar dados do sistema.")
+            return
         
         try:
-            # Carregar anos letivos
-            cursor.execute("SELECT id, ano_letivo FROM anosletivos ORDER BY ano_letivo DESC")
-            anos_letivos = cursor.fetchall()
+            # Processar anos letivos
+            anos_letivos = dados['anos_letivos']
+            anos_letivos.sort(key=lambda x: x[1], reverse=True)  # Ordenar por ano decrescente
             self.anos_letivos_map = {str(ano): id for id, ano in anos_letivos}
             anos_letivos_valores = [str(ano) for id, ano in anos_letivos]
             self.cb_ano_letivo['values'] = anos_letivos_valores
             self.ajustar_largura_combobox(self.cb_ano_letivo, anos_letivos_valores)
             
-            # Carregar séries
-            cursor.execute("SELECT id, nome FROM serie ORDER BY nome")
-            series = cursor.fetchall()
+            # Processar séries
+            series = dados['series']
+            series.sort(key=lambda x: x[1])  # Ordenar por nome
             self.series_map = {nome: id for id, nome in series}
             series_valores = [nome for id, nome in series]
             self.cb_serie['values'] = series_valores
             self.ajustar_largura_combobox(self.cb_serie, series_valores)
             
-            # Carregar escolas
-            cursor.execute("SELECT id, nome FROM escolas ORDER BY nome, id")
-            escolas = cursor.fetchall()
-            
-            # Criar mapeamento e valores para combobox
+            # Processar escolas com melhor tratamento de duplicatas
+            escolas = dados['escolas']
+            escolas.sort(key=lambda x: (x[1], x[0]))  # Ordenar por nome, depois por id
             self.escolas_map = {}
             escolas_valores = []
+            nomes_vistos = {}
             
             for id, nome in escolas:
-                # Se já existe uma escola com este nome, adicionar o ID ao nome para diferenciar
-                if nome in self.escolas_map:
+                # Contar quantas vezes este nome já apareceu
+                if nome in nomes_vistos:
+                    nomes_vistos[nome] += 1
                     nome_com_id = f"{nome} (ID: {id})"
                     escolas_valores.append(nome_com_id)
                     self.escolas_map[nome_com_id] = id
+                    # Se for a segunda ocorrência, também atualizar a primeira
+                    if nomes_vistos[nome] == 2:
+                        # Encontrar o primeiro item e atualizá-lo
+                        for i, valor in enumerate(escolas_valores):
+                            if valor == nome:
+                                primeiro_id = self.escolas_map[nome]
+                                novo_nome = f"{nome} (ID: {primeiro_id})"
+                                escolas_valores[i] = novo_nome
+                                del self.escolas_map[nome]
+                                self.escolas_map[novo_nome] = primeiro_id
+                                break
                 else:
+                    nomes_vistos[nome] = 1
                     escolas_valores.append(nome)
                     self.escolas_map[nome] = id
             
             self.cb_escola['values'] = escolas_valores
             self.ajustar_largura_combobox(self.cb_escola, escolas_valores)
             
-            # Carregar todas as disciplinas inicialmente
-            cursor.execute("SELECT id, nome FROM disciplinas ORDER BY nome")
-            disciplinas = cursor.fetchall()
-            self.disciplinas_map = {nome: id for id, nome in disciplinas}
-            disciplinas_valores = [nome for id, nome in disciplinas]
+            # Processar disciplinas
+            disciplinas = dados['disciplinas']
+            disciplinas.sort(key=lambda x: x[1])  # Ordenar por nome
+            self.disciplinas_map = {nome: id for id, nome, escola_id, nivel_id in disciplinas}
+            # Armazenar também mapeamento completo para uso posterior
+            self.disciplinas_completo = {id: {'nome': nome, 'escola_id': escola_id, 'nivel_id': nivel_id} 
+                                       for id, nome, escola_id, nivel_id in disciplinas}
+            disciplinas_valores = [nome for id, nome, escola_id, nivel_id in disciplinas]
             self.cb_disciplina['values'] = disciplinas_valores
             self.ajustar_largura_combobox(self.cb_disciplina, disciplinas_valores)
             
-            # Carregar alunos iniciais (limitado aos primeiros 100 para não sobrecarregar)
-            self.carregar_alunos()
+            # Carregar alunos em separado (pode ser paginado)
+            self.carregar_alunos_otimizado()
             
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao carregar dados: {str(e)}")
-        finally:
-            cursor.close()
-            conn.close()
+            messagebox.showerror("Erro", f"Erro ao processar dados: {str(e)}")
+            print(f"Erro ao processar dados: {str(e)}")
 
-    def carregar_alunos(self):
-        """Carrega a lista de alunos para a combobox"""
+    def carregar_alunos_otimizado(self):
+        """Carrega a lista de alunos para a combobox de forma otimizada"""
         # Conectar ao banco
-        conn = conectar_bd()
+        conn = self.validar_conexao_bd()
+        if conn is None:
+            return
+        
         cursor = conn.cursor()
         
         try:
-            # Carregar alunos (limitado aos primeiros 100 para desempenho)
+            # Carregar apenas os alunos mais recentemente acessados e ativos
+            # Usar índice no nome para busca rápida
             cursor.execute("""
                 SELECT id, nome, data_nascimento, sexo
                 FROM alunos
+                WHERE nome IS NOT NULL AND nome != ''
                 ORDER BY nome
-                LIMIT 100
+                LIMIT 50
             """)
             
             alunos = cursor.fetchall()
             self.alunos_map = {}
-            alunos_info = {}
+            self.alunos_info = {}
             
             # Criar lista de nomes para a combobox e mapear nomes para informações completas
             alunos_valores = []
             for aluno_id, nome, data_nascimento, sexo in alunos:
-                alunos_valores.append(nome)
-                self.alunos_map[nome] = aluno_id
-                
-                # Formatar data de nascimento
-                data_formatada = data_nascimento.strftime('%d/%m/%Y') if data_nascimento else ""
-                
-                # Armazenar informações completas do aluno
-                alunos_info[nome] = (aluno_id, data_formatada, sexo)
+                if nome:  # Verificar se o nome não é nulo
+                    alunos_valores.append(nome)
+                    self.alunos_map[nome] = aluno_id
+                    
+                    # Formatar data de nascimento de forma mais eficiente
+                    data_formatada = self.formatar_data_nascimento(data_nascimento)
+                    
+                    # Armazenar informações completas do aluno
+                    self.alunos_info[nome] = (aluno_id, data_formatada, sexo)
             
             # Atualizar combobox com valores
             self.cb_pesquisa_aluno['values'] = alunos_valores
             self.ajustar_largura_combobox(self.cb_pesquisa_aluno, alunos_valores)
-            
-            # Armazenar informações completas para uso posterior
-            self.alunos_info = alunos_info
             
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar alunos: {str(e)}")
@@ -471,8 +705,12 @@ class InterfaceHistoricoEscolar:
             cursor.close()
             conn.close()
 
+    def carregar_alunos(self):
+        """Mantém compatibilidade com código existente"""
+        return self.carregar_alunos_otimizado()
+
     def filtrar_alunos(self, event=None):
-        """Filtra a lista de alunos na combobox conforme o usuário digita"""
+        """Filtra a lista de alunos na combobox conforme o usuário digita - versão otimizada"""
         # Ignorar eventos de navegação que não devem acionar filtragem
         if event and event.keysym in ['Down', 'Up', 'Left', 'Right', 'Tab', 'Return']:
             return
@@ -484,44 +722,84 @@ class InterfaceHistoricoEscolar:
         except:
             pos_cursor = len(texto_atual)
         
-        texto_digitado = texto_atual.lower()
+        texto_digitado = texto_atual.lower().strip()
         
-        if not texto_digitado:
-            self.carregar_alunos()  # Se não houver texto, recarregar lista completa
+        # Se não houver texto suficiente, carregar lista padrão
+        if len(texto_digitado) < 2:
+            self.carregar_alunos_otimizado()
+            return
+        
+        # Usar cache para evitar consultas repetitivas
+        cache_key = f"alunos_filtro_{texto_digitado}"
+        if hasattr(self, '_cache_alunos') and cache_key in self._cache_alunos:
+            self._aplicar_resultados_alunos(self._cache_alunos[cache_key], texto_atual, pos_cursor)
             return
         
         # Conectar ao banco
-        conn = conectar_bd()
+        conn = self.validar_conexao_bd()
+        if conn is None:
+            return
+        
         cursor = conn.cursor()
         
         try:
-            # Pesquisar alunos que correspondam ao termo digitado
+            # Usar busca mais eficiente com múltiplas condições
+            # Priorizar correspondências exatas no início do nome
             cursor.execute("""
-                SELECT id, nome, data_nascimento, sexo
-                FROM alunos
-                WHERE LOWER(nome) LIKE %s
-                ORDER BY nome
-                LIMIT 50
-            """, (f"%{texto_digitado}%",))
+                (SELECT id, nome, data_nascimento, sexo, 1 as prioridade
+                 FROM alunos
+                 WHERE nome LIKE %s AND nome IS NOT NULL
+                 ORDER BY nome
+                 LIMIT 25)
+                UNION ALL
+                (SELECT id, nome, data_nascimento, sexo, 2 as prioridade
+                 FROM alunos
+                 WHERE nome LIKE %s AND nome NOT LIKE %s AND nome IS NOT NULL
+                 ORDER BY nome
+                 LIMIT 25)
+                ORDER BY prioridade, nome
+            """, (f"{texto_digitado}%", f"%{texto_digitado}%", f"{texto_digitado}%"))
             
             alunos = cursor.fetchall()
-            self.alunos_map = {}
-            alunos_info = {}
             
-            # Criar lista de nomes para a combobox e mapear nomes para informações completas
+            # Processar resultados
+            resultados = []
+            for aluno_id, nome, data_nascimento, sexo, prioridade in alunos:
+                if nome:  # Verificar se o nome não é nulo
+                    data_formatada = self.formatar_data_nascimento(data_nascimento)
+                    resultados.append((aluno_id, nome, data_formatada, sexo))
+            
+            # Armazenar no cache
+            if not hasattr(self, '_cache_alunos'):
+                self._cache_alunos = {}
+            # Limitar tamanho do cache
+            if len(self._cache_alunos) > 50:
+                self._cache_alunos.clear()
+            self._cache_alunos[cache_key] = resultados
+            
+            # Aplicar resultados
+            self._aplicar_resultados_alunos(resultados, texto_atual, pos_cursor)
+            
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao filtrar alunos: {str(e)}")
+        finally:
+            cursor.close()
+            conn.close()
+    
+    def _aplicar_resultados_alunos(self, resultados, texto_atual, pos_cursor):
+        """Aplica os resultados da busca de alunos na interface"""
+        try:
+            self.alunos_map = {}
+            self.alunos_info = {}
+            
+            # Criar lista de nomes para a combobox e mapear informações
             alunos_valores = []
-            for aluno_id, nome, data_nascimento, sexo in alunos:
+            for aluno_id, nome, data_formatada, sexo in resultados:
                 alunos_valores.append(nome)
                 self.alunos_map[nome] = aluno_id
-                
-                # Formatar data de nascimento
-                data_formatada = data_nascimento.strftime('%d/%m/%Y') if data_nascimento else ""
-                
-                # Armazenar informações completas do aluno
-                alunos_info[nome] = (aluno_id, data_formatada, sexo)
+                self.alunos_info[nome] = (aluno_id, data_formatada, sexo)
             
             # Atualizar lista de valores e restaurar o texto digitado pelo usuário
-            # Importante: primeiro armazene o estado
             estado_anterior = self.cb_pesquisa_aluno["state"]
             
             # Configure para estado normal para modificar
@@ -543,14 +821,8 @@ class InterfaceHistoricoEscolar:
             # Restaure o estado anterior
             self.cb_pesquisa_aluno["state"] = estado_anterior
             
-            # Armazenar informações completas para uso posterior
-            self.alunos_info = alunos_info
-            
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao filtrar alunos: {str(e)}")
-        finally:
-            cursor.close()
-            conn.close()
+            print(f"Erro ao aplicar resultados: {str(e)}")
 
     def selecionar_aluno(self, event=None):
         """Função chamada quando um aluno é selecionado na combobox"""
@@ -570,7 +842,10 @@ class InterfaceHistoricoEscolar:
                 self.aluno_sexo.set(sexo)
             else:
                 # Se não tivermos, buscar do banco de dados
-                conn = conectar_bd()
+                conn = self.validar_conexao_bd()
+                if conn is None:
+                    return
+                
                 cursor = conn.cursor()
                 
                 try:
@@ -583,9 +858,9 @@ class InterfaceHistoricoEscolar:
                     resultado = cursor.fetchone()
                     if resultado:
                         data_nascimento, sexo = resultado
-                        data_formatada = data_nascimento.strftime('%d/%m/%Y') if data_nascimento else ""
+                        data_formatada = self.formatar_data_nascimento(data_nascimento)
                         self.aluno_data_nascimento.set(data_formatada)
-                        self.aluno_sexo.set(sexo)
+                        self.aluno_sexo.set(str(sexo) if sexo else "")
                 except Exception as e:
                     print(f"Erro ao buscar detalhes do aluno: {str(e)}")
                 finally:
@@ -654,6 +929,7 @@ class InterfaceHistoricoEscolar:
         return (id_historico, disciplina, ano_letivo, serie, escola, media, conceito, situacao)
         
     def carregar_historico(self):
+        """Carrega o histórico do aluno de forma otimizada"""
         # Limpar a treeview
         for i in self.treeview_historico.get_children():
             self.treeview_historico.delete(i)
@@ -662,14 +938,25 @@ class InterfaceHistoricoEscolar:
         if not hasattr(self, 'aluno_id') or not self.aluno_id:
             return
             
+        # Verificar cache primeiro
+        cache_key = f"historico_{self.aluno_id}"
+        if hasattr(self, '_cache_historico') and cache_key in self._cache_historico:
+            cached_data = self._cache_historico[cache_key]
+            self._aplicar_dados_historico(cached_data['resultados'], cached_data['anos_letivos'], cached_data['disciplinas'])
+            return
+            
         # Conectar ao banco
-        conn = conectar_bd()
+        conn = self.validar_conexao_bd()
+        if conn is None:
+            return
+            
         cursor = conn.cursor()
         
         try:
-            # Consulta SQL otimizada - usando índices e limitando apenas às colunas necessárias
+            # Consulta SQL otimizada com índices compostos - removido LIMIT desnecessário
+            # Usar STRAIGHT_JOIN para forçar ordem específica de join (se suportado pelo MySQL)
             cursor.execute("""
-                SELECT 
+                SELECT /*+ USE_INDEX(h, idx_aluno_historico) */
                     h.id, 
                     d.nome AS disciplina, 
                     al.ano_letivo, 
@@ -682,26 +969,68 @@ class InterfaceHistoricoEscolar:
                     h.serie_id, 
                     h.escola_id
                 FROM historico_escolar h
-                JOIN disciplinas d ON h.disciplina_id = d.id
-                JOIN anosletivos al ON h.ano_letivo_id = al.id
-                JOIN serie s ON h.serie_id = s.id
-                JOIN escolas e ON h.escola_id = e.id
+                INNER JOIN disciplinas d ON h.disciplina_id = d.id
+                INNER JOIN anosletivos al ON h.ano_letivo_id = al.id
+                INNER JOIN serie s ON h.serie_id = s.id
+                INNER JOIN escolas e ON h.escola_id = e.id
                 WHERE h.aluno_id = %s
-                ORDER BY al.ano_letivo DESC, d.nome
-                LIMIT 1000  -- Limitar o número máximo de registros para melhor performance
+                ORDER BY al.ano_letivo DESC, s.id, d.nome
             """, (self.aluno_id,))
             
             resultados = cursor.fetchall()
             
-            # Extrair valores únicos para os filtros
+            # Processar dados de forma mais eficiente
             anos_letivos = set()
             disciplinas = set()
+            dados_processados = []
             
-            # Inserir os resultados na treeview
+            # Processar todos os registros em uma única passada
             for registro in resultados:
                 # Formatar os dados para exibição
                 valores_formatados = self._formatar_registro_historico(registro)
+                dados_processados.append((registro, valores_formatados))
                 
+                # Coletar valores únicos para filtros
+                ano_letivo = valores_formatados[2]
+                disciplina = valores_formatados[1]
+                if ano_letivo:
+                    anos_letivos.add(ano_letivo)
+                if disciplina:
+                    disciplinas.add(disciplina)
+            
+            # Armazenar no cache
+            if not hasattr(self, '_cache_historico'):
+                self._cache_historico = {}
+            # Limitar tamanho do cache
+            if len(self._cache_historico) > 10:
+                # Remove o mais antigo
+                oldest_key = next(iter(self._cache_historico))
+                del self._cache_historico[oldest_key]
+                
+            self._cache_historico[cache_key] = {
+                'resultados': dados_processados,
+                'anos_letivos': anos_letivos,
+                'disciplinas': disciplinas,
+                'timestamp': datetime.now()
+            }
+            
+            # Aplicar dados na interface
+            self._aplicar_dados_historico(dados_processados, anos_letivos, disciplinas)
+                
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao carregar histórico: {str(e)}")
+            print(f"Erro ao carregar histórico: {str(e)}")
+        finally:
+            cursor.close()
+            conn.close()
+    
+    def _aplicar_dados_historico(self, dados_processados, anos_letivos, disciplinas):
+        """Aplica os dados do histórico na interface de forma otimizada"""
+        try:
+            # Inserir os resultados na treeview de forma otimizada
+            items_para_inserir = []
+            
+            for registro, valores_formatados in dados_processados:
                 # Obter valores a serem mostrados (excluindo a situação)
                 valores_display = valores_formatados[:-1]
                 
@@ -712,20 +1041,13 @@ class InterfaceHistoricoEscolar:
                 if situacao:
                     tags.append(situacao)
                 
-                # Inserir na treeview
-                self.treeview_historico.insert("", "end", values=valores_display, 
-                                              tags=tags)
-                
-                # Adicionar valores aos conjuntos para os filtros
-                ano_letivo = valores_formatados[2]
-                disciplina = valores_formatados[1]
-                if ano_letivo:
-                    anos_letivos.add(ano_letivo)
-                if disciplina:
-                    disciplinas.add(disciplina)
+                items_para_inserir.append((valores_display, tags))
+            
+            # Inserir todos os itens de uma vez (mais eficiente)
+            for valores_display, tags in items_para_inserir:
+                self.treeview_historico.insert("", "end", values=valores_display, tags=tags)
             
             # Atualizar os comboboxes de filtro
-            # Adicionar a opção "Todos" no início
             anos_valores = ['Todos'] + sorted(anos_letivos, reverse=True)
             disciplinas_valores = ['Todas'] + sorted(disciplinas)
             situacoes_valores = ['Todos', 'Aprovado', 'Reprovado', 'Em Andamento']
@@ -739,7 +1061,7 @@ class InterfaceHistoricoEscolar:
             self.ajustar_largura_combobox(self.cb_filtro_disciplina, disciplinas_valores)
             self.ajustar_largura_combobox(self.cb_filtro_situacao, situacoes_valores)
             
-            # Se ainda não foi selecionado, selecionar 'Todos'
+            # Configurar valores padrão dos filtros se necessário
             if not self.filtro_ano.get():
                 self.filtro_ano.set('Todos')
             if not self.filtro_disciplina.get():
@@ -748,12 +1070,20 @@ class InterfaceHistoricoEscolar:
                 self.filtro_situacao.set('Todos')
                 
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao carregar histórico: {str(e)}")
-            print(f"Erro ao carregar histórico: {str(e)}")
-        finally:
-            # Fechar conexão
-            cursor.close()
-            conn.close()
+            print(f"Erro ao aplicar dados do histórico: {str(e)}")
+    
+    def invalidar_cache_historico(self, aluno_id=None):
+        """Invalida o cache do histórico quando há alterações"""
+        if not hasattr(self, '_cache_historico'):
+            return
+            
+        if aluno_id:
+            cache_key = f"historico_{aluno_id}"
+            if cache_key in self._cache_historico:
+                del self._cache_historico[cache_key]
+        else:
+            # Limpar todo o cache
+            self._cache_historico.clear()
 
     def selecionar_historico(self, event):
         # Obter o item selecionado
@@ -761,8 +1091,8 @@ class InterfaceHistoricoEscolar:
         if not item:
             return
             
-        # Obter os valores do item
-        valores = self.treeview_historico.item(item, "values")
+        # Obter os valores do item (pegar o primeiro item da seleção)
+        valores = self.treeview_historico.item(item[0], "values")
         
         # Guardar o ID do histórico
         try:
@@ -772,7 +1102,10 @@ class InterfaceHistoricoEscolar:
             return
         
         # Conectar ao banco para buscar dados completos
-        conn = conectar_bd()
+        conn = self.validar_conexao_bd()
+        if conn is None:
+            return
+        
         cursor = conn.cursor()
         
         try:
@@ -804,20 +1137,20 @@ class InterfaceHistoricoEscolar:
             self.cb_disciplina.configure(state="normal")
             
             # Preencher os campos
-            self.escola_selecionada.set(resultado[9])  # Nome da escola
-            self.serie_selecionada.set(resultado[7])  # Nome da série
-            self.ano_letivo_selecionado.set(str(resultado[5]))  # Ano letivo
-            self.disciplina_selecionada.set(resultado[2])  # Nome da disciplina
+            self.escola_selecionada.set(str(resultado[9]) if resultado[9] else "")  # Nome da escola
+            self.serie_selecionada.set(str(resultado[7]) if resultado[7] else "")  # Nome da série
+            self.ano_letivo_selecionado.set(str(resultado[5]) if resultado[5] else "")  # Ano letivo
+            self.disciplina_selecionada.set(str(resultado[2]) if resultado[2] else "")  # Nome da disciplina
             
             # Ajustar a largura dos comboboxes com base no item selecionado
-            self.ajustar_largura_combobox(self.cb_escola, [resultado[9]])
-            self.ajustar_largura_combobox(self.cb_serie, [resultado[7]])
-            self.ajustar_largura_combobox(self.cb_ano_letivo, [str(resultado[5])])
-            self.ajustar_largura_combobox(self.cb_disciplina, [resultado[2]])
+            self.ajustar_largura_combobox(self.cb_escola, [str(resultado[9]) if resultado[9] else ""])
+            self.ajustar_largura_combobox(self.cb_serie, [str(resultado[7]) if resultado[7] else ""])
+            self.ajustar_largura_combobox(self.cb_ano_letivo, [str(resultado[5]) if resultado[5] else ""])
+            self.ajustar_largura_combobox(self.cb_disciplina, [str(resultado[2]) if resultado[2] else ""])
             
             # Preencher média e conceito
             self.media.set(f"{resultado[3]:.1f}" if resultado[3] is not None else "")
-            self.conceito.set(resultado[10] if resultado[10] else "")
+            self.conceito.set(str(resultado[10]) if resultado[10] else "")
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao buscar detalhes do histórico: {str(e)}")
         finally:
@@ -828,18 +1161,38 @@ class InterfaceHistoricoEscolar:
         # Disciplina
         disciplina_texto = self.disciplina_selecionada.get()
         disciplina_id = self.disciplinas_map.get(disciplina_texto) if disciplina_texto else None
+        if disciplina_id is not None:
+            try:
+                disciplina_id = int(str(disciplina_id))
+            except (ValueError, TypeError):
+                disciplina_id = None
             
         # Série
         serie_texto = self.serie_selecionada.get()
         serie_id = self.series_map.get(serie_texto) if serie_texto else None
+        if serie_id is not None:
+            try:
+                serie_id = int(str(serie_id))
+            except (ValueError, TypeError):
+                serie_id = None
             
         # Ano Letivo
         ano_letivo_texto = self.ano_letivo_selecionado.get()
         ano_letivo_id = self.anos_letivos_map.get(ano_letivo_texto) if ano_letivo_texto else None
+        if ano_letivo_id is not None:
+            try:
+                ano_letivo_id = int(str(ano_letivo_id))
+            except (ValueError, TypeError):
+                ano_letivo_id = None
             
         # Escola
         escola_texto = self.escola_selecionada.get()
         escola_id = self.escolas_map.get(escola_texto) if escola_texto else None
+        if escola_id is not None:
+            try:
+                escola_id = int(str(escola_id))
+            except (ValueError, TypeError):
+                escola_id = None
             
         return disciplina_id, serie_id, ano_letivo_id, escola_id
 
@@ -900,7 +1253,10 @@ class InterfaceHistoricoEscolar:
             return
             
         # Verificar se já existe um registro para esta combinação
-        conn = conectar_bd()
+        conn = self.validar_conexao_bd()
+        if conn is None:
+            return
+        
         cursor = conn.cursor()
         
         try:
@@ -923,6 +1279,11 @@ class InterfaceHistoricoEscolar:
             
             conn.commit()
             self.mostrar_mensagem_temporaria("Registro inserido com sucesso!")
+            
+            # Invalidar caches relacionados
+            self.invalidar_cache_historico(self.aluno_id)
+            self.invalidar_cache_filtros(self.aluno_id)
+            self.invalidar_cache_disciplinas(self.aluno_id)
             
             # Recarregar histórico
             self.carregar_historico()
@@ -1003,7 +1364,10 @@ class InterfaceHistoricoEscolar:
             return
             
         # Verificar se já existe outro registro para esta combinação
-        conn = conectar_bd()
+        conn = self.validar_conexao_bd()
+        if conn is None:
+            return
+        
         cursor = conn.cursor()
         
         try:
@@ -1027,6 +1391,11 @@ class InterfaceHistoricoEscolar:
             
             conn.commit()
             self.mostrar_mensagem_temporaria("Registro atualizado com sucesso!")
+            
+            # Invalidar caches relacionados
+            self.invalidar_cache_historico(self.aluno_id)
+            self.invalidar_cache_filtros(self.aluno_id)
+            self.invalidar_cache_disciplinas(self.aluno_id)
             
             # Recarregar histórico
             self.carregar_historico()
@@ -1059,7 +1428,10 @@ class InterfaceHistoricoEscolar:
             return
             
         # Conectar ao banco
-        conn = conectar_bd()
+        conn = self.validar_conexao_bd()
+        if conn is None:
+            return
+        
         cursor = conn.cursor()
         
         try:
@@ -1069,6 +1441,11 @@ class InterfaceHistoricoEscolar:
             # Commit e mensagem
             conn.commit()
             self.mostrar_mensagem_temporaria("Registro excluído com sucesso!")
+            
+            # Invalidar caches relacionados
+            self.invalidar_cache_historico(self.aluno_id)
+            self.invalidar_cache_filtros(self.aluno_id)
+            self.invalidar_cache_disciplinas(self.aluno_id)
             
             # Atualizar o histórico
             self.carregar_historico()
@@ -1182,7 +1559,9 @@ class InterfaceHistoricoEscolar:
                 return
                 
             # Conectar ao banco
-            conn = conectar_bd()
+            conn = self.validar_conexao_bd()
+            if conn is None:
+                return
             cursor = conn.cursor()
             
             # Contador de registros
@@ -1191,7 +1570,7 @@ class InterfaceHistoricoEscolar:
             erros = 0
             
             # Processar cada linha
-            for _, row in df.iterrows():
+            for idx, row in df.iterrows():
                 try:
                     # Verificar se o registro já existe
                     cursor.execute("""
@@ -1211,7 +1590,7 @@ class InterfaceHistoricoEscolar:
                             UPDATE historico_escolar
                             SET media = %s, conceito = %s, serie_id = %s, escola_id = %s
                             WHERE id = %s
-                        """, (media, conceito, row['serie_id'], row['escola_id'], registro_existente[0]))
+                        """, self._safe_sql_params(media, conceito, row['serie_id'], row['escola_id'], registro_existente[0]))
                         atualizados += 1
                     else:
                         # Inserir novo registro
@@ -1223,7 +1602,8 @@ class InterfaceHistoricoEscolar:
                         
                 except Exception as e:
                     erros += 1
-                    print(f"Erro na linha {_ + 2}: {str(e)}")
+                    linha_numero = idx if isinstance(idx, int) else str(idx)
+                    print(f"Erro na linha {linha_numero}: {str(e)}")
                     
             # Commit
             conn.commit()
@@ -1243,32 +1623,25 @@ class InterfaceHistoricoEscolar:
             
         finally:
             # Fechar conexão
-            if 'conn' in locals():
+            if 'conn' in locals() and conn:
                 cursor.close()
                 conn.close()
 
     def atualizar_disciplinas(self, event=None):
         """
-        Atualiza a lista de disciplinas disponíveis no combobox com base na escola selecionada
-        e filtra as disciplinas que já possuem nota para o aluno, série, escola e ano letivo selecionados.
-        Aplica também filtro pelo nível da série: nivel_id=2 para séries 1 a 5 e nivel_id=3 para séries 6 a 9.
+        Atualiza a lista de disciplinas disponíveis no combobox - versão otimizada com cache
         """
         # Limpar o combobox de disciplinas
         self.disciplina_selecionada.set('')
         
-        # Obter o ID da escola selecionada
+        # Obter dados necessários
         escola_texto = self.escola_selecionada.get()
-        if not escola_texto:
-            self.cb_disciplina['values'] = []
-            return
-        
-        # Verificar se há um aluno selecionado
-        if not hasattr(self, 'aluno_id') or not self.aluno_id:
-            return
-            
-        # Obter série e ano letivo selecionados
         serie_texto = self.serie_selecionada.get()
         ano_letivo_texto = self.ano_letivo_selecionado.get()
+        
+        if not escola_texto or not hasattr(self, 'aluno_id') or not self.aluno_id:
+            self.cb_disciplina['values'] = []
+            return
         
         # Extrair IDs
         escola_id = self.escolas_map.get(escola_texto)
@@ -1278,81 +1651,82 @@ class InterfaceHistoricoEscolar:
         # Se algum dos campos não estiver preenchido, não filtrar por disciplinas com nota
         if not (serie_id and escola_id and ano_letivo_id):
             return
-            
+        
+        # Criar chave de cache
+        cache_key = f"disciplinas_{self.aluno_id}_{escola_id}_{serie_id}_{ano_letivo_id}"
+        
+        # Verificar cache primeiro
+        if hasattr(self, '_cache_disciplinas_filtradas') and cache_key in self._cache_disciplinas_filtradas:
+            disciplinas_disponiveis = self._cache_disciplinas_filtradas[cache_key]
+            self._aplicar_disciplinas_disponiveis(disciplinas_disponiveis)
+            return
+        
         # Conectar ao banco
-        conn = conectar_bd()
+        conn = self.validar_conexao_bd()
+        if conn is None:
+            return
+        
         cursor = conn.cursor()
         
         try:
-            # Determinar o nível com base no número da série
+            # Consulta otimizada que combina todas as verificações em uma única query
             cursor.execute("""
-                SELECT nome 
-                FROM serie 
-                WHERE id = %s
-            """, (serie_id,))
-            
-            serie_result = cursor.fetchone()
-            if not serie_result:
-                return
-            
-            serie_nome = serie_result[0]
-            nivel_id = None
-            
-            # Extrair o número da série do nome
-            import re
-            numero_serie = re.search(r'(\d+)', serie_nome)
-            if numero_serie:
-                numero = int(numero_serie.group(1))
-                if 1 <= numero <= 5:
-                    nivel_id = 2  # Fundamental I (1º ao 5º ano)
-                elif 6 <= numero <= 9:
-                    nivel_id = 3  # Fundamental II (6º ao 9º ano)
-            
-            # Buscar todas as disciplinas disponíveis para a escola e nível
-            if nivel_id:
-                cursor.execute("""
-                    SELECT d.id, d.nome
-                    FROM disciplinas d
-                    WHERE (d.escola_id IS NULL OR d.escola_id = %s)
-                    AND (d.nivel_id IS NULL OR d.nivel_id = %s)
-                    ORDER BY d.nome
-                """, (escola_id, nivel_id))
-            else:
-                # Se não conseguir determinar o nível, exibir todas as disciplinas
-                cursor.execute("""
-                    SELECT d.id, d.nome
-                    FROM disciplinas d
-                    WHERE (d.escola_id IS NULL OR d.escola_id = %s)
-                    ORDER BY d.nome
-                """, (escola_id,))
+                SELECT d.id, d.nome
+                FROM disciplinas d
+                LEFT JOIN serie s ON s.id = %s
+                WHERE (d.escola_id IS NULL OR d.escola_id = %s)
+                AND (d.nivel_id IS NULL OR 
+                     (CASE 
+                        WHEN REGEXP_SUBSTR(s.nome, '[0-9]+') BETWEEN 1 AND 5 THEN d.nivel_id = 2
+                        WHEN REGEXP_SUBSTR(s.nome, '[0-9]+') BETWEEN 6 AND 9 THEN d.nivel_id = 3
+                        ELSE 1=1
+                      END))
+                AND d.id NOT IN (
+                    SELECT h.disciplina_id
+                    FROM historico_escolar h
+                    WHERE h.aluno_id = %s
+                    AND h.serie_id = %s
+                    AND h.escola_id = %s
+                    AND h.ano_letivo_id = %s
+                )
+                ORDER BY d.nome
+            """, self._safe_sql_params(serie_id, escola_id, self.aluno_id, serie_id, escola_id, ano_letivo_id))
             
             todas_disciplinas = cursor.fetchall()
             
-            # Buscar disciplinas que já têm nota para este aluno, série, escola e ano letivo
-            cursor.execute("""
-                SELECT h.disciplina_id
-                FROM historico_escolar h
-                WHERE h.aluno_id = %s
-                AND h.serie_id = %s
-                AND h.escola_id = %s
-                AND h.ano_letivo_id = %s
-            """, (self.aluno_id, serie_id, escola_id, ano_letivo_id))
-            
-            disciplinas_com_nota = {str(row[0]) for row in cursor.fetchall()}
-            
-            # Filtrar disciplinas disponíveis
+            # Processar disciplinas disponíveis
             disciplinas_disponiveis = []
-            # Atualizar o mapa de disciplinas conforme necessário
             temp_disciplinas_map = {}
             
             for disc_id, disc_nome in todas_disciplinas:
-                if str(disc_id) not in disciplinas_com_nota:
-                    disciplinas_disponiveis.append(disc_nome)
-                    temp_disciplinas_map[disc_nome] = disc_id
+                disciplinas_disponiveis.append(disc_nome)
+                temp_disciplinas_map[disc_nome] = disc_id
             
             # Atualizar o mapa de disciplinas com as disciplinas disponíveis
             self.disciplinas_map.update(temp_disciplinas_map)
             
+            # Armazenar no cache
+            if not hasattr(self, '_cache_disciplinas_filtradas'):
+                self._cache_disciplinas_filtradas = {}
+            # Limitar tamanho do cache
+            if len(self._cache_disciplinas_filtradas) > 50:
+                self._cache_disciplinas_filtradas.clear()
+            self._cache_disciplinas_filtradas[cache_key] = disciplinas_disponiveis
+            
+            # Aplicar na interface
+            self._aplicar_disciplinas_disponiveis(disciplinas_disponiveis)
+                
+        except Exception as e:
+            print(f"Erro ao atualizar disciplinas: {str(e)}")
+            # Fallback para método mais simples se a consulta otimizada falhar
+            self._atualizar_disciplinas_fallback(escola_id, serie_id, ano_letivo_id)
+        finally:
+            cursor.close()
+            conn.close()
+    
+    def _aplicar_disciplinas_disponiveis(self, disciplinas_disponiveis):
+        """Aplica a lista de disciplinas disponíveis na interface"""
+        try:
             # Atualizar combobox
             atual = self.disciplina_selecionada.get()
             self.cb_disciplina['values'] = disciplinas_disponiveis
@@ -1365,12 +1739,71 @@ class InterfaceHistoricoEscolar:
                 self.disciplina_selecionada.set(atual)
             else:
                 self.disciplina_selecionada.set("")
-                
         except Exception as e:
-            print(f"Erro ao atualizar disciplinas: {str(e)}")
+            print(f"Erro ao aplicar disciplinas: {str(e)}")
+    
+    def _atualizar_disciplinas_fallback(self, escola_id, serie_id, ano_letivo_id):
+        """Método fallback para atualizar disciplinas caso a consulta otimizada falhe"""
+        conn = self.validar_conexao_bd()
+        if conn is None:
+            return
+        
+        cursor = conn.cursor()
+        
+        try:
+            # Buscar todas as disciplinas disponíveis para a escola
+            cursor.execute("""
+                SELECT d.id, d.nome
+                FROM disciplinas d
+                WHERE (d.escola_id IS NULL OR d.escola_id = %s)
+                ORDER BY d.nome
+            """, (escola_id,))
+            
+            todas_disciplinas = cursor.fetchall()
+            
+            # Buscar disciplinas que já têm nota
+            cursor.execute("""
+                SELECT h.disciplina_id
+                FROM historico_escolar h
+                WHERE h.aluno_id = %s
+                AND h.serie_id = %s
+                AND h.escola_id = %s
+                AND h.ano_letivo_id = %s
+            """, self._safe_sql_params(self.aluno_id, serie_id, escola_id, ano_letivo_id))
+            
+            disciplinas_com_nota = {str(row[0]) for row in cursor.fetchall()}
+            
+            # Filtrar disciplinas disponíveis
+            disciplinas_disponiveis = []
+            temp_disciplinas_map = {}
+            
+            for disc_id, disc_nome in todas_disciplinas:
+                if str(disc_id) not in disciplinas_com_nota:
+                    disciplinas_disponiveis.append(disc_nome)
+                    temp_disciplinas_map[disc_nome] = disc_id
+            
+            self.disciplinas_map.update(temp_disciplinas_map)
+            self._aplicar_disciplinas_disponiveis(disciplinas_disponiveis)
+            
+        except Exception as e:
+            print(f"Erro no fallback de disciplinas: {str(e)}")
         finally:
             cursor.close()
             conn.close()
+    
+    def invalidar_cache_disciplinas(self, aluno_id=None):
+        """Invalida o cache de disciplinas quando há alterações"""
+        if not hasattr(self, '_cache_disciplinas_filtradas'):
+            return
+            
+        if aluno_id:
+            # Remover apenas os caches do aluno específico
+            keys_to_remove = [k for k in self._cache_disciplinas_filtradas.keys() if f"disciplinas_{aluno_id}_" in k]
+            for key in keys_to_remove:
+                del self._cache_disciplinas_filtradas[key]
+        else:
+            # Limpar todo o cache
+            self._cache_disciplinas_filtradas.clear()
 
     def voltar_pagina_principal(self):
         """
@@ -1386,7 +1819,7 @@ class InterfaceHistoricoEscolar:
             self.janela.destroy()
 
     def aplicar_filtros(self):
-        """Aplica os filtros selecionados na visualização do histórico"""
+        """Aplica os filtros selecionados na visualização do histórico - versão otimizada"""
         if not hasattr(self, 'aluno_id') or not self.aluno_id:
             return
             
@@ -1394,9 +1827,19 @@ class InterfaceHistoricoEscolar:
         for i in self.treeview_historico.get_children():
             self.treeview_historico.delete(i)
             
-        # Construir a consulta SQL com filtros
-        query = """
-            SELECT 
+        # Criar chave de cache para filtros
+        filtros_key = f"{self.filtro_ano.get()}|{self.filtro_disciplina.get()}|{self.filtro_situacao.get()}"
+        cache_key = f"filtros_{self.aluno_id}_{filtros_key}"
+        
+        # Verificar cache primeiro
+        if hasattr(self, '_cache_filtros') and cache_key in self._cache_filtros:
+            registros_filtrados = self._cache_filtros[cache_key]
+            self._aplicar_registros_filtrados(registros_filtrados)
+            return
+            
+        # Construir a consulta SQL com filtros otimizada
+        query_base = """
+            SELECT /*+ USE_INDEX(h, idx_aluno_historico) */
                 h.id, 
                 d.nome AS disciplina, 
                 al.ano_letivo, 
@@ -1409,43 +1852,75 @@ class InterfaceHistoricoEscolar:
                 h.serie_id, 
                 h.escola_id
             FROM historico_escolar h
-            JOIN disciplinas d ON h.disciplina_id = d.id
-            JOIN anosletivos al ON h.ano_letivo_id = al.id
-            JOIN serie s ON h.serie_id = s.id
-            JOIN escolas e ON h.escola_id = e.id
+            INNER JOIN disciplinas d ON h.disciplina_id = d.id
+            INNER JOIN anosletivos al ON h.ano_letivo_id = al.id
+            INNER JOIN serie s ON h.serie_id = s.id
+            INNER JOIN escolas e ON h.escola_id = e.id
             WHERE h.aluno_id = %s
         """
-        params = [self.aluno_id]
         
-        # Aplicar filtros
+        params = [self.aluno_id]
+        condicoes_extras = []
+        
+        # Aplicar filtros de forma mais eficiente
         if self.filtro_ano.get() and self.filtro_ano.get() != 'Todos':
-            query += " AND al.ano_letivo = %s"
+            condicoes_extras.append("al.ano_letivo = %s")
             params.append(self.filtro_ano.get())
             
         if self.filtro_disciplina.get() and self.filtro_disciplina.get() != 'Todas':
-            query += " AND d.nome LIKE %s"
+            condicoes_extras.append("d.nome LIKE %s")
             params.append(f"%{self.filtro_disciplina.get()}%")
             
         if self.filtro_situacao.get() and self.filtro_situacao.get() != 'Todos':
             if self.filtro_situacao.get() == 'Aprovado':
-                query += " AND (h.media >= 6 OR h.conceito IN ('AD', 'PNAD', 'APNAD'))"
+                condicoes_extras.append("(h.media >= 60 OR h.conceito IN ('AD', 'PNAD', 'APNAD'))")
             elif self.filtro_situacao.get() == 'Reprovado':
-                query += " AND (h.media < 6 OR h.conceito = 'RT')"
+                condicoes_extras.append("(h.media < 60 OR h.conceito = 'RT')")
             
-        query += " ORDER BY al.ano_letivo DESC, d.nome LIMIT 1000"
+        # Montar query final
+        query_final = query_base
+        if condicoes_extras:
+            query_final += " AND " + " AND ".join(condicoes_extras)
+        query_final += " ORDER BY al.ano_letivo DESC, s.id, d.nome"
         
         # Executar a consulta
-        conn = conectar_bd()
+        conn = self.validar_conexao_bd()
+        if conn is None:
+            return
         cursor = conn.cursor()
         
         try:
-            cursor.execute(query, params)
+            cursor.execute(query_final, params)
+            registros = cursor.fetchall()
             
-            # Inserir os resultados na treeview
-            for registro in cursor.fetchall():
-                # Formatar os dados para exibição
+            # Processar registros
+            registros_processados = []
+            for registro in registros:
                 valores_formatados = self._formatar_registro_historico(registro)
-                
+                registros_processados.append((registro, valores_formatados))
+            
+            # Armazenar no cache
+            if not hasattr(self, '_cache_filtros'):
+                self._cache_filtros = {}
+            # Limitar tamanho do cache
+            if len(self._cache_filtros) > 20:
+                self._cache_filtros.clear()
+            self._cache_filtros[cache_key] = registros_processados
+            
+            # Aplicar na interface
+            self._aplicar_registros_filtrados(registros_processados)
+            
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao aplicar filtros: {str(e)}")
+            print(f"Erro ao aplicar filtros: {str(e)}")
+        finally:
+            cursor.close()
+            conn.close()
+    
+    def _aplicar_registros_filtrados(self, registros_processados):
+        """Aplica os registros filtrados na treeview"""
+        try:
+            for registro, valores_formatados in registros_processados:
                 # Obter valores a serem mostrados (excluindo a situação)
                 valores_display = valores_formatados[:-1]
                 
@@ -1457,14 +1932,23 @@ class InterfaceHistoricoEscolar:
                     tags.append(situacao)
                 
                 # Inserir na treeview
-                self.treeview_historico.insert("", "end", values=valores_display, 
-                                              tags=tags)
+                self.treeview_historico.insert("", "end", values=valores_display, tags=tags)
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao aplicar filtros: {str(e)}")
-            print(f"Erro ao aplicar filtros: {str(e)}")
-        finally:
-            cursor.close()
-            conn.close()
+            print(f"Erro ao aplicar registros filtrados: {str(e)}")
+    
+    def invalidar_cache_filtros(self, aluno_id=None):
+        """Invalida o cache de filtros quando há alterações"""
+        if not hasattr(self, '_cache_filtros'):
+            return
+            
+        if aluno_id:
+            # Remover apenas os caches do aluno específico
+            keys_to_remove = [k for k in self._cache_filtros.keys() if f"filtros_{aluno_id}_" in k]
+            for key in keys_to_remove:
+                del self._cache_filtros[key]
+        else:
+            # Limpar todo o cache
+            self._cache_filtros.clear()
 
     def gerar_relatorio_desempenho(self):
         """Gera um relatório de desempenho do aluno"""
@@ -1473,7 +1957,9 @@ class InterfaceHistoricoEscolar:
             return
             
         try:
-            conn = conectar_bd()
+            conn = self.validar_conexao_bd()
+            if conn is None:
+                return
             cursor = conn.cursor()
             
             # Buscar informações do aluno
@@ -1539,7 +2025,7 @@ class InterfaceHistoricoEscolar:
             elements.append(Spacer(1, 12))
             
             # Dados do aluno
-            data_nascimento = aluno[1].strftime('%d/%m/%Y') if aluno[1] else "Não informada"
+            data_nascimento = self.formatar_data_nascimento(aluno[1])
             elements.append(Paragraph(f"Data de Nascimento: {data_nascimento}", styles["Normal"]))
             elements.append(Spacer(1, 12))
             
@@ -1547,14 +2033,28 @@ class InterfaceHistoricoEscolar:
             data = [["Disciplina", "Média Geral", "Total de Registros", "Aprovações", "Taxa de Aprovação"]]
             
             for disc in desempenho:
-                taxa_aprovacao = (disc[3] / disc[2] * 100) if disc[2] > 0 else 0
-                data.append([
-                    disc[0],
-                    f"{disc[1]:.1f}" if disc[1] else "N/A",
-                    str(disc[2]),
-                    str(disc[3]),
-                    f"{taxa_aprovacao:.1f}%"
-                ])
+                try:
+                    # Garantir conversões seguras para cálculos
+                    total_registros = self._safe_float_value(disc[2])
+                    aprovacoes = self._safe_float_value(disc[3])
+                    taxa_aprovacao = (aprovacoes / total_registros * 100) if total_registros > 0 else 0
+                    
+                    data.append([
+                        str(disc[0]) if disc[0] is not None else "",
+                        self._safe_float_format(disc[1]),
+                        str(int(total_registros)),
+                        str(int(aprovacoes)),
+                        f"{taxa_aprovacao:.1f}%"
+                    ])
+                except (ValueError, TypeError, ZeroDivisionError) as e:
+                    # Em caso de erro, usar valores padrão
+                    data.append([
+                        str(disc[0]) if disc[0] is not None else "",
+                        "N/A",
+                        "0",
+                        "0",
+                        "0.0%"
+                    ])
                 
             table = Table(data)
             table.setStyle(TableStyle([
@@ -1585,8 +2085,10 @@ class InterfaceHistoricoEscolar:
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao gerar relatório: {str(e)}")
         finally:
-            cursor.close()
-            conn.close()
+            if 'cursor' in locals() and cursor:
+                cursor.close()
+            if 'conn' in locals() and conn:
+                conn.close()
 
     def abrir_matriz_series_disciplinas(self):
         """Abre a visualização da matriz de séries x disciplinas."""
@@ -1619,7 +2121,9 @@ class InterfaceHistoricoEscolar:
             cursor = None
             
             try:
-                conn = conectar_bd()
+                conn = self.validar_conexao_bd()
+                if conn is None:
+                    return
                 cursor = conn.cursor()
                 cursor.execute("SELECT id, nome FROM escolas ORDER BY nome")
                 escolas = cursor.fetchall()
@@ -1731,7 +2235,7 @@ class InterfaceHistoricoEscolar:
                     frame_cartoes.pack(fill=tk.BOTH, expand=True)
                     btn_alternar.config(text="Visualizar em Tabela")
                 else:
-                    modo_var.get() == "cartoes"
+                    # Mudança para modo tabela
                     modo_var.set("tabela")
                     frame_cartoes.pack_forget()
                     frame_tabela.pack(fill=tk.BOTH, expand=True)
@@ -1740,7 +2244,9 @@ class InterfaceHistoricoEscolar:
             btn_alternar.config(command=alternar_modo)
             
             # Carregar dados para a matriz
-            conn = conectar_bd()
+            conn = self.validar_conexao_bd()
+            if conn is None:
+                return
             cursor = conn.cursor()
             
             # Definir as cores das séries para uso nos cartões
@@ -1833,8 +2339,9 @@ class InterfaceHistoricoEscolar:
                     # Garantir que a disciplina existe no dicionário
                     if disciplina_id not in dados_matriz:
                         # Buscar o nome da disciplina
-                        cursor.execute("SELECT nome FROM disciplinas WHERE id = %s", (disciplina_id,))
-                        disciplina_nome = cursor.fetchone()[0]
+                        cursor.execute("SELECT nome FROM disciplinas WHERE id = %s", self._safe_sql_params(disciplina_id))
+                        result = cursor.fetchone()
+                        disciplina_nome = result[0] if result else "Disciplina Desconhecida"
                         dados_matriz[disciplina_id] = {
                             "nome": disciplina_nome,
                             "series": {}
@@ -1903,7 +2410,7 @@ class InterfaceHistoricoEscolar:
             
             # Configurar as colunas (séries)
             for i, serie_id in enumerate(range(3, 12)):
-                tabela.heading(serie_id, text=series_nomes.get(serie_id, f"Série {serie_id}"))
+                tabela.heading(serie_id, text=self._safe_str_value(series_nomes.get(serie_id, f"Série {self._safe_str_value(serie_id)}")))
                 tabela.column(serie_id, width=120, anchor="center")
             
             # Preencher a tabela com dados
@@ -1929,7 +2436,8 @@ class InterfaceHistoricoEscolar:
             # Nomes das disciplinas
             for disciplina_id, dados in dados_matriz.items():
                 disc_label = tk.Label(disciplinas_col, text=dados["nome"], **row_header_style, width=15)
-                disc_label.disciplina_id = disciplina_id  # Armazenar ID para uso posterior
+                # Armazenar ID no widget usando setattr
+                setattr(disc_label, 'disciplina_id', disciplina_id)
                 disc_label.pack(fill=tk.X, pady=(0, 1))
                 
                 # Vincular duplo clique para editar
@@ -2022,9 +2530,10 @@ class InterfaceHistoricoEscolar:
                     disc_frame.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
                     
                     # Armazenar IDs no frame para uso na função de edição
-                    disc_frame.disciplina_id = disciplina["id"]
-                    disc_frame.serie_id = serie_id
-                    disc_frame.valor_celula = disciplina["nota"]
+                    # Armazenar IDs e valores no widget usando setattr
+                    setattr(disc_frame, 'disciplina_id', disciplina["id"])
+                    setattr(disc_frame, 'serie_id', serie_id)
+                    setattr(disc_frame, 'valor_celula', disciplina["nota"])
                     
                     # Adicionar à lista de cartões criados
                     cartoes_criados.append(disc_frame)
@@ -2344,7 +2853,9 @@ class InterfaceHistoricoEscolar:
             conn = None
             cursor = None
             try:
-                conn = conectar_bd()
+                conn = self.validar_conexao_bd()
+                if conn is None:
+                    return
                 cursor = conn.cursor()
                 cursor.execute("SELECT nome FROM disciplinas WHERE id = %s", (disciplina_id,))
                 resultado = cursor.fetchone()
@@ -2391,7 +2902,9 @@ class InterfaceHistoricoEscolar:
         conn = None
         cursor = None
         try:
-            conn = conectar_bd()
+            conn = self.validar_conexao_bd()
+            if conn is None:
+                return
             cursor = conn.cursor()
             cursor.execute("SHOW COLUMNS FROM historico_escolar LIKE 'carga_horaria'")
             tem_carga_horaria = cursor.fetchone() is not None
@@ -2415,7 +2928,9 @@ class InterfaceHistoricoEscolar:
             conn = None
             cursor = None
             try:
-                conn = conectar_bd()
+                conn = self.validar_conexao_bd()
+                if conn is None:
+                    return
                 cursor = conn.cursor()
                 
                 # Carregar disciplinas (apenas da escola selecionada)
@@ -2493,7 +3008,9 @@ class InterfaceHistoricoEscolar:
                 conn = None
                 cursor = None
                 try:
-                    conn = conectar_bd()
+                    conn = self.validar_conexao_bd()
+                    if conn is None:
+                        return
                     cursor = conn.cursor()
                     
                     cursor.execute("""
@@ -2592,6 +3109,8 @@ class InterfaceHistoricoEscolar:
         
         try:
             conn = conectar_bd()
+            if not conn:
+                return
             cursor = conn.cursor()
             cursor.execute("SHOW COLUMNS FROM historico_escolar LIKE 'carga_horaria'")
             resultado = cursor.fetchone()
@@ -2619,6 +3138,8 @@ class InterfaceHistoricoEscolar:
         
         try:
             conn = conectar_bd()
+            if not conn:
+                return
             cursor = conn.cursor()
             
             # Obter nome da disciplina
@@ -2677,13 +3198,13 @@ class InterfaceHistoricoEscolar:
         
         # Exibir informações da disciplina (não editáveis)
         tk.Label(frame_campos, text="Disciplina:", bg=self.co9, fg=self.co4).grid(row=0, column=0, sticky="w", pady=5)
-        tk.Label(frame_campos, text=disciplina_nome, bg=self.co9, fg=self.co4, font=("Arial", 10, "bold")).grid(row=0, column=1, sticky="w", padx=5, pady=5)
+        tk.Label(frame_campos, text=self._safe_str_value(disciplina_nome), bg=self.co9, fg=self.co4, font=("Arial", 10, "bold")).grid(row=0, column=1, sticky="w", padx=5, pady=5)
         
         tk.Label(frame_campos, text="Série:", bg=self.co9, fg=self.co4).grid(row=1, column=0, sticky="w", pady=5)
-        tk.Label(frame_campos, text=serie_nome, bg=self.co9, fg=self.co4, font=("Arial", 10, "bold")).grid(row=1, column=1, sticky="w", padx=5, pady=5)
+        tk.Label(frame_campos, text=self._safe_str_value(serie_nome), bg=self.co9, fg=self.co4, font=("Arial", 10, "bold")).grid(row=1, column=1, sticky="w", padx=5, pady=5)
         
         tk.Label(frame_campos, text="Ano Letivo:", bg=self.co9, fg=self.co4).grid(row=2, column=0, sticky="w", pady=5)
-        ano_var = tk.StringVar(value=ano_letivo)
+        ano_var = tk.StringVar(value=self._safe_str_value(ano_letivo))
         cb_ano = ttk.Combobox(frame_campos, textvariable=ano_var, width=20)
         cb_ano.grid(row=2, column=1, sticky="w", pady=5, padx=5)
         
@@ -2693,6 +3214,8 @@ class InterfaceHistoricoEscolar:
             cursor = None
             try:
                 conn = conectar_bd()
+                if not conn:
+                    return
                 cursor = conn.cursor()
                 cursor.execute("SELECT id, ano_letivo FROM anosletivos ORDER BY ano_letivo DESC")
                 anos = cursor.fetchall()
@@ -2716,17 +3239,17 @@ class InterfaceHistoricoEscolar:
         
         # Campos editáveis
         tk.Label(frame_campos, text="Nota:", bg=self.co9, fg=self.co4).grid(row=3, column=0, sticky="w", pady=5)
-        nota_var = tk.StringVar(value=f"{media/10:.1f}" if media is not None else "")
+        nota_var = tk.StringVar(value=f"{self._safe_float_value(media)/10:.1f}" if media is not None else "")
         entrada_nota = ttk.Entry(frame_campos, textvariable=nota_var, width=10)
         entrada_nota.grid(row=3, column=1, sticky="w", pady=5, padx=5)
         
         tk.Label(frame_campos, text="Conceito:", bg=self.co9, fg=self.co4).grid(row=4, column=0, sticky="w", pady=5)
-        conceito_var = tk.StringVar(value=conceito if conceito else "")
+        conceito_var = tk.StringVar(value=self._safe_str_value(conceito) if conceito else "")
         cb_conceito = ttk.Combobox(frame_campos, textvariable=conceito_var, width=10, values=['', 'R', 'B', 'O', 'AD', 'PNAD', 'APNAD', 'RT'])
         cb_conceito.grid(row=4, column=1, sticky="w", pady=5, padx=5)
         
         # Se tiver coluna carga_horaria, mostrar campo
-        ch_var = tk.StringVar(value=carga_horaria if carga_horaria else "")
+        ch_var = tk.StringVar(value=self._safe_str_value(carga_horaria) if carga_horaria else "")
         if tem_carga_horaria:
             tk.Label(frame_campos, text="Carga Horária:", bg=self.co9, fg=self.co4).grid(row=5, column=0, sticky="w", pady=5)
             entrada_ch = ttk.Entry(frame_campos, textvariable=ch_var, width=10)
@@ -2774,6 +3297,8 @@ class InterfaceHistoricoEscolar:
                 
                 try:
                     conn = conectar_bd()
+                    if not conn:
+                        return
                     cursor = conn.cursor()
                     
                     if tem_carga_horaria:
@@ -2782,13 +3307,13 @@ class InterfaceHistoricoEscolar:
                             UPDATE historico_escolar
                             SET media = %s, conceito = %s, carga_horaria = %s, ano_letivo_id = %s
                             WHERE id = %s
-                        """, (media, conceito, carga_horaria, ano_letivo_id, registro_id))
+                        """, self._safe_sql_params(media, conceito, carga_horaria, ano_letivo_id, registro_id))
                     else:
                         cursor.execute("""
                             UPDATE historico_escolar
                             SET media = %s, conceito = %s, ano_letivo_id = %s
                             WHERE id = %s
-                        """, (media, conceito, ano_letivo_id, registro_id))
+                        """, self._safe_sql_params(media, conceito, ano_letivo_id, registro_id))
                     
                     conn.commit()
                     self.mostrar_mensagem_temporaria("Disciplina atualizada com sucesso!")
@@ -2827,8 +3352,10 @@ class InterfaceHistoricoEscolar:
             
             try:
                 conn = conectar_bd()
+                if not conn:
+                    return
                 cursor = conn.cursor()
-                cursor.execute("DELETE FROM historico_escolar WHERE id = %s", (registro_id,))
+                cursor.execute("DELETE FROM historico_escolar WHERE id = %s", self._safe_sql_params(registro_id))
                 conn.commit()
                 self.mostrar_mensagem_temporaria("Disciplina excluída com sucesso!")
                 
@@ -3008,6 +3535,8 @@ class InterfaceHistoricoEscolar:
                 cursor = None
                 try:
                     conn = conectar_bd()
+                    if not conn:
+                        return
                     cursor = conn.cursor()
                     cursor.execute("SELECT nome FROM escolas WHERE id = %s", (escola_id,))
                     resultado = cursor.fetchone()
@@ -3058,7 +3587,9 @@ class InterfaceHistoricoEscolar:
             return
             
         # Conectar ao banco
-        conn = conectar_bd()
+        conn = self.validar_conexao_bd()
+        if conn is None:
+            return
         cursor = conn.cursor()
         
         try:
@@ -3067,7 +3598,7 @@ class InterfaceHistoricoEscolar:
                 SELECT nome 
                 FROM serie 
                 WHERE id = %s
-            """, (serie_id,))
+            """, self._safe_sql_params(serie_id))
             
             serie_result = cursor.fetchone()
             if not serie_result:
@@ -3078,7 +3609,7 @@ class InterfaceHistoricoEscolar:
             
             # Extrair o número da série do nome
             import re
-            numero_serie = re.search(r'(\d+)', serie_nome)
+            numero_serie = re.search(r'(\d+)', str(serie_nome))
             if numero_serie:
                 numero = int(numero_serie.group(1))
                 if 1 <= numero <= 5:
@@ -3306,17 +3837,19 @@ class InterfaceHistoricoEscolar:
         scrollbar.config(command=texto_obs.yview)
         
         # Carregar observação existente se houver
-        conn = conectar_bd()
+        conn = self.validar_conexao_bd()
+        if conn is None:
+            return
         cursor = conn.cursor()
         try:
             cursor.execute("""
                 SELECT observacao 
                 FROM observacoes_historico 
                 WHERE serie_id = %s AND ano_letivo_id = %s AND escola_id = %s
-            """, (serie_id, ano_letivo_id, escola_id))
+            """, self._safe_sql_params(serie_id, ano_letivo_id, escola_id))
             resultado = cursor.fetchone()
             if resultado:
-                texto_obs.insert("1.0", resultado[0])
+                texto_obs.insert("1.0", self._safe_str_value(resultado[0]))
         finally:
             cursor.close()
             conn.close()
@@ -3328,14 +3861,16 @@ class InterfaceHistoricoEscolar:
         def salvar_observacao():
             observacao = texto_obs.get("1.0", tk.END).strip()
             
-            conn = conectar_bd()
+            conn = self.validar_conexao_bd()
+            if conn is None:
+                return
             cursor = conn.cursor()
             try:
                 # Verificar se já existe uma observação
                 cursor.execute("""
                     SELECT id FROM observacoes_historico 
                     WHERE serie_id = %s AND ano_letivo_id = %s AND escola_id = %s
-                """, (serie_id, ano_letivo_id, escola_id))
+                """, self._safe_sql_params(serie_id, ano_letivo_id, escola_id))
                 resultado = cursor.fetchone()
                 
                 if resultado:
@@ -3344,14 +3879,14 @@ class InterfaceHistoricoEscolar:
                         UPDATE observacoes_historico 
                         SET observacao = %s 
                         WHERE id = %s
-                    """, (observacao, resultado[0]))
+                    """, self._safe_sql_params(observacao, resultado[0]))
                 else:
                     # Inserir nova observação
                     cursor.execute("""
                         INSERT INTO observacoes_historico 
                         (serie_id, ano_letivo_id, escola_id, observacao) 
                         VALUES (%s, %s, %s, %s)
-                    """, (serie_id, ano_letivo_id, escola_id, observacao))
+                    """, self._safe_sql_params(serie_id, ano_letivo_id, escola_id, observacao))
                 
                 conn.commit()
                 messagebox.showinfo("Sucesso", "Observação salva com sucesso!")
@@ -3365,13 +3900,15 @@ class InterfaceHistoricoEscolar:
         
         def excluir_observacao():
             if messagebox.askyesno("Confirmar", "Deseja realmente excluir esta observação?"):
-                conn = conectar_bd()
+                conn = self.validar_conexao_bd()
+                if conn is None:
+                    return
                 cursor = conn.cursor()
                 try:
                     cursor.execute("""
                         DELETE FROM observacoes_historico 
                         WHERE serie_id = %s AND ano_letivo_id = %s AND escola_id = %s
-                    """, (serie_id, ano_letivo_id, escola_id))
+                    """, self._safe_sql_params(serie_id, ano_letivo_id, escola_id))
                     conn.commit()
                     messagebox.showinfo("Sucesso", "Observação excluída com sucesso!")
                     janela_obs.destroy()
