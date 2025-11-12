@@ -1,5 +1,6 @@
 import sys
 import os
+import webbrowser
 import traceback
 from typing import Optional, Union, Tuple, Any, List, Dict
 from datetime import datetime, date, timedelta
@@ -2323,6 +2324,8 @@ def criar_acoes():
     # Criar o menu
     menu_bar = Menu(janela)
 
+    
+
     # Adicionando o menu "Listas"
     listas_menu = Menu(menu_bar, tearoff=0)
 
@@ -2333,10 +2336,7 @@ def criar_acoes():
     listas_menu.add_command(label="Lista de Notas", command=lambda: lista_notas(), font=menu_font)
     listas_menu.add_command(label="Lista de Frequências", command=lambda: lista_frequencia(), font=menu_font)
     
-    # Criar submenu para Movimento Mensal
-    movimento_mensal_menu = Menu(listas_menu, tearoff=0)
-    movimento_mensal_menu.add_command(label="Gerar Relatório", command=selecionar_mes_movimento, font=menu_font)
-    listas_menu.add_cascade(label="Movimento Mensal", menu=movimento_mensal_menu, font=menu_font)
+    # (Movimento Mensal transferido para o menu 'Serviços')
 
     # Adicionando o menu à barra de menus
     menu_bar.add_cascade(label="Listas", menu=listas_menu)
@@ -2404,6 +2404,11 @@ def criar_acoes():
     # Serviços
     # =========================
     servicos_menu = Menu(menu_bar, tearoff=0)
+
+    # Criar submenu para Movimento Mensal (moved from 'Listas')
+    movimento_mensal_menu = Menu(servicos_menu, tearoff=0)
+    movimento_mensal_menu.add_command(label="Gerar Relatório", command=selecionar_mes_movimento, font=menu_font)
+    servicos_menu.add_cascade(label="Movimento Mensal", menu=movimento_mensal_menu, font=menu_font)
 
     def abrir_solicitacao_professores():
         try:
@@ -3077,6 +3082,33 @@ def criar_acoes():
 
     menu_bar.add_cascade(label="Gerenciamento de Faltas", menu=faltas_menu)
     
+    # --- Menu: Documentos da Escola (posicionado após Gerenciamento de Faltas) ---
+    documentos_menu = Menu(menu_bar, tearoff=0)
+
+    def abrir_documento_da_escola(chave):
+        """Abre os documentos oficiais da escola no navegador usando links do Google Drive."""
+        links = {
+            'estatuto': 'https://drive.google.com/file/d/14piUCRRxRlfh1EC_LiT_npmbPkOkgUS4/view?usp=sharing',
+            'ppp': 'https://drive.google.com/file/d/1SDDy5PnxbTyDbqbfGKhLDrdRgdozGt-1/view?usp=sharing',
+            'cnpj': 'https://drive.google.com/file/d/1-pW8FK7bq2v-vLFfczvqQv4lUw-MlF2r/view?usp=sharing',
+        }
+
+        link = links.get(chave)
+        if not link:
+            messagebox.showwarning("Documento não configurado", "Documento não encontrado.")
+            return
+
+        try:
+            webbrowser.open(link)
+        except Exception as e:
+            messagebox.showerror("Erro ao abrir documento", str(e))
+
+    documentos_menu.add_command(label="Estatuto da Escola", command=lambda: abrir_documento_da_escola('estatuto'), font=menu_font)
+    documentos_menu.add_command(label="PPP da Escola", command=lambda: abrir_documento_da_escola('ppp'), font=menu_font)
+    documentos_menu.add_command(label="CNPJ da Escola", command=lambda: abrir_documento_da_escola('cnpj'), font=menu_font)
+
+    menu_bar.add_cascade(label="Documentos da Escola", menu=documentos_menu)
+
     # Função para abrir interface de relatório avançado
     def abrir_relatorio_avancado():
         # Criar janela para configuração de relatório avançado
