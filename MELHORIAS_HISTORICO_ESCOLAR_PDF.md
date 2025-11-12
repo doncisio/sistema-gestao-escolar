@@ -20,30 +20,229 @@
 
 ---
 
+## 🎯 MELHORIAS PROPOSTAS
 
-## 🎯 MELHORIAS PROPOSTAS (com prioridade)
+### 1. OTIMIZAÇÃO DE CONSULTAS AO BANCO DE DADOS
 
-**Legenda de prioridade:**
-- 🔴 Alta: Impacto crítico, deve ser feito primeiro
-- 🟡 Média: Importante, mas pode ser feito após as críticas
-- 🟢 Baixa: Refino, testes e organização
+#### Problema Atual
+- A interface busca dados do aluno em `interface_historico_escolar.py`
+- O gerador de PDF refaz TODAS as consultas em `historico_escolar.py`
+- Consultas duplicadas: aluno, histórico, responsáveis, escola
 
+#### Solução Proposta
+```python
+# Criar uma classe de DTO (Data Transfer Object)
+class DadosHistoricoDTO:
+    """Objeto para transferir dados entre interface e gerador PDF"""
+    def __init__(self):
+        self.aluno_id = None
+        self.dados_aluno = {}
+        self.dados_escola = {}
+        self.historico = []
+        self.responsaveis = []
+        self.observacoes = []
+        self.series_cursadas = []
+        
+    @classmethod
+    def from_database(cls, aluno_id):
+        """Busca todos os dados necessários em uma única operação"""
+        dto = cls()
+        dto.aluno_id = aluno_id
+        
+        conn = conectar_bd()
+        cursor = conn.cursor()
+        
+        # UMA consulta para buscar TODOS os dados necessários
+        cursor.execute("""
+            SELECT 
+                a.id, a.nome, a.data_nascimento, a.sexo, 
+                a.local_nascimento, a.UF_nascimento,
+                e.id, e.nome, e.endereco, e.inep, e.cnpj, e.municipio,
+                h.disciplina_id, d.nome, d.carga_horaria,
+                h.serie_id, h.media, h.conceito, 
+                cht.carga_horaria_total, h.ano_letivo_id,
+                al.ano_letivo,
+                r.nome as responsavel,
+                obs.observacao
+            FROM Alunos a
+            LEFT JOIN historico_escolar h ON a.id = h.aluno_id
+            LEFT JOIN disciplinas d ON h.disciplina_id = d.id
+            LEFT JOIN escolas e ON h.escola_id = e.id
+            LEFT JOIN anosletivos al ON h.ano_letivo_id = al.id
+            LEFT JOIN carga_horaria_total cht ON h.serie_id = cht.serie_id 
+                AND h.ano_letivo_id = cht.ano_letivo_id 
+                AND h.escola_id = cht.escola_id
+            LEFT JOIN ResponsaveisAlunos ra ON a.id = ra.aluno_id
+            LEFT JOIN Responsaveis r ON ra.responsavel_id = r.id
+            LEFT JOIN observacoes_historico obs ON h.serie_id = obs.serie_id 
+                AND h.ano_letivo_id = obs.ano_letivo_id 
+                AND h.escola_id = obs.escola_id
+            WHERE a.id = %s
+        """, (aluno_id,))
+        
+        # Processar resultados...
+        
+        cursor.close()
+        conn.close()
+        
+        return dto
+```
+
+**Benefícios:**
+- ✅ Reduz consultas de ~8 para 1
+- ✅ Melhora performance em 70-80%
+- ✅ Reduz carga no banco de dados
+- ✅ Facilita testes unitários
+
+---
+
+### 2. VALIDAÇÃO DE DADOS ANTES DA GERAÇÃO
+
+#### Problema Atual
+```python
+def gerar_pdf(self):
+    """Gera o PDF do histórico escolar do aluno selecionado."""
+    if not self.aluno_id:
+        messagebox.showerror("Erro", "Nenhum aluno selecionado")
+        return
+    
+    # Chama direto sem validar se há dados suficientes
+    historico_escolar(self.aluno_id)
+```
+
+#### Solução Proposta
+```python
+def validar_dados_historico(self, aluno_id):
+    """Valida se o aluno tem dados suficientes para gerar o histórico"""
+    erros = []
+    avisos = []
+    
+    conn = self.validar_conexao_bd()
+    if not conn:
+        return False, ["Erro de conexão com banco de dados"], []
+    
+    cursor = conn.cursor()
+    
+    try:
+        # 1. Verificar se aluno existe e tem dados básicos
+        cursor.execute("""
+            SELECT nome, data_nascimento, sexo, local_nascimento, UF_nascimento
+            FROM Alunos WHERE id = %s
+        """, (aluno_id,))
+        
+        aluno = cursor.fetchone()
+        if not aluno:
+            erros.append("Aluno não encontrado")
+            return False, erros, avisos
+        
+        nome, data_nasc, sexo, local_nasc, uf = aluno
+        
+        if not nome:
+            erros.append("Nome do aluno não informado")
+        if not data_nasc:
+            avisos.append("Data de nascimento não informada")
+        if not sexo:
+            avisos.append("Sexo não informado")
+        if not local_nasc or not uf:
+            avisos.append("Local de nascimento incompleto")
+        
+        # 2. Verificar se tem histórico escolar
+        cursor.execute("""
+            SELECT COUNT(*) FROM historico_escolar WHERE aluno_id = %s
+        """, (aluno_id,))
+        
+        total_registros = cursor.fetchone()[0]
+        if total_registros == 0:
+            erros.append("Aluno não possui registros no histórico escolar")
+            return False, erros, avisos
+        
+        # 3. Verificar se tem responsáveis
+        cursor.execute("""
+            SELECT COUNT(*) FROM ResponsaveisAlunos WHERE aluno_id = %s
+        """, (aluno_id,))
+        
+        total_responsaveis = cursor.fetchone()[0]
+        if total_responsaveis == 0:
+            avisos.append("Aluno não possui responsáveis cadastrados")
+        
+        # 4. Verificar se as disciplinas têm médias ou conceitos
+        cursor.execute("""
+            SELECT COUNT(*) FROM historico_escolar 
+            WHERE aluno_id = %s AND (media IS NULL AND conceito IS NULL)
+        """, (aluno_id,))
+        
+        sem_avaliacao = cursor.fetchone()[0]
+        if sem_avaliacao > 0:
+            avisos.append(f"{sem_avaliacao} registro(s) sem média ou conceito")
+        
+        # 5. Verificar integridade das séries
+        cursor.execute("""
+            SELECT DISTINCT serie_id FROM historico_escolar 
+            WHERE aluno_id = %s ORDER BY serie_id
+        """, (aluno_id,))
+        
+        series = [s[0] for s in cursor.fetchall()]
+        if series:
+            # Verificar se há séries "puladas"
+            serie_min, serie_max = min(series), max(series)
+            serie_esperadas = list(range(serie_min, serie_max + 1))
+            series_faltantes = set(serie_esperadas) - set(series)
+            
+            if series_faltantes:
+                avisos.append(f"Séries faltantes no histórico: {sorted(series_faltantes)}")
+        
+        return len(erros) == 0, erros, avisos
+        
+    finally:
+        cursor.close()
+        conn.close()
 
 def gerar_pdf(self):
+    """Gera o PDF do histórico escolar com validação prévia"""
+    if not self.aluno_id:
+        messagebox.showerror("Erro", "Nenhum aluno selecionado")
+        return
+    
+    # Validar dados antes de gerar
+    valido, erros, avisos = self.validar_dados_historico(self.aluno_id)
+    
+    if not valido:
+        mensagem_erro = "Não é possível gerar o histórico:\n\n"
+        mensagem_erro += "\n".join(f"• {erro}" for erro in erros)
+        messagebox.showerror("Erro na Validação", mensagem_erro)
+        return
+    
+    # Se há avisos, perguntar se deseja continuar
+    if avisos:
+        mensagem_aviso = "Avisos encontrados:\n\n"
+        mensagem_aviso += "\n".join(f"• {aviso}" for aviso in avisos)
+        mensagem_aviso += "\n\nDeseja continuar mesmo assim?"
+        
+        if not messagebox.askyesno("Avisos", mensagem_aviso):
+            return
+    
+    # Mostrar indicador de progresso
+    self.mostrar_progresso_pdf()
+    
+    try:
+        # Gerar PDF
+        historico_escolar(self.aluno_id)
+        messagebox.showinfo("Sucesso", "Histórico escolar gerado com sucesso!")
+    except Exception as e:
+        messagebox.showerror("Erro", f"Erro ao gerar PDF:\n{str(e)}")
+    finally:
+        self.ocultar_progresso_pdf()
+```
 
-### 1. VALIDAÇÃO DE DADOS ANTES DA GERAÇÃO (**🔴 Alta**)
-### 2. TRATAMENTO DE ERROS MELHORADO (**🔴 Alta**)
-### 3. FEEDBACK VISUAL DURANTE GERAÇÃO DO PDF (**🟡 Média**)
-### 4. OTIMIZAÇÃO DE CONSULTAS AO BANCO DE DADOS (**🟡 Média**)
-### 5. OTIMIZAÇÃO DAS CONSULTAS SQL (**🟡 Média**)
-### 6. CACHE DE DADOS PARA GERAÇÃO DE MÚLTIPLOS PDFs (**🟡 Média**)
-### 7. SEPARAÇÃO DE RESPONSABILIDADES (**🟢 Baixa**)
-### 8. REFATORAÇÃO DA FORMATAÇÃO DE DATAS (**🟢 Baixa**)
-### 9. LOGS E MONITORAMENTO (**🟢 Baixa**)
-### 10. TESTES UNITÁRIOS (**🟢 Baixa**)
+**Benefícios:**
+- ✅ Evita geração de PDFs com dados incompletos
+- ✅ Informa problemas antes de processar
+- ✅ Melhora experiência do usuário
+- ✅ Reduz erros em produção
 
+---
 
-### 3. FEEDBACK VISUAL DURANTE GERAÇÃO DO PDF (**🟡 Média**)
+### 3. FEEDBACK VISUAL DURANTE GERAÇÃO DO PDF
 
 #### Problema Atual
 - Interface "congela" durante a geração
@@ -143,10 +342,7 @@ def gerar_pdf_com_progresso(self):
 
 ---
 
-
-### 4. OTIMIZAÇÃO DE CONSULTAS AO BANCO DE DADOS (**🟡 Média**)
-
-(Conteúdo da seção 1 movido para cá)
+### 4. REFATORAÇÃO DA FORMATAÇÃO DE DATAS
 
 #### Problema Atual
 ```python
@@ -314,10 +510,7 @@ data_documento = FormatadorDatas.formatar_data_extenso(datetime.now())
 
 ---
 
-
-### 5. OTIMIZAÇÃO DAS CONSULTAS SQL (**🟡 Média**)
-
-(Conteúdo da seção 8 movido para cá)
+### 5. CACHE DE DADOS PARA GERAÇÃO DE MÚLTIPLOS PDFs
 
 #### Problema Atual
 - Se o usuário gerar vários PDFs seguidos, cada um refaz todas as consultas
@@ -408,8 +601,7 @@ def obter_mapeamento_disciplinas_cached():
 
 ---
 
-
-### 6. CACHE DE DADOS PARA GERAÇÃO DE MÚLTIPLOS PDFs (**🟡 Média**)
+### 6. TRATAMENTO DE ERROS MELHORADO
 
 #### Problema Atual
 ```python
@@ -586,8 +778,7 @@ def gerar_pdf(self):
 
 ---
 
-
-### 7. SEPARAÇÃO DE RESPONSABILIDADES (**🟢 Baixa**)
+### 7. SEPARAÇÃO DE RESPONSABILIDADES
 
 #### Problema Atual
 - `historico_escolar.py` faz TUDO: consulta BD, processa dados, gera PDF
@@ -755,8 +946,7 @@ def gerar_pdf(self):
 
 ---
 
-
-### 8. REFATORAÇÃO DA FORMATAÇÃO DE DATAS (**🟢 Baixa**)
+### 8. OTIMIZAÇÃO DAS CONSULTAS SQL
 
 #### Problema Atual
 ```python
@@ -919,8 +1109,7 @@ def buscar_dados_historico_otimizado(aluno_id):
 
 ---
 
-
-### 9. LOGS E MONITORAMENTO (**🟢 Baixa**)
+### 9. LOGS E MONITORAMENTO
 
 #### Problema Atual
 - Usa `print()` para debug
@@ -1037,8 +1226,7 @@ def gerar_pdf(self):
 
 ---
 
-
-### 10. TESTES UNITÁRIOS (**🟢 Baixa**)
+### 10. TESTES UNITÁRIOS
 
 #### Problema Atual
 - Código sem testes

@@ -1531,10 +1531,296 @@ class InterfaceHistoricoEscolar:
         if not hasattr(self, 'aluno_id') or not self.aluno_id:
             messagebox.showerror("Erro", "Selecione um aluno primeiro.")
             return
-            
-        # Chamar a função para gerar o PDF
-        historico_escolar(self.aluno_id)
-        self.mostrar_mensagem_temporaria("Histórico escolar gerado com sucesso!")
+        # Preparar bundle de dados para evitar consultas duplicadas no gerador de PDF
+        bundle = {'aluno_id': self.aluno_id}
+
+        # Tentar aproveitar caches e dados já carregados na interface
+        # 1) Dados do aluno disponíveis em self.alunos_info
+        nome = None
+        nome_aluno = self.aluno_selecionado.get() if self.aluno_selecionado.get() else None
+        if hasattr(self, 'alunos_info') and nome_aluno in getattr(self, 'alunos_info', {}):
+            info = self.alunos_info[nome_aluno]
+            # self.alunos_info armazena (id, data_nascimento_formatada, sexo)
+            # O gerador espera: (nome, nascimento, sexo, uf, localn)
+            bundle['dados_aluno'] = (nome_aluno, info[1], info[2], None, None)
+            nome = nome_aluno
+
+        # 2) Histórico já em cache
+        cache_key = f"historico_{self.aluno_id}"
+        if hasattr(self, '_cache_historico') and cache_key in self._cache_historico:
+            cached = self._cache_historico[cache_key]
+            # cached['resultados'] é lista de (registro, valores_formatados)
+            registros = [r for r, v in cached['resultados']]
+
+            # Transformar registros para o formato esperado pelo gerador:
+            # (disciplina, carga_horaria, serie_id, media, conceito, carga_horaria_total, ano_letivo_id)
+            historico_transformado = []
+            serie_ids = set()
+            for reg in registros:
+                # reg esperado: (h.id, disciplina, ano_letivo, serie_nome, escola_nome, media, conceito, disciplina_id, ano_letivo_id, serie_id, escola_id)
+                try:
+                    disciplina = reg[1]
+                    carga_horaria = None
+                    serie_id = reg[9] if len(reg) > 9 else None
+                    media = reg[5] if len(reg) > 5 else None
+                    conceito = reg[6] if len(reg) > 6 else None
+                    carga_horaria_total = None
+                    ano_letivo_id = reg[8] if len(reg) > 8 else None
+                    historico_transformado.append((disciplina, carga_horaria, serie_id, media, conceito, carga_horaria_total, ano_letivo_id))
+                    if serie_id:
+                        serie_ids.add(serie_id)
+                except Exception:
+                    # fallback: manter reg original caso estrutura inesperada
+                    pass
+
+            # Antes de finalizar o bundle, tentar preencher carga_horaria e carga_horaria_total consultando o BD
+            try:
+                disciplina_ids = set()
+                serie_tuples = set()
+                for reg in registros:
+                    # indices conforme carregamento em carregar_historico
+                    # reg: (h.id, disciplina, ano_letivo, serie_nome, escola_nome, media, conceito, disciplina_id, ano_letivo_id, serie_id, escola_id)
+                    if len(reg) > 7 and reg[7]:
+                        disciplina_ids.add(reg[7])
+                    if len(reg) > 9 and reg[9]:
+                        serie_id = reg[9]
+                        ano_letivo_id = reg[8] if len(reg) > 8 else None
+                        escola_id = reg[10] if len(reg) > 10 else None
+                        serie_tuples.add((serie_id, ano_letivo_id, escola_id))
+
+                # Buscar carga_horaria por disciplina
+                carga_por_disc = {}
+                if disciplina_ids:
+                    conn = self.validar_conexao_bd()
+                    if conn:
+                        cur = conn.cursor()
+                        try:
+                            placeholder = ','.join(['%s'] * len(disciplina_ids))
+                            query = f"SELECT id, carga_horaria FROM disciplinas WHERE id IN ({placeholder})"
+                            cur.execute(query, tuple(disciplina_ids))
+                            for did, ch in cur.fetchall():
+                                carga_por_disc[did] = ch
+                        except Exception:
+                            pass
+                        finally:
+                            cur.close()
+                            conn.close()
+
+                # Preencher carga_horaria e carga_horaria_total nos historicos
+                carga_total_por_serie_calc = bundle.get('carga_total_por_serie', {}) or {}
+                # Inicializar estrutura de soma por serie
+                soma_por_serie = {}
+                for i, reg in enumerate(registros):
+                    disciplina = reg[1] if len(reg) > 1 else None
+                    serie_id = reg[9] if len(reg) > 9 else None
+                    disciplina_id = reg[7] if len(reg) > 7 else None
+                    ano_letivo_id = reg[8] if len(reg) > 8 else None
+                    escola_id = reg[10] if len(reg) > 10 else None
+
+                    carga_horaria_val = carga_por_disc.get(disciplina_id)
+                    # encontrar o índice correspondente em historico_transformado e atualizar
+                    for idx, item in enumerate(historico_transformado):
+                        # match by disciplina name and serie_id
+                        try:
+                            if item[0] == disciplina and item[2] == serie_id:
+                                # item: (disciplina, carga_horaria, serie_id, media, conceito, carga_horaria_total, ano_letivo_id)
+                                nova = (item[0], carga_horaria_val, item[2], item[3], item[4], item[5], item[6])
+                                historico_transformado[idx] = nova
+                                break
+                        except Exception:
+                            continue
+
+                    # acumular soma por série
+                    try:
+                        if serie_id:
+                            soma_por_serie.setdefault(serie_id, 0)
+                            if carga_horaria_val:
+                                soma_por_serie[serie_id] += int(carga_horaria_val)
+                    except Exception:
+                        pass
+
+                # Buscar carga_horaria_total por (serie, ano_letivo, escola) quando disponível
+                if serie_tuples:
+                    conn = self.validar_conexao_bd()
+                    if conn:
+                        cur = conn.cursor()
+                        try:
+                            for serie_id, ano_letivo_id, escola_id in serie_tuples:
+                                try:
+                                    cur.execute("SELECT carga_horaria_total FROM carga_horaria_total WHERE serie_id = %s AND ano_letivo_id = %s AND escola_id = %s LIMIT 1", (serie_id, ano_letivo_id, escola_id))
+                                    row = cur.fetchone()
+                                    carga_total = row[0] if row else None
+                                except Exception:
+                                    carga_total = None
+                                # atualizar carga_total_por_serie_calc
+                                if serie_id:
+                                    carga_total_por_serie_calc.setdefault(int(serie_id), {
+                                        'carga_total': 0,
+                                        'todas_null': True,
+                                        'carga_horaria_total': None
+                                    })
+                                    if carga_total:
+                                        carga_total_por_serie_calc[int(serie_id)]['carga_horaria_total'] = carga_total
+                                        carga_total_por_serie_calc[int(serie_id)]['todas_null'] = False if soma_por_serie.get(serie_id, 0) > 0 else carga_total_por_serie_calc[int(serie_id)]['todas_null']
+                        finally:
+                            cur.close()
+                            conn.close()
+
+                # se calculamos somas, preencher carga_total_por_serie_calc
+                for sid, soma in soma_por_serie.items():
+                    carga_total_por_serie_calc.setdefault(int(sid), {'carga_total': 0, 'todas_null': True, 'carga_horaria_total': None})
+                    if soma > 0:
+                        carga_total_por_serie_calc[int(sid)]['carga_total'] = soma
+                        carga_total_por_serie_calc[int(sid)]['todas_null'] = False
+
+                bundle['historico'] = historico_transformado
+                bundle['carga_total_por_serie'] = carga_total_por_serie_calc
+            except Exception:
+                # Em caso de qualquer erro, manter o historico_transformado tal como está
+                bundle['historico'] = historico_transformado
+
+        # Se dados do aluno estiverem incompletos (uf/localn), buscar do banco
+        try:
+            dados_aluno_ok = False
+            da = bundle.get('dados_aluno') if isinstance(bundle.get('dados_aluno'), (list, tuple)) else None
+            if da and len(da) >= 5 and da[3] and da[4]:
+                dados_aluno_ok = True
+
+            if not dados_aluno_ok:
+                conn = self.validar_conexao_bd()
+                if conn:
+                    cur = conn.cursor()
+                    try:
+                        cur.execute("SELECT nome, data_nascimento, sexo, local_nascimento, UF_nascimento FROM alunos WHERE id = %s", (self.aluno_id,))
+                        row = cur.fetchone()
+                        if row:
+                            nome_db, nasc_db, sexo_db, local_db, uf_db = row
+                            # garantir ordem esperada (nome, nascimento, sexo, uf, localn)
+                            bundle['dados_aluno'] = (nome_db, nasc_db, sexo_db, uf_db, local_db)
+                    finally:
+                        cur.close()
+                        conn.close()
+        except Exception:
+            pass
+
+            # Construir 'resultados' simplificado (por série) usado na tabela de caminho escolar
+            resultados_simplificados = []
+            # Agrupar por série para criar uma linha por série
+            agrup = {}
+            for reg in registros:
+                try:
+                    serie = reg[9] if len(reg) > 9 else None
+                    ano_letivo = reg[2] if len(reg) > 2 else None
+                    escola_nome = reg[4] if len(reg) > 4 else None
+                    # determinar situação final de forma simplificada
+                    media_val = reg[5] if len(reg) > 5 else None
+                    conceito_val = reg[6] if len(reg) > 6 else None
+                    if serie not in agrup:
+                        agrup[serie] = {'medias': [], 'conceitos': [], 'ano_letivo': ano_letivo, 'escola_nome': escola_nome}
+                    if isinstance(media_val, (int, float)):
+                        agrup[serie]['medias'].append(media_val)
+                    if conceito_val:
+                        agrup[serie]['conceitos'].append(conceito_val)
+                except Exception:
+                    continue
+
+            for serie, info in agrup.items():
+                situacao = 'Promovido(a)'
+                if info['medias'] and any(m < 60 for m in info['medias']):
+                    situacao = 'Retido(a)'
+                resultados_simplificados.append((self.aluno_id, serie, info.get('ano_letivo'), info.get('escola_nome'), '', situacao))
+
+            bundle['resultados'] = resultados_simplificados
+            bundle['dados_observacoes'] = cached.get('dados_observacoes', []) if isinstance(cached.get('dados_observacoes', []), list) else []
+            bundle['carga_total_por_serie'] = cached.get('carga_total_por_serie', {})
+            bundle['serie_ids_unicos'] = list(serie_ids)
+
+        # Se não houver carga_total_por_serie, inicializar estrutura básica para evitar dict vazio
+        if 'carga_total_por_serie' not in bundle or not bundle.get('carga_total_por_serie'):
+            carga_por_serie_default = {}
+            for sid in bundle.get('serie_ids_unicos', []):
+                try:
+                    sid_int = int(sid)
+                except Exception:
+                    continue
+                carga_por_serie_default[sid_int] = {
+                    'carga_total': 0,
+                    'todas_null': True,
+                    'carga_horaria_total': None
+                }
+            bundle['carga_total_por_serie'] = carga_por_serie_default
+
+        # Se não houver responsáveis no bundle, tentar buscar rapidamente no banco
+        if 'responsaveis' not in bundle or not bundle.get('responsaveis'):
+            try:
+                conn = self.validar_conexao_bd()
+                if conn:
+                    cur = conn.cursor()
+                    cur.execute("""
+                        SELECT r.nome AS responsavel
+                        FROM responsaveis r
+                        JOIN responsaveisalunos ra ON r.id = ra.responsavel_id
+                        WHERE ra.aluno_id = %s
+                    """, (self.aluno_id,))
+                    resps = cur.fetchall()
+                    bundle['responsaveis'] = resps or []
+                    cur.close()
+                    conn.close()
+            except Exception:
+                # falhar silenciosamente; o gerador fará fallback se necessário
+                pass
+
+        # 3) Alguns dados essenciais podem não estar no cache; buscar rapidamente apenas se necessário
+        # exemplo: dados da escola (usar escola selecionada no combobox se presente)
+        if 'dados_escola' not in bundle:
+            escola_texto = self.escola_selecionada.get()
+            escola_id = self.escolas_map.get(escola_texto) if escola_texto else None
+            # Primeiro tentar usar escola selecionada no formulário
+            if escola_id:
+                try:
+                    conn = self.validar_conexao_bd()
+                    if conn:
+                        cur = conn.cursor()
+                        cur.execute("SELECT id, nome, endereco, inep, cnpj, municipio FROM escolas WHERE id = %s", (escola_id,))
+                        bundle['dados_escola'] = cur.fetchone()
+                        cur.close()
+                        conn.close()
+                except Exception:
+                    # se falhar, continuamos para tentar obter escola a partir do histórico em cache
+                    pass
+
+            # Se ainda não temos dados_escola, tentar inferir a partir do histórico em cache
+            if 'dados_escola' not in bundle:
+                try:
+                    cache_key = f"historico_{self.aluno_id}"
+                    if hasattr(self, '_cache_historico') and cache_key in self._cache_historico:
+                        cached = self._cache_historico[cache_key]
+                        # cached['resultados'] é lista de (registro, valores_formatados)
+                        registros = [r for r, v in cached['resultados']]
+                        # procurar o primeiro escola_id válido nos registros
+                        escola_id_from_reg = None
+                        for r in registros:
+                            if isinstance(r, (list, tuple)) and len(r) > 10 and r[10]:
+                                escola_id_from_reg = r[10]
+                                break
+                        if escola_id_from_reg:
+                            conn = self.validar_conexao_bd()
+                            if conn:
+                                cur = conn.cursor()
+                                cur.execute("SELECT id, nome, endereco, inep, cnpj, municipio FROM escolas WHERE id = %s", (escola_id_from_reg,))
+                                bundle['dados_escola'] = cur.fetchone()
+                                cur.close()
+                                conn.close()
+                except Exception:
+                    # qualquer falha aqui não impede o gerador; ele fará a consulta completa se precisar
+                    pass
+
+        # Chamar a função para gerar o PDF passando o bundle (ou apenas aluno_id, historico_escolar lida com ambos)
+        try:
+            historico_escolar(bundle)
+            self.mostrar_mensagem_temporaria("Histórico escolar gerado com sucesso!")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao gerar PDF: {e}")
 
     def importar_excel(self):
         # Abrir diálogo para seleção de arquivo
