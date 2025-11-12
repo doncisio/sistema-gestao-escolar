@@ -57,6 +57,10 @@ def titulo(texto):
 
 def obter_disciplinas_do_historico(aluno_id):
     conn = conectar_bd()
+    if not conn:
+        print("Erro: Não foi possível conectar ao banco de dados")
+        return []
+    
     cursor = conn.cursor()
     try:
         consulta = """
@@ -312,6 +316,23 @@ def criar_tabela_observacoes(resultados, num_disciplinas_desconhecidas=0):
     
     # Buscar observações do banco de dados
     conn = conectar_bd()
+    if not conn:
+        print("Erro: Não foi possível conectar ao banco de dados para buscar observações")
+        # Retorna tabela apenas com observação base
+        paragrafo_obs = Paragraph(texto_base, ParagraphStyle(name='Title', fontSize=8, alignment=4, leading=10))
+        data_tabela_observacoes = [[paragrafo_obs, ""]]
+        tabela_observacoes = Table(data_tabela_observacoes, colWidths=[4.21 * inch, 3.78 * inch])
+        table_style_tabela5 = TableStyle([
+            ('TEXTCOLOR', (0, 0), (-1, -1), 'black'),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'), 
+            ('FONTSIZE', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
+        ])
+        tabela_observacoes.setStyle(table_style_tabela5)
+        return tabela_observacoes
+    
     cursor = conn.cursor()
     observacoes_adicionais = set()  # Usando set para evitar duplicatas
     
@@ -338,21 +359,25 @@ def criar_tabela_observacoes(resultados, num_disciplinas_desconhecidas=0):
             if obs and obs[0]:
                 # Obter o nome da escola para prefixar a observação
                 cursor.execute("SELECT nome FROM escolas WHERE id = %s", (escola_id,))
-                escola_nome_obs = cursor.fetchone()[0]
-                obs_formatada = f"<b>[{escola_nome_obs}]</b> {obs[0]}"
-                print(f"Observação encontrada: {obs_formatada}")
-                observacoes_adicionais.add(obs_formatada)
+                escola_nome_result = cursor.fetchone()
+                if escola_nome_result:
+                    escola_nome_obs = escola_nome_result[0]
+                    obs_formatada = f"<b>[{escola_nome_obs}]</b> {obs[0]}"
+                    print(f"Observação encontrada: {obs_formatada}")
+                    observacoes_adicionais.add(obs_formatada)
             else:
                 print("Nenhuma observação encontrada para estes parâmetros")
             
             # Verificar se é a escola que precisa da observação especial
             cursor.execute("SELECT nome FROM escolas WHERE id = %s", (escola_id,))
-            escola_nome = cursor.fetchone()[0]
-            if escola_nome == 'UI Profª Nadir Nascimento Moraes' or escola_nome == 'UEB Profª Nadir Nascimento Moraes':
-                obs_escola = "*A unidade escolar mencionada neste documento teve sua denominação alterada para <b>Escola Municipal Profª Nadir Nascimento Moraes</b>, conforme estabelecido pelo <b>Decreto nº 4.006, de 29 de janeiro de 2025.</b>"
-                obs_escola_formatada = f"<b>[{escola_nome}]</b> {obs_escola}"
-                print(f"Adicionando observação especial da escola: {obs_escola_formatada}")
-                observacoes_adicionais.add(obs_escola_formatada)
+            escola_nome_result = cursor.fetchone()
+            if escola_nome_result:
+                escola_nome = escola_nome_result[0]
+                if escola_nome == 'UI Profª Nadir Nascimento Moraes' or escola_nome == 'UEB Profª Nadir Nascimento Moraes':
+                    obs_escola = "*A unidade escolar mencionada neste documento teve sua denominação alterada para <b>Escola Municipal Profª Nadir Nascimento Moraes</b>, conforme estabelecido pelo <b>Decreto nº 4.006, de 29 de janeiro de 2025.</b>"
+                    obs_escola_formatada = f"<b>[{escola_nome}]</b> {obs_escola}"
+                    print(f"Adicionando observação especial da escola: {obs_escola_formatada}")
+                    observacoes_adicionais.add(obs_escola_formatada)
     finally:
         cursor.close()
         conn.close()
@@ -443,6 +468,10 @@ def criar_tabela_assinatura():
 
 def historico_escolar(aluno_id):
     conn = conectar_bd()
+    if not conn:
+        print("Erro: Não foi possível conectar ao banco de dados")
+        return
+        
     cursor = conn.cursor()
     escola_id = 60
 
@@ -595,7 +624,36 @@ def historico_escolar(aluno_id):
     else:
         filho_de_texto = f'<b>FILHO DE:</b>'
 
-    data_nascimento = pd.to_datetime(nascimento).strftime("%d/%m/%Y") if pd.notnull(nascimento) else ""
+    # Formatação segura da data de nascimento
+    from datetime import date
+    data_nascimento = ""
+    if nascimento is not None:
+        try:
+            # Se nascimento é uma string, tenta diferentes formatos
+            if isinstance(nascimento, str):
+                # Tenta formato YYYY-MM-DD
+                try:
+                    data_obj = datetime.strptime(nascimento, "%Y-%m-%d")
+                    data_nascimento = data_obj.strftime("%d/%m/%Y")
+                except ValueError:
+                    # Tenta formato DD/MM/YYYY
+                    try:
+                        data_obj = datetime.strptime(nascimento, "%d/%m/%Y")
+                        data_nascimento = data_obj.strftime("%d/%m/%Y")
+                    except ValueError:
+                        # Se não conseguir parsear, deixa como está
+                        data_nascimento = nascimento
+                    
+            # Se nascimento já é um objeto datetime ou date
+            elif isinstance(nascimento, (datetime, date)):
+                data_nascimento = nascimento.strftime("%d/%m/%Y")
+            else:
+                # Para outros tipos, tenta converter para string
+                data_nascimento = str(nascimento)
+                
+        except (ValueError, TypeError, AttributeError) as e:
+            print(f"Erro ao formatar data de nascimento: {e}")
+            data_nascimento = str(nascimento) if nascimento else ""
     data_documento = formatar_data(datetime.now())
 
     if dados_escola:
@@ -734,7 +792,9 @@ def historico_escolar(aluno_id):
     
     # Criar nome do arquivo
     data_atual = datetime.now().strftime("%Y%m%d_%H%M%S")
-    nome_arquivo = f"Historico_{nome_aluno.replace(' ', '_')}_{data_atual}.pdf"
+    # Garantir que nome_aluno é uma string antes de usar replace
+    nome_aluno_str = str(nome_aluno) if nome_aluno is not None else "Aluno"
+    nome_arquivo = f"Historico_{nome_aluno_str.replace(' ', '_')}_{data_atual}.pdf"
     caminho_arquivo = os.path.join('documentos_gerados', nome_arquivo)
     
     # Garantir que o diretório existe
@@ -746,7 +806,7 @@ def historico_escolar(aluno_id):
     
     # Criar descrição detalhada
     series = sorted(list(serie_ids_unicos))
-    descricao = f"Histórico Escolar do aluno {nome_aluno}"
+    descricao = f"Histórico Escolar do aluno {nome_aluno_str}"
     if series:
         descricao += f" - {min(series)}ª a {max(series)}ª série"
     
