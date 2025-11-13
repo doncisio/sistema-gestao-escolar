@@ -49,6 +49,54 @@ def converter_para_int_seguro(valor: Any) -> int:
         return int(float(str(valor)))
     except (ValueError, TypeError, AttributeError):
         return 0
+
+# Funções utilitárias para extrair valores de resultados de cursor de forma segura.
+def _safe_get(row: Any, idx: int | str, default=None):
+    """Retorna um valor de 'row' de forma segura.
+    Suporta tuplas/listas, dicts (retornando valores na ordem), ou valor escalar.
+    Se idx for str e row for dict, tenta a chave diretamente.
+    """
+    if row is None:
+        return default
+    # Tupla ou lista: indexação por inteiro (somente se idx for int)
+    if isinstance(row, (list, tuple)):
+        if isinstance(idx, int):
+            try:
+                return row[idx]
+            except Exception:
+                return default
+        return default
+    # Dict-like: se idx é string, retorna por chave; se int, retorna n-ésimo valor
+    if isinstance(row, dict):
+        try:
+            if isinstance(idx, str):
+                return row.get(idx, default)
+            elif isinstance(idx, int):
+                vals = list(row.values())
+                return vals[idx] if 0 <= idx < len(vals) else default
+            else:
+                return default
+        except Exception:
+            return default
+    # Caso seja um valor escalar
+    try:
+        # Se pediram idx 0, devolve o próprio valor
+        if idx == 0:
+            return row
+    except Exception:
+        pass
+    return default
+
+def _safe_slice(row: Any, start: int, end: int):
+    """Retorna fatia como lista a partir de um resultado que pode ser tuple/list/dict/valor."""
+    if row is None:
+        return []
+    if isinstance(row, (list, tuple)):
+        return list(row[start:end])
+    if isinstance(row, dict):
+        vals = list(row.values())
+        return vals[start:end]
+    return [row]
 from NotaAta import nota_bimestre, nota_bimestre2, gerar_relatorio_notas, nota_bimestre_com_assinatura, nota_bimestre2_com_assinatura, gerar_relatorio_notas_com_assinatura
 from Ata_1a5ano import ata_geral
 from Ata_6a9ano import ata_geral_6a9ano
@@ -159,9 +207,20 @@ _cache_dados_estaticos = {}
 def obter_nome_escola():
     """Retorna o nome da escola com cache"""
     if 'nome_escola' not in _cache_dados_estaticos:
-        cursor.execute("SELECT nome FROM escolas WHERE id = 60")
-        resultado = cursor.fetchone()
-        _cache_dados_estaticos['nome_escola'] = resultado[0] if resultado else "Escola não encontrada"
+            cursor.execute("SELECT nome FROM escolas WHERE id = 60")
+            resultado = cursor.fetchone()
+            if resultado:
+                # cursor.fetchone() normalmente retorna uma tuple (row),
+                # mas em alguns adaptadores/contexts pode retornar dict-like.
+                if isinstance(resultado, (list, tuple)):
+                    nome = resultado[0]
+                elif isinstance(resultado, dict):
+                    nome = resultado.get('nome', str(resultado))
+                else:
+                    nome = str(resultado)
+                _cache_dados_estaticos['nome_escola'] = nome
+            else:
+                _cache_dados_estaticos['nome_escola'] = "Escola não encontrada"
     return _cache_dados_estaticos['nome_escola']
 
 def obter_ano_letivo_atual() -> int:
@@ -179,7 +238,18 @@ def obter_ano_letivo_atual() -> int:
             cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
             resultado = cursor.fetchone()
         # Garantir que sempre retorna um int
-        _cache_dados_estaticos['ano_letivo_atual'] = converter_para_int_seguro(resultado[0]) if resultado else 1
+        if resultado:
+            # Extrai o id de forma segura (tuple/list ou dict)
+            if isinstance(resultado, (list, tuple)):
+                ano_id = resultado[0]
+            elif isinstance(resultado, dict):
+                # alguns cursors podem retornar dicts com chaves nomeadas
+                ano_id = resultado.get('id') or resultado.get('ano_letivo') or resultado
+            else:
+                ano_id = resultado
+            _cache_dados_estaticos['ano_letivo_atual'] = converter_para_int_seguro(ano_id)
+        else:
+            _cache_dados_estaticos['ano_letivo_atual'] = 1
     return int(_cache_dados_estaticos['ano_letivo_atual'])
 
 nome_escola = obter_nome_escola()
@@ -198,7 +268,16 @@ else:
     # Verificar se o ano letivo 2025 existe
     cursor.execute("SELECT COUNT(*) FROM anosletivos WHERE ano_letivo = 2025")
     result = cursor.fetchone()
-    tem_ano_2025 = result[0] if result else 0
+    # Extrair de forma segura o valor retornado por cursor.fetchone()
+    if result:
+        if isinstance(result, (list, tuple)):
+            tem_ano_2025 = converter_para_int_seguro(result[0])
+        elif isinstance(result, dict):
+            tem_ano_2025 = converter_para_int_seguro(next(iter(result.values()), 0))
+        else:
+            tem_ano_2025 = converter_para_int_seguro(result)
+    else:
+        tem_ano_2025 = 0
 
     # Se não existir, inserir o ano letivo 2025
     if tem_ano_2025 == 0:
@@ -218,7 +297,15 @@ else:
     # Verificar se o ano letivo 2024 com ID 1 existe
     cursor.execute("SELECT COUNT(*) FROM anosletivos WHERE id = 1 AND ano_letivo = 2024")
     result = cursor.fetchone()
-    tem_ano_2024 = result[0] if result else 0
+    if result:
+        if isinstance(result, (list, tuple)):
+            tem_ano_2024 = converter_para_int_seguro(result[0])
+        elif isinstance(result, dict):
+            tem_ano_2024 = converter_para_int_seguro(next(iter(result.values()), 0))
+        else:
+            tem_ano_2024 = converter_para_int_seguro(result)
+    else:
+        tem_ano_2024 = 0
 
     # Se não existir, inserir o ano letivo 2024 com ID 1
     if tem_ano_2024 == 0:
@@ -353,7 +440,17 @@ def criar_dashboard():
             if not resultado_ano:
                 cursor_temp.execute("SELECT ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
                 resultado_ano = cursor_temp.fetchone()
-            ano_letivo_exibir = resultado_ano[0] if resultado_ano else "Corrente"
+            # Extrair de forma segura o valor do ano letivo (pode ser tuple/list ou dict dependendo do cursor)
+            if resultado_ano:
+                if isinstance(resultado_ano, (list, tuple)):
+                    ano_val = resultado_ano[0]
+                elif isinstance(resultado_ano, dict):
+                    ano_val = resultado_ano.get('ano_letivo') or next(iter(resultado_ano.values()), None)
+                else:
+                    ano_val = resultado_ano
+                ano_letivo_exibir = ano_val if ano_val is not None else "Corrente"
+            else:
+                ano_letivo_exibir = "Corrente"
             cursor_temp.close()
             conn_temp.close()
         else:
@@ -682,9 +779,9 @@ def selecionar_item(event):
             
             resultado = cursor.fetchone()
             
-            # Processar responsáveis
-            nome_mae = resultado[6] if resultado and resultado[6] else None
-            nome_pai = resultado[7] if resultado and resultado[7] else None
+            # Processar responsáveis (extração segura)
+            nome_mae = _safe_get(resultado, 6)
+            nome_pai = _safe_get(resultado, 7)
             
             # Exibir nomes dos pais na linha 2
             if nome_mae:
@@ -696,77 +793,80 @@ def selecionar_item(event):
                       font=('Ivy 10'), anchor=W).grid(row=2, column=2, sticky=EW, padx=5, pady=3)
             
             if resultado:
-                    status, data_matricula, serie_nome, turma_nome, turma_id, data_transferencia = resultado[0:6]
-                    
-                    row_atual = 3  # Começar na linha 3, pois linhas 0, 1 e 2 já foram usadas
-                    
-                    if status == 'Ativo' and data_matricula:
-                        # Formatar data de matrícula adequadamente
-                        try:
-                            if isinstance(data_matricula, str):
-                                data_formatada = datetime.strptime(data_matricula, '%Y-%m-%d').strftime('%d/%m/%Y')
-                            elif isinstance(data_matricula, (datetime, date)):
-                                data_formatada = data_matricula.strftime('%d/%m/%Y')
-                            else:
-                                data_formatada = str(data_matricula)
-                        except Exception:
+                vals = _safe_slice(resultado, 0, 6)
+                if len(vals) < 6:
+                    vals = vals + [None] * (6 - len(vals))
+                status, data_matricula, serie_nome, turma_nome, turma_id, data_transferencia = vals
+
+                row_atual = 3  # Começar na linha 3, pois linhas 0, 1 e 2 já foram usadas
+
+                if status == 'Ativo' and data_matricula:
+                    # Formatar data de matrícula adequadamente
+                    try:
+                        if isinstance(data_matricula, str):
+                            data_formatada = datetime.strptime(data_matricula, '%Y-%m-%d').strftime('%d/%m/%Y')
+                        elif isinstance(data_matricula, (datetime, date)):
+                            data_formatada = data_matricula.strftime('%d/%m/%Y')
+                        else:
                             data_formatada = str(data_matricula)
-                            
+                    except Exception:
+                        data_formatada = str(data_matricula)
+
+                    Label(detalhes_info_frame, 
+                          text=f"Data de Matrícula: {data_formatada}", 
+                          bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
+
+                    # Adicionar informações de série e turma para alunos ativos
+                    if serie_nome:
                         Label(detalhes_info_frame, 
-                              text=f"Data de Matrícula: {data_formatada}", 
-                              bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
-                        
-                        # Adicionar informações de série e turma para alunos ativos
-                        if serie_nome:
-                            Label(detalhes_info_frame, 
-                                  text=f"Série: {serie_nome}", 
-                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
-                        
-                        if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
-                            Label(detalhes_info_frame, 
-                                  text=f"Turma: {turma_nome}", 
-                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
+                              text=f"Série: {serie_nome}", 
+                              bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
+
+                    if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
+                        Label(detalhes_info_frame, 
+                              text=f"Turma: {turma_nome}", 
+                              bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
+                    else:
+                        # Se o nome da turma estiver vazio, mostrar "Turma Única" ou o ID
+                        # Já temos o turma_id da consulta anterior
+                        turma_texto = f"Turma: Turma {turma_id}" if turma_id else "Turma: Não definida"
+                        Label(detalhes_info_frame, 
+                              text=turma_texto, 
+                              bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
+
+                elif status == 'Transferido' and data_transferencia:
+                    # Formatar data de transferência adequadamente
+                    try:
+                        if isinstance(data_transferencia, str):
+                            data_transf_formatada = datetime.strptime(data_transferencia, '%Y-%m-%d').strftime('%d/%m/%Y')
+                        elif isinstance(data_transferencia, (datetime, date)):
+                            data_transf_formatada = data_transferencia.strftime('%d/%m/%Y')
                         else:
-                            # Se o nome da turma estiver vazio, mostrar "Turma Única" ou o ID
-                            # Já temos o turma_id da consulta anterior
-                            turma_texto = f"Turma: Turma {turma_id}" if turma_id else "Turma: Não definida"
-                            Label(detalhes_info_frame, 
-                                  text=turma_texto, 
-                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
-                    
-                    elif status == 'Transferido' and data_transferencia:
-                        # Formatar data de transferência adequadamente
-                        try:
-                            if isinstance(data_transferencia, str):
-                                data_transf_formatada = datetime.strptime(data_transferencia, '%Y-%m-%d').strftime('%d/%m/%Y')
-                            elif isinstance(data_transferencia, (datetime, date)):
-                                data_transf_formatada = data_transferencia.strftime('%d/%m/%Y')
-                            else:
-                                data_transf_formatada = str(data_transferencia)
-                        except Exception:
                             data_transf_formatada = str(data_transferencia)
-                            
+                    except Exception:
+                        data_transf_formatada = str(data_transferencia)
+
+                    Label(detalhes_info_frame, 
+                          text=f"Data de Transferência: {data_transf_formatada}", 
+                          bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
+
+                    # Para alunos transferidos, também mostrar a série/turma da última matrícula
+                    if serie_nome:
                         Label(detalhes_info_frame, 
-                              text=f"Data de Transferência: {data_transf_formatada}", 
-                              bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
-                        
-                        # Para alunos transferidos, também mostrar a série/turma da última matrícula
-                        if serie_nome:
-                            Label(detalhes_info_frame, 
-                                  text=f"Última Série: {serie_nome}", 
-                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
-                        
-                        if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
-                            Label(detalhes_info_frame, 
-                                  text=f"Última Turma: {turma_nome}", 
-                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
-                        else:
-                            # Se o nome da turma estiver vazio, mostrar "Turma Única" ou o ID
-                            # Já temos o turma_id da consulta anterior
-                            turma_texto = f"Última Turma: Turma {turma_id}" if turma_id else "Última Turma: Não definida"
-                            Label(detalhes_info_frame, 
-                                  text=turma_texto, 
-                                  bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
+                              text=f"Última Série: {serie_nome}", 
+                              bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
+
+                    if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
+                        Label(detalhes_info_frame, 
+                              text=f"Última Turma: {turma_nome}", 
+                              bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
+                    else:
+                        # Se o nome da turma estiver vazio, mostrar "Turma Única" ou o ID
+                        # Já temos o turma_id da consulta anterior
+                        turma_texto = f"Última Turma: Turma {turma_id}" if turma_id else "Última Turma: Não definida"
+                        Label(detalhes_info_frame, 
+                              text=turma_texto, 
+                              bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
         
         except Exception as e:
             print(f"Erro ao verificar matrícula: {str(e)}")
@@ -906,9 +1006,9 @@ def on_select(event):
                 
                 resultado = cursor.fetchone()
                 
-                # Processar responsáveis
-                nome_mae = resultado[6] if resultado and resultado[6] else None
-                nome_pai = resultado[7] if resultado and resultado[7] else None
+                # Processar responsáveis (extração segura)
+                nome_mae = _safe_get(resultado, 6)
+                nome_pai = _safe_get(resultado, 7)
                 
                 # Exibir nomes dos pais na linha 2
                 if nome_mae:
@@ -920,7 +1020,10 @@ def on_select(event):
                           font=('Ivy 10'), anchor=W).grid(row=2, column=2, sticky=EW, padx=5, pady=3)
                 
                 if resultado:
-                    status, data_matricula, serie_nome, turma_nome, turma_id, data_transferencia = resultado[0:6]
+                    vals = _safe_slice(resultado, 0, 6)
+                    if len(vals) < 6:
+                        vals = vals + [None] * (6 - len(vals))
+                    status, data_matricula, serie_nome, turma_nome, turma_id, data_transferencia = vals
                     
                     if status == 'Ativo' and data_matricula:
                         # Formatar data de matrícula adequadamente
@@ -2064,18 +2167,29 @@ def pesquisar(event=None):
     # Adiciona os resultados filtrados ao Treeview
     if resultados_filtrados:
         for resultado in resultados_filtrados:
-            resultado = list(resultado)
-            if resultado[4]:
+            # Normalizar o resultado para uma lista de valores (suporta tuple/list/dict/valor)
+            if isinstance(resultado, dict):
+                resultado = list(resultado.values())
+            elif isinstance(resultado, (list, tuple)):
+                resultado = list(resultado)
+            else:
+                resultado = [resultado]
+
+            # Verifica se há campo de data na posição 4 e formata
+            if len(resultado) > 4 and resultado[4]:
                 try:
                     if isinstance(resultado[4], str):
                         data = datetime.strptime(resultado[4], '%Y-%m-%d')
                     elif isinstance(resultado[4], (datetime, date)):
                         data = resultado[4]
                     else:
-                        continue  # Pula se não for um tipo de data válido
-                    resultado[4] = data.strftime('%d/%m/%Y')
+                        data = None
+
+                    if data:
+                        resultado[4] = data.strftime('%d/%m/%Y')
                 except Exception:
                     pass
+
             treeview.insert("", "end", values=resultado)
     else:
         # Exibe mensagem quando não há resultados
@@ -3420,8 +3534,8 @@ def verificar_e_gerar_boletim(aluno_id, ano_letivo_id=None):
             if not resultado_ano:
                 messagebox.showwarning("Aviso", "Não foi possível determinar o ano letivo atual.")
                 return False
-                
-            ano_letivo_id = resultado_ano[0]
+
+            ano_letivo_id = _safe_get(resultado_ano, 0, 1)
         
         # Verifica o status da matrícula do aluno no ano letivo especificado
         cursor.execute("""
@@ -3444,9 +3558,9 @@ def verificar_e_gerar_boletim(aluno_id, ano_letivo_id=None):
             messagebox.showwarning("Aviso", "Não foi possível determinar o status da matrícula do aluno para o ano letivo selecionado.")
             return False
         
-        status_matricula = resultado[0]
-        nome_aluno = resultado[1]
-        ano_letivo = resultado[2]
+        status_matricula = _safe_get(resultado, 0)
+        nome_aluno = _safe_get(resultado, 1)
+        ano_letivo = _safe_get(resultado, 2)
         
         # Decidir qual documento gerar baseado no status
         if status_matricula == 'Transferido':
