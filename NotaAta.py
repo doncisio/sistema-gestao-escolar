@@ -59,10 +59,18 @@ def validar_bimestre(bimestre):
     Raises:
         ValueError: Se o bimestre for inválido
     """
-    bimestres_validos = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre']
-    if bimestre not in bimestres_validos:
+    # Normalizar entrada: aceitar variações como '3º bimestre', '3º Bimestre', '3 bimestre', '3º', '3'
+    if not bimestre or not isinstance(bimestre, str):
         raise ValueError(f"Bimestre inválido: {bimestre}")
-    return bimestre
+
+    # Extrair número do bimestre (1-4)
+    m = re.search(r"([1-4])", bimestre)
+    if not m:
+        raise ValueError(f"Bimestre inválido: {bimestre}")
+
+    n = m.group(1)
+    bimestre_normalizado = f"{n}º Bimestre"
+    return bimestre_normalizado
 
 
 def validar_nivel_id(nivel_id):
@@ -621,9 +629,11 @@ def gerar_documento_pdf(df, bimestre, nome_arquivo, disciplinas, nivel_ensino, a
             # Adicionar as notas de cada disciplina
             for disciplina in disciplinas:
                 coluna = disciplina['coluna']
-                if pd.notnull(row[coluna]):
+                # Acessar coluna de forma segura para evitar KeyError quando a coluna estiver ausente
+                valor_nota = row.get(coluna, None) if hasattr(row, 'get') else (row[coluna] if coluna in row.index else None)
+                if pd.notnull(valor_nota):
                     # Nota vem multiplicada por 10 (ex: 76.7 representa 7.67)
-                    nota_real = float(row[coluna]) / 10
+                    nota_real = float(valor_nota) / 10
                     # Arredondar usando Decimal para garantir arredondamento correto (sempre para cima quando >= 5)
                     nota_decimal = Decimal(str(nota_real))
                     nota_arredondada = float(nota_decimal.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP))
@@ -857,9 +867,11 @@ def gerar_documento_pdf_com_assinatura(df, bimestre, nome_arquivo, disciplinas, 
             # Adicionar as notas de cada disciplina
             for disciplina in disciplinas:
                 coluna = disciplina['coluna']
-                if pd.notnull(row[coluna]):
+                # Acessar coluna de forma segura para evitar KeyError quando a coluna estiver ausente
+                valor_nota = row.get(coluna, None) if hasattr(row, 'get') else (row[coluna] if coluna in row.index else None)
+                if pd.notnull(valor_nota):
                     # Nota vem multiplicada por 10 (ex: 76.7 representa 7.67)
-                    nota_real = float(row[coluna]) / 10
+                    nota_real = float(valor_nota) / 10
                     # Arredondar usando Decimal para garantir arredondamento correto (sempre para cima quando >= 5)
                     nota_decimal = Decimal(str(nota_real))
                     nota_arredondada = float(nota_decimal.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP))
