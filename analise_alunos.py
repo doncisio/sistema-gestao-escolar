@@ -11,17 +11,20 @@ from utilitarios.tipos_documentos import TIPO_LISTA_ATUALIZADA
 import traceback
 import datetime
 import os
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 def buscar_alunos_lista_atualizada():
-    print("\nTentando conectar ao banco de dados...")
+    logger.info("Tentando conectar ao banco de dados...")
     conn = conectar_bd()
     if not conn:
-        print("Falha na conexão com o banco de dados")
+        logger.error("Falha na conexão com o banco de dados")
         return []
     
     try:
         cursor = conn.cursor()
-        print("Conexão estabelecida com sucesso")
+        logger.info("Conexão estabelecida com sucesso")
         
         query = """
         SELECT nome, nis, situacao 
@@ -30,26 +33,28 @@ def buscar_alunos_lista_atualizada():
         AND ano = 2025 
         AND situacao = 'Ativo'
         """
-        print(f"Executando query: {query}")
+        logger.info("Executando query para lista atualizada de alunos")
         cursor.execute(query)
         alunos = cursor.fetchall()
-        print(f"Encontrados {len(alunos)} alunos na lista atualizada")
+        logger.info(f"Encontrados {len(alunos)} alunos na lista atualizada")
         return alunos
     except Exception as e:
-        print(f"Erro ao buscar alunos: {e}")
-        print(traceback.format_exc())
+        logger.exception(f"Erro ao buscar alunos: {e}")
         return []
     finally:
-        if conn.is_connected():
-            cursor.close()
-            conn.close()
-            print("Conexão fechada")
+        try:
+            if conn and conn.is_connected():
+                cursor.close()
+                conn.close()
+                logger.info("Conexão fechada")
+        except Exception:
+            logger.exception("Erro ao fechar conexão")
 
 def buscar_ultimo_ano_historico(nome_aluno):
-    print(f"\nBuscando histórico para o aluno: {nome_aluno}")
+    logger.info(f"Buscando histórico para o aluno: {nome_aluno}")
     conn = conectar_bd()
     if not conn:
-        print("Falha na conexão com o banco de dados")
+        logger.error("Falha na conexão com o banco de dados")
         return None
     
     try:
@@ -60,28 +65,30 @@ def buscar_ultimo_ano_historico(nome_aluno):
         WHERE nome_aluno = %s 
         AND escola_id = 60
         """
-        print(f"Executando query: {query} com parâmetro: {nome_aluno}")
+        logger.info("Executando query para buscar último ano do histórico")
         cursor.execute(query, (nome_aluno,))
         resultado = cursor.fetchone()
         ultimo_ano = resultado[0] if resultado else None
-        print(f"Último ano encontrado: {ultimo_ano}")
+        logger.info(f"Último ano encontrado: {ultimo_ano}")
         return ultimo_ano
     except Exception as e:
-        print(f"Erro ao buscar histórico: {e}")
-        print(traceback.format_exc())
+        logger.exception(f"Erro ao buscar histórico: {e}")
         return None
     finally:
-        if conn.is_connected():
-            cursor.close()
-            conn.close()
+        try:
+            if conn and conn.is_connected():
+                cursor.close()
+                conn.close()
+        except Exception:
+            logger.exception("Erro ao fechar conexão")
 
 def analisar_alunos():
-    print("\nIniciando análise dos alunos...")
+    logger.info("Iniciando análise dos alunos...")
     try:
         # Lê o arquivo CSV
-        print("Lendo arquivo CSV...")
+        logger.info("Lendo arquivo CSV...")
         df = pd.read_csv('registro_frequencia.csv')
-        print(f"Total de alunos no CSV: {len(df)}")
+        logger.info(f"Total de alunos no CSV: {len(df)}")
         
         # Busca alunos da lista atualizada
         alunos_lista_atualizada = buscar_alunos_lista_atualizada()
@@ -118,15 +125,14 @@ def analisar_alunos():
                         'nis': nis
                     })
         
-        print("\nResumo da análise:")
-        print(f"Alunos na lista atualizada: {len(alunos_na_lista)}")
-        print(f"Alunos fora da lista: {len(alunos_fora_lista)}")
-        print(f"Alunos sem histórico: {len(alunos_sem_historico)}")
+        logger.info("Resumo da análise:")
+        logger.info(f"Alunos na lista atualizada: {len(alunos_na_lista)}")
+        logger.info(f"Alunos fora da lista: {len(alunos_fora_lista)}")
+        logger.info(f"Alunos sem histórico: {len(alunos_sem_historico)}")
         
         return alunos_na_lista, alunos_fora_lista, alunos_sem_historico
     except Exception as e:
-        print(f"Erro na análise dos alunos: {e}")
-        print(traceback.format_exc())
+        logger.exception(f"Erro na análise dos alunos: {e}")
         return [], [], []
 
 def criar_tabela_alunos(dados, titulo, colunas):
@@ -161,12 +167,11 @@ def criar_tabela_alunos(dados, titulo, colunas):
         tabela.setStyle(estilo)
         return tabela
     except Exception as e:
-        print(f"Erro ao criar tabela: {e}")
-        print(traceback.format_exc())
+        logger.exception(f"Erro ao criar tabela: {e}")
         return None
 
 def gerar_relatorio():
-    print("\nIniciando geração do relatório...")
+    logger.info("Iniciando geração do relatório...")
     try:
         # Cria o buffer para o PDF
         buffer = io.BytesIO()
@@ -234,7 +239,7 @@ def gerar_relatorio():
                 elementos.append(tabela3)
         
         # Constrói o PDF
-        print("Construindo o PDF...")
+        logger.info("Construindo o PDF...")
         doc.build(elementos)
         
         # Criar nome do arquivo
@@ -246,7 +251,7 @@ def gerar_relatorio():
         os.makedirs('documentos_gerados', exist_ok=True)
         
         # Salvar o PDF localmente
-        print("Salvando o PDF...")
+        logger.info("Salvando o PDF...")
         buffer.seek(0)
         with open(caminho_arquivo, 'wb') as f:
             f.write(buffer.getvalue())
@@ -267,13 +272,12 @@ def gerar_relatorio():
             messagebox.showwarning("Aviso", 
                                "O relatório foi gerado mas houve um erro ao salvá-lo no sistema:\n" + mensagem)
         
-        print("Relatório gerado com sucesso!")
+        logger.info("Relatório gerado com sucesso!")
         return True
     except Exception as e:
-        print(f"Erro ao gerar relatório: {e}")
-        print(traceback.format_exc())
+        logger.exception(f"Erro ao gerar relatório: {e}")
         return False
 
 if __name__ == "__main__":
-    print("Iniciando o script de análise de alunos...")
-    gerar_relatorio() 
+    logger.info("Iniciando o script de análise de alunos...")
+    gerar_relatorio()
