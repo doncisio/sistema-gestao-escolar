@@ -1,4 +1,4 @@
-from historico_escolar import to_safe_int
+from utilitarios.conversoes import to_safe_int
 
 
 def test_to_safe_int():

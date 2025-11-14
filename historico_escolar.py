@@ -17,41 +17,7 @@ from config_logs import get_logger
 
 # Logger do módulo
 logger = get_logger(__name__)
-
-# Conversões seguras para evitar erros de tipo (Pylance e tempo de execução)
-def to_safe_int(value):
-    """Tenta converter `value` para int retornando None em caso de falha.
-
-    Aceita int, float, Decimal, str com números, e objetos que implementam __int__.
-    Usa verificações explícitas para evitar passar tipos como `date` diretamente
-    para `int()` (causa avisos do Pylance e erro em tempo de execução).
-    """
-    try:
-        if value is None:
-            return None
-        if isinstance(value, int):
-            return value
-        if isinstance(value, float):
-            return int(value)
-        if isinstance(value, str):
-            s = value.strip()
-            # aceitar números inteiros diretos ou floats representados em string
-            if s.isdigit():
-                return int(s)
-            try:
-                f = float(s)
-                return int(f)
-            except Exception:
-                return None
-        # último recurso: tentar int() se o objeto suportar
-        if hasattr(value, '__int__'):
-            try:
-                return int(value)
-            except Exception:
-                return None
-    except Exception:
-        return None
-    return None
+from utilitarios.conversoes import to_safe_int, to_safe_float
 
 # Mapeamento entre nomes antigos e novos das disciplinas
 mapeamento_disciplinas = {
@@ -928,7 +894,11 @@ def historico_escolar(aluno_id,
 
     tabela_assinatura = criar_tabela_assinatura()
     elements.append(tabela_assinatura)
+    # Medir tempo de renderização/geração do PDF
+    start_render = time.time()
     doc.build(elements)
+    elapsed_render_ms = int((time.time() - start_render) * 1000)
+    logger.info(f"event=pdf_render name=historico_escolar duration_ms={elapsed_render_ms}")
 
     # Resetar o buffer para o início
     buffer.seek(0)

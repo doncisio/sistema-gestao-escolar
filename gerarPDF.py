@@ -4,6 +4,10 @@ import tempfile
 import platform
 import os
 import io
+import time
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 def salvar_e_abrir_pdf(buffer):
     """
@@ -13,10 +17,13 @@ def salvar_e_abrir_pdf(buffer):
         buffer (io.BytesIO): Buffer contendo o conteúdo do PDF gerado.
         nome_arquivo (str): Nome do arquivo PDF (opcional, apenas para fins de identificação).
     """
-    # Salvar o buffer em um arquivo temporário
+    # Salvar o buffer em um arquivo temporário e medir o tempo de escrita
+    start_write = time.time()
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
         temp_pdf.write(buffer.getvalue())
         temp_pdf_path = temp_pdf.name
+    elapsed_write_ms = int((time.time() - start_write) * 1000)
+    logger.info(f"event=pdf_save name=salvar_e_abrir_pdf stage=write duration_ms={elapsed_write_ms}")
 
     # Abrir o arquivo PDF com o programa padrão do sistema
     try:
@@ -27,7 +34,7 @@ def salvar_e_abrir_pdf(buffer):
         else:  # Linux e outros sistemas baseados em Unix
             os.system(f"xdg-open '{temp_pdf_path}'")
     except Exception as e:
-        print(f"Erro ao tentar abrir o PDF: {e}")
+        logger.exception(f"Erro ao tentar abrir o PDF: {e}")
 
 def salvar(buffer, nome_aluno):
     """
@@ -49,12 +56,14 @@ def salvar(buffer, nome_aluno):
     caminho_arquivo = os.path.join(pasta_destino, nome_arquivo)
 
     try:
-        # Salvar o buffer em um arquivo PDF
+        # Salvar o buffer em um arquivo PDF e medir tempo de escrita
+        start_write = time.time()
         with open(caminho_arquivo, "wb") as pdf_file:
             pdf_file.write(buffer.getvalue())
-        print(f"Arquivo salvo como: {caminho_arquivo}")
+        elapsed_write_ms = int((time.time() - start_write) * 1000)
+        logger.info(f"event=pdf_save name=salvar stage=write file={caminho_arquivo} duration_ms={elapsed_write_ms}")
     except Exception as e:
-        print(f"Erro ao salvar o arquivo: {e}")
+        logger.exception(f"Erro ao salvar o arquivo: {e}")
 
 def criar_pdf(buffer, elements):
     doc = SimpleDocTemplate(
