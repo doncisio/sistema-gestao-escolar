@@ -846,11 +846,34 @@ class InterfaceCadastroEdicaoNotas:
             pass
 
         return None
-        for item_id in self.tabela.get_children():
-            vals = self.tabela.item(item_id, "values")
-            if vals and str(vals[0]) == str(num):
-                return item_id
-        return None
+
+    def selecionar_item_por_id(self, aluno_id):
+        """Seleciona no Treeview o item correspondente ao aluno_id e abre o editor (se aplicável)."""
+        try:
+            item_id = self._get_item_id_by_aluno(aluno_id)
+            if not item_id:
+                return
+
+            # Selecionar o item na Treeview e trazê-lo à vista
+            try:
+                self.tabela.selection_set(item_id)
+            except Exception:
+                pass
+            try:
+                self.tabela.see(item_id)
+            except Exception:
+                pass
+
+            # Se estamos usando editor único, abrir o editor para esse aluno
+            if getattr(self, '_usar_editor_unico', False):
+                try:
+                    # Determinar aluno_id a partir do mapping caso tenha sido passado num
+                    self.abrir_editor_para_aluno(aluno_id)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        # fim selecionar_item_por_id
 
     def abrir_editor_para_aluno(self, aluno_id):
         """Abre o editor único posicionado sobre a célula 'nota' do aluno especificado."""
