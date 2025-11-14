@@ -11,6 +11,47 @@ from reportlab.lib.units import inch
 from reportlab.platypus import TableStyle
 from conexao import conectar_bd
 from gerarPDF import salvar_e_abrir_pdf, salvar
+import logging
+import time
+from config_logs import get_logger
+
+# Logger do módulo
+logger = get_logger(__name__)
+
+# Conversões seguras para evitar erros de tipo (Pylance e tempo de execução)
+def to_safe_int(value):
+    """Tenta converter `value` para int retornando None em caso de falha.
+
+    Aceita int, float, Decimal, str com números, e objetos que implementam __int__.
+    Usa verificações explícitas para evitar passar tipos como `date` diretamente
+    para `int()` (causa avisos do Pylance e erro em tempo de execução).
+    """
+    try:
+        if value is None:
+            return None
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            return int(value)
+        if isinstance(value, str):
+            s = value.strip()
+            # aceitar números inteiros diretos ou floats representados em string
+            if s.isdigit():
+                return int(s)
+            try:
+                f = float(s)
+                return int(f)
+            except Exception:
+                return None
+        # último recurso: tentar int() se o objeto suportar
+        if hasattr(value, '__int__'):
+            try:
+                return int(value)
+            except Exception:
+                return None
+    except Exception:
+        return None
+    return None
 
 # Mapeamento entre nomes antigos e novos das disciplinas
 mapeamento_disciplinas = {
@@ -58,7 +99,7 @@ def titulo(texto):
 def obter_disciplinas_do_historico(aluno_id):
     conn = conectar_bd()
     if not conn:
-        print("Erro: Não foi possível conectar ao banco de dados")
+        logger.error("Erro: Não foi possível conectar ao banco de dados")
         return []
     
     cursor = conn.cursor()
@@ -84,7 +125,7 @@ def substituir_disciplinas(aluno_id):
         d for d in disciplinas_todas 
         if d not in mapeamento_disciplinas.values() and d not in mapeamento_disciplinas.keys()
     ]
-    print(f"Disciplinas desconhecidas: {disciplinas_desconhecidas}")
+    logger.info(f"Disciplinas desconhecidas: {disciplinas_desconhecidas}")
     
     tabela_estudos_realizados = [
         [quebra_linha("COMPONENTES CURRICULARES")] + [titulo("ANO")] * 18,
@@ -135,7 +176,7 @@ def preencher_tabela_estudos_realizados(data_tabela_estudos_realizados, historic
                 if col_index <= len(data_tabela_estudos_realizados[0]):
                     if media is not None:
                         media_dividida = media / 10
-                        if media == int(media):
+                        if isinstance(media, (int, float)) and media == int(media):
                             update_cell(row_index, col_index, f"{media_dividida:.1f}")
                         else:
                             update_cell(row_index, col_index, f"{media_dividida:.2f}")
@@ -317,7 +358,7 @@ def criar_tabela_observacoes(resultados, num_disciplinas_desconhecidas=0):
     # Buscar observações do banco de dados
     conn = conectar_bd()
     if not conn:
-        print("Erro: Não foi possível conectar ao banco de dados para buscar observações")
+        logger.error("Erro: Não foi possível conectar ao banco de dados para buscar observações")
         # Retorna tabela apenas com observação base
         paragrafo_obs = Paragraph(texto_base, ParagraphStyle(name='Title', fontSize=8, alignment=4, leading=10))
         data_tabela_observacoes = [[paragrafo_obs, ""]]
@@ -337,8 +378,8 @@ def criar_tabela_observacoes(resultados, num_disciplinas_desconhecidas=0):
     observacoes_adicionais = set()  # Usando set para evitar duplicatas
     
     try:
-        print("\n=== INÍCIO DA BUSCA DE OBSERVAÇÕES ===")
-        print(f"Número total de resultados para buscar observações: {len(resultados)}")
+        logger.info("Início da busca de observações")
+        logger.info(f"Número total de resultados para buscar observações: {len(resultados)}")
         
         # Para cada resultado (série/ano), buscar observações correspondentes
         for resultado in resultados:
@@ -346,7 +387,7 @@ def criar_tabela_observacoes(resultados, num_disciplinas_desconhecidas=0):
             ano_letivo_id = resultado[1]  # Segundo elemento é ano_letivo_id
             escola_id = resultado[2]  # Terceiro elemento é escola_id
             
-            print(f"\nBuscando observações para: série_id={serie_id}, ano_letivo_id={ano_letivo_id}, escola_id={escola_id}")
+            logger.info(f"Buscando observações para: série_id={serie_id}, ano_letivo_id={ano_letivo_id}, escola_id={escola_id}")
             
             # Buscar observações específicas
             cursor.execute("""
@@ -363,10 +404,10 @@ def criar_tabela_observacoes(resultados, num_disciplinas_desconhecidas=0):
                 if escola_nome_result:
                     escola_nome_obs = escola_nome_result[0]
                     obs_formatada = f"<b>[{escola_nome_obs}]</b> {obs[0]}"
-                    print(f"Observação encontrada: {obs_formatada}")
+                    logger.info(f"Observação encontrada: {obs_formatada}")
                     observacoes_adicionais.add(obs_formatada)
             else:
-                print("Nenhuma observação encontrada para estes parâmetros")
+                logger.info("Nenhuma observação encontrada para estes parâmetros")
             
             # Verificar se é a escola que precisa da observação especial
             cursor.execute("SELECT nome FROM escolas WHERE id = %s", (escola_id,))
@@ -376,17 +417,16 @@ def criar_tabela_observacoes(resultados, num_disciplinas_desconhecidas=0):
                 if escola_nome == 'UI Profª Nadir Nascimento Moraes' or escola_nome == 'UEB Profª Nadir Nascimento Moraes':
                     obs_escola = "*A unidade escolar mencionada neste documento teve sua denominação alterada para <b>Escola Municipal Profª Nadir Nascimento Moraes</b>, conforme estabelecido pelo <b>Decreto nº 4.006, de 29 de janeiro de 2025.</b>"
                     obs_escola_formatada = f"<b>[{escola_nome}]</b> {obs_escola}"
-                    print(f"Adicionando observação especial da escola: {obs_escola_formatada}")
+                    logger.info(f"Adicionando observação especial da escola: {obs_escola_formatada}")
                     observacoes_adicionais.add(obs_escola_formatada)
     finally:
         cursor.close()
         conn.close()
     
-    print("\n=== RESUMO DAS OBSERVAÇÕES ===")
-    print(f"Total de observações encontradas: {len(observacoes_adicionais)}")
-    print("Lista de todas as observações:")
+    logger.info("Resumo das observações")
+    logger.info(f"Total de observações encontradas: {len(observacoes_adicionais)}")
     for i, obs in enumerate(observacoes_adicionais, 1):
-        print(f"{i}. {obs}")
+        logger.info(f"{i}. {obs}")
     
     # Combinar todas as observações; altura agora é automática pela tabela
     texto_completo = texto_base
@@ -466,16 +506,43 @@ def criar_tabela_assinatura():
     ]))
     return tabela_assinatura
 
-def historico_escolar(aluno_id):
+def historico_escolar(aluno_id,
+                      aluno=None,
+                      escola=None,
+                      responsaveis=None,
+                      historico=None,
+                      resultados=None,
+                      dados_observacoes=None,
+                      carga_total_por_serie=None,
+                      disciplinas=None):
+    logger = get_logger(__name__)
+    logger.info(f"historico_escolar: chamado para aluno_id={aluno_id} com parametros fornecidos: aluno={bool(aluno)}, escola={bool(escola)}, responsaveis={bool(responsaveis)}, historico={bool(historico)}, resultados={bool(resultados)}, dados_observacoes={bool(dados_observacoes)}, carga_total_por_serie={bool(carga_total_por_serie)}, disciplinas={bool(disciplinas)}")
+
     conn = conectar_bd()
     if not conn:
-        print("Erro: Não foi possível conectar ao banco de dados")
+        logger.error("Erro: Não foi possível conectar ao banco de dados")
         return
         
     cursor = conn.cursor()
     escola_id = 60
 
-    query_escola = """
+    # Se um objeto `escola` foi fornecido pela interface, usá-lo em vez de consultar o BD
+    if escola is not None:
+        # aceitar dicts ou tuplas no formato esperado
+        if isinstance(escola, dict):
+            dados_escola = (
+                escola.get('id'),
+                escola.get('nome'),
+                escola.get('endereco'),
+                escola.get('inep'),
+                escola.get('cnpj'),
+                escola.get('municipio')
+            )
+        else:
+            dados_escola = escola
+        logger.info("Usando dados da escola fornecidos pela interface/cache")
+    else:
+        query_escola = """
         SELECT 
             e.id AS escola_id, 
             e.nome AS nome_escola, 
@@ -488,10 +555,27 @@ def historico_escolar(aluno_id):
         WHERE 
             e.id = %s;
     """
-    cursor.execute(query_escola, (escola_id,))
-    dados_escola = cursor.fetchone()
+        start_q = time.time()
+        cursor.execute(query_escola, (escola_id,))
+        dados_escola = cursor.fetchone()
+        elapsed_ms = int((time.time() - start_q) * 1000)
+        logger.info(f"event=db_query name=select_escola escola_id={escola_id} duration_ms={elapsed_ms}")
 
-    query_aluno = """
+    # Se `aluno` foi passado pela interface, usar os dados fornecidos
+    if aluno is not None:
+        if isinstance(aluno, dict):
+            dados_aluno = (
+                aluno.get('nome'),
+                aluno.get('data_nascimento'),
+                aluno.get('sexo'),
+                aluno.get('local_nascimento'),
+                aluno.get('UF_nascimento')
+            )
+        else:
+            dados_aluno = aluno
+        logger.info("Usando dados do aluno fornecidos pela interface/cache")
+    else:
+        query_aluno = """
         SELECT 
             a.nome AS nome_aluno, 
             a.data_nascimento AS nascimento, 
@@ -503,10 +587,20 @@ def historico_escolar(aluno_id):
         WHERE 
             a.id = %s;
     """
-    cursor.execute(query_aluno, (aluno_id,))
-    dados_aluno = cursor.fetchone()
+        start_q = time.time()
+        cursor.execute(query_aluno, (aluno_id,))
+        dados_aluno = cursor.fetchone()
+        elapsed_ms = int((time.time() - start_q) * 1000)
+        logger.info(f"event=db_query name=select_aluno aluno_id={aluno_id} duration_ms={elapsed_ms}")
 
-    query_responsaveis = """
+    # Responsáveis: aceitar lista de strings ou estrutura similar retornada pelo BD
+    if responsaveis is not None:
+        # converter lista de nomes em formato semelhante ao fetchall() [(nome,), ...]
+        if responsaveis and isinstance(responsaveis[0], str):
+            responsaveis = [(r,) for r in responsaveis]
+        logger.info("Usando lista de responsáveis fornecida pela interface/cache")
+    else:
+        query_responsaveis = """
         SELECT 
             r.nome AS responsavel
         FROM 
@@ -516,103 +610,152 @@ def historico_escolar(aluno_id):
         WHERE 
             ra.aluno_id = %s;
     """
-    cursor.execute(query_responsaveis, (aluno_id,))
-    responsaveis = cursor.fetchall()
+        start_q = time.time()
+        cursor.execute(query_responsaveis, (aluno_id,))
+        responsaveis = cursor.fetchall()
+        elapsed_ms = int((time.time() - start_q) * 1000)
+        logger.info(f"event=db_query name=select_responsaveis aluno_id={aluno_id} duration_ms={elapsed_ms} rows={len(responsaveis) if responsaveis is not None else 0}")
 
-    query_historico = """
-    SELECT 
-        d.nome AS disciplina,
-        d.carga_horaria,
-        h.serie_id,
-        h.media,
-        h.conceito,
-        cht.carga_horaria_total,
-        h.ano_letivo_id
-    FROM 
-        historico_escolar AS h
-    JOIN 
-        disciplinas AS d ON h.disciplina_id = d.id
-    LEFT JOIN 
-        carga_horaria_total AS cht ON h.serie_id = cht.serie_id
-        AND h.ano_letivo_id = cht.ano_letivo_id 
-        AND h.escola_id = cht.escola_id
-    WHERE 
-        h.aluno_id = %s
-    ORDER BY 
-        h.serie_id;
-    """
-    cursor.execute(query_historico, (aluno_id,))
-    historico = cursor.fetchall()
+    # Histórico por disciplina: usar parâmetro se fornecido para evitar reconsulta
+    if historico is not None:
+        logger.info("Usando histórico fornecido pela interface/cache")
+    else:
+        query_historico = """
+        SELECT 
+            d.nome AS disciplina,
+            d.carga_horaria,
+            h.serie_id,
+            h.media,
+            h.conceito,
+            cht.carga_horaria_total,
+            h.ano_letivo_id
+        FROM 
+            historico_escolar AS h
+        JOIN 
+            disciplinas AS d ON h.disciplina_id = d.id
+        LEFT JOIN 
+            carga_horaria_total AS cht ON h.serie_id = cht.serie_id
+            AND h.ano_letivo_id = cht.ano_letivo_id 
+            AND h.escola_id = cht.escola_id
+        WHERE 
+            h.aluno_id = %s
+        ORDER BY 
+            h.serie_id;
+        """
+        start_q = time.time()
+        cursor.execute(query_historico, (aluno_id,))
+        historico = cursor.fetchall()
+        elapsed_ms = int((time.time() - start_q) * 1000)
+        logger.info(f"event=db_query name=select_historico aluno_id={aluno_id} duration_ms={elapsed_ms} rows={len(historico) if historico is not None else 0}")
 
     if not historico:
-        print("Nenhum histórico encontrado para o aluno.")
+        logger.info("Nenhum histórico encontrado para o aluno.")
         return
 
-    carga_total_por_serie = {}
-    serie_ids_unicos = set()
-    for registro in historico:
-        disciplina, carga_horaria, serie_id, media, conceito, carga_horaria_total, ano_letivo_id = registro
-        serie_ids_unicos.add(serie_id)
-        if serie_id not in carga_total_por_serie:
-            carga_total_por_serie[serie_id] = {
-                'carga_total': 0,
-                'todas_null': True,
-                'carga_horaria_total': carga_horaria_total
-            }
-        if carga_horaria is not None:
-            carga_total_por_serie[serie_id]['todas_null'] = False
-            carga_total_por_serie[serie_id]['carga_total'] += carga_horaria
+    # Se o chamador já forneceu `carga_total_por_serie`, respeitar esse dicionário
+    # (ex.: quando o wrapper montou o mapa a partir do cache). Caso contrário,
+    # calcular com base no `historico` retornado do BD.
+    if carga_total_por_serie is None:
+        carga_total_por_serie = {}
+        serie_ids_unicos = set()
+        for registro in historico:
+            disciplina, carga_horaria, serie_id, media, conceito, carga_horaria_total, ano_letivo_id = registro
+            serie_ids_unicos.add(serie_id)
+            if serie_id not in carga_total_por_serie:
+                carga_total_por_serie[serie_id] = {
+                    'carga_total': 0,
+                    'todas_null': True,
+                    'carga_horaria_total': carga_horaria_total
+                }
+            if carga_horaria is not None:
+                carga_total_por_serie[serie_id]['todas_null'] = False
+                n = to_safe_int(carga_horaria)
+                if n is not None:
+                    carga_total_por_serie[serie_id]['carga_total'] += n
+    else:
+        # Garantir que as chaves/estruturas esperadas existam e coletar os ids
+        serie_ids_unicos = set()
+        try:
+            for sid, info in carga_total_por_serie.items():
+                serie_ids_unicos.add(sid)
+                # normalizar estrutura mínima
+                if not isinstance(info, dict):
+                    carga_total_por_serie[sid] = {'carga_total': None, 'todas_null': True, 'carga_horaria_total': None}
+                else:
+                    info.setdefault('carga_total', None)
+                    info.setdefault('todas_null', True)
+                    info.setdefault('carga_horaria_total', None)
+        except Exception:
+            # Em caso de formato inesperado, recuperar comportamento seguro
+            carga_total_por_serie = {}
+            serie_ids_unicos = set()
 
     for serie_id in serie_ids_unicos:
-        if carga_total_por_serie[serie_id]['todas_null']:
-            carga_total_por_serie[serie_id]['carga_total'] = carga_total_por_serie[serie_id]['carga_horaria_total']
-        print(f"Série {serie_id}: {carga_total_por_serie[serie_id]['carga_total']} horas") 
+        try:
+            if carga_total_por_serie[serie_id].get('todas_null'):
+                carga_total_por_serie[serie_id]['carga_total'] = carga_total_por_serie[serie_id].get('carga_horaria_total')
+            logger.info(f"serie_id={serie_id} carga_total={carga_total_por_serie[serie_id].get('carga_total')}")
+        except Exception:
+            logger.exception(f"Erro ao obter carga_total para serie_id={serie_id}")
     quantitativo_serie_ids = len(serie_ids_unicos)
 
-    query_historia_escolar = """
-    SELECT 
-        h.aluno_id,
-        h.serie_id,
-        a.ano_letivo,
-        e.nome AS escola_nome,
-        e.municipio AS escola_municipio,
-        CASE
-            WHEN COUNT(h.media) = 0 AND COUNT(h.conceito) > 0 THEN 'Promovido(a)'
-            WHEN MIN(h.media) >= 60 THEN 'Promovido(a)'
-            WHEN MIN(h.media) < 60 THEN 'Retido(a)'
-        END AS situacao_final
-    FROM 
-        historico_escolar h
-    JOIN 
-        anosletivos a ON h.ano_letivo_id = a.id
-    JOIN 
-        escolas e ON h.escola_id = e.id
-    WHERE 
-        h.aluno_id = %s
-    GROUP BY 
-        h.aluno_id, h.serie_id, a.ano_letivo, e.nome, e.municipio;
-    """
-    cursor.execute(query_historia_escolar, (aluno_id,))
-    resultados = cursor.fetchall()
+    if resultados is not None:
+        logger.info("Usando resultados (resumo por série) fornecidos pela interface/cache")
+    else:
+        query_historia_escolar = """
+        SELECT 
+            h.aluno_id,
+            h.serie_id,
+            a.ano_letivo,
+            e.nome AS escola_nome,
+            e.municipio AS escola_municipio,
+            CASE
+                WHEN COUNT(h.media) = 0 AND COUNT(h.conceito) > 0 THEN 'Promovido(a)'
+                WHEN MIN(h.media) >= 60 THEN 'Promovido(a)'
+                WHEN MIN(h.media) < 60 THEN 'Retido(a)'
+            END AS situacao_final
+        FROM 
+            historico_escolar h
+        JOIN 
+            anosletivos a ON h.ano_letivo_id = a.id
+        JOIN 
+            escolas e ON h.escola_id = e.id
+        WHERE 
+            h.aluno_id = %s
+        GROUP BY 
+            h.aluno_id, h.serie_id, a.ano_letivo, e.nome, e.municipio;
+        """
+        start_q = time.time()
+        cursor.execute(query_historia_escolar, (aluno_id,))
+        resultados = cursor.fetchall()
+        elapsed_ms = int((time.time() - start_q) * 1000)
+        logger.info(f"event=db_query name=select_resultados_por_serie aluno_id={aluno_id} duration_ms={elapsed_ms} rows={len(resultados) if resultados is not None else 0}")
     
     # Buscar os IDs dos anos letivos para as observações
-    query_anos_letivos = """
-    SELECT DISTINCT h.serie_id, h.ano_letivo_id, h.escola_id
-    FROM historico_escolar h
-    WHERE h.aluno_id = %s
-    ORDER BY h.serie_id;
-    """
-    cursor.execute(query_anos_letivos, (aluno_id,))
-    dados_observacoes = cursor.fetchall()
+    if dados_observacoes is not None:
+        logger.info("Usando dados_observacoes fornecidos pela interface/cache")
+    else:
+        query_anos_letivos = """
+        SELECT DISTINCT h.serie_id, h.ano_letivo_id, h.escola_id
+        FROM historico_escolar h
+        WHERE h.aluno_id = %s
+        ORDER BY h.serie_id;
+        """
+        start_q = time.time()
+        cursor.execute(query_anos_letivos, (aluno_id,))
+        dados_observacoes = cursor.fetchall()
+        elapsed_ms = int((time.time() - start_q) * 1000)
+        logger.info(f"event=db_query name=select_anos_letivos_para_observacoes aluno_id={aluno_id} duration_ms={elapsed_ms} rows={len(dados_observacoes) if dados_observacoes is not None else 0}")
     
     cursor.close()
     conn.close()
 
     if not dados_aluno:
-        print("Aluno não encontrado.")
+        logger.error("Aluno não encontrado.")
         return
 
-    nome_aluno, nascimento, sexo, uf, localn = dados_aluno
+    # Ordem correta conforme SELECT: nome, data_nascimento, sexo, local_nascimento, UF_nascimento
+    nome_aluno, nascimento, sexo, localn, uf = dados_aluno
     responsavel1 = responsaveis[0][0] if len(responsaveis) > 0 else None
     responsavel2 = responsaveis[1][0] if len(responsaveis) > 1 else None
     if responsavel1 and responsavel2:
@@ -652,7 +795,7 @@ def historico_escolar(aluno_id):
                 data_nascimento = str(nascimento)
                 
         except (ValueError, TypeError, AttributeError) as e:
-            print(f"Erro ao formatar data de nascimento: {e}")
+            logger.exception(f"Erro ao formatar data de nascimento: {e}")
             data_nascimento = str(nascimento) if nascimento else ""
     data_documento = formatar_data(datetime.now())
 
@@ -666,7 +809,7 @@ def historico_escolar(aluno_id):
             f"<b>INEP: {inep_escola}</b>"
         ]
     else:
-        print("Dados da escola não encontrados.")
+        logger.error("Dados da escola não encontrados.")
         return
 
     figura_superior = os.path.join(os.path.dirname(__file__), 'pacologo.png')
@@ -708,9 +851,9 @@ def historico_escolar(aluno_id):
         [Paragraph('<b>DADOS ALUNO</b>', ParagraphStyle(name='DataTitle', fontSize=8, alignment=1))],
         [Paragraph(f'<b>NOME:</b> {nome_aluno}', ParagraphStyle(name='Label', fontSize=8, alignment=0))],
         [
-            Paragraph(f'<b>NATURAL DE:</b> {uf}', ParagraphStyle(name='Label', fontSize=8, alignment=0)),
-            Paragraph('<b>UF:</b>', ParagraphStyle(name='Label', fontSize=8, alignment=1)),
-            Paragraph(f'{localn}', ParagraphStyle(name='Data', fontSize=8, alignment=1)),
+            Paragraph(f'<b>NATURAL DE:</b> {localn or ""}', ParagraphStyle(name='Label', fontSize=8, alignment=0)),
+            Paragraph(f'<b>UF:</b>', ParagraphStyle(name='Label', fontSize=8, alignment=1)),
+            Paragraph(f'{uf or ""}', ParagraphStyle(name='Data', fontSize=8, alignment=1)),
             Paragraph(f'<b>DATA DE NASCIMENTO:</b> {data_nascimento}', ParagraphStyle(name='Label', fontSize=8, alignment=0))
         ],
         [Paragraph(filho_de_texto, ParagraphStyle(name='Label', fontSize=8, alignment=0))]
@@ -763,12 +906,12 @@ def historico_escolar(aluno_id):
     ]])
     
     # Log para acompanhamento dos ajustes de layout
-    print(f"Número de disciplinas desconhecidas: {num_disciplinas_desconhecidas}")
+    logger.info(f"Número de disciplinas desconhecidas: {num_disciplinas_desconhecidas}")
     
     # Ajusta o espaçamento baseado no número de disciplinas extras
     # Isso ajudará a manter o documento em uma única página
     espacamento = max(0.05, 0.1 - (max(0, num_disciplinas_desconhecidas - 2) * 0.01)) * inch
-    print(f"Espaçamento ajustado: {espacamento/inch:.2f} inch")
+    logger.info(f"Espaçamento ajustado: {espacamento/inch:.2f} inch")
     
     # Usar dados_observacoes em vez de resultados para a tabela de observações
     tabela_observacoes = criar_tabela_observacoes(dados_observacoes, num_disciplinas_desconhecidas)
