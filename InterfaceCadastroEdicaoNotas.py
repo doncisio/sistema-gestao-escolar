@@ -649,6 +649,22 @@ class InterfaceCadastroEdicaoNotas:
         else:
             self.tabela.bind("<<TreeviewSelect>>", lambda e: None)
 
+        # Permitir foco no Treeview para navegação por teclado
+        try:
+            self.tabela.focus_set()
+        except Exception:
+            pass
+
+        # Bind de teclas Up/Down para navegar entre linhas e abrir o editor
+        try:
+            self.tabela.bind('<Up>', self._on_key_up)
+            self.tabela.bind('<Down>', self._on_key_down)
+            # Também vincular na janela para garantir captura mesmo quando foco não estiver no treeview
+            self.janela.bind('<Up>', lambda e: self._on_key_up(e))
+            self.janela.bind('<Down>', lambda e: self._on_key_down(e))
+        except Exception:
+            pass
+
         # Quando usar editor único, as rotinas de ajuste de múltiplas entradas tornam-se no-op
         # Mantemos os bindings existentes, mas os handlers verificarão a flag
         self.tabela.bind("<ButtonRelease-1>", self.ajustar_entradas)
@@ -1012,6 +1028,90 @@ class InterfaceCadastroEdicaoNotas:
             self.focar_entrada_selecionada(None)
         except Exception:
             pass
+
+    def _on_key_down(self, event):
+        """Handler para tecla Down: move seleção para a próxima linha e abre o editor."""
+        try:
+            children = list(self.tabela.get_children())
+            if not children:
+                return "break"
+
+            sel = self.tabela.selection()
+            if not sel:
+                target = children[0]
+            else:
+                try:
+                    idx = children.index(sel[0])
+                    next_idx = min(len(children) - 1, idx + 1)
+                    target = children[next_idx]
+                except ValueError:
+                    target = children[0]
+
+            # Selecionar e mostrar
+            try:
+                self.tabela.selection_set(target)
+            except Exception:
+                pass
+            try:
+                self.tabela.see(target)
+            except Exception:
+                pass
+
+            # Abrir editor para a linha selecionada
+            vals = self.tabela.item(target, 'values')
+            if vals:
+                try:
+                    num = int(vals[0])
+                    aluno_id = self.num_para_id.get(num)
+                    if aluno_id:
+                        self.abrir_editor_para_aluno(aluno_id)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        return "break"
+
+    def _on_key_up(self, event):
+        """Handler para tecla Up: move seleção para a linha anterior e abre o editor."""
+        try:
+            children = list(self.tabela.get_children())
+            if not children:
+                return "break"
+
+            sel = self.tabela.selection()
+            if not sel:
+                target = children[-1]
+            else:
+                try:
+                    idx = children.index(sel[0])
+                    prev_idx = max(0, idx - 1)
+                    target = children[prev_idx]
+                except ValueError:
+                    target = children[-1]
+
+            # Selecionar e mostrar
+            try:
+                self.tabela.selection_set(target)
+            except Exception:
+                pass
+            try:
+                self.tabela.see(target)
+            except Exception:
+                pass
+
+            # Abrir editor para a linha selecionada
+            vals = self.tabela.item(target, 'values')
+            if vals:
+                try:
+                    num = int(vals[0])
+                    aluno_id = self.num_para_id.get(num)
+                    if aluno_id:
+                        self.abrir_editor_para_aluno(aluno_id)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        return "break"
     
     def ajustar_entradas(self, event=None):
         # Reposicionar todas as entradas conforme a tabela é rolada
