@@ -1,6 +1,6 @@
 # Análise de dados coletados por `historico_escolar(aluno_id)`
 
-Este documento lista os dados que a função `historico_escolar(aluno_id)` (arquivo `historico_escolar.py`) consulta no banco e como esses dados são usados para preencher as tabelas do histórico (PDF) e outras estruturas. Em seguida indico quais desses dados são efetivamente mostrados na interface `interface_historico_escolar.py`.
+Este documento lista os dados que a função `historico_escolar(aluno_id)` (arquivo `historico_escolar.py`) consulta no banco e como esses dados são usados para preencher as tabelas do histórico (PDF) e outras estruturas. Também agrega recomendações da equipe para reduzir consultas redundantes passando dados já carregados pela UI.
 
 ## Resumo (contrato)
 - Entrada: `aluno_id` (int)
@@ -52,76 +52,115 @@ Este documento lista os dados que a função `historico_escolar(aluno_id)` (arqu
    - Tabelas: `historico_escolar` (h), `anosletivos` (a), `escolas` (e)
    - Campos retornados por grupo (por série):
      - `h.aluno_id`
-     - `h.serie_id`
-     - `a.ano_letivo` -> ano letivo (texto/inteiro)
-     - `e.nome` -> escola_nome
-     - `e.municipio` -> escola_municipio
-     - `situacao_final` -> calculada no SQL ("Promovido(a)" / "Retido(a)" baseado em média/conceito)
+    ```markdown
+    # Análise do `historico_escolar` (resumo atualizado)
 
-   - Uso: preenche a tabela "CAMINHO ESCOLAR" do PDF (ANO LETIVO, ESTABELECIMENTO, LOCAL, RESULTADO FINAL).
+    Este documento descreve os campos, queries e responsabilidades atuais do gerador de PDF `historico_escolar` (`historico_escolar.py`) e como a interface (`interface_historico_escolar.py`) tenta reduzir consultas redundantes via cache. Também resume a instrumentação de desempenho presente e recomenda próximos passos prioritários.
 
-6. IDs para observações (consulta `query_anos_letivos`)
-   - Retorna linhas com: `h.serie_id`, `h.ano_letivo_id`, `h.escola_id`
-   - Uso: para buscar observações específicas na tabela `observacoes_historico` e compor a seção de observações do PDF.
+    **Resumo (contrato)**
+    - **Entrada**: `aluno_id` (int) — a função aceita parâmetros opcionais (`aluno`, `escola`, `historico`, `resultados`, `dados_observacoes`, `carga_total_por_serie`, `disciplinas`).
+    - **Saída/efeito**: gera e salva um PDF em `documentos_gerados/` e registra o documento via `utilitarios.gerenciador_documentos.salvar_documento_sistema`.
+    - **Falhas**: aborta quando não há conexão ou dados essenciais; mensagens de erro são logadas e, em parte, exibidas ao usuário.
 
-7. Observações adicionais (dentro de `criar_tabela_observacoes`)
-   - Consulta: `observacoes_historico` por (`serie_id`, `ano_letivo_id`, `escola_id`)
-   - Se encontrada, pré-fixa com o nome da escola.
+    ---
 
-8. Outros usos internos / cálculos
-   - Cálculo de `carga_total_por_serie` agregando `carga_horaria` ou usando `carga_horaria_total` quando valores individuais são nulos.
-   - Determinação de `quantitativo_serie_ids` (número de séries distintas presentes).
-   - Ajustes de layout/espacamento do PDF com base no número de disciplinas desconhecidas.
+    **1) Consultas e campos principais (implementação atual)**
 
----
+    - **Dados da escola** (`query_escola`)
+      - Tabela: `Escolas`
+      - Campos usados: `id`, `nome`, `endereco`, `inep`, `cnpj`, `municipio` (montam cabeçalho do PDF).
 
-## 2) Quais desses campos são mostrados na interface `interface_historico_escolar.py`?
+    - **Dados do aluno** (`query_aluno`)
+      - Tabela: `Alunos`
+      - Campos usados: `nome`, `data_nascimento`, `sexo`, `local_nascimento`, `UF_nascimento` (formatados para o cabeçalho do PDF).
 
-A interface exibe e permite filtrar/editar parte dos dados retornados. Abaixo a lista dos campos usados pela interface (visíveis ao usuário) vs usados apenas no PDF ou internamente.
+    - **Responsáveis** (`query_responsaveis`)
+      - Tabelas: `Responsaveis`, `ResponsaveisAlunos`
+      - Uso: compor o texto "FILHO DE:" no PDF.
 
-Campos mostrados diretamente na interface (visíveis nos widgets):
+    - **Histórico por disciplina** (`query_historico`)
+      - Tabelas: `historico_escolar` (h) JOIN `disciplinas` (d) LEFT JOIN `carga_horaria_total` (cht)
+      - Campos retornados por registro: `d.nome`, `d.carga_horaria`, `h.serie_id`, `h.media`, `h.conceito`, `cht.carga_horaria_total`, `h.ano_letivo_id`.
+      - Uso: preencher tabela "ESTUDOS REALIZADOS" (média, conceito, CH). `carga_total_por_serie` é calculado a partir dessas cargas ou a partir de `carga_horaria_total` quando cargas individuais são nulas.
 
-- Dados do aluno (labels):
-  - `nome_aluno` -> mostrado no label `self.lbl_aluno` (campo "Aluno:")
-  - `data_nascimento` (formatado) -> mostrado no label `self.lbl_data_nascimento` ("Data Nascimento:")
-  - `sexo` -> mostrado no label `self.lbl_sexo` ("Sexo:")
+    - **Resumo por série / situação final** (`query_historia_escolar`)
+      - Agrupa por `h.serie_id` e retorna `ano_letivo`, `escola_nome`, `escola_municipio` e a `situacao_final` calculada no SQL (Promovido/Retido).
+      - Uso: preencher tabela "CAMINHO ESCOLAR".
 
-- Tabela / TreeView de histórico (`self.treeview_historico`) — colunas definidas em `interface_historico_escolar.py`:
-  - `ID` -> id do registro em `historico_escolar` (h.id)
-  - `Disciplina` -> `d.nome` (nome da disciplina)
-  - `Ano Letivo` -> texto do ano letivo (`a.ano_letivo`) ou mapeamento do `ano_letivo_id`
-  - `Série` -> série (nome/descrição) correspondente ao `serie_id`
-  - `Escola` -> `e.nome` (nome da escola onde o registro foi realizado)
-  - `Média` -> `h.media` (formatada, 1 casa decimal no código)
-  - `Conceito` -> `h.conceito`
+    - **IDs para observações** (`query_anos_letivos`)
+      - Retorna tuplas `(serie_id, ano_letivo_id, escola_id)` usadas para buscar entradas em `observacoes_historico`.
 
-- Comboboxes / filtros (visíveis e editáveis):
-  - `Escola` (lista de `escolas` com `id` + nome)
-  - `Série` (lista de séries)
-  - `Ano Letivo` (lista de anos letivos)
-  - `Disciplina` (lista de disciplinas disponíveis)
-  - Filtros rápidos: `filtro_ano`, `filtro_disciplina`, `filtro_situacao` — afetam a exibição na treeview
+    - **Observações adicionais** (`observacoes_historico`)
+      - Buscadas por `(serie_id, ano_letivo_id, escola_id)` e prefixadas com o nome da escola quando presentes.
 
-- Outros controles
-  - Botões de Inserir/Atualizar/Excluir usam e alteram campos: `disciplina_id`, `media`, `ano_letivo_id`, `escola_id`, `conceito`, `serie_id` (estes campos fazem parte das operações de escrita no banco e aparecem na interface via os widgets acima)
+    Observação: todas as consultas críticas são medidas com logs de duração: `event=db_query name=<nome_query> duration_ms=<ms>`.
 
-Campos usados no PDF ou internamente, mas NÃO diretamente mostrados na janela principal da interface (ou só aparecem no PDF / janelas específicas):
+    ---
 
-- `d.carga_horaria` (carga horária por disciplina) — usado para preencher coluna CH no PDF; não aparece no `treeview_historico` padrão.
-- `cht.carga_horaria_total` (carga horária total por série/ano/escola) — usado apenas no PDF para calcular totais.
-- `resultados` (consulta de `situacao_final`) -> `situacao_final` aparece no PDF na tabela "CAMINHO ESCOLAR" mas não é coluna na treeview padrão.
-- `dados_observacoes` e `observacoes_historico` — usados para compor a seção Observações do PDF; não há campo de observações principal visível na tela (há função para gerenciar observações, porém não é mostrado por padrão no grid principal)
-- `endereco_escola`, `inep_escola`, `cnpj_escola`, `municipio_escola` — usados no cabeçalho do PDF; não são exibidos na tela principal (exceto dentro de diálogos ou exportações)
-- `responsaveis` -> nomes usados no PDF em "FILHO DE:" mas a interface principal não exibe os responsáveis na área do histórico (a menos de diálogo específico no código)
+    **2) O que a interface (`interface_historico_escolar.py`) fornece hoje**
 
----
+    - **Cache/UI first**: a interface implementa `gerar_historico_com_cache` — ela tenta montar `aluno`, `historico`, `resultados`, `dados_observacoes` e `carga_total_por_serie` a partir de caches locais e apenas consulta o BD quando necessário. Isso reduz consultas repetidas no fluxo de geração do PDF.
+    - **Campos exibidos** (treeview e labels): `ID`, `Disciplina`, `Ano Letivo`, `Série`, `Escola`, `Média` (formatada), `Conceito`, além de `nome`, `data_nascimento`, `sexo` do aluno.
+    - **Filtros e otimizações**: carregamento otimizado de alunos (`LIMIT 50`), busca incremental com `LIKE` para autocomplete, caches locais para resultados de filtros e disciplinas filtradas.
 
-## 3) Observações e recomendações rápidas
+    ---
 
-- A interface exibe os campos essenciais para CRUD do histórico (disciplina, ano letivo, série, escola, média, conceito e id do registro) e informações básicas do aluno (nome, data de nascimento, sexo).
-- Dados adicionais usados para compor o PDF (carga horária, situação final por série, observações por escola) não aparecem diretamente no `treeview_historico`, mas são consultados quando se gera o PDF (`historico_escolar(aluno_id)`).
-- Se quiser expor carga horária ou situação final na interface, pode-se adicionar colunas na `treeview_historico` ou painéis secundários que mostram esses dados por série.
+    **3) Instrumentação e mudanças recentes**
 
----
+    - **Conversaões centralizadas**: os helpers `to_safe_int` e `to_safe_float` foram movidos para `utilitarios/conversoes.py` e `historico_escolar.py` importa `from utilitarios.conversoes import to_safe_int, to_safe_float`.
+    - **Medição de queries**: já existente — logs com `event=db_query name=... duration_ms=...` para cada consulta relevante (`select_escola`, `select_aluno`, `select_responsaveis`, `select_historico`, `select_resultados_por_serie`, `select_anos_letivos_para_observacoes`, etc.).
+    - **PDF render timing**: `historico_escolar` agora mede o tempo de render (envolvendo `doc.build(elements)`) e registra `event=pdf_render name=historico_escolar duration_ms=<ms>`.
+    - **PDF save timing**: suporte de logging de escrita/salvamento foi adicionado em `gerarPDF.py` (registra eventos `event=pdf_save ... stage=write duration_ms=<ms>`).
 
-Arquivo gerado automaticamente por análise do código em `c:\gestao` em {data}.
+    Exemplo de eventos de log atualmente gerados:
+    - `event=db_query name=select_historico aluno_id=... duration_ms=123 rows=...`
+    - `event=pdf_render name=historico_escolar duration_ms=456`
+    - `event=pdf_save name=salvar stage=write file=Historico_... duration_ms=12`
+
+    ---
+
+    **4) Observações de código relevantes para a análise**
+
+    - O gerador aceita parâmetros opcionais (cache-friendly): quando `aluno`, `historico` ou `resultados` são fornecidos pela interface, evita reconsultas e loga essa condição.
+    - `carga_total_por_serie` pode ser passado pelo wrapper (por exemplo, quando a interface montou previamente o mapa) ou é calculado pelo gerador a partir do `historico` retornado do BD.
+    - Há mapeamento explícito de nomes de disciplinas (`mapeamento_disciplinas`) para normalizar nomes antes de preencher a tabela.
+    - Ajustes de layout (espaçamento) são aplicados dinamicamente com base no número de disciplinas desconhecidas para tentar manter o documento em uma página.
+
+    ---
+
+    **5) Recomendações prioritárias (curto/médio prazo)**
+
+    - **Propagar instrumentação**: adotar `event=pdf_render` e `event=pdf_save` em todos os geradores de PDF (ex.: `transferencia.py`, `tabela_docentes.py`, etc.) para obter métricas comparáveis.
+    - **Padronizar utilitários**: consolidar instrumentação e helpers em `utilitarios/` (ex.: utilitário de medição/benchmark que retorna elapsed_ms e faz o log padrão). Isso facilita testes e consistência dos nomes de eventos no log.
+    - **Testes**: criar testes unitários que:
+      - cubram `historico_escolar` com parâmetros opcionais (mock DB) e sem parâmetros (mock DB);
+      - verifiquem geração de eventos de log (`event=db_query`, `event=pdf_render`, `event=pdf_save`) usando captura de logs ou stub do logger;
+      - validem a normalização de cargas (`to_safe_int`/`to_safe_float`) e os cálculos de `carga_total_por_serie`.
+    - **Interface**: considerar expor `carga_horaria` e `situacao_final` no `treeview` ou em um painel de detalhes para reduzir a necessidade de gerar o PDF apenas para consultar esses valores.
+    - **Performance**: analisar índices e planos das queries mais custosas (`query_historico` e `query_historia_escolar`) em produção; considerar materializar agregados por aluno/ano quando geração em lote for necessária.
+
+    ---
+
+    **6) Próximos passos técnicos sugeridos (execução)**
+
+    1. Propagar `event=pdf_render` e `event=pdf_save` para todos os geradores de PDF.
+    2. Extrair utilitário de medição/registro (`utilitarios/benchmark.py`) que encapsule `start = time.time(); ...; log(event=..., duration_ms=...)`.
+    3. Escrever testes unitários com fixtures de DB (usar sqlite em memória ou mocks) e adicionar verificação de logs.
+    4. Atualizar pipeline/CI para garantir que `tests/` sejam descobertos com o `PYTHONPATH` correto (ou transformar o projeto em pacote instalável no ambiente de teste).
+    5. (Opcional) Adicionar métricas agregadas (Prometheus / log parser) para acompanhar latências e alertar em picos.
+
+    ---
+
+    **Alterações realizadas automaticamente nesta revisão**
+
+    - Helpers de conversão movidos para: `utilitarios/conversoes.py` (`to_safe_int`, `to_safe_float`).
+    - `historico_escolar.py`: passou a importar as conversões e a medir `pdf_render`.
+    - `gerarPDF.py`: passou a medir/logar `pdf_save` nas etapas de escrita.
+    - `interface_historico_escolar.py`: contém o wrapper `gerar_historico_com_cache` que monta dados a partir do cache/UI e registra queries de apoio com `event=db_query`.
+
+    ---
+
+    Arquivo mesclado e atualizado automaticamente a partir das fontes do código em `c:\gestao` em 2025-11-14.
+
+    ``` 
+
