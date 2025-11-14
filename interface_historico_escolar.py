@@ -8,6 +8,11 @@ import pandas as pd
 from datetime import datetime, date
 from conexao import conectar_bd
 from historico_escolar import historico_escolar
+from utilitarios.escola_cache import get_escola_municipio
+import time
+from config_logs import get_logger
+
+_logger = get_logger(__name__)
 
 class InterfaceHistoricoEscolar:
     def __init__(self, janela=None, janela_pai=None):
@@ -159,7 +164,7 @@ class InterfaceHistoricoEscolar:
                         continue
                         
         except Exception as e:
-            print(f"Erro ao formatar data: {e}")
+            _logger.exception(f"Erro ao formatar data: {e}")
             
         return "Data inválida"
 
@@ -302,7 +307,7 @@ class InterfaceHistoricoEscolar:
             
         except Exception as e:
             cursor.execute("ROLLBACK")
-            print(f"Erro ao carregar dados: {str(e)}")
+            _logger.exception(f"Erro ao carregar dados: {str(e)}")
             return None
         finally:
             cursor.close()
@@ -647,7 +652,7 @@ class InterfaceHistoricoEscolar:
             
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao processar dados: {str(e)}")
-            print(f"Erro ao processar dados: {str(e)}")
+            _logger.exception(f"Erro ao processar dados: {str(e)}")
 
     def carregar_alunos_otimizado(self):
         """Carrega a lista de alunos para a combobox de forma otimizada"""
@@ -813,7 +818,7 @@ class InterfaceHistoricoEscolar:
             self.cb_pesquisa_aluno["state"] = estado_anterior
             
         except Exception as e:
-            print(f"Erro ao aplicar resultados: {str(e)}")
+            _logger.exception(f"Erro ao aplicar resultados: {str(e)}")
 
     def selecionar_aluno(self, event=None):
         """Função chamada quando um aluno é selecionado na combobox"""
@@ -853,7 +858,7 @@ class InterfaceHistoricoEscolar:
                         self.aluno_data_nascimento.set(data_formatada)
                         self.aluno_sexo.set(str(sexo) if sexo else "")
                 except Exception as e:
-                    print(f"Erro ao buscar detalhes do aluno: {str(e)}")
+                    _logger.exception(f"Erro ao buscar detalhes do aluno: {str(e)}")
                 finally:
                     cursor.close()
                     conn.close()
@@ -870,7 +875,7 @@ class InterfaceHistoricoEscolar:
             # Carregar o histórico do aluno
             self.carregar_historico()
         except Exception as e:
-            print(f"Erro ao selecionar aluno: {str(e)}")
+            _logger.exception(f"Erro ao selecionar aluno: {str(e)}")
             messagebox.showerror("Erro", f"Erro ao selecionar aluno: {str(e)}")
             # Não propagar o erro
             return "break"
@@ -1010,7 +1015,7 @@ class InterfaceHistoricoEscolar:
                 
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar histórico: {str(e)}")
-            print(f"Erro ao carregar histórico: {str(e)}")
+            _logger.exception(f"Erro ao carregar histórico: {str(e)}")
         finally:
             cursor.close()
             conn.close()
@@ -1061,7 +1066,7 @@ class InterfaceHistoricoEscolar:
                 self.filtro_situacao.set('Todos')
                 
         except Exception as e:
-            print(f"Erro ao aplicar dados do histórico: {str(e)}")
+            _logger.exception(f"Erro ao aplicar dados do histórico: {str(e)}")
     
     def invalidar_cache_historico(self, aluno_id=None):
         """Invalida o cache do histórico quando há alterações"""
@@ -1522,10 +1527,8 @@ class InterfaceHistoricoEscolar:
         if not hasattr(self, 'aluno_id') or not self.aluno_id:
             messagebox.showerror("Erro", "Selecione um aluno primeiro.")
             return
-            
-        # Chamar a função para gerar o PDF
-        historico_escolar(self.aluno_id)
-        self.mostrar_mensagem_temporaria("Histórico escolar gerado com sucesso!")
+        # Chamar wrapper que tenta usar dados em cache/UI para reduzir queries
+        self.gerar_historico_com_cache()
 
     def importar_excel(self):
         # Abrir diálogo para seleção de arquivo
@@ -1594,7 +1597,7 @@ class InterfaceHistoricoEscolar:
                 except Exception as e:
                     erros += 1
                     linha_numero = idx if isinstance(idx, int) else str(idx)
-                    print(f"Erro na linha {linha_numero}: {str(e)}")
+                    _logger.exception(f"Erro na linha {linha_numero}: {str(e)}")
                     
             # Commit
             conn.commit()
@@ -1617,6 +1620,298 @@ class InterfaceHistoricoEscolar:
             if 'conn' in locals() and conn:
                 cursor.close()
                 conn.close()
+
+    def gerar_historico_com_cache(self):
+        """
+        Wrapper que reúne dados já presentes na UI/cache e chama `historico_escolar`
+        com parâmetros opcionais para evitar reconsultas ao BD quando possível.
+        """
+        # Verificar se há um aluno selecionado
+        if not hasattr(self, 'aluno_id') or not self.aluno_id:
+            messagebox.showerror("Erro", "Selecione um aluno primeiro.")
+            return
+
+        # Preparar objeto aluno se tivermos informações em cache
+        aluno = None
+        try:
+            if hasattr(self, 'alunos_info') and self.aluno_selecionado.get() in self.alunos_info:
+                info = self.alunos_info[self.aluno_selecionado.get()]
+                aluno = {
+                    'id': info[0],
+                    'nome': self.aluno_selecionado.get(),
+                    'data_nascimento': info[1],
+                    'sexo': info[2]
+                }
+        except Exception:
+            aluno = None
+
+        # Se `aluno` foi criado a partir do cache, garantir que local_nascimento e UF_nascimento
+        # sejam preenchidos — se ausentes, buscar no BD. Registrar tempo desta consulta.
+        if aluno is not None:
+            need_local = not aluno.get('local_nascimento')
+            need_uf = not aluno.get('UF_nascimento')
+            if need_local or need_uf:
+                try:
+                    conn_local = conectar_bd()
+                    if conn_local:
+                        cur_local = conn_local.cursor()
+                        start_q = time.time()
+                        cur_local.execute("SELECT local_nascimento, UF_nascimento FROM alunos WHERE id = %s", (self.aluno_id,))
+                        row_aluno = cur_local.fetchone()
+                        elapsed_ms = int((time.time() - start_q) * 1000)
+                        _logger.info(f"event=db_query name=select_aluno_local aluno_id={self.aluno_id} duration_ms={elapsed_ms}")
+                        if row_aluno:
+                            if need_local:
+                                aluno['local_nascimento'] = row_aluno[0]
+                            if need_uf:
+                                aluno['UF_nascimento'] = row_aluno[1]
+                        cur_local.close()
+                        conn_local.close()
+                except Exception:
+                    # Não falhar a geração por causa desse preenchimento
+                    pass
+
+        # Tentar usar histórico em cache para reduzir queries
+        historico = None
+        cache_key = f"historico_{self.aluno_id}"
+        if hasattr(self, '_cache_historico') and cache_key in self._cache_historico:
+            dados = self._cache_historico[cache_key]['resultados']
+            historico = []
+            for registro, _ in dados:
+                # registro: (h.id, d.nome, al.ano_letivo, s.nome, e.nome, h.media, h.conceito, h.disciplina_id, h.ano_letivo_id, h.serie_id, h.escola_id)
+                try:
+                    disciplina = registro[1]
+                    media = registro[5]
+                    conceito = registro[6]
+                    serie_id = registro[9] if len(registro) > 9 else None
+                    ano_letivo_id = registro[8] if len(registro) > 8 else None
+                    historico.append((disciplina, None, serie_id, media, conceito, None, ano_letivo_id))
+                except Exception:
+                    continue
+
+        # Construir `resultados` (resumo por série) a partir do cache quando possível
+        resultados = None
+        dados_observacoes = None
+        if hasattr(self, '_cache_historico') and cache_key in self._cache_historico:
+            registros = self._cache_historico[cache_key]['resultados']
+            # Agrupar por serie_id
+            resumo_por_serie = {}
+            observacoes_set = set()
+            for registro, _ in registros:
+                try:
+                    aluno_id_reg = self.aluno_id
+                    serie_id = registro[9] if len(registro) > 9 else None
+                    ano_letivo_nome = registro[2] if len(registro) > 2 else None
+                    escola_nome = registro[4] if len(registro) > 4 else ''
+                    escola_id = registro[10] if len(registro) > 10 else (registro[10] if len(registro) > 10 else None)
+                    media = registro[5] if len(registro) > 5 else None
+                    conceito = registro[6] if len(registro) > 6 else None
+
+                    if serie_id is None:
+                        continue
+
+                    if serie_id not in resumo_por_serie:
+                        resumo_por_serie[serie_id] = {
+                            'count_media': 0,
+                            'count_conceito': 0,
+                            'min_media': None,
+                            'ano_letivo': ano_letivo_nome,
+                            'escola_nome': escola_nome,
+                            'escola_id': escola_id
+                        }
+
+                    # Atualizar contadores e min_media de acordo com as regras usadas no SQL
+                    if media is not None and media != '':
+                        try:
+                            m = float(media)
+                            resumo_por_serie[serie_id]['count_media'] += 1
+                            if resumo_por_serie[serie_id]['min_media'] is None or m < resumo_por_serie[serie_id]['min_media']:
+                                resumo_por_serie[serie_id]['min_media'] = m
+                        except Exception:
+                            pass
+                    if conceito not in (None, '', 'NULL'):
+                        resumo_por_serie[serie_id]['count_conceito'] += 1
+
+                    if serie_id and ano_letivo_nome and escola_id:
+                        observacoes_set.add((serie_id, registro[8] if len(registro) > 8 else None, escola_id))
+                except Exception:
+                    continue
+
+            resultados = []
+            for serie_id, info in resumo_por_serie.items():
+                # Calcular situação_final usando exatamente a mesma lógica do SQL:
+                # 1) WHEN COUNT(media)=0 AND COUNT(conceito)>0 => Promovido(a)
+                # 2) WHEN MIN(media) >= 60 => Promovido(a)
+                # 3) WHEN MIN(media) < 60 => Retido(a)
+                situacao = 'Retido(a)'
+                count_media = info.get('count_media', 0)
+                count_conceito = info.get('count_conceito', 0)
+                min_media = info.get('min_media')
+
+                if count_media == 0 and count_conceito > 0:
+                    situacao = 'Promovido(a)'
+                elif count_media > 0:
+                    try:
+                        if min_media is not None and min_media >= 60:
+                            situacao = 'Promovido(a)'
+                        else:
+                            situacao = 'Retido(a)'
+                    except Exception:
+                        situacao = 'Retido(a)'
+
+                # Tentar obter o município (escola_municipio) consultando o BD quando não estiver disponível
+                # Usar cache local por execução para evitar consultas repetidas à mesma escola
+                # Obter município usando helper reutilizável com cache em nível de processo
+                escola_municipio = ''
+                try:
+                    escola_nome = info.get('escola_nome')
+                    if escola_nome:
+                        escola_municipio = get_escola_municipio(escola_nome)
+                except Exception:
+                    escola_municipio = ''
+
+                resultados.append((self.aluno_id, serie_id, info['ano_letivo'], info['escola_nome'], escola_municipio, situacao))
+
+            # dados_observacoes: lista de tuplas (serie_id, ano_letivo_id, escola_id)
+            dados_observacoes = list(observacoes_set) if observacoes_set else None
+
+        # Log básico para auditoria
+        _logger.info(f"gerar_historico_com_cache: aluno_id={self.aluno_id} aluno_cached={bool(aluno)} historico_cached={bool(historico)}")
+
+        # Calcular carga_total_por_serie quando usamos histórico vindo do cache
+        carga_total_por_serie = None
+        if hasattr(self, '_cache_historico') and cache_key in self._cache_historico:
+            try:
+                # Mapear série -> conjunto de disciplina_ids para consulta única
+                serie_para_disciplinas = {}
+                disciplina_ids = set()
+                serie_ano_escola = {}
+                registros_cache = self._cache_historico[cache_key]['resultados']
+                for registro, _ in registros_cache:
+                    try:
+                        disc_id = registro[7] if len(registro) > 7 else None
+                        ano_letivo_id = registro[8] if len(registro) > 8 else None
+                        serie_id = registro[9] if len(registro) > 9 else None
+                        escola_id = registro[10] if len(registro) > 10 else None
+                        if serie_id is None:
+                            continue
+                        if disc_id:
+                            disciplina_ids.add(disc_id)
+                            serie_para_disciplinas.setdefault(serie_id, set()).add(disc_id)
+                        # armazenar um (ano, escola) representativo para a série (usado para carga_horaria_total)
+                        if serie_id not in serie_ano_escola and ano_letivo_id and escola_id:
+                            serie_ano_escola[serie_id] = (ano_letivo_id, escola_id)
+                    except Exception:
+                        continue
+
+                # Buscar carga horária das disciplinas necessárias em uma única query
+                carga_map = {}
+                if disciplina_ids:
+                    try:
+                        conn_c = conectar_bd()
+                        if conn_c:
+                            cur_c = conn_c.cursor()
+                            placeholders = ','.join(['%s'] * len(disciplina_ids))
+                            query = f"SELECT id, carga_horaria FROM disciplinas WHERE id IN ({placeholders})"
+                            cur_c.execute(query, tuple(disciplina_ids))
+                            for r in cur_c.fetchall():
+                                carga_map[r[0]] = r[1]
+                            cur_c.close()
+                            conn_c.close()
+                    except Exception:
+                        carga_map = {}
+
+                # Montar carga_total_por_serie com base nas cargas individuais e na tabela de carga total quando disponível
+                carga_total_por_serie = {}
+                for serie_id, disc_set in serie_para_disciplinas.items():
+                    total = 0
+                    todas_null = True
+                    for did in disc_set:
+                        ch = carga_map.get(did)
+                        if ch is not None:
+                            todas_null = False
+                            try:
+                                total += int(ch)
+                            except Exception:
+                                try:
+                                    total += float(ch)
+                                except Exception:
+                                    pass
+                    carga_total_por_serie[serie_id] = {
+                        'carga_total': total if not todas_null else None,
+                        'todas_null': todas_null,
+                        'carga_horaria_total': None
+                    }
+
+                # Buscar carga_horaria_total por série (quando disponível) para preencher carga_horaria_total
+                for serie_id, tup in serie_ano_escola.items():
+                    ano_id, escola_id = tup
+                    try:
+                        conn_ct = conectar_bd()
+                        if conn_ct:
+                            cur_ct = conn_ct.cursor()
+                            start_q = time.time()
+                            cur_ct.execute("SELECT carga_horaria_total FROM carga_horaria_total WHERE serie_id = %s AND ano_letivo_id = %s AND escola_id = %s LIMIT 1", (serie_id, ano_id, escola_id))
+                            row_ct = cur_ct.fetchone()
+                            elapsed_ms = int((time.time() - start_q) * 1000)
+                            _logger.info(f"event=db_query name=select_carga_total serie_id={serie_id} ano_letivo_id={ano_id} escola_id={escola_id} duration_ms={elapsed_ms}")
+                            if row_ct and row_ct[0] is not None:
+                                carga_total_por_serie.setdefault(serie_id, {})['carga_horaria_total'] = row_ct[0]
+                            cur_ct.close()
+                            conn_ct.close()
+                    except Exception:
+                        # não falhar a geração por causa desse preenchimento
+                        pass
+
+                # Se todas as cargas individuais são nulas, usar a carga_horaria_total quando existir
+                for sid, info in carga_total_por_serie.items():
+                    if info.get('todas_null') and info.get('carga_horaria_total'):
+                        info['carga_total'] = info['carga_horaria_total']
+
+                if not carga_total_por_serie:
+                    carga_total_por_serie = None
+            except Exception:
+                carga_total_por_serie = None
+
+        # Reconstruir `historico` para incluir `carga_horaria` e `carga_horaria_total`
+        # quando o histórico original veio do cache (as tuplas do cache não
+        # continham as cargas). Isso ajuda `preencher_tabela_estudos_realizados`
+        # a mostrar as cargas individuais e a linha TOTAL/CH.
+        try:
+            if historico is not None and hasattr(self, '_cache_historico') and cache_key in self._cache_historico:
+                rebuilt = []
+                registros_cache = self._cache_historico[cache_key]['resultados']
+                for registro, _ in registros_cache:
+                    try:
+                        disciplina = registro[1]
+                        disc_id = registro[7] if len(registro) > 7 else None
+                        ano_letivo_id = registro[8] if len(registro) > 8 else None
+                        serie_id = registro[9] if len(registro) > 9 else None
+                        escola_id = registro[10] if len(registro) > 10 else None
+                        media = registro[5] if len(registro) > 5 else None
+                        conceito = registro[6] if len(registro) > 6 else None
+
+                        carga_horaria = None
+                        if 'carga_map' in locals() and disc_id is not None:
+                            carga_horaria = carga_map.get(disc_id)
+
+                        carga_horaria_total = None
+                        if carga_total_por_serie and serie_id in carga_total_por_serie:
+                            carga_horaria_total = carga_total_por_serie[serie_id].get('carga_horaria_total') or carga_total_por_serie[serie_id].get('carga_total')
+
+                        rebuilt.append((disciplina, carga_horaria, serie_id, media, conceito, carga_horaria_total, ano_letivo_id))
+                    except Exception:
+                        continue
+                historico = rebuilt
+        except Exception:
+            pass
+
+        # Chamar gerador de PDF passando os parâmetros que temos (inclui carga_total_por_serie quando calculado)
+        try:
+            historico_escolar(self.aluno_id, aluno=aluno, historico=historico, resultados=resultados, dados_observacoes=dados_observacoes, carga_total_por_serie=carga_total_por_serie)
+            self.mostrar_mensagem_temporaria("Histórico escolar gerado com sucesso!")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao gerar histórico: {str(e)}")
 
     def atualizar_disciplinas(self, event=None):
         """
@@ -1708,7 +2003,7 @@ class InterfaceHistoricoEscolar:
             self._aplicar_disciplinas_disponiveis(disciplinas_disponiveis)
                 
         except Exception as e:
-            print(f"Erro ao atualizar disciplinas: {str(e)}")
+            _logger.exception(f"Erro ao atualizar disciplinas: {str(e)}")
             # Fallback para método mais simples se a consulta otimizada falhar
             self._atualizar_disciplinas_fallback(escola_id, serie_id, ano_letivo_id)
         finally:
@@ -1731,7 +2026,7 @@ class InterfaceHistoricoEscolar:
             else:
                 self.disciplina_selecionada.set("")
         except Exception as e:
-            print(f"Erro ao aplicar disciplinas: {str(e)}")
+            _logger.exception(f"Erro ao aplicar disciplinas: {str(e)}")
     
     def _atualizar_disciplinas_fallback(self, escola_id, serie_id, ano_letivo_id):
         """Método fallback para atualizar disciplinas caso a consulta otimizada falhe"""
@@ -1777,7 +2072,7 @@ class InterfaceHistoricoEscolar:
             self._aplicar_disciplinas_disponiveis(disciplinas_disponiveis)
             
         except Exception as e:
-            print(f"Erro no fallback de disciplinas: {str(e)}")
+            _logger.exception(f"Erro no fallback de disciplinas: {str(e)}")
         finally:
             cursor.close()
             conn.close()
@@ -1903,7 +2198,7 @@ class InterfaceHistoricoEscolar:
             
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao aplicar filtros: {str(e)}")
-            print(f"Erro ao aplicar filtros: {str(e)}")
+            _logger.exception(f"Erro ao aplicar filtros: {str(e)}")
         finally:
             cursor.close()
             conn.close()
@@ -1925,7 +2220,7 @@ class InterfaceHistoricoEscolar:
                 # Inserir na treeview
                 self.treeview_historico.insert("", "end", values=valores_display, tags=tags)
         except Exception as e:
-            print(f"Erro ao aplicar registros filtrados: {str(e)}")
+            _logger.exception(f"Erro ao aplicar registros filtrados: {str(e)}")
     
     def invalidar_cache_filtros(self, aluno_id=None):
         """Invalida o cache de filtros quando há alterações"""
@@ -2062,7 +2357,7 @@ class InterfaceHistoricoEscolar:
                 self.disciplina_selecionada.set("")
                 
         except Exception as e:
-            print(f"Erro ao atualizar disciplinas: {str(e)}")
+            _logger.exception(f"Erro ao atualizar disciplinas: {str(e)}")
         finally:
             cursor.close()
             conn.close()
