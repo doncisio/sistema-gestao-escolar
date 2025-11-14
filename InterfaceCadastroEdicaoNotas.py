@@ -584,89 +584,87 @@ class InterfaceCadastroEdicaoNotas:
         scrollbar_y.pack(side="right", fill="y")
         scrollbar_x.pack(side="bottom", fill="x")
         
-        # Preencher tabela com alunos e campo de nota editável
-        self.entradas_notas = {}
+        # Preparar estruturas para notas e mapeamentos
+        self.notas_dict = {}  # {aluno_id: nota_str}
         self.alunos_ids = []  # Lista para manter a ordem dos IDs dos alunos
         self.num_para_id = {}  # Mapeamento de número sequencial para ID do aluno
         self.id_para_num = {}  # Mapeamento de ID do aluno para número sequencial
-        
-        primeiro_campo = None  # Para armazenar referência ao primeiro campo
-        
+
         # Configurando um estilo para destacar os alunos transferidos
         style = ttk.Style()
         style.configure("Transferido.Treeview.Row", foreground="blue")
-        
-        # Numerar os alunos sequencialmente (começando de 1)
+
+        # Numerar os alunos sequencialmente (começando de 1) e preencher Treeview
         for num, aluno in enumerate(alunos, 1):
             aluno_id = aluno[0]
             nome_aluno = aluno[1]
             status_aluno = aluno[2] if len(aluno) > 2 else "Ativo"
-            
-            # Adiciona um indicador visual para alunos transferidos
+
             nome_display = f"{nome_aluno} (Transferido)" if status_aluno == "Transferido" else nome_aluno
-            
-            self.alunos_ids.append(aluno_id)  # Adiciona o ID à lista ordenada
-            self.num_para_id[num] = aluno_id  # Guarda mapeamento número -> ID
-            self.id_para_num[aluno_id] = num  # Guarda mapeamento ID -> número
-            
-            # Inserir na tabela usando o número sequencial em vez do ID
-            item_id = self.tabela.insert("", "end", values=(num, nome_display, ""))
-            
-            # Definir tag para alunos transferidos
+
+            self.alunos_ids.append(aluno_id)
+            self.num_para_id[num] = aluno_id
+            self.id_para_num[aluno_id] = num
+
+            # Buscar nota existente e guardar em dicionário
+            nota = self.buscar_nota_existente(aluno_id, self.disciplina_id, self.bimestre)
+            nota_str = str(nota) if nota is not None else ""
+            self.notas_dict[aluno_id] = nota_str
+
+            # Inserir na tabela
+            item_id = self.tabela.insert("", "end", values=(num, nome_display, nota_str))
             if status_aluno == "Transferido":
                 self.tabela.item(item_id, tags=("transferido",))
-            
-            # Buscar nota existente
-            nota = self.buscar_nota_existente(aluno_id, self.disciplina_id, self.bimestre)
-            
-            # Criar entrada para nota com fundo branco para destacar
-            entrada = tk.Entry(self.tabela, width=5, font=("Arial", 10), bg="white", relief="solid", borderwidth=1, justify="center")
-            if nota is not None:
-                entrada.insert(0, str(nota))
-            
-            # Configurar eventos para a entrada
-            entrada.bind("<KeyRelease>", self.atualizar_estatisticas)
-            entrada.bind("<Tab>", self.navegar_para_proxima_entrada)
-            entrada.bind("<Shift-Tab>", self.navegar_para_entrada_anterior)
-            entrada.bind("<Return>", self.navegar_para_proxima_entrada)
-            
-            # Configurar evento de clique para focar na entrada
-            entrada.bind("<FocusIn>", lambda e, id=aluno_id: self.selecionar_item_por_id(id))
-            
-            # Armazenar referência à entrada
-            self.entradas_notas[aluno_id] = entrada
-            
-            # Guardar referência ao primeiro campo
-            if primeiro_campo is None:
-                primeiro_campo = entrada
-            
-            # Obter bbox para posicionar entrada
-            bbox = self.tabela.bbox(item_id, "nota")
-            if bbox:  # Verificar se bbox é válido
-                x, y, width, height = bbox
-                entrada.place(x=x+5, y=y+2, width=width-10, height=height-4)
+
+        # Criar editor único (reutilizável) para a coluna de notas
+        self._usar_editor_unico = True
+        self._editor_unico = tk.Entry(self.tabela, width=8, font=("Arial", 10), bg="white", relief="solid", borderwidth=1, justify="center")
+        self._editor_unico.bind("<Return>", lambda e: self._fechar_editor(commit=True, mover_proximo=True))
+        self._editor_unico.bind("<Tab>", lambda e: self._fechar_editor(commit=True, mover_proximo=True))
+        self._editor_unico.bind("<FocusOut>", lambda e: self._fechar_editor(commit=True, mover_proximo=False))
+        # Variável para saber qual aluno está sendo editado
+        self._editor_aluno_id = None
+
+        # Eventos para abrir o editor ao clicar/dar duplo-clique na célula de nota
+        dbl_cb = getattr(self, '_on_treeview_double_click', None)
+        if callable(dbl_cb):
+            self.tabela.bind("<Double-1>", dbl_cb)
+        else:
+            self.tabela.bind("<Double-1>", lambda e: None)
+
+        ret_cb = getattr(self, '_on_treeview_return', None)
+        if callable(ret_cb):
+            # wrapper para receber o event arg
+            self.tabela.bind("<Return>", lambda e, f=ret_cb: f())
+        else:
+            self.tabela.bind("<Return>", lambda e: None)
         
         # Configurar cor para os alunos transferidos
         self.tabela.tag_configure("transferido", foreground="blue")
         
-        # Configurar eventos de seleção para manter as entradas visíveis
+        # Eventos de seleção: ao selecionar um item, abrir o editor na coluna nota
+        sel_cb = getattr(self, '_on_treeview_select', None)
+        if callable(sel_cb):
+            self.tabela.bind("<<TreeviewSelect>>", lambda e, f=sel_cb: f())
+        else:
+            self.tabela.bind("<<TreeviewSelect>>", lambda e: None)
+
+        # Quando usar editor único, as rotinas de ajuste de múltiplas entradas tornam-se no-op
+        # Mantemos os bindings existentes, mas os handlers verificarão a flag
         self.tabela.bind("<ButtonRelease-1>", self.ajustar_entradas)
         self.tabela.bind("<Motion>", self.ajustar_entradas)
         self.tabela.bind("<Configure>", self.ajustar_entradas)
-        
-        # Configurar evento de clique na tabela para focar na entrada correspondente
-        self.tabela.bind("<<TreeviewSelect>>", self.focar_entrada_selecionada)
-        
-        # Eventos de redimensionamento da janela e frames
         self.janela.bind("<Configure>", self.ajustar_entradas)
         self.frame_notas.bind("<Configure>", self.ajustar_entradas)
         
-        # Forçar o redesenho das entradas após um breve atraso
-        self.janela.after(200, self.forcar_redesenho_entradas)
-        
-        # Focar no primeiro campo após um breve atraso com verificação de existência
-        if primeiro_campo:
-            self.janela.after(300, lambda f=primeiro_campo: self.focar_campo_seguro(f))
+        # Focar no primeiro aluno (selecionar primeira linha)
+        if self.alunos_ids:
+            primeiro_id = self.alunos_ids[0]
+            # Atrasar ligeiramente a seleção/abertura do editor inicial
+            try:
+                self.janela.after(150, lambda id=primeiro_id: self.selecionar_item_por_id(id))
+            except Exception:
+                self.selecionar_item_por_id(primeiro_id)
     
     def forcar_redesenho_entradas(self):
         """Força o redesenho de todas as entradas para garantir que elas sejam visíveis"""
@@ -684,18 +682,20 @@ class InterfaceCadastroEdicaoNotas:
                 print("Mapeamento de ID para número não existe")
                 return
             
-            # Reposicionar todas as entradas
-            for aluno_id, entrada in self.entradas_notas.items():
-                try:
-                    # Verificar se a entrada ainda existe
-                    if not entrada.winfo_exists():
-                        print(f"Entrada para aluno ID {aluno_id} não existe mais")
-                        continue
-                        
-                    entrada.place_forget()  # Remover temporariamente
-                except Exception as e:
-                    print(f"Erro ao esconder entrada do aluno {aluno_id}: {e}")
-            
+            # Se estamos usando editor único, não há múltiplas entradas para redesenhar
+            if getattr(self, '_usar_editor_unico', False):
+                return
+
+            # Reposicionar todas as entradas (comportamento legacy)
+            if hasattr(self, 'entradas_notas'):
+                for aluno_id, entrada in self.entradas_notas.items():
+                    try:
+                        if not entrada.winfo_exists():
+                            continue
+                        entrada.place_forget()
+                    except Exception as e:
+                        print(f"Erro ao esconder entrada do aluno {aluno_id}: {e}")
+
             # Aplicar ajuste de entradas que irá reposicionar tudo corretamente
             self._realizar_ajuste_entradas()
             
@@ -706,75 +706,96 @@ class InterfaceCadastroEdicaoNotas:
     
     def navegar_para_proxima_entrada(self, event):
         """Move o foco para a próxima entrada de nota após pressionar Tab ou Enter"""
+        # Se estamos usando editor único, navegar entre alunos via lista ordenada
+        if getattr(self, '_usar_editor_unico', False):
+            current = self._editor_aluno_id
+            if current is None:
+                return "break"
+            try:
+                idx = self.alunos_ids.index(current)
+            except ValueError:
+                return "break"
+            # Próximo índice
+            next_idx = (idx + 1) % len(self.alunos_ids)
+            next_id = self.alunos_ids[next_idx]
+            self._fechar_editor(commit=True, mover_proximo=False)
+            self.abrir_editor_para_aluno(next_id)
+            return "break"
+
+        # Comportamento legacy (entradas individuais)
         current_focus_id = None
-        # Encontra qual aluno está com o foco
         for aluno_id, entrada in self.entradas_notas.items():
             if entrada == self.janela.focus_get():
                 current_focus_id = aluno_id
                 break
-        
         if current_focus_id is not None:
-            # Encontra a posição do aluno na lista ordenada
             try:
                 index = self.alunos_ids.index(current_focus_id)
                 if index < len(self.alunos_ids) - 1:
-                    # Se não for o último aluno, move para o próximo
                     proximo_id = self.alunos_ids[index + 1]
                     proxima_entrada = self.entradas_notas[proximo_id]
                     proxima_entrada.focus_set()
-                    proxima_entrada.select_range(0, tk.END)  # Seleciona todo o texto
-                    # Garantir que o item esteja visível na tabela
+                    proxima_entrada.select_range(0, tk.END)
                     self.selecionar_item_por_id(proximo_id)
-                    # Atualizar a posição do scrollbar
-                    self.tabela.see(self.tabela.selection()[0])
+                    if self.tabela.selection():
+                        self.tabela.see(self.tabela.selection()[0])
                 else:
-                    # Se for o último aluno, volta para o primeiro
                     primeiro_id = self.alunos_ids[0]
                     self.entradas_notas[primeiro_id].focus_set()
                     self.entradas_notas[primeiro_id].select_range(0, tk.END)
                     self.selecionar_item_por_id(primeiro_id)
-                    # Atualizar a posição do scrollbar
-                    self.tabela.see(self.tabela.selection()[0])
+                    if self.tabela.selection():
+                        self.tabela.see(self.tabela.selection()[0])
             except (ValueError, IndexError):
                 pass
-        
-        return "break"  # Impede o comportamento padrão do Tab
+
+        return "break"
     
     def navegar_para_entrada_anterior(self, event):
         """Move o foco para a entrada de nota anterior após pressionar Shift+Tab"""
+        # Suporte para editor único
+        if getattr(self, '_usar_editor_unico', False):
+            current = self._editor_aluno_id
+            if current is None:
+                return "break"
+            try:
+                idx = self.alunos_ids.index(current)
+            except ValueError:
+                return "break"
+            prev_idx = (idx - 1) % len(self.alunos_ids)
+            prev_id = self.alunos_ids[prev_idx]
+            self._fechar_editor(commit=True, mover_proximo=False)
+            self.abrir_editor_para_aluno(prev_id)
+            return "break"
+
         current_focus_id = None
-        # Encontra qual aluno está com o foco
         for aluno_id, entrada in self.entradas_notas.items():
             if entrada == self.janela.focus_get():
                 current_focus_id = aluno_id
                 break
-        
+
         if current_focus_id is not None:
-            # Encontra a posição do aluno na lista ordenada
             try:
                 index = self.alunos_ids.index(current_focus_id)
                 if index > 0:
-                    # Se não for o primeiro aluno, move para o anterior
                     anterior_id = self.alunos_ids[index - 1]
                     anterior_entrada = self.entradas_notas[anterior_id]
                     anterior_entrada.focus_set()
-                    anterior_entrada.select_range(0, tk.END)  # Seleciona todo o texto
-                    # Garantir que o item esteja visível na tabela
+                    anterior_entrada.select_range(0, tk.END)
                     self.selecionar_item_por_id(anterior_id)
-                    # Atualizar a posição do scrollbar
-                    self.tabela.see(self.tabela.selection()[0])
+                    if self.tabela.selection():
+                        self.tabela.see(self.tabela.selection()[0])
                 else:
-                    # Se for o primeiro aluno, vai para o último
                     ultimo_id = self.alunos_ids[-1]
                     self.entradas_notas[ultimo_id].focus_set()
                     self.entradas_notas[ultimo_id].select_range(0, tk.END)
                     self.selecionar_item_por_id(ultimo_id)
-                    # Atualizar a posição do scrollbar
-                    self.tabela.see(self.tabela.selection()[0])
+                    if self.tabela.selection():
+                        self.tabela.see(self.tabela.selection()[0])
             except (ValueError, IndexError):
                 pass
-        
-        return "break"  # Impede o comportamento padrão do Shift+Tab
+
+        return "break"
     
     def focar_entrada_selecionada(self, event):
         """Quando um item da tabela é selecionado, coloca o foco na entrada de nota correspondente"""
@@ -785,20 +806,189 @@ class InterfaceCadastroEdicaoNotas:
             if valores:
                 num_sequencial = int(valores[0])
                 aluno_id = self.num_para_id.get(num_sequencial)
-                if aluno_id in self.entradas_notas:
-                    self.entradas_notas[aluno_id].focus_set()
-                    self.entradas_notas[aluno_id].select_range(0, tk.END)  # Seleciona todo o texto
-    
-    def selecionar_item_por_id(self, aluno_id):
-        """Seleciona um item na tabela pelo ID do aluno e garante que ele esteja visível"""
-        num_sequencial = self.id_para_num.get(aluno_id)
-        if num_sequencial:
+                # Ao usar editor único, abrir diretamente o editor para esse aluno
+                if getattr(self, '_usar_editor_unico', False):
+                    # abrir editor posicionado para o aluno selecionado
+                    self.abrir_editor_para_aluno(aluno_id)
+                    return
+
+        # Não faz mais nada; focar é tratado pela abertura do editor
+
+    def _get_item_id_by_aluno(self, aluno_id):
+        """Retorna o item_id do Treeview correspondente ao aluno_id ou None."""
+        if aluno_id is None:
+            return None
+
+        # Usar mapeamento direto se disponível
+        try:
+            num = self.id_para_num.get(aluno_id)
+        except Exception:
+            num = None
+
+        if num is not None:
             for item_id in self.tabela.get_children():
-                valores = self.tabela.item(item_id, "values")
-                if valores and str(valores[0]) == str(num_sequencial):
-                    self.tabela.selection_set(item_id)
-                    self.tabela.see(item_id)  # Certifica que o item está visível
-                    break  # Interrompe o loop quando encontrar o item
+                vals = self.tabela.item(item_id, "values")
+                if vals and str(vals[0]) == str(num):
+                    return item_id
+
+        # Fallback: tentar comparar via num_para_id
+        try:
+            for item_id in self.tabela.get_children():
+                vals = self.tabela.item(item_id, "values")
+                if vals:
+                    try:
+                        num_seq = int(vals[0])
+                    except Exception:
+                        continue
+                    if self.num_para_id.get(num_seq) == aluno_id:
+                        return item_id
+        except Exception:
+            pass
+
+        return None
+        for item_id in self.tabela.get_children():
+            vals = self.tabela.item(item_id, "values")
+            if vals and str(vals[0]) == str(num):
+                return item_id
+        return None
+
+    def abrir_editor_para_aluno(self, aluno_id):
+        """Abre o editor único posicionado sobre a célula 'nota' do aluno especificado."""
+        if not getattr(self, '_usar_editor_unico', False):
+            return
+
+        item_id = self._get_item_id_by_aluno(aluno_id)
+        if not item_id:
+            return
+
+        # Garantir que o item esteja visível
+        self.tabela.see(item_id)
+
+        # Obter bbox da célula de nota
+        bbox = self.tabela.bbox(item_id, 'nota')
+        if not bbox:
+            # Pode não estar visível imediatamente; tentar forçar redraw e tentar novamente
+            self.tabela.update_idletasks()
+            bbox = self.tabela.bbox(item_id, 'nota')
+            if not bbox:
+                return
+
+        x, y, width, height = bbox
+        # Posicionar editor dentro do treeview
+        self._editor_unico.place(in_=self.tabela, x=x+5, y=y+2, width=width-10, height=height-4)
+
+        # Carregar valor atual
+        valor = self.notas_dict.get(aluno_id, "")
+        self._editor_unico.delete(0, tk.END)
+        if valor is not None:
+            self._editor_unico.insert(0, str(valor))
+
+        self._editor_aluno_id = aluno_id
+        self._editor_unico.focus_set()
+        try:
+            self._editor_unico.select_range(0, tk.END)
+        except Exception:
+            pass
+
+    def _fechar_editor(self, commit=True, mover_proximo=False):
+        """Fecha o editor único, opcionalmente gravando o valor e movendo para o próximo aluno."""
+        if not getattr(self, '_usar_editor_unico', False):
+            return
+
+        if self._editor_aluno_id is None:
+            try:
+                self._editor_unico.place_forget()
+            except Exception:
+                pass
+            return
+
+        valor = self._editor_unico.get().strip()
+        aluno_id = self._editor_aluno_id
+
+        if commit:
+            # Normalizar/validar usando parse_nota; armazenar string normalizada ou vazio
+            parsed = self.parse_nota(valor)
+            if parsed is not None:
+                self.notas_dict[aluno_id] = str(parsed)
+                # Atualizar célula na treeview
+                item_id = self._get_item_id_by_aluno(aluno_id)
+                if item_id:
+                    self.tabela.set(item_id, 'nota', str(parsed))
+            else:
+                # Se inválido, manter como texto bruto (ou limpar)
+                if valor == "":
+                    self.notas_dict[aluno_id] = ""
+                    item_id = self._get_item_id_by_aluno(aluno_id)
+                    if item_id:
+                        self.tabela.set(item_id, 'nota', "")
+                else:
+                    # manter valor bruto para que usuário corrija
+                    self.notas_dict[aluno_id] = valor
+                    item_id = self._get_item_id_by_aluno(aluno_id)
+                    if item_id:
+                        self.tabela.set(item_id, 'nota', valor)
+
+        # Esconder editor
+        try:
+            self._editor_unico.place_forget()
+        except Exception:
+            pass
+
+        self._editor_aluno_id = None
+
+        # Atualizar estatísticas
+        try:
+            self.atualizar_estatisticas()
+        except Exception:
+            pass
+
+        # Mover para próximo se solicitado
+        if mover_proximo and getattr(self, 'alunos_ids', None):
+            try:
+                idx = self.alunos_ids.index(aluno_id)
+                next_idx = (idx + 1) % len(self.alunos_ids)
+                next_id = self.alunos_ids[next_idx]
+                # abrir próximo editor após breve atraso para permitir o place_forget completar
+                self.janela.after(50, lambda: self.abrir_editor_para_aluno(next_id))
+            except Exception:
+                pass
+
+    def _on_treeview_double_click(self, event):
+        """Handler para duplo clique no Treeview. Abre editor se clicou na coluna de nota."""
+        region = self.tabela.identify_region(event.x, event.y)
+        if region != 'cell':
+            return
+        col = self.tabela.identify_column(event.x)
+        row = self.tabela.identify_row(event.y)
+        # coluna '#3' corresponde a terceira coluna -> 'nota'
+        if col == '#3' and row:
+            valores = self.tabela.item(row, 'values')
+            if valores:
+                num = int(valores[0])
+                aluno_id = self.num_para_id.get(num)
+                if aluno_id:
+                    self.abrir_editor_para_aluno(aluno_id)
+
+    def _on_treeview_return(self):
+        """Abrir editor na linha selecionada quando Return pressionado sobre a tabela."""
+        sel = self.tabela.selection()
+        if not sel:
+            return
+        item = sel[0]
+        vals = self.tabela.item(item, 'values')
+        if not vals:
+            return
+        num = int(vals[0])
+        aluno_id = self.num_para_id.get(num)
+        if aluno_id:
+            self.abrir_editor_para_aluno(aluno_id)
+
+    def _on_treeview_select(self):
+        # Comportamento simples: focar entrada selecionada via método existente
+        try:
+            self.focar_entrada_selecionada(None)
+        except Exception:
+            pass
     
     def ajustar_entradas(self, event=None):
         # Reposicionar todas as entradas conforme a tabela é rolada
@@ -809,6 +999,10 @@ class InterfaceCadastroEdicaoNotas:
                 self._ajuste_agendado = None
             
             # Agenda ajuste para dar tempo da geometria atualizar
+            # Se estamos usando editor único, nada a ajustar (editor será reposicionado quando necessário)
+            if getattr(self, '_usar_editor_unico', False):
+                return
+
             self._ajuste_agendado = self.janela.after(10, self._realizar_ajuste_entradas)
         except Exception as e:
             print(f"Erro ao agendar ajuste: {e}")
@@ -819,9 +1013,13 @@ class InterfaceCadastroEdicaoNotas:
             self._ajuste_agendado = None
             
             # Verificar se os dicionários necessários existem
+            # Quando usando editor único, nada a ajustar aqui
+            if getattr(self, '_usar_editor_unico', False):
+                return
+
             if not hasattr(self, 'entradas_notas') or not self.entradas_notas:
                 return
-                
+
             if not hasattr(self, 'id_para_num') or not self.id_para_num:
                 return
             
@@ -879,19 +1077,55 @@ class InterfaceCadastroEdicaoNotas:
         except Exception as e:
             print(f"Erro ao buscar nota: {e}")
             return None
+
+    def parse_nota(self, texto):
+        """
+        Converte e valida uma string de nota para float.
+
+        Retorna None quando a entrada for vazia ou inválida.
+        Aceita vírgula como separador decimal.
+        Valida intervalo entre 0 e 100 (ajustar se necessário).
+        """
+        if texto is None:
+            return None
+        s = str(texto).strip()
+        if s == "":
+            return None
+        s = s.replace(',', '.')
+        try:
+            v = float(s)
+        except (ValueError, TypeError):
+            return None
+        if v < 0 or v > 100:
+            return None
+        return v
     
     def atualizar_estatisticas(self, event=None):
         # Coletar notas válidas
         notas = []
         
-        for entrada in self.entradas_notas.values():
-            try:
-                nota_texto = entrada.get().strip()
-                if nota_texto:
-                    nota = float(nota_texto.replace(',', '.'))
-                    notas.append(nota)
-            except ValueError:
-                pass
+        # Se usando editor único, iterar sobre notas_dict
+        if getattr(self, '_usar_editor_unico', False):
+            for aluno_id in self.alunos_ids:
+                nota_texto = self.notas_dict.get(aluno_id, "")
+                if nota_texto is None:
+                    continue
+                try:
+                    nota_val = self.parse_nota(nota_texto)
+                    if nota_val is not None:
+                        notas.append(nota_val)
+                except Exception:
+                    pass
+        else:
+            for entrada in self.entradas_notas.values():
+                try:
+                    nota_texto = entrada.get().strip()
+                    if nota_texto:
+                        nota_val = self.parse_nota(nota_texto)
+                        if nota_val is not None:
+                            notas.append(nota_val)
+                except Exception:
+                    pass
         
         # Atualizar estatísticas
         if notas:
@@ -925,29 +1159,36 @@ class InterfaceCadastroEdicaoNotas:
             self.lbl_total_alunos.config(text=str(len(self.alunos)))
     
     def salvar_notas(self):
-        if not hasattr(self, 'entradas_notas') or not self.entradas_notas:
+        # Suporta tanto o modo legacy (entradas por linha) quanto o editor único
+        has_entries = hasattr(self, 'entradas_notas') and bool(getattr(self, 'entradas_notas', {}))
+        has_notas_dict = getattr(self, '_usar_editor_unico', False) and hasattr(self, 'notas_dict') and bool(getattr(self, 'notas_dict', {}))
+        if not (has_entries or has_notas_dict):
             messagebox.showinfo("Aviso", "Não há notas para salvar.")
             return
         
+        conn = conectar_bd()
+        if conn is None:
+            messagebox.showerror("Erro de Conexão", "Não foi possível conectar ao banco de dados.")
+            return
+
+        cursor = conn.cursor()
+        count_inseridas = 0
+        count_atualizadas = 0
+        count_removidas = 0
+
         try:
-            conn = conectar_bd()
-            cursor = conn.cursor()
-            
-            count_inseridas = 0
-            count_atualizadas = 0
-            count_removidas = 0
-            
-            for aluno_id, entrada in self.entradas_notas.items():
-                nota_texto = entrada.get().strip()
-                
+            # Iterar na ordem dos alunos
+            for aluno_id in self.alunos_ids:
+                nota_texto = str(self.notas_dict.get(aluno_id, "")).strip()
+
                 # Verificar se já existe uma nota para este aluno, disciplina e bimestre
                 cursor.execute("""
                     SELECT id FROM notas 
                     WHERE aluno_id = %s AND disciplina_id = %s AND bimestre = %s AND ano_letivo_id = %s
                 """, (aluno_id, self.disciplina_id, self.bimestre, self.ano_letivo_atual))
-                
+
                 resultado = cursor.fetchone()
-                
+
                 # Se a entrada estiver vazia e existir uma nota no banco, remover a nota
                 if not nota_texto and resultado:
                     cursor.execute("""
@@ -956,55 +1197,76 @@ class InterfaceCadastroEdicaoNotas:
                     """, (resultado[0],))
                     count_removidas += 1
                     continue
-                
+
                 # Se a entrada estiver vazia e não existir nota, pular
                 if not nota_texto:
                     continue
-                
-                try:
-                    # Converter para float e validar nota
-                    nota = float(nota_texto.replace(',', '.'))
-                    if nota < 0 or nota > 100:
-                        messagebox.showwarning("Aviso", f"Nota inválida para o aluno ID {aluno_id}. A nota deve estar entre 0 e 100.")
-                        continue
-                    
-                    if resultado:
-                        # Atualizar a nota existente
-                        cursor.execute("""
-                            UPDATE notas 
-                            SET nota = %s 
-                            WHERE id = %s
-                        """, (nota, resultado[0]))
-                        count_atualizadas += 1
-                    else:
-                        # Inserir nova nota
-                        cursor.execute("""
-                            INSERT INTO notas (aluno_id, disciplina_id, bimestre, nota, ano_letivo_id) 
-                            VALUES (%s, %s, %s, %s, %s)
-                        """, (aluno_id, self.disciplina_id, self.bimestre, nota, self.ano_letivo_atual))
-                        count_inseridas += 1
-                except ValueError:
-                    messagebox.showwarning("Aviso", f"Valor de nota inválido para o aluno ID {aluno_id}.")
-            
+
+                # Normalizar e validar nota
+                nota = self.parse_nota(nota_texto)
+                if nota is None:
+                    messagebox.showwarning("Aviso", f"Nota inválida para o aluno ID {aluno_id}. A nota deve ser um número entre 0 e 100.")
+                    continue
+
+                if resultado:
+                    # Atualizar a nota existente
+                    cursor.execute("""
+                        UPDATE notas 
+                        SET nota = %s 
+                        WHERE id = %s
+                    """, (nota, resultado[0]))
+                    count_atualizadas += 1
+                else:
+                    # Inserir nova nota
+                    cursor.execute("""
+                        INSERT INTO notas (aluno_id, disciplina_id, bimestre, nota, ano_letivo_id) 
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (aluno_id, self.disciplina_id, self.bimestre, nota, self.ano_letivo_atual))
+                    count_inseridas += 1
+
             conn.commit()
-            cursor.close()
-            conn.close()
-            
             messagebox.showinfo("Sucesso", f"Notas salvas com sucesso!\n\nNovas notas: {count_inseridas}\nNotas atualizadas: {count_atualizadas}\nNotas removidas: {count_removidas}")
         except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             messagebox.showerror("Erro", f"Erro ao salvar notas: {e}")
+        finally:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+            try:
+                conn.close()
+            except Exception:
+                pass
     
     def limpar_campos(self):
         # Limpar todas as entradas de notas
-        if hasattr(self, 'entradas_notas'):
+        if getattr(self, '_usar_editor_unico', False):
+            # Limpar dicionário de notas e atualizar a tabela
+            for aluno_id in list(self.notas_dict.keys()):
+                self.notas_dict[aluno_id] = ""
+                # Atualizar célula na treeview
+                # Encontrar item correspondente
+                num = self.id_para_num.get(aluno_id)
+                if num:
+                    for item_id in self.tabela.get_children():
+                        vals = self.tabela.item(item_id, "values")
+                        if vals and str(vals[0]) == str(num):
+                            self.tabela.set(item_id, 'nota', "")
+                            break
+        elif hasattr(self, 'entradas_notas'):
             for entrada in self.entradas_notas.values():
                 entrada.delete(0, tk.END)
-            
-            # Atualizar estatísticas
-            self.atualizar_estatisticas()
+
+        # Atualizar estatísticas
+        self.atualizar_estatisticas()
     
     def exportar_para_excel(self):
-        if not hasattr(self, 'entradas_notas') or not self.entradas_notas:
+        # Se não houver alunos/carregamento
+        if not hasattr(self, 'alunos') or not self.alunos:
             messagebox.showinfo("Aviso", "Não há notas para exportar.")
             return
         
@@ -1014,7 +1276,10 @@ class InterfaceCadastroEdicaoNotas:
             
             for aluno in self.alunos:
                 aluno_id = aluno[0]
-                nota_texto = self.entradas_notas[aluno_id].get().strip()
+                if getattr(self, '_usar_editor_unico', False):
+                    nota_texto = str(self.notas_dict.get(aluno_id, "")).strip()
+                else:
+                    nota_texto = self.entradas_notas[aluno_id].get().strip()
                 nota = nota_texto if nota_texto else ""
                 
                 dados_notas.append({
@@ -1050,7 +1315,10 @@ class InterfaceCadastroEdicaoNotas:
             messagebox.showerror("Erro", f"Erro ao exportar notas: {e}")
 
     def importar_do_excel(self):
-        if not hasattr(self, 'entradas_notas') or not self.entradas_notas:
+        # Permite importação tanto em modo legacy quanto com editor único
+        has_entries = hasattr(self, 'entradas_notas') and bool(getattr(self, 'entradas_notas', {}))
+        has_notas_dict = getattr(self, '_usar_editor_unico', False) and hasattr(self, 'notas_dict')
+        if not (has_entries or has_notas_dict):
             messagebox.showinfo("Aviso", "Selecione uma turma e disciplina primeiro para poder importar notas.")
             return
         
@@ -1085,29 +1353,39 @@ class InterfaceCadastroEdicaoNotas:
             # Processar cada linha do Excel
             for _, row in df.iterrows():
                 aluno_id = int(row["ID"])
-                nota_texto = str(row["Nota"]).strip()
-                
+                nota_texto = row["Nota"]
+
                 # Verificar se o aluno existe nas entradas
-                if aluno_id in self.entradas_notas:
-                    alunos_encontrados += 1
-                    
-                    # Atualizar a entrada com a nota do Excel
-                    if nota_texto and nota_texto.lower() != "nan":
-                        # Substituir vírgula por ponto (se necessário)
-                        nota_texto = nota_texto.replace(',', '.')
-                        
-                        try:
-                            # Validar se a nota é um número válido
-                            nota = float(nota_texto)
-                            
-                            if 0 <= nota <= 100:  # Alterado para 100
-                                self.entradas_notas[aluno_id].delete(0, tk.END)
-                                self.entradas_notas[aluno_id].insert(0, str(nota))
-                                notas_atualizadas += 1
-                            else:
-                                print(f"Nota fora do intervalo válido para aluno ID {aluno_id}: {nota}")
-                        except ValueError:
-                            print(f"Valor de nota inválido para aluno ID {aluno_id}: {nota_texto}")
+                if getattr(self, '_usar_editor_unico', False):
+                    # Estamos usando notas_dict
+                    if aluno_id in self.notas_dict:
+                        alunos_encontrados += 1
+                        nota_parsed = self.parse_nota(nota_texto)
+                        if nota_parsed is not None:
+                            self.notas_dict[aluno_id] = str(nota_parsed)
+                            # Atualizar célula na treeview
+                            num = self.id_para_num.get(aluno_id)
+                            if num:
+                                for item_id in self.tabela.get_children():
+                                    vals = self.tabela.item(item_id, "values")
+                                    if vals and str(vals[0]) == str(num):
+                                        self.tabela.set(item_id, 'nota', str(nota_parsed))
+                                        break
+                            notas_atualizadas += 1
+                        else:
+                            if str(nota_texto).strip() and str(nota_texto).strip().lower() != 'nan':
+                                print(f"Valor de nota inválido para aluno ID {aluno_id}: {nota_texto}")
+                else:
+                    if aluno_id in self.entradas_notas:
+                        alunos_encontrados += 1
+                        nota_parsed = self.parse_nota(nota_texto)
+                        if nota_parsed is not None:
+                            self.entradas_notas[aluno_id].delete(0, tk.END)
+                            self.entradas_notas[aluno_id].insert(0, str(nota_parsed))
+                            notas_atualizadas += 1
+                        else:
+                            if str(nota_texto).strip() and str(nota_texto).strip().lower() != 'nan':
+                                print(f"Valor de nota inválido para aluno ID {aluno_id}: {nota_texto}")
             
             # Atualizar estatísticas
             self.atualizar_estatisticas()
@@ -1438,10 +1716,17 @@ class InterfaceCadastroEdicaoNotas:
         
         def log(msg):
             """Adiciona mensagem ao log"""
-            janela_progresso.text_log.insert(tk.END, f"{msg}\n")
-            janela_progresso.text_log.see(tk.END)
-            janela_progresso.text_log.update()
+            # Sempre imprimir no console
             print(msg)
+            # Atualizar o widget de log somente no thread principal (thread-safe)
+            try:
+                self.janela.after(0, lambda m=msg: (
+                    janela_progresso.text_log.insert(tk.END, m + "\n"),
+                    janela_progresso.text_log.see(tk.END)
+                ))
+            except Exception:
+                # Em caso de erro ao agendar, garantir que ao menos o print ocorreu
+                pass
         
         automacao = None
         try:
