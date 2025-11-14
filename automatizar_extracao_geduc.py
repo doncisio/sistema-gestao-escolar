@@ -1080,9 +1080,17 @@ def interface_automacao():
     
     def adicionar_log(mensagem):
         """Adiciona mensagem ao log"""
-        text_log.insert(tk.END, f"{mensagem}\n")
-        text_log.see(tk.END)
-        text_log.update()
+        try:
+            # Agendar atualização no main thread via after para garantir thread-safety
+            try:
+                text_log.after(0, lambda m=mensagem: (text_log.insert(tk.END, f"{m}\n"), text_log.see(tk.END)))
+            except Exception:
+                # Fallback: tentar inserir diretamente (último recurso)
+                text_log.insert(tk.END, f"{mensagem}\n")
+                text_log.see(tk.END)
+        except Exception:
+            # Silenciar erros de log para não interromper a automação
+            pass
     
     def iniciar_extracao():
         """Inicia o processo de extração"""

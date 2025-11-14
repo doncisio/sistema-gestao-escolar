@@ -1,8 +1,10 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from conexao import conectar_bd
+import config
 import pandas as pd
 from datetime import datetime
+from utilitarios.conversoes import to_safe_float
 import mysql.connector
 import os
 
@@ -39,6 +41,23 @@ class InterfaceCadastroEdicaoNotas:
         
         # Configurar a janela
         self.janela.configure(bg=self.co0)
+        # Inicializações padrão para atributos usados pela classe
+        # Declarações explícitas ajudam o Pylance a reconhecer os atributos
+        self.entradas_notas: dict = {}
+        self.notas_dict: dict = {}
+        self.alunos_ids: list = []
+        self.num_para_id: dict = {}
+        self.id_para_num: dict = {}
+        self.niveis_map: dict = {}
+        self.series_map: dict = {}
+        self.turmas_map: dict = {}
+        self.disciplinas_map: dict = {}
+        self.tabela = None
+        self._usar_editor_unico = False
+        self._editor_unico = None
+        self._editor_aluno_id = None
+        # Conjunto de IDs com notas inválidas (string não convertida por parse_nota)
+        self.invalid_notas = set()
         
         # Obter ano letivo atual
         self.ano_letivo_atual = self.obter_ano_letivo_atual()
@@ -51,37 +70,47 @@ class InterfaceCadastroEdicaoNotas:
             self.janela.destroy()
     
     def obter_ano_letivo_atual(self):
+        conn = None
+        cursor = None
         try:
             conn = conectar_bd()
             if conn is None:
                 messagebox.showerror("Erro de Conexão", "Não foi possível conectar ao banco de dados.")
                 return None
-                
+
             cursor = conn.cursor()
-                
+
             # Primeiro tenta obter o ano letivo do ano atual
             cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = YEAR(CURDATE())")
             resultado_ano = cursor.fetchone()
-            
+
             if not resultado_ano:
                 # Se não encontrar o ano atual, busca o mais recente
                 cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
                 resultado_ano = cursor.fetchone()
-                
+
             if not resultado_ano:
                 messagebox.showwarning("Aviso", "Não foi possível determinar o ano letivo atual.")
                 return None
-                    
+
             ano_letivo_id = resultado_ano[0]
-                
-            cursor.close()
-            conn.close()
-            
+
             return ano_letivo_id
-            
+
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao obter ano letivo atual: {e}")
             return None
+        finally:
+            try:
+                if cursor is not None:
+                    cursor.close()
+            except Exception:
+                pass
+            try:
+                if conn is not None:
+                    conn.close()
+            except Exception:
+                pass
     
     def criar_barra_menu(self):
         """Cria a barra de menu no topo da janela (estilo página principal)"""
@@ -293,22 +322,22 @@ class InterfaceCadastroEdicaoNotas:
         self.lbl_total_alunos.grid(row=1, column=5, padx=5, pady=5, sticky="w")
     
     def carregar_niveis_ensino(self):
+        conn = None
+        cursor = None
         try:
             conn = conectar_bd()
             if conn is None:
                 messagebox.showerror("Erro de Conexão", "Não foi possível conectar ao banco de dados.")
                 return
-                
+
             cursor = conn.cursor()
             cursor.execute("SELECT id, nome FROM niveisensino ORDER BY nome")
             niveis = cursor.fetchall()
-            cursor.close()
-            conn.close()
-            
+
             if not niveis:
                 messagebox.showinfo("Informação", "Nenhum nível de ensino encontrado no banco de dados.")
                 return
-            
+
             self.niveis_map = {nivel[1]: nivel[0] for nivel in niveis}
             self.cb_nivel['values'] = list(self.niveis_map.keys())
             if self.cb_nivel['values']:
@@ -318,6 +347,17 @@ class InterfaceCadastroEdicaoNotas:
                 self.carregar_disciplinas()
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar níveis de ensino: {e}")
+        finally:
+            try:
+                if cursor is not None:
+                    cursor.close()
+            except Exception:
+                pass
+            try:
+                if conn is not None:
+                    conn.close()
+            except Exception:
+                pass
     
     def carregar_series(self, event=None):
         if not self.cb_nivel.get():
@@ -327,18 +367,18 @@ class InterfaceCadastroEdicaoNotas:
         if nivel_id is None:
             return
         
+        conn = None
+        cursor = None
         try:
             conn = conectar_bd()
             if conn is None:
                 messagebox.showerror("Erro de Conexão", "Não foi possível conectar ao banco de dados.")
                 return
-                
+
             cursor = conn.cursor()
-            cursor.execute("SELECT id, nome FROM serie WHERE nivel_id = %s ORDER BY nome", (nivel_id,))
+            cursor.execute("SELECT id, nome FROM serie WHERE nivel_id = %s ORDER BY nome", self._norm_params((nivel_id,)))
             series = cursor.fetchall()
-            cursor.close()
-            conn.close()
-            
+
             self.series_map = {serie[1]: serie[0] for serie in series}
             self.cb_serie['values'] = list(self.series_map.keys())
             if self.cb_serie['values']:
@@ -350,6 +390,17 @@ class InterfaceCadastroEdicaoNotas:
                 self.cb_turma['values'] = []
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar séries: {e}")
+        finally:
+            try:
+                if cursor is not None:
+                    cursor.close()
+            except Exception:
+                pass
+            try:
+                if conn is not None:
+                    conn.close()
+            except Exception:
+                pass
     
     def carregar_turmas(self, event=None):
         if not self.cb_serie.get():
@@ -359,23 +410,23 @@ class InterfaceCadastroEdicaoNotas:
         if serie_id is None:
             return
         
+        conn = None
+        cursor = None
         try:
             conn = conectar_bd()
             if conn is None:
                 messagebox.showerror("Erro de Conexão", "Não foi possível conectar ao banco de dados.")
                 return
-                
+
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT t.id, CONCAT(t.nome, ' - ', t.turno) AS turma_nome 
                 FROM turmas t 
                 WHERE t.serie_id = %s AND t.ano_letivo_id = %s
                 ORDER BY t.nome
-            """, (serie_id, self.ano_letivo_atual))
+            """, self._norm_params((serie_id, self.ano_letivo_atual)))
             turmas = cursor.fetchall()
-            cursor.close()
-            conn.close()
-            
+
             self.turmas_map = {turma[1]: turma[0] for turma in turmas}
             self.cb_turma['values'] = list(self.turmas_map.keys())
             if self.cb_turma['values']:
@@ -389,6 +440,17 @@ class InterfaceCadastroEdicaoNotas:
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar turmas: {e}")
             print(f"Erro detalhado ao carregar turmas: {str(e)}")
+        finally:
+            try:
+                if cursor is not None:
+                    cursor.close()
+            except Exception:
+                pass
+            try:
+                if conn is not None:
+                    conn.close()
+            except Exception:
+                pass
     
     def carregar_disciplinas(self, event=None):
         if not self.cb_nivel.get():
@@ -398,46 +460,45 @@ class InterfaceCadastroEdicaoNotas:
         if nivel_id is None:
             return
         
+        conn = None
+        cursor = None
         try:
             conn = conectar_bd()
             if conn is None:
                 messagebox.showerror("Erro de Conexão", "Não foi possível conectar ao banco de dados.")
                 return
-            
+
             cursor = conn.cursor()
-            
+
             # Usar uma consulta mais simples que carrega todas as disciplinas com o nivel_id correto
             cursor.execute("""
                 SELECT id, nome 
                 FROM disciplinas 
-                WHERE nivel_id = %s AND escola_id = 60
+                WHERE nivel_id = %s AND escola_id = %s
                 ORDER BY nome
-            """, (nivel_id,))
-            
+            """, self._norm_params((nivel_id, config.ESCOLA_ID)))
+
             disciplinas = cursor.fetchall()
-            
+
             # Se não encontrar disciplinas com nivel_id, tenta buscar todas as disciplinas da escola
             if not disciplinas:
                 cursor.execute("""
                     SELECT id, nome 
                     FROM disciplinas 
-                    WHERE escola_id = 60
+                    WHERE escola_id = %s
                     ORDER BY nome
-                """)
+                """, self._norm_params((config.ESCOLA_ID,)))
                 disciplinas = cursor.fetchall()
-            
-            cursor.close()
-            conn.close()
-            
+
             if not disciplinas:
                 messagebox.showinfo("Informação", "Não há disciplinas cadastradas para esta escola.")
                 self.cb_disciplina.set("")
                 self.cb_disciplina['values'] = []
                 return
-            
+
             # Mostrar o que foi carregado para debug
             # print(f"Disciplinas carregadas: {disciplinas}")
-            
+
             self.disciplinas_map = {disc[1]: disc[0] for disc in disciplinas}
             self.cb_disciplina['values'] = list(self.disciplinas_map.keys())
             if self.cb_disciplina['values']:
@@ -447,6 +508,17 @@ class InterfaceCadastroEdicaoNotas:
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar disciplinas: {e}")
             print(f"Erro detalhado: {str(e)}")
+        finally:
+            try:
+                if cursor is not None:
+                    cursor.close()
+            except Exception:
+                pass
+            try:
+                if conn is not None:
+                    conn.close()
+            except Exception:
+                pass
     
     def carregar_notas_alunos(self, event=None):
         # Verificações iniciais
@@ -510,6 +582,10 @@ class InterfaceCadastroEdicaoNotas:
         
         try:
             conn = conectar_bd()
+            cursor = None
+            if conn is None:
+                messagebox.showerror("Erro de Conexão", "Não foi possível conectar ao banco de dados.")
+                return
             cursor = conn.cursor()
             
             # Buscar alunos da turma em ordem alfabética
@@ -520,14 +596,13 @@ class InterfaceCadastroEdicaoNotas:
                 WHERE m.turma_id = %s 
                 AND m.ano_letivo_id = %s 
                 AND m.status IN ('Ativo', 'Transferido')
-                AND a.escola_id = 60
+                AND a.escola_id = %s
                 ORDER BY a.nome
-            """, (turma_id, self.ano_letivo_atual))
+            """, self._norm_params((turma_id, self.ano_letivo_atual, config.ESCOLA_ID)))
             
             alunos = cursor.fetchall()
             
-            cursor.close()
-            conn.close()
+            # fechará em finally
             
             print(f"Alunos encontrados: {len(alunos)}")
             
@@ -554,6 +629,17 @@ class InterfaceCadastroEdicaoNotas:
             messagebox.showerror("Erro", f"Erro ao carregar dados: {e}")
             import traceback
             traceback.print_exc()
+        finally:
+            try:
+                if cursor is not None:
+                    cursor.close()
+            except Exception:
+                pass
+            try:
+                if conn is not None:
+                    conn.close()
+            except Exception:
+                pass
     
     def criar_tabela_notas(self, alunos):
         # Frame com scroll para a tabela
@@ -641,6 +727,11 @@ class InterfaceCadastroEdicaoNotas:
         
         # Configurar cor para os alunos transferidos
         self.tabela.tag_configure("transferido", foreground="blue")
+        # Tag para destacar linhas com nota inválida
+        try:
+            self.tabela.tag_configure("nota_invalida", background="#FFCCCC")
+        except Exception:
+            pass
         
         # Eventos de seleção: ao selecionar um item, abrir o editor na coluna nota
         sel_cb = getattr(self, '_on_treeview_select', None)
@@ -753,15 +844,17 @@ class InterfaceCadastroEdicaoNotas:
                     proxima_entrada.focus_set()
                     proxima_entrada.select_range(0, tk.END)
                     self.selecionar_item_por_id(proximo_id)
-                    if self.tabela.selection():
-                        self.tabela.see(self.tabela.selection()[0])
+                    t = getattr(self, 'tabela', None)
+                    if t and t.selection():
+                        t.see(t.selection()[0])
                 else:
                     primeiro_id = self.alunos_ids[0]
                     self.entradas_notas[primeiro_id].focus_set()
                     self.entradas_notas[primeiro_id].select_range(0, tk.END)
                     self.selecionar_item_por_id(primeiro_id)
-                    if self.tabela.selection():
-                        self.tabela.see(self.tabela.selection()[0])
+                    t = getattr(self, 'tabela', None)
+                    if t and t.selection():
+                        t.see(t.selection()[0])
             except (ValueError, IndexError):
                 pass
 
@@ -799,15 +892,17 @@ class InterfaceCadastroEdicaoNotas:
                     anterior_entrada.focus_set()
                     anterior_entrada.select_range(0, tk.END)
                     self.selecionar_item_por_id(anterior_id)
-                    if self.tabela.selection():
-                        self.tabela.see(self.tabela.selection()[0])
+                    t = getattr(self, 'tabela', None)
+                    if t and t.selection():
+                        t.see(t.selection()[0])
                 else:
                     ultimo_id = self.alunos_ids[-1]
                     self.entradas_notas[ultimo_id].focus_set()
                     self.entradas_notas[ultimo_id].select_range(0, tk.END)
                     self.selecionar_item_por_id(ultimo_id)
-                    if self.tabela.selection():
-                        self.tabela.see(self.tabela.selection()[0])
+                    t = getattr(self, 'tabela', None)
+                    if t and t.selection():
+                        t.see(t.selection()[0])
             except (ValueError, IndexError):
                 pass
 
@@ -815,10 +910,11 @@ class InterfaceCadastroEdicaoNotas:
     
     def focar_entrada_selecionada(self, event):
         """Quando um item da tabela é selecionado, coloca o foco na entrada de nota correspondente"""
-        selection = self.tabela.selection()
+        t = getattr(self, 'tabela', None)
+        selection = t.selection() if t else ()
         if selection:
             item = selection[0]
-            valores = self.tabela.item(item, "values")
+            valores = t.item(item, "values") if t else None
             if valores:
                 num_sequencial = int(valores[0])
                 aluno_id = self.num_para_id.get(num_sequencial)
@@ -842,15 +938,21 @@ class InterfaceCadastroEdicaoNotas:
             num = None
 
         if num is not None:
-            for item_id in self.tabela.get_children():
-                vals = self.tabela.item(item_id, "values")
+            t = getattr(self, 'tabela', None)
+            if t is None:
+                return None
+            for item_id in t.get_children():
+                vals = t.item(item_id, "values")
                 if vals and str(vals[0]) == str(num):
                     return item_id
 
         # Fallback: tentar comparar via num_para_id
         try:
-            for item_id in self.tabela.get_children():
-                vals = self.tabela.item(item_id, "values")
+            t = getattr(self, 'tabela', None)
+            if t is None:
+                return None
+            for item_id in t.get_children():
+                vals = t.item(item_id, "values")
                 if vals:
                     try:
                         num_seq = int(vals[0])
@@ -871,12 +973,15 @@ class InterfaceCadastroEdicaoNotas:
                 return
 
             # Selecionar o item na Treeview e trazê-lo à vista
+            t = getattr(self, 'tabela', None)
+            if t is None:
+                return
             try:
-                self.tabela.selection_set(item_id)
+                t.selection_set(item_id)
             except Exception:
                 pass
             try:
-                self.tabela.see(item_id)
+                t.see(item_id)
             except Exception:
                 pass
 
@@ -900,32 +1005,44 @@ class InterfaceCadastroEdicaoNotas:
         if not item_id:
             return
 
-        # Garantir que o item esteja visível
-        self.tabela.see(item_id)
+        # Garantir que a tabela exista e o item esteja visível
+        t = getattr(self, 'tabela', None)
+        if t is None:
+            return
+        try:
+            t.see(item_id)
 
-        # Obter bbox da célula de nota
-        bbox = self.tabela.bbox(item_id, 'nota')
-        if not bbox:
-            # Pode não estar visível imediatamente; tentar forçar redraw e tentar novamente
-            self.tabela.update_idletasks()
-            bbox = self.tabela.bbox(item_id, 'nota')
+            # Obter bbox da célula de nota
+            bbox = t.bbox(item_id, 'nota')
             if not bbox:
-                return
+                # Pode não estar visível imediatamente; tentar forçar redraw e tentar novamente
+                t.update_idletasks()
+                bbox = t.bbox(item_id, 'nota')
+                if not bbox:
+                    return
 
-        x, y, width, height = bbox
-        # Posicionar editor dentro do treeview
-        self._editor_unico.place(in_=self.tabela, x=x+5, y=y+2, width=width-10, height=height-4)
+            x, y, width, height = bbox
+            # Posicionar editor dentro do treeview
+            e = getattr(self, '_editor_unico', None)
+            if e is None:
+                return
+            e.place(in_=t, x=x+5, y=y+2, width=width-10, height=height-4)
+        except Exception:
+            return
 
         # Carregar valor atual
         valor = self.notas_dict.get(aluno_id, "")
-        self._editor_unico.delete(0, tk.END)
+        e = getattr(self, '_editor_unico', None)
+        if e is None:
+            return
+        e.delete(0, tk.END)
         if valor is not None:
-            self._editor_unico.insert(0, str(valor))
+            e.insert(0, str(valor))
 
         self._editor_aluno_id = aluno_id
-        self._editor_unico.focus_set()
+        e.focus_set()
         try:
-            self._editor_unico.select_range(0, tk.END)
+            e.select_range(0, tk.END)
         except Exception:
             pass
 
@@ -934,14 +1051,22 @@ class InterfaceCadastroEdicaoNotas:
         if not getattr(self, '_usar_editor_unico', False):
             return
 
+        # Se não houver editor ativo, tentar esconder e sair
         if self._editor_aluno_id is None:
             try:
-                self._editor_unico.place_forget()
+                e = getattr(self, '_editor_unico', None)
+                if e is not None:
+                    e.place_forget()
             except Exception:
                 pass
             return
 
-        valor = self._editor_unico.get().strip()
+        # Garantir que o editor exista
+        e = getattr(self, '_editor_unico', None)
+        if e is None:
+            return
+
+        valor = e.get().strip()
         aluno_id = self._editor_aluno_id
 
         if commit:
@@ -952,24 +1077,65 @@ class InterfaceCadastroEdicaoNotas:
                 # Atualizar célula na treeview
                 item_id = self._get_item_id_by_aluno(aluno_id)
                 if item_id:
-                    self.tabela.set(item_id, 'nota', str(parsed))
+                    t = getattr(self, 'tabela', None)
+                    if t:
+                        t.set(item_id, 'nota', str(parsed))
+                        # Se estava marcado como inválido, remover a marcação
+                        try:
+                            if aluno_id in getattr(self, 'invalid_notas', set()):
+                                self.invalid_notas.discard(aluno_id)
+                            tags = list(t.item(item_id, 'tags') or [])
+                            if 'nota_invalida' in tags:
+                                try:
+                                    tags.remove('nota_invalida')
+                                except Exception:
+                                    pass
+                                t.item(item_id, tags=tuple(tags))
+                        except Exception:
+                            pass
             else:
                 # Se inválido, manter como texto bruto (ou limpar)
                 if valor == "":
                     self.notas_dict[aluno_id] = ""
                     item_id = self._get_item_id_by_aluno(aluno_id)
                     if item_id:
-                        self.tabela.set(item_id, 'nota', "")
+                        t = getattr(self, 'tabela', None)
+                        if t:
+                            t.set(item_id, 'nota', "")
+                            # remover marcação caso exista
+                            try:
+                                if aluno_id in getattr(self, 'invalid_notas', set()):
+                                    self.invalid_notas.discard(aluno_id)
+                                tags = list(t.item(item_id, 'tags') or [])
+                                if 'nota_invalida' in tags:
+                                    try:
+                                        tags.remove('nota_invalida')
+                                    except Exception:
+                                        pass
+                                    t.item(item_id, tags=tuple(tags))
+                            except Exception:
+                                pass
                 else:
                     # manter valor bruto para que usuário corrija
                     self.notas_dict[aluno_id] = valor
                     item_id = self._get_item_id_by_aluno(aluno_id)
                     if item_id:
-                        self.tabela.set(item_id, 'nota', valor)
+                        t = getattr(self, 'tabela', None)
+                        if t:
+                            t.set(item_id, 'nota', valor)
+                            # marcar como inválido para destaque visual
+                            try:
+                                self.invalid_notas.add(aluno_id)
+                                tags = list(t.item(item_id, 'tags') or [])
+                                if 'nota_invalida' not in tags:
+                                    tags.append('nota_invalida')
+                                    t.item(item_id, tags=tuple(tags))
+                            except Exception:
+                                pass
 
         # Esconder editor
         try:
-            self._editor_unico.place_forget()
+            e.place_forget()
         except Exception:
             pass
 
@@ -994,14 +1160,17 @@ class InterfaceCadastroEdicaoNotas:
 
     def _on_treeview_double_click(self, event):
         """Handler para duplo clique no Treeview. Abre editor se clicou na coluna de nota."""
-        region = self.tabela.identify_region(event.x, event.y)
+        t = getattr(self, 'tabela', None)
+        if t is None:
+            return
+        region = t.identify_region(event.x, event.y)
         if region != 'cell':
             return
-        col = self.tabela.identify_column(event.x)
-        row = self.tabela.identify_row(event.y)
+        col = t.identify_column(event.x)
+        row = t.identify_row(event.y)
         # coluna '#3' corresponde a terceira coluna -> 'nota'
         if col == '#3' and row:
-            valores = self.tabela.item(row, 'values')
+            valores = t.item(row, 'values')
             if valores:
                 num = int(valores[0])
                 aluno_id = self.num_para_id.get(num)
@@ -1010,11 +1179,12 @@ class InterfaceCadastroEdicaoNotas:
 
     def _on_treeview_return(self):
         """Abrir editor na linha selecionada quando Return pressionado sobre a tabela."""
-        sel = self.tabela.selection()
+        t = getattr(self, 'tabela', None)
+        sel = t.selection() if t else ()
         if not sel:
             return
         item = sel[0]
-        vals = self.tabela.item(item, 'values')
+        vals = t.item(item, 'values') if t else None
         if not vals:
             return
         num = int(vals[0])
@@ -1032,11 +1202,15 @@ class InterfaceCadastroEdicaoNotas:
     def _on_key_down(self, event):
         """Handler para tecla Down: move seleção para a próxima linha e abre o editor."""
         try:
-            children = list(self.tabela.get_children())
+            t = getattr(self, 'tabela', None)
+            if t is None:
+                return "break"
+
+            children = list(t.get_children())
             if not children:
                 return "break"
 
-            sel = self.tabela.selection()
+            sel = t.selection()
             if not sel:
                 target = children[0]
             else:
@@ -1049,16 +1223,16 @@ class InterfaceCadastroEdicaoNotas:
 
             # Selecionar e mostrar
             try:
-                self.tabela.selection_set(target)
+                t.selection_set(target)
             except Exception:
                 pass
             try:
-                self.tabela.see(target)
+                t.see(target)
             except Exception:
                 pass
 
             # Abrir editor para a linha selecionada
-            vals = self.tabela.item(target, 'values')
+            vals = t.item(target, 'values')
             if vals:
                 try:
                     num = int(vals[0])
@@ -1074,11 +1248,15 @@ class InterfaceCadastroEdicaoNotas:
     def _on_key_up(self, event):
         """Handler para tecla Up: move seleção para a linha anterior e abre o editor."""
         try:
-            children = list(self.tabela.get_children())
+            t = getattr(self, 'tabela', None)
+            if t is None:
+                return "break"
+
+            children = list(t.get_children())
             if not children:
                 return "break"
 
-            sel = self.tabela.selection()
+            sel = t.selection()
             if not sel:
                 target = children[-1]
             else:
@@ -1091,16 +1269,16 @@ class InterfaceCadastroEdicaoNotas:
 
             # Selecionar e mostrar
             try:
-                self.tabela.selection_set(target)
+                t.selection_set(target)
             except Exception:
                 pass
             try:
-                self.tabela.see(target)
+                t.see(target)
             except Exception:
                 pass
 
             # Abrir editor para a linha selecionada
-            vals = self.tabela.item(target, 'values')
+            vals = t.item(target, 'values')
             if vals:
                 try:
                     num = int(vals[0])
@@ -1147,8 +1325,12 @@ class InterfaceCadastroEdicaoNotas:
                 return
             
             # Força atualização da geometria da tabela antes de pegar bbox
-            self.tabela.update_idletasks()
-                
+            t = getattr(self, 'tabela', None)
+            if t is None:
+                return
+            # Força atualização da geometria da tabela antes de pegar bbox
+            t.update_idletasks()
+
             for aluno_id, entrada in self.entradas_notas.items():
                 try:
                     # Verificar se a entrada ainda existe
@@ -1161,10 +1343,10 @@ class InterfaceCadastroEdicaoNotas:
                         continue
                         
                     # Encontrar o item da tabela para este número sequencial
-                    for item_id in self.tabela.get_children():
-                        valores = self.tabela.item(item_id, "values")
+                    for item_id in t.get_children():
+                        valores = t.item(item_id, "values")
                         if valores and str(valores[0]) == str(num_sequencial):
-                            bbox = self.tabela.bbox(item_id, "nota")
+                            bbox = t.bbox(item_id, "nota")
                             if bbox:  # Verificar se o item está visível
                                 x, y, width, height = bbox
                                 # Configurar tamanho visível da entrada
@@ -1182,24 +1364,38 @@ class InterfaceCadastroEdicaoNotas:
             print(f"Erro geral ao ajustar entradas: {e}")
     
     def buscar_nota_existente(self, aluno_id, disciplina_id, bimestre):
+        conn = None
+        cursor = None
         try:
             conn = conectar_bd()
+            if conn is None:
+                print("Erro de conexão ao buscar nota: conectar_bd() retornou None")
+                return None
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT nota 
                 FROM notas 
                 WHERE aluno_id = %s AND disciplina_id = %s AND bimestre = %s AND ano_letivo_id = %s
-            """, (aluno_id, disciplina_id, bimestre, self.ano_letivo_atual))
+            """, self._norm_params((aluno_id, disciplina_id, bimestre, self.ano_letivo_atual)))
             resultado = cursor.fetchone()
-            cursor.close()
-            conn.close()
-            
+
             if resultado:
                 return resultado[0]
             return None
         except Exception as e:
             print(f"Erro ao buscar nota: {e}")
             return None
+        finally:
+            try:
+                if cursor is not None:
+                    cursor.close()
+            except Exception:
+                pass
+            try:
+                if conn is not None:
+                    conn.close()
+            except Exception:
+                pass
 
     def parse_nota(self, texto):
         """
@@ -1222,6 +1418,72 @@ class InterfaceCadastroEdicaoNotas:
         if v < 0 or v > 100:
             return None
         return v
+
+    def _normalize_param(self, val):
+        """Normaliza um único parâmetro antes de passá-lo a cursor.execute.
+
+        - Converte sets/tuplas/listas em strings separadas por vírgula (para evitar
+          passar coleções diretamente ao driver).
+        - Converte booleanos para int.
+        - Mantém int/float/Decimal/str/bytes como estão.
+        - Converte NaN para None.
+        - Valores desconhecidos são convertidos para str().
+        """
+        try:
+            # Evitar passar coleções diretamente (p.ex. set)
+            if isinstance(val, (set, list, tuple)):
+                try:
+                    return ','.join(str(x) for x in val)
+                except Exception:
+                    return str(val)
+
+            # Booleanos para int (opcional)
+            if isinstance(val, bool):
+                return int(val)
+
+            # Tipos primitivos aceitos pelo driver
+            from decimal import Decimal
+            if isinstance(val, (int, float, Decimal, str, bytes)):
+                # Tratar NaN
+                try:
+                    import math
+                    if isinstance(val, float) and math.isnan(val):
+                        return None
+                except Exception:
+                    pass
+                return val
+
+            # Tratar pandas/Numpy NaN-like
+            try:
+                import math
+                if hasattr(val, 'item'):
+                    v = val.item()
+                    if isinstance(v, float) and math.isnan(v):
+                        return None
+                    return v
+            except Exception:
+                pass
+
+            # Fallback: converter para string
+            return str(val)
+        except Exception:
+            return str(val)
+
+    def _norm_params(self, params):
+        """Normaliza uma sequência/tupla de parâmetros para passar ao cursor.
+
+        Retorna uma tuple com parâmetros transformados por `_normalize_param`.
+        """
+        if params is None:
+            return None
+        try:
+            return tuple(self._normalize_param(p) for p in params)
+        except Exception:
+            # Em caso de erro, tentar forçar a conversão simples
+            try:
+                return tuple(str(p) for p in params)
+            except Exception:
+                return params
     
     def atualizar_estatisticas(self, event=None):
         # Coletar notas válidas
@@ -1288,6 +1550,30 @@ class InterfaceCadastroEdicaoNotas:
         if not (has_entries or has_notas_dict):
             messagebox.showinfo("Aviso", "Não há notas para salvar.")
             return
+
+        # Bloquear salvamento se houver notas marcadas como inválidas
+        try:
+            invalids = getattr(self, 'invalid_notas', set())
+            if invalids:
+                # Construir uma listagem breve para o usuário (número sequencial ou nome)
+                lista_amostra = []
+                for aid in list(invalids)[:10]:
+                    num = self.id_para_num.get(aid)
+                    nome = None
+                    try:
+                        nome = next((a[1] for a in getattr(self, 'alunos', []) if a[0] == aid), None)
+                    except Exception:
+                        nome = None
+                    if nome:
+                        lista_amostra.append(f"{num} - {nome}" if num else nome)
+                    else:
+                        lista_amostra.append(str(num) if num else str(aid))
+
+                amostra_txt = ", ".join(lista_amostra)
+                messagebox.showwarning("Notas Inválidas", f"Existem {len(invalids)} notas inválidas. Corrija-as antes de salvar.\n\nExemplos: {amostra_txt}")
+                return
+        except Exception:
+            pass
         
         conn = conectar_bd()
         if conn is None:
@@ -1308,7 +1594,7 @@ class InterfaceCadastroEdicaoNotas:
                 cursor.execute("""
                     SELECT id FROM notas 
                     WHERE aluno_id = %s AND disciplina_id = %s AND bimestre = %s AND ano_letivo_id = %s
-                """, (aluno_id, self.disciplina_id, self.bimestre, self.ano_letivo_atual))
+                """, self._norm_params((aluno_id, self.disciplina_id, self.bimestre, self.ano_letivo_atual)))
 
                 resultado = cursor.fetchone()
 
@@ -1317,7 +1603,7 @@ class InterfaceCadastroEdicaoNotas:
                     cursor.execute("""
                         DELETE FROM notas 
                         WHERE id = %s
-                    """, (resultado[0],))
+                    """, self._norm_params((resultado[0],)))
                     count_removidas += 1
                     continue
 
@@ -1331,20 +1617,36 @@ class InterfaceCadastroEdicaoNotas:
                     messagebox.showwarning("Aviso", f"Nota inválida para o aluno ID {aluno_id}. A nota deve ser um número entre 0 e 100.")
                     continue
 
+                # Se a nota era marcada como inválida, remover a marcação agora que está válida
+                try:
+                    if aluno_id in getattr(self, 'invalid_notas', set()):
+                        self.invalid_notas.discard(aluno_id)
+                    t = getattr(self, 'tabela', None)
+                    item_id = self._get_item_id_by_aluno(aluno_id)
+                    if t and item_id:
+                        tags = list(t.item(item_id, 'tags') or [])
+                        if 'nota_invalida' in tags:
+                            try:
+                                tags.remove('nota_invalida')
+                            except Exception:
+                                pass
+                            t.item(item_id, tags=tuple(tags))
+                except Exception:
+                    pass
                 if resultado:
                     # Atualizar a nota existente
                     cursor.execute("""
                         UPDATE notas 
                         SET nota = %s 
                         WHERE id = %s
-                    """, (nota, resultado[0]))
+                    """, self._norm_params((nota, resultado[0])))
                     count_atualizadas += 1
                 else:
                     # Inserir nova nota
                     cursor.execute("""
                         INSERT INTO notas (aluno_id, disciplina_id, bimestre, nota, ano_letivo_id) 
                         VALUES (%s, %s, %s, %s, %s)
-                    """, (aluno_id, self.disciplina_id, self.bimestre, nota, self.ano_letivo_atual))
+                    """, self._norm_params((aluno_id, self.disciplina_id, self.bimestre, nota, self.ano_letivo_atual)))
                     count_inseridas += 1
 
             conn.commit()
@@ -1375,17 +1677,35 @@ class InterfaceCadastroEdicaoNotas:
                 # Encontrar item correspondente
                 num = self.id_para_num.get(aluno_id)
                 if num:
-                    for item_id in self.tabela.get_children():
-                        vals = self.tabela.item(item_id, "values")
-                        if vals and str(vals[0]) == str(num):
-                            self.tabela.set(item_id, 'nota', "")
-                            break
+                    t = getattr(self, 'tabela', None)
+                    if t:
+                        for item_id in t.get_children():
+                            vals = t.item(item_id, "values")
+                            if vals and str(vals[0]) == str(num):
+                                t.set(item_id, 'nota', "")
+                                break
         elif hasattr(self, 'entradas_notas'):
             for entrada in self.entradas_notas.values():
                 entrada.delete(0, tk.END)
 
         # Atualizar estatísticas
         self.atualizar_estatisticas()
+        # Limpar marcações de notas inválidas
+        try:
+            if hasattr(self, 'invalid_notas'):
+                self.invalid_notas.clear()
+            t = getattr(self, 'tabela', None)
+            if t:
+                for item_id in t.get_children():
+                    tags = list(t.item(item_id, 'tags') or [])
+                    if 'nota_invalida' in tags:
+                        try:
+                            tags.remove('nota_invalida')
+                        except Exception:
+                            pass
+                        t.item(item_id, tags=tuple(tags))
+        except Exception:
+            pass
     
     def exportar_para_excel(self):
         # Se não houver alunos/carregamento
@@ -1489,15 +1809,32 @@ class InterfaceCadastroEdicaoNotas:
                             # Atualizar célula na treeview
                             num = self.id_para_num.get(aluno_id)
                             if num:
-                                for item_id in self.tabela.get_children():
-                                    vals = self.tabela.item(item_id, "values")
-                                    if vals and str(vals[0]) == str(num):
-                                        self.tabela.set(item_id, 'nota', str(nota_parsed))
-                                        break
+                                t = getattr(self, 'tabela', None)
+                                if t:
+                                    for item_id in t.get_children():
+                                        vals = t.item(item_id, "values")
+                                        if vals and str(vals[0]) == str(num):
+                                            t.set(item_id, 'nota', str(nota_parsed))
+                                            break
                             notas_atualizadas += 1
                         else:
                             if str(nota_texto).strip() and str(nota_texto).strip().lower() != 'nan':
-                                print(f"Valor de nota inválido para aluno ID {aluno_id}: {nota_texto}")
+                                # Marcar como inválido para correção manual
+                                try:
+                                    self.invalid_notas.add(aluno_id)
+                                    num = self.id_para_num.get(aluno_id)
+                                    t = getattr(self, 'tabela', None)
+                                    if t and num:
+                                        for item_id in t.get_children():
+                                            vals = t.item(item_id, "values")
+                                            if vals and str(vals[0]) == str(num):
+                                                tags = list(t.item(item_id, 'tags') or [])
+                                                if 'nota_invalida' not in tags:
+                                                    tags.append('nota_invalida')
+                                                    t.item(item_id, tags=tuple(tags))
+                                                break
+                                except Exception:
+                                    print(f"Valor de nota inválido para aluno ID {aluno_id}: {nota_texto}")
                 else:
                     if aluno_id in self.entradas_notas:
                         alunos_encontrados += 1
@@ -1508,7 +1845,22 @@ class InterfaceCadastroEdicaoNotas:
                             notas_atualizadas += 1
                         else:
                             if str(nota_texto).strip() and str(nota_texto).strip().lower() != 'nan':
-                                print(f"Valor de nota inválido para aluno ID {aluno_id}: {nota_texto}")
+                                # Marcar como inválido na tabela legacy
+                                try:
+                                    self.invalid_notas.add(aluno_id)
+                                    t = getattr(self, 'tabela', None)
+                                    num = self.id_para_num.get(aluno_id)
+                                    if t and num:
+                                        for item_id in t.get_children():
+                                            vals = t.item(item_id, "values")
+                                            if vals and str(vals[0]) == str(num):
+                                                tags = list(t.item(item_id, 'tags') or [])
+                                                if 'nota_invalida' not in tags:
+                                                    tags.append('nota_invalida')
+                                                    t.item(item_id, tags=tuple(tags))
+                                                break
+                                except Exception:
+                                    print(f"Valor de nota inválido para aluno ID {aluno_id}: {nota_texto}")
             
             # Atualizar estatísticas
             self.atualizar_estatisticas()
@@ -1715,9 +2067,10 @@ class InterfaceCadastroEdicaoNotas:
         janela_cred.geometry(f'400x200+{x}+{y}')
         
         # Variáveis
-        usuario_var = tk.StringVar(value="01813518386")
-        senha_var = tk.StringVar(value="01813518386")
-        resultado = {'confirmado': False}
+        usuario_var = tk.StringVar(value=getattr(config, 'GEDUC_DEFAULT_USER', ''))
+        senha_var = tk.StringVar(value=getattr(config, 'GEDUC_DEFAULT_PASS', ''))
+        resultado = {}
+        resultado['confirmado'] = False
         
         # Conteúdo
         tk.Label(
@@ -1826,7 +2179,7 @@ class InterfaceCadastroEdicaoNotas:
         text_log.config(yscrollcommand=scrollbar.set)
         
         # Armazenar referências
-        janela.text_log = text_log
+        # (atributo `text_log` é criado quando necessário via `setattr` em tempo de execução)
         
         return janela
     
@@ -2148,8 +2501,13 @@ class InterfaceCadastroEdicaoNotas:
         Returns:
             nivel_id ou None se não encontrar
         """
+        conn = None
+        cursor = None
         try:
             conn = conectar_bd()
+            if conn is None:
+                print("Erro de conexão ao obter nível da turma: conectar_bd() retornou None")
+                return None
             cursor = conn.cursor()
             
             cursor.execute("""
@@ -2161,21 +2519,35 @@ class InterfaceCadastroEdicaoNotas:
             """, (turma_id,))
             
             resultado = cursor.fetchone()
-            cursor.close()
-            conn.close()
             
             return resultado[0] if resultado else None
             
         except Exception as e:
             print(f"Erro ao obter nível da turma: {e}")
             return None
+        finally:
+            try:
+                if cursor is not None:
+                    cursor.close()
+            except Exception:
+                pass
+            try:
+                if conn is not None:
+                    conn.close()
+            except Exception:
+                pass
     
     def _buscar_alunos_turma_local(self, turma_id):
         """Busca alunos da turma no banco local"""
         import unicodedata
         
+        conn = None
+        cursor = None
         try:
             conn = conectar_bd()
+            if conn is None:
+                print("Erro de conexão ao buscar alunos locais: conectar_bd() retornou None")
+                return {}
             cursor = conn.cursor()
             
             cursor.execute("""
@@ -2185,13 +2557,11 @@ class InterfaceCadastroEdicaoNotas:
                 WHERE m.turma_id = %s 
                 AND m.ano_letivo_id = %s 
                 AND m.status IN ('Ativo', 'Transferido')
-                AND a.escola_id = 60
+                AND a.escola_id = %s
                 ORDER BY a.nome
-            """, (turma_id, self.ano_letivo_atual))
+            """, self._norm_params((turma_id, self.ano_letivo_atual, config.ESCOLA_ID)))
             
             alunos = cursor.fetchall()
-            cursor.close()
-            conn.close()
             
             # Criar dicionário com nomes normalizados
             def normalizar_nome(nome):
@@ -2228,6 +2598,17 @@ class InterfaceCadastroEdicaoNotas:
         except Exception as e:
             print(f"Erro ao buscar alunos locais: {e}")
             return {}
+        finally:
+            try:
+                if cursor is not None:
+                    cursor.close()
+            except Exception:
+                pass
+            try:
+                if conn is not None:
+                    conn.close()
+            except Exception:
+                pass
     
     def _buscar_disciplina_local(self, nome_disciplina, nivel_id=None):
         """
@@ -2237,8 +2618,13 @@ class InterfaceCadastroEdicaoNotas:
             nome_disciplina: Nome da disciplina
             nivel_id: ID do nível de ensino (opcional, mas recomendado)
         """
+        conn = None
+        cursor = None
         try:
             conn = conectar_bd()
+            if conn is None:
+                print("Erro de conexão ao buscar disciplina: conectar_bd() retornou None")
+                return None
             cursor = conn.cursor()
             
             # Se nivel_id foi fornecido, buscar com filtro de nível
@@ -2246,65 +2632,66 @@ class InterfaceCadastroEdicaoNotas:
                 # Buscar por nome exato + nível
                 cursor.execute("""
                     SELECT id FROM disciplinas 
-                    WHERE nome = %s AND nivel_id = %s AND escola_id = 60
+                    WHERE nome = %s AND nivel_id = %s AND escola_id = %s
                     LIMIT 1
-                """, (nome_disciplina, nivel_id))
+                """, self._norm_params((nome_disciplina, nivel_id, config.ESCOLA_ID)))
                 
                 resultado = cursor.fetchone()
                 
                 if resultado:
-                    cursor.close()
-                    conn.close()
                     return resultado[0]
                 
                 # Se não encontrar, tentar busca parcial + nível
                 cursor.execute("""
                     SELECT id FROM disciplinas 
-                    WHERE nome LIKE %s AND nivel_id = %s AND escola_id = 60
+                    WHERE nome LIKE %s AND nivel_id = %s AND escola_id = %s
                     LIMIT 1
-                """, (f"%{nome_disciplina}%", nivel_id))
+                """, self._norm_params((f"%{nome_disciplina}%", nivel_id, config.ESCOLA_ID)))
                 
                 resultado = cursor.fetchone()
-                cursor.close()
-                conn.close()
                 
                 if resultado:
                     return resultado[0]
             
             # Se não tem nivel_id OU não encontrou com nivel_id, buscar sem filtro
-            conn = conectar_bd()
-            cursor = conn.cursor()
-            
+            # Reutilizar a mesma conexão/cursor
             # Buscar por nome exato (sem nivel_id)
             cursor.execute("""
                 SELECT id FROM disciplinas 
-                WHERE nome = %s AND escola_id = 60
+                WHERE nome = %s AND escola_id = %s
                 LIMIT 1
-            """, (nome_disciplina,))
+            """, self._norm_params((nome_disciplina, config.ESCOLA_ID)))
             
             resultado = cursor.fetchone()
             
             if resultado:
-                cursor.close()
-                conn.close()
                 return resultado[0]
             
             # Busca parcial (último recurso)
             cursor.execute("""
                 SELECT id FROM disciplinas 
-                WHERE nome LIKE %s AND escola_id = 60
+                WHERE nome LIKE %s AND escola_id = %s
                 LIMIT 1
-            """, (f"%{nome_disciplina}%",))
+            """, self._norm_params((f"%{nome_disciplina}%", config.ESCOLA_ID)))
             
             resultado = cursor.fetchone()
-            cursor.close()
-            conn.close()
             
             return resultado[0] if resultado else None
             
         except Exception as e:
             print(f"Erro ao buscar disciplina: {e}")
             return None
+        finally:
+            try:
+                if cursor is not None:
+                    cursor.close()
+            except Exception:
+                pass
+            try:
+                if conn is not None:
+                    conn.close()
+            except Exception:
+                pass
     
     def _salvar_notas_banco(self, alunos_geduc, alunos_local, disciplina_id, bimestre_num, ano_letivo_id):
         """
@@ -2338,8 +2725,13 @@ class InterfaceCadastroEdicaoNotas:
                     break
             return nome.upper().strip()
         
+        conn = None
+        cursor = None
         try:
             conn = conectar_bd()
+            if conn is None:
+                print("Erro de conexão ao salvar notas no banco: conectar_bd() retornou None")
+                return 0, 0, []
             cursor = conn.cursor()
             
             inseridas = 0
@@ -2372,7 +2764,7 @@ class InterfaceCadastroEdicaoNotas:
                     AND disciplina_id = %s 
                     AND bimestre = %s 
                     AND ano_letivo_id = %s
-                """, (aluno_id, disciplina_id, bimestre_texto, ano_letivo_id))
+                """, self._norm_params((aluno_id, disciplina_id, bimestre_texto, ano_letivo_id)))
                 
                 resultado = cursor.fetchone()
                 
@@ -2382,19 +2774,17 @@ class InterfaceCadastroEdicaoNotas:
                         UPDATE notas 
                         SET nota = %s 
                         WHERE id = %s
-                    """, (nota_media, resultado[0]))
+                    """, self._norm_params((nota_media, resultado[0])))
                     atualizadas += 1
                 else:
                     # Inserir
                     cursor.execute("""
                         INSERT INTO notas (aluno_id, disciplina_id, bimestre, nota, ano_letivo_id) 
                         VALUES (%s, %s, %s, %s, %s)
-                    """, (aluno_id, disciplina_id, bimestre_texto, nota_media, ano_letivo_id))
+                    """, self._norm_params((aluno_id, disciplina_id, bimestre_texto, nota_media, ano_letivo_id)))
                     inseridas += 1
             
             conn.commit()
-            cursor.close()
-            conn.close()
             
             return inseridas, atualizadas, nao_encontrados
             
@@ -2403,6 +2793,17 @@ class InterfaceCadastroEdicaoNotas:
             import traceback
             traceback.print_exc()
             return 0, 0, []
+        finally:
+            try:
+                if cursor is not None:
+                    cursor.close()
+            except Exception:
+                pass
+            try:
+                if conn is not None:
+                    conn.close()
+            except Exception:
+                pass
 
     def processar_recuperacao_bimestral(self):
         """
@@ -2473,10 +2874,17 @@ class InterfaceCadastroEdicaoNotas:
         
         def log(msg):
             """Adiciona mensagem ao log"""
-            janela_progresso.text_log.insert(tk.END, f"{msg}\n")
-            janela_progresso.text_log.see(tk.END)
-            janela_progresso.text_log.update()
+            # Sempre imprimir no console
             print(msg)
+            # Atualizar o widget de log somente no thread principal (thread-safe)
+            try:
+                self.janela.after(0, lambda m=msg: (
+                    janela_progresso.text_log.insert(tk.END, m + "\n"),
+                    janela_progresso.text_log.see(tk.END)
+                ))
+            except Exception:
+                # Se falhar ao agendar no thread principal, apenas garantir que o print ocorreu
+                pass
         
         def normalizar_nome_turma(texto):
             """Normaliza nome para comparação"""
@@ -2689,21 +3097,23 @@ class InterfaceCadastroEdicaoNotas:
         
         try:
             conn = conectar_bd()
+            cursor = None
+            if conn is None:
+                print("Erro de conexão ao buscar turma local: conectar_bd() retornou None")
+                return None
             cursor = conn.cursor()
-            
+
             # Buscar todas as turmas da escola
             cursor.execute("""
                 SELECT t.id, t.nome, s.nome as serie_nome, t.turno
                 FROM turmas t
                 JOIN serie s ON t.serie_id = s.id
-                WHERE t.escola_id = 60
+                WHERE t.escola_id = %s
                 AND t.ano_letivo_id = %s
-            """, (self.ano_letivo_atual,))
-            
+            """, self._norm_params((config.ESCOLA_ID, self.ano_letivo_atual)))
+
             turmas = cursor.fetchall()
-            cursor.close()
-            conn.close()
-            
+
             # Normalizar nome do GEDUC
             nome_geduc_norm = normalizar(nome_turma_geduc)
             
@@ -2744,6 +3154,17 @@ class InterfaceCadastroEdicaoNotas:
         except Exception as e:
             print(f"Erro ao buscar turma local: {e}")
             return None
+        finally:
+            try:
+                if cursor is not None:
+                    cursor.close()
+            except Exception:
+                pass
+            try:
+                if conn is not None:
+                    conn.close()
+            except Exception:
+                pass
     
 
     def _processar_recuperacao_banco(self, dados_recuperacao, alunos_local, disciplina_id, bimestre_num, ano_letivo_id, log_debug=None):
@@ -2781,6 +3202,12 @@ class InterfaceCadastroEdicaoNotas:
         
         try:
             conn = conectar_bd()
+            cursor = None
+            if conn is None:
+                if log_debug:
+                    log_debug("Erro de conexão: conectar_bd() retornou None")
+                print("Erro de conexão ao processar recuperação: conectar_bd() retornou None")
+                return 0
             cursor = conn.cursor()
             
             atualizados = 0
@@ -2824,7 +3251,7 @@ class InterfaceCadastroEdicaoNotas:
                     AND disciplina_id = %s 
                     AND bimestre = %s 
                     AND ano_letivo_id = %s
-                """, (aluno_id, disciplina_id, bimestre_texto, ano_letivo_id))
+                """, self._norm_params((aluno_id, disciplina_id, bimestre_texto, ano_letivo_id)))
                 
                 resultado = cursor.fetchone()
                 
@@ -2836,7 +3263,9 @@ class InterfaceCadastroEdicaoNotas:
                 nota_id, nota_atual = resultado
                 
                 # Converter nota_atual para escala 0-10
-                nota_atual_decimal = float(nota_atual) / 10.0 if nota_atual else 0
+                # Usar helper seguro para converter (trata NaN, strings, Decimal etc.)
+                v = to_safe_float(nota_atual)
+                nota_atual_decimal = (v / 10.0) if v is not None else 0
                 
                 # Debug: mostrar nota do banco
                 if log_debug:
@@ -2862,7 +3291,7 @@ class InterfaceCadastroEdicaoNotas:
                         UPDATE notas 
                         SET nota = %s 
                         WHERE id = %s
-                    """, (nova_nota, nota_id))
+                    """, self._norm_params((nova_nota, nota_id)))
                     
                     atualizados += 1
                 else:
@@ -2874,8 +3303,6 @@ class InterfaceCadastroEdicaoNotas:
                 log_debug("    " + "="*70)
             
             conn.commit()
-            cursor.close()
-            conn.close()
             
             return atualizados
             
@@ -2884,6 +3311,17 @@ class InterfaceCadastroEdicaoNotas:
             import traceback
             traceback.print_exc()
             return 0
+        finally:
+            try:
+                if cursor is not None:
+                    cursor.close()
+            except Exception:
+                pass
+            try:
+                if conn is not None:
+                    conn.close()
+            except Exception:
+                pass
 
     def ao_fechar_janela(self):
         """Método chamado quando a janela é fechada pelo usuário"""
