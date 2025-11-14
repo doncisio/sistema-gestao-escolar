@@ -440,6 +440,58 @@ class InterfaceCadastroFuncionario:
         
         # Inicialmente ocultar o frame de disciplinas
         self.frame_disciplinas_container.pack_forget()
+
+    def _get_enum_values(self, table, column):
+        """Retorna a lista de valores permitidos para um ENUM no banco (sem aspas)."""
+        try:
+            self.cursor.execute("SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s", (table, column))
+            row = self.cursor.fetchone()
+            if not row or not row[0]:
+                return []
+            col_type = row[0]  # ex: "enum('MAT','VESP')"
+            # Extrair entre parênteses e separar por vírgula
+            inside = col_type[col_type.find('(')+1:col_type.rfind(')')]
+            parts = [p.strip().strip("'") for p in inside.split(',')]
+            return parts
+        except Exception:
+            return []
+
+    def normalize_turno(self, ui_value):
+        """Converte o valor selecionado na UI para um valor válido para a coluna `funcionarios.turno`.
+        Retorna None se não houver correspondência apropriada (será gravado NULL).
+        """
+        if not ui_value:
+            return None
+
+        enum_vals = self._get_enum_values('funcionarios', 'turno')
+
+        # Se o valor da UI já é aceito, retorna ele direto
+        if ui_value in enum_vals:
+            return ui_value
+
+        # Mapas conhecidos entre rótulos longos e códigos curtos
+        mapping = {
+            'Matutino': ['MAT', 'Matutino'],
+            'Vespertino': ['VESP', 'Vespertino'],
+            'Matutino/Vespertino': ['Matutino/Vespertino'],
+            'Noturno': ['Noturno']
+        }
+
+        # Tentar achar um mapeamento que exista no enum do banco
+        for key, candidates in mapping.items():
+            if ui_value == key:
+                for cand in candidates:
+                    if cand in enum_vals:
+                        return cand
+
+        # Tentativa auxiliar: se enum usa códigos curtos ('MAT'/'VESP') e ui_value tem rótulo longo
+        if 'MAT' in enum_vals and ui_value.lower().startswith('mat'):
+            return 'MAT'
+        if 'VESP' in enum_vals and ui_value.lower().startswith('ves'):
+            return 'VESP'
+
+        # Não encontrou correspondência: devolver None para gravar NULL e evitar truncamento
+        return None
     
     def on_frame_configure(self, event):
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
@@ -788,15 +840,12 @@ class InterfaceCadastroFuncionario:
                 turma_id = None
                 polivalente = "não"
             
-            # Obter o ID da escola
-            escola_nome = self.c_escola.get()
-            if escola_nome in self.escolas_map:
-                escola_id = self.escolas_map[escola_nome]
-            else:
-                escola_id = 60  # ID da escola padrão
+            # Forçar vínculo automático com a escola_id = 60 (requerido)
+            escola_id = 60
             
-            # Obter turno baseado na seleção
-            turno = self.c_turno.get()
+            # Obter turno baseado na seleção e normalizar para o formato do banco
+            ui_turno = self.c_turno.get()
+            turno = self.normalize_turno(ui_turno)
             
             # Verificar se professor não polivalente está substituindo um polivalente em licença
             professor_substituido = None

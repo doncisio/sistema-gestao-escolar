@@ -213,7 +213,7 @@ class InterfaceEdicaoFuncionario:
         botoes_frame.pack(fill=X, expand=True, padx=10, pady=5)
 
         # Configurar grid
-        for i in range(4):  # Aumentado para 4 colunas para acomodar o novo botão
+        for i in range(6):  # Aumentado para 6 colunas para acomodar os botões
             botoes_frame.grid_columnconfigure(i, weight=1)
 
         # Botões
@@ -233,20 +233,39 @@ class InterfaceEdicaoFuncionario:
                state=DISABLED)
         self.btn_disciplinas.grid(row=0, column=1, padx=5, pady=5)
         
-        # Botão de Licenças
+        # Botão de Licenças (moved to col 3)
+
+        # Botão para Vincular (novo)
+        self.btn_vincular = Button(botoes_frame, text="Vincular",
+            command=self.vincular_funcionario,
+            font=('Ivy 9'),
+            bg='#28a745',
+            fg=self.co1,
+            width=15, cursor="hand2")
+        self.btn_vincular.grid(row=0, column=2, padx=5, pady=5)
+
+        # Botão para Desvincular (novo)
+        self.btn_desvincular = Button(botoes_frame, text="Desvincular",
+            command=self.desvincular_funcionario,
+            font=('Ivy 9'),
+            bg=self.co6,
+            fg=self.co1,
+            width=15, cursor="hand2")
+        self.btn_desvincular.grid(row=0, column=3, padx=5, pady=5)
+
         Button(botoes_frame, text="Gerenciar Licenças",
-               command=lambda: abrir_interface_licencas(self.funcionario_id),
-               font=('Ivy 9'),
-               bg=self.co5,
-               fg=self.co1,
-               width=15).grid(row=0, column=2, padx=5, pady=5)
+            command=lambda: abrir_interface_licencas(self.funcionario_id),
+            font=('Ivy 9'),
+            bg=self.co5,
+            fg=self.co1,
+            width=15).grid(row=0, column=4, padx=5, pady=5)
 
         Button(botoes_frame, text="Voltar",
-               command=self.fechar_janela,
-               font=('Ivy 9'),
-               bg=self.co6,
-               fg=self.co1,
-               width=15).grid(row=0, column=3, padx=5, pady=5)
+            command=self.fechar_janela,
+            font=('Ivy 9'),
+            bg=self.co6,
+            fg=self.co1,
+            width=15).grid(row=0, column=5, padx=5, pady=5)
 
     def criar_form_funcionario(self):
         # Título do formulário com design moderno
@@ -410,6 +429,20 @@ class InterfaceEdicaoFuncionario:
         self.c_escola = ttk.Combobox(prof_frame, **combo_style, state="readonly")
         self.c_escola.grid(row=3, column=1, sticky=W, padx=10, pady=(0, 10))
         self.obter_escolas()
+
+        # Checkbox para indicar vínculo com a escola (ID: 60)
+        self.var_vinculado_escola = IntVar(value=1)
+        self.chk_vinculado = Checkbutton(
+            prof_frame,
+            text='Vinculado à escola (ID: 60)',
+            variable=self.var_vinculado_escola,
+            bg=self.co1,
+            fg=self.co4,
+            anchor=W,
+            onvalue=1,
+            offvalue=0
+        )
+        self.chk_vinculado.grid(row=4, column=1, sticky=W, padx=10, pady=(0, 8))
         
         # Nota: As turmas são selecionadas através do frame de disciplinas
         # Professores volantes também usam o frame de disciplinas para selecionar suas turmas
@@ -450,6 +483,68 @@ class InterfaceEdicaoFuncionario:
         
         # Inicialmente ocultar o frame de disciplinas
         self.frame_disciplinas_container.pack_forget()
+
+    def _get_enum_values(self, table, column):
+        """Retorna a lista de valores permitidos para um ENUM no banco (sem aspas)."""
+        try:
+            self.cursor.execute("SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s", (table, column))
+            row = self.cursor.fetchone()
+            if not row or not row[0]:
+                return []
+            col_type = row[0]
+            inside = col_type[col_type.find('(')+1:col_type.rfind(')')]
+            parts = [p.strip().strip("'") for p in inside.split(',')]
+            return parts
+        except Exception:
+            return []
+
+    def normalize_turno(self, ui_value):
+        """Converte valor da UI para um valor compatível com funcionarios.turno.
+        Retorna None para gravar NULL quando não existir correspondência.
+        """
+        if not ui_value:
+            return None
+
+        enum_vals = self._get_enum_values('funcionarios', 'turno')
+        if ui_value in enum_vals:
+            return ui_value
+
+        mapping = {
+            'Matutino': ['MAT', 'Matutino'],
+            'Vespertino': ['VESP', 'Vespertino'],
+            'Matutino/Vespertino': ['Matutino/Vespertino'],
+            'Noturno': ['Noturno']
+        }
+
+        for key, candidates in mapping.items():
+            if ui_value == key:
+                for cand in candidates:
+                    if cand in enum_vals:
+                        return cand
+
+        if 'MAT' in enum_vals and ui_value.lower().startswith('mat'):
+            return 'MAT'
+        if 'VESP' in enum_vals and ui_value.lower().startswith('ves'):
+            return 'VESP'
+
+        return None
+
+    def db_to_ui_turno(self, db_value):
+        """Converte um valor vindo do banco para o rótulo exibido na UI."""
+        if not db_value:
+            return ""
+
+        # Valores curtos para rótulos longos
+        reverse_map = {
+            'MAT': 'Matutino',
+            'VESP': 'Vespertino',
+            'Matutino': 'Matutino',
+            'Vespertino': 'Vespertino',
+            'Matutino/Vespertino': 'Matutino/Vespertino',
+            'Noturno': 'Noturno'
+        }
+
+        return reverse_map.get(db_value, db_value)
 
     def on_frame_configure(self, event):
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
@@ -777,6 +872,31 @@ class InterfaceEdicaoFuncionario:
                 self.e_whatsapp.insert(0, funcionario[12] or "")  # whatsapp
                 self.e_email.insert(0, funcionario[13] or "")  # email
                 
+                # Salvar estado de escola carregado para uso como fallback
+                try:
+                    self._loaded_escola_id = funcionario[16]
+                except Exception:
+                    self._loaded_escola_id = None
+
+                # Ajustar o checkbox e o combobox de escola conforme o dado carregado
+                try:
+                    if funcionario[16]:
+                        try:
+                            self.c_escola.set(funcionario[18] or "")  # escola_nome
+                        except Exception:
+                            pass
+                        try:
+                            self.var_vinculado_escola.set(1)
+                        except Exception:
+                            pass
+                    else:
+                        try:
+                            self.var_vinculado_escola.set(0)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
                 # Se for professor, carregar dados específicos
                 if funcionario[7] == "Professor@":
                     self.frame_professor.pack(fill=BOTH, expand=True, pady=10)
@@ -788,19 +908,20 @@ class InterfaceEdicaoFuncionario:
                         self.c_volante.grid()
                         self.c_volante.set(funcionario[17] or "não")  # volante
                     
-                    self.c_turno.set(funcionario[9] or "")  # turno
+                    # Converter valor vindo do banco para rótulo da UI
+                    self.c_turno.set(self.db_to_ui_turno(funcionario[9]) or "")  # turno
                     
-                    # Carregar escola
-                    if funcionario[16]:  # escola_id
-                        self.c_escola.set(funcionario[18] or "")  # escola_nome
+                    # (Escola e checkbox já foram ajustados acima para todos os funcionários)
                     
                     # Sempre carregar disciplinas para professores (polivalentes ou não)
                     self.frame_disciplinas_container.pack(fill=BOTH, expand=True, padx=10, pady=5)
                     self.btn_disciplinas.config(state=NORMAL)
                     self.carregar_disciplinas_funcionario()
-                else:
-                    self.frame_professor.pack_forget()
-                    self.frame_disciplinas_container.pack_forget()
+                # Ajustar visibilidade dos botões de vínculo
+                try:
+                    self.update_vinculo_buttons()
+                except Exception:
+                    pass
             
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar dados do funcionário: {str(e)}")
@@ -927,6 +1048,62 @@ class InterfaceEdicaoFuncionario:
             messagebox.showerror("Erro", f"Erro ao obter nome da escola: {str(e)}")
             return ""
 
+    def update_vinculo_buttons(self):
+        """Mostra apenas o botão apropriado (Vincular ou Desvincular) com base no estado atual do vínculo.
+        Se o funcionário estiver vinculado (escola_id não NULL) mostra apenas Desvincular; caso contrário mostra apenas Vincular.
+        """
+        vinculado = False
+
+        # Primeiro tente consultar o banco apenas se a conexão existir
+        try:
+            conn_ok = hasattr(self, 'conn') and self.conn and (getattr(self.conn, 'is_connected', lambda: True)())
+        except Exception:
+            conn_ok = False
+
+        if conn_ok and hasattr(self, 'cursor'):
+            try:
+                self.cursor.execute("SELECT escola_id FROM funcionarios WHERE id = %s", (self.funcionario_id,))
+                row = self.cursor.fetchone()
+                if row and row[0] is not None:
+                    vinculado = True
+            except Exception as e:
+                # Falhou ao usar o cursor (ex: cursor desconectado) — usar fallback local
+                print(f"Erro ao atualizar botões de vínculo: {e}")
+
+        # Fallback: usar estado carregado local ou variável do checkbox
+        if not vinculado:
+            if hasattr(self, '_loaded_escola_id') and self._loaded_escola_id is not None:
+                vinculado = True
+            else:
+                try:
+                    if hasattr(self, 'var_vinculado_escola') and self.var_vinculado_escola.get() == 1:
+                        vinculado = True
+                except Exception:
+                    pass
+
+        # Ajustar visibilidade dos botões conforme vinculado
+        try:
+            if vinculado:
+                try:
+                    self.btn_vincular.grid_remove()
+                except Exception:
+                    pass
+                try:
+                    self.btn_desvincular.grid()
+                except Exception:
+                    pass
+            else:
+                try:
+                    self.btn_desvincular.grid_remove()
+                except Exception:
+                    pass
+                try:
+                    self.btn_vincular.grid()
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"Erro ao ajustar visibilidade dos botões de vínculo: {e}")
+
     def atualizar_funcionario(self):
         try:
             # Coletar os dados do formulário
@@ -1000,8 +1177,9 @@ class InterfaceEdicaoFuncionario:
             else:
                 escola_id = 60  # ID da escola padrão
             
-            # Obter turno baseado na seleção
-            turno = self.c_turno.get()
+            # Obter turno baseado na seleção e normalizar para o formato do banco
+            ui_turno = self.c_turno.get()
+            turno = self.normalize_turno(ui_turno)
             
             # Verificar se professor não polivalente está substituindo um polivalente em licença
             professor_substituido = None
@@ -1046,6 +1224,47 @@ class InterfaceEdicaoFuncionario:
                     self.funcionario_id
                 )
             )
+
+            # Se o usuário desmarcou o vínculo com a escola, aplicar desvinculação adicional
+            if hasattr(self, 'var_vinculado_escola') and self.var_vinculado_escola.get() == 0:
+                # Preparar atualização para remover vínculo e setar data_saida/ativo quando existirem
+                extras = []
+                params_extras = []
+                # Verificar se as colunas existem
+                try:
+                    self.cursor.execute(
+                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'funcionarios' AND COLUMN_NAME = 'data_saida'"
+                    )
+                    has_data_saida = self.cursor.fetchone()[0] > 0
+                except Exception:
+                    has_data_saida = False
+
+                try:
+                    self.cursor.execute(
+                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'funcionarios' AND COLUMN_NAME = 'ativo'"
+                    )
+                    has_ativo = self.cursor.fetchone()[0] > 0
+                except Exception:
+                    has_ativo = False
+
+                if has_data_saida:
+                    extras.append("data_saida = %s")
+                    params_extras.append(datetime.today().strftime("%Y-%m-%d"))
+                if has_ativo:
+                    extras.append("ativo = %s")
+                    params_extras.append(0)
+
+                # Sempre remover escola_id
+                sql_extra = "UPDATE funcionarios SET escola_id = NULL"
+                if extras:
+                    sql_extra += ", " + ", ".join(extras)
+                sql_extra += " WHERE id = %s"
+
+                try:
+                    params_extras.append(self.funcionario_id)
+                    self.cursor.execute(sql_extra, params_extras)
+                except Exception as e:
+                    print(f"Erro ao aplicar desvinculação adicional: {e}")
             
             # Para todos os professores, atualizar as disciplinas se houver
             if cargo == "Professor@" and self.lista_frames_disciplinas:
@@ -1103,11 +1322,217 @@ class InterfaceEdicaoFuncionario:
             
             # Fechar a janela
             self.fechar_janela()
+            # Atualizar visibilidade dos botões caso a janela continue aberta
+            try:
+                self.update_vinculo_buttons()
+            except Exception:
+                pass
             
         except Exception as e:
             print(f"Erro ao atualizar funcionário: {e}")
             self.conn.rollback()
             messagebox.showerror("Erro", f"Ocorreu um erro ao atualizar o funcionário: {str(e)}")
+
+    def desvincular_funcionario(self):
+        """Desvincula o funcionário da escola (define escola_id = NULL).
+        Realiza confirmação, verifica existência de colunas opcionais e aplica a alteração.
+        """
+        confirmar = messagebox.askyesno("Confirmar desvinculação", "Deseja realmente desvincular este funcionário da escola? Esta ação pode ser revertida manualmente.")
+        if not confirmar:
+            return
+
+        try:
+            # Verificar estado atual
+            self.cursor.execute("SELECT escola_id FROM funcionarios WHERE id = %s", (self.funcionario_id,))
+            row = self.cursor.fetchone()
+            if not row:
+                messagebox.showerror("Erro", "Funcionário não encontrado no banco de dados.")
+                return
+
+            if row[0] is None:
+                messagebox.showinfo("Informação", "Funcionário já está sem vínculo com a escola.")
+                return
+
+            # Preparar alteração considerando colunas opcionais
+            extras = []
+            params = []
+
+            try:
+                self.cursor.execute(
+                    "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'funcionarios' AND COLUMN_NAME = 'data_saida'"
+                )
+                has_data_saida = self.cursor.fetchone()[0] > 0
+            except Exception:
+                has_data_saida = False
+
+            try:
+                self.cursor.execute(
+                    "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'funcionarios' AND COLUMN_NAME = 'ativo'"
+                )
+                has_ativo = self.cursor.fetchone()[0] > 0
+            except Exception:
+                has_ativo = False
+
+            if has_data_saida:
+                extras.append("data_saida = %s")
+                params.append(datetime.today().strftime("%Y-%m-%d"))
+            if has_ativo:
+                extras.append("ativo = %s")
+                params.append(0)
+
+            sql = "UPDATE funcionarios SET escola_id = NULL"
+            if extras:
+                sql += ", " + ", ".join(extras)
+            sql += " WHERE id = %s"
+
+            params.append(self.funcionario_id)
+
+            # Executar atualização
+            self.cursor.execute(sql, params)
+            self.conn.commit()
+
+            # Atualizar UI
+            try:
+                self.var_vinculado_escola.set(0)
+            except Exception:
+                pass
+            try:
+                self.c_escola.set("")
+            except Exception:
+                pass
+
+            # Atualizar estado carregado local
+            try:
+                self._loaded_escola_id = None
+            except Exception:
+                pass
+
+            self.funcionario_atualizado = True
+            messagebox.showinfo("Sucesso", "Funcionário desvinculado com sucesso.")
+
+            # Tentar atualizar a janela principal se houver
+            try:
+                self.atualizar_janela_principal()
+            except Exception:
+                pass
+
+            # Atualizar visibilidade dos botões
+            try:
+                self.update_vinculo_buttons()
+            except Exception:
+                pass
+
+        except Exception as e:
+            print(f"Erro ao desvincular funcionário: {e}")
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
+            messagebox.showerror("Erro", f"Falha ao desvincular funcionário: {str(e)}")
+
+    def vincular_funcionario(self):
+        """Vincula (ou revincula) o funcionário a uma escola. Usa a escola selecionada em `c_escola` ou 60 por padrão.
+        Remove `data_saida` e marca `ativo=1` quando as colunas existirem.
+        """
+        confirmar = messagebox.askyesno("Confirmar vinculação", "Deseja realmente vincular este funcionário à escola selecionada?")
+        if not confirmar:
+            return
+
+        try:
+            # Verificar existência do funcionário
+            self.cursor.execute("SELECT escola_id FROM funcionarios WHERE id = %s", (self.funcionario_id,))
+            row = self.cursor.fetchone()
+            if not row:
+                messagebox.showerror("Erro", "Funcionário não encontrado no banco de dados.")
+                return
+
+            if row[0] is not None:
+                messagebox.showinfo("Informação", "Funcionário já está vinculado a uma escola.")
+                return
+
+            # Determinar escola alvo
+            escola_nome = self.c_escola.get()
+            if escola_nome in self.escolas_map:
+                escola_id = self.escolas_map[escola_nome]
+            else:
+                escola_id = 60
+
+            extras = []
+            params = []
+
+            try:
+                self.cursor.execute(
+                    "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'funcionarios' AND COLUMN_NAME = 'data_saida'"
+                )
+                has_data_saida = self.cursor.fetchone()[0] > 0
+            except Exception:
+                has_data_saida = False
+
+            try:
+                self.cursor.execute(
+                    "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'funcionarios' AND COLUMN_NAME = 'ativo'"
+                )
+                has_ativo = self.cursor.fetchone()[0] > 0
+            except Exception:
+                has_ativo = False
+
+            # Remover data_saida (set NULL) se existir e set ativo = 1
+            if has_data_saida:
+                extras.append("data_saida = NULL")
+            if has_ativo:
+                extras.append("ativo = %s")
+                params.append(1)
+
+            sql = "UPDATE funcionarios SET escola_id = %s"
+            params_insert = [escola_id]
+            if extras:
+                sql += ", " + ", ".join(extras)
+            sql += " WHERE id = %s"
+            params_insert.extend(params)
+            params_insert.append(self.funcionario_id)
+
+            # Executar atualização
+            self.cursor.execute(sql, params_insert)
+            self.conn.commit()
+
+            # Atualizar UI
+            try:
+                self.var_vinculado_escola.set(1)
+            except Exception:
+                pass
+            try:
+                # Setar o nome exibido da escola
+                self.c_escola.set(self.obter_nome_escola(escola_id) or "")
+            except Exception:
+                pass
+
+            # Atualizar estado carregado local
+            try:
+                self._loaded_escola_id = escola_id
+            except Exception:
+                pass
+
+            self.funcionario_atualizado = True
+            messagebox.showinfo("Sucesso", "Funcionário vinculado com sucesso.")
+
+            try:
+                self.atualizar_janela_principal()
+            except Exception:
+                pass
+
+            # Atualizar visibilidade dos botões
+            try:
+                self.update_vinculo_buttons()
+            except Exception:
+                pass
+
+        except Exception as e:
+            print(f"Erro ao vincular funcionário: {e}")
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
+            messagebox.showerror("Erro", f"Falha ao vincular funcionário: {str(e)}")
 
     def verificar_professores_em_licenca(self, cargo, polivalente, turma_id):
         if cargo != "Professor@" or polivalente != "não" or not turma_id:
