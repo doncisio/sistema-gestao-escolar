@@ -3668,7 +3668,7 @@ def selecionar_ano_para_boletim(aluno_id):
     Args:
         aluno_id: ID do aluno
     """
-    # Obter informações do aluno
+    # Obter informações do aluno e anos letivos dentro do contexto de conexão
     cursor = None
     try:
         with get_connection() as conn:
@@ -3676,30 +3676,30 @@ def selecionar_ano_para_boletim(aluno_id):
                 messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
                 return
             cursor = conn.cursor()
-        
-        # Obter nome do aluno
-        cursor.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
-        resultado_nome = cursor.fetchone()
-        if resultado_nome is None:
-            messagebox.showerror("Erro", "Aluno não encontrado.")
-            return
-        nome_aluno = resultado_nome[0]
-        
-        # Obter anos letivos nos quais o aluno teve matrícula
-        tem_historico, anos_letivos = verificar_historico_matriculas(aluno_id)
-        
-        if not tem_historico or not anos_letivos:
-            messagebox.showwarning("Aviso", "Não foram encontradas matrículas para este aluno.")
-            return
-            
-        # Criar janela para seleção do ano letivo
-        janela_selecao = Toplevel(janela)
-        janela_selecao.title(f"Selecionar Ano Letivo - {nome_aluno}")
-        janela_selecao.geometry("400x300")
-        janela_selecao.configure(background=co1)
-        janela_selecao.transient(janela)
-        janela_selecao.focus_force()
-        janela_selecao.grab_set()
+
+            # Obter nome do aluno
+            cursor.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
+            resultado_nome = cursor.fetchone()
+            if resultado_nome is None:
+                messagebox.showerror("Erro", "Aluno não encontrado.")
+                return
+            nome_aluno = resultado_nome[0]
+
+            # Obter anos letivos nos quais o aluno teve matrícula
+            tem_historico, anos_letivos = verificar_historico_matriculas(aluno_id)
+
+            if not tem_historico or not anos_letivos:
+                messagebox.showwarning("Aviso", "Não foram encontradas matrículas para este aluno.")
+                return
+
+            # Preparar janela de seleção (a interface não depende de manter a conexão aberta)
+            janela_selecao = Toplevel(janela)
+            janela_selecao.title(f"Selecionar Ano Letivo - {nome_aluno}")
+            janela_selecao.geometry("400x300")
+            janela_selecao.configure(background=co1)
+            janela_selecao.transient(janela)
+            janela_selecao.focus_force()
+            janela_selecao.grab_set()
         
         # Frame principal
         frame_selecao = Frame(janela_selecao, bg=co1, padx=20, pady=20)
