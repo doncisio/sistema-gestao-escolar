@@ -4656,13 +4656,15 @@ def abrir_relatorio_avancado_com_assinatura():
         # Gerar o relatório em background para não bloquear a UI
         def _worker():
             try:
-                resultado = gerar_relatorio_notas_com_assinatura(
+                from services.report_service import gerar_relatorio_avancado_com_assinatura as service_gerar
+                resultado = service_gerar(
                     bimestre=bimestre,
                     nivel_ensino=nivel,
                     ano_letivo=ano,
                     status_matricula=status,
                     preencher_nulos=preencher_com_zeros
                 )
+
                 def _on_done():
                     if resultado:
                         if status_label is not None:
@@ -4671,12 +4673,14 @@ def abrir_relatorio_avancado_com_assinatura():
                         if status_label is not None:
                             status_label.config(text="Nenhum dado encontrado para o relatório.")
                         messagebox.showwarning("Sem dados", f"Não foram encontrados dados para o {bimestre} no nível {nivel}.")
+
                 janela.after(0, _on_done)
             except Exception as e:
                 def _on_error():
                     messagebox.showerror("Erro", f"Falha ao gerar relatório: {str(e)}")
                     if status_label is not None:
                         status_label.config(text="")
+
                 janela.after(0, _on_error)
 
         from threading import Thread
@@ -4786,13 +4790,14 @@ def abrir_relatorio_pendencias():
             # Gerar o relatório em background para não bloquear a UI
         def _worker_pendencias():
             try:
-                from relatorio_pendencias import gerar_pdf_pendencias
-                resultado = gerar_pdf_pendencias(
+                from services.report_service import gerar_relatorio_pendencias as service_pendencias
+                resultado = service_pendencias(
                     bimestre=bimestre,
                     nivel_ensino=nivel,
                     ano_letivo=ano,
                     escola_id=60
                 )
+
                 def _on_done():
                     if resultado:
                         if status_label is not None:
@@ -4802,6 +4807,7 @@ def abrir_relatorio_pendencias():
                             status_label.config(text="Nenhuma pendência encontrada.")
                         messagebox.showinfo("Sem pendências", 
                                            f"Não foram encontradas pendências para o {bimestre} no nível {nivel}.")
+
                 janela.after(0, _on_done)
             except Exception as e:
                 def _on_error():
@@ -4810,6 +4816,7 @@ def abrir_relatorio_pendencias():
                     traceback.print_exc()
                     if status_label is not None:
                         status_label.config(text="")
+
                 janela.after(0, _on_error)
 
         from threading import Thread
