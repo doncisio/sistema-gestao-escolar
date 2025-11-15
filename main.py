@@ -3610,8 +3610,6 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
         # Fechar conexões primeiro
         if 'cursor' in locals() and cursor:
             cursor.close()
-        if 'conn' in locals() and conn:
-            conn.close()
             
         # Não tentar recriar a interface, apenas registrar o erro
         return False
@@ -3623,8 +3621,6 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
         # Garantir que a conexão seja fechada mesmo em caso de erro
         if 'cursor' in locals() and cursor:
             cursor.close()
-        if 'conn' in locals() and conn:
-            conn.close()
         
         return False
 
