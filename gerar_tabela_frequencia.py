@@ -12,6 +12,9 @@ from scripts_nao_utilizados.gerar_documentos import PASTAS_TURMAS, criar_pastas_
 
 def lista_frequencia():
     """Gera um PDF com a lista de frequência dos alunos, agrupados por turma."""
+    # Observação: os dados dos alunos são obtidos via `fetch_student_data` (importado)
+    # Esta função não abre/fecha conexões diretamente; qualquer acesso ao BD
+    # deve ser feito pelo provedor `fetch_student_data` ou service layer.
     ano_letivo = 2025
     dados_aluno = fetch_student_data(ano_letivo)
     if not dados_aluno:
