@@ -460,29 +460,33 @@ def criar_dashboard():
     
     # Buscar o ano letivo atual para exibir no título
     try:
-        conn_temp = conectar_bd()
-        if conn_temp:
-            cursor_temp = cast(Any, conn_temp).cursor()
-            cursor_temp.execute("SELECT ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
-            resultado_ano = cursor_temp.fetchone()
-            if not resultado_ano:
-                cursor_temp.execute("SELECT ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
-                resultado_ano = cursor_temp.fetchone()
-            # Extrair de forma segura o valor do ano letivo (pode ser tuple/list ou dict dependendo do cursor)
-            if resultado_ano:
-                if isinstance(resultado_ano, (list, tuple)):
-                    ano_val = resultado_ano[0]
-                elif isinstance(resultado_ano, dict):
-                    ano_val = resultado_ano.get('ano_letivo') or next(iter(resultado_ano.values()), None)
-                else:
-                    ano_val = resultado_ano
-                ano_letivo_exibir = ano_val if ano_val is not None else "Corrente"
+        with get_connection() as conn_temp:
+            if conn_temp:
+                cursor_temp = cast(Any, conn_temp).cursor()
+                try:
+                    cursor_temp.execute("SELECT ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
+                    resultado_ano = cursor_temp.fetchone()
+                    if not resultado_ano:
+                        cursor_temp.execute("SELECT ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
+                        resultado_ano = cursor_temp.fetchone()
+                    # Extrair de forma segura o valor do ano letivo (pode ser tuple/list ou dict dependendo do cursor)
+                    if resultado_ano:
+                        if isinstance(resultado_ano, (list, tuple)):
+                            ano_val = resultado_ano[0]
+                        elif isinstance(resultado_ano, dict):
+                            ano_val = resultado_ano.get('ano_letivo') or next(iter(resultado_ano.values()), None)
+                        else:
+                            ano_val = resultado_ano
+                        ano_letivo_exibir = ano_val if ano_val is not None else "Corrente"
+                    else:
+                        ano_letivo_exibir = "Corrente"
+                finally:
+                    try:
+                        cursor_temp.close()
+                    except Exception:
+                        pass
             else:
                 ano_letivo_exibir = "Corrente"
-            cursor_temp.close()
-            conn_temp.close()
-        else:
-            ano_letivo_exibir = "Corrente"
     except:
         ano_letivo_exibir = "Corrente"
     
@@ -1880,29 +1884,29 @@ def gerar_declaracao(id_pessoa=None):
     else:
         # Se o ID foi fornecido diretamente, precisamos determinar o tipo da pessoa
         try:
-            conn = conectar_bd()
-            if conn is None:
-                messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                return
-            cursor = conn.cursor()
-            
-            # Verificar se é um aluno
-            cursor.execute("SELECT id FROM alunos WHERE id = %s", (id_pessoa,))
-            if cursor.fetchone():
-                tipo_pessoa = 'Aluno'
-            else:
-                # Verificar se é um funcionário
-                cursor.execute("SELECT id FROM funcionarios WHERE id = %s", (id_pessoa,))
-                if cursor.fetchone():
-                    tipo_pessoa = 'Funcionário'
-                else:
-                    messagebox.showerror("Erro", "ID não corresponde a nenhum usuário cadastrado.")
-                    cursor.close()
-                    conn.close()
+            with get_connection() as conn:
+                if conn is None:
+                    messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
                     return
-            
-            cursor.close()
-            conn.close()
+                cursor = conn.cursor()
+                try:
+                    # Verificar se é um aluno
+                    cursor.execute("SELECT id FROM alunos WHERE id = %s", (id_pessoa,))
+                    if cursor.fetchone():
+                        tipo_pessoa = 'Aluno'
+                    else:
+                        # Verificar se é um funcionário
+                        cursor.execute("SELECT id FROM funcionarios WHERE id = %s", (id_pessoa,))
+                        if cursor.fetchone():
+                            tipo_pessoa = 'Funcionário'
+                        else:
+                            messagebox.showerror("Erro", "ID não corresponde a nenhum usuário cadastrado.")
+                            return
+                finally:
+                    try:
+                        cursor.close()
+                    except Exception:
+                        pass
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao verificar o tipo de usuário: {str(e)}")
             return
