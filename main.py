@@ -28,6 +28,7 @@ import Lista_atualizada
 import Lista_atualizada_semed
 import Seguranca
 from conexao import conectar_bd, inicializar_pool, fechar_pool
+from db.connection import get_connection
 from typing import Any, cast
 import aluno
 
@@ -1194,53 +1195,51 @@ def verificar_matricula_ativa(aluno_id):
     Returns:
         bool: True se o aluno possui matrícula ativa ou transferida, False caso contrário
     """
-    conn = None
-    cursor = None
     try:
-        conn = conectar_bd()
-        if conn is None:
-            return False
-        cursor = cast(Any, conn).cursor()
-        
-        # Obtém o ID do ano letivo atual
-        cursor.execute("SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
-        resultado_ano = cursor.fetchone()
-        
-        if not resultado_ano:
-            # Se não encontrar o ano letivo atual, tenta obter o ano letivo mais recente
-            cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
-            resultado_ano = cursor.fetchone()
-            
-        if not resultado_ano:
-            messagebox.showwarning("Aviso", "Não foi possível determinar o ano letivo atual.")
-            return False
-            
-        ano_letivo_id = resultado_ano[0]
-        
-        # Verifica se o aluno possui matrícula ativa ou transferida na escola 60 no ano letivo atual
-        cursor.execute("""
-            SELECT m.id 
-            FROM matriculas m
-            JOIN turmas t ON m.turma_id = t.id
-            WHERE m.aluno_id = %s 
-            AND m.ano_letivo_id = %s 
-            AND t.escola_id = 60
-            AND m.status IN ('Ativo', 'Transferido')
-        """, (int(str(aluno_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
-        
-        resultado = cursor.fetchone()
-        
-        return resultado is not None
-        
+        # Usar o context manager para garantir fechamento da conexão
+        with get_connection() as conn:
+            if conn is None:
+                return False
+            cursor = conn.cursor()
+            try:
+                # Obtém o ID do ano letivo atual
+                cursor.execute("SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
+                resultado_ano = cursor.fetchone()
+
+                if not resultado_ano:
+                    # Se não encontrar o ano letivo atual, tenta obter o ano letivo mais recente
+                    cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
+                    resultado_ano = cursor.fetchone()
+
+                if not resultado_ano:
+                    messagebox.showwarning("Aviso", "Não foi possível determinar o ano letivo atual.")
+                    return False
+
+                ano_letivo_id = resultado_ano[0]
+
+                # Verifica se o aluno possui matrícula ativa ou transferida na escola 60 no ano letivo atual
+                cursor.execute("""
+                    SELECT m.id 
+                    FROM matriculas m
+                    JOIN turmas t ON m.turma_id = t.id
+                    WHERE m.aluno_id = %s 
+                    AND m.ano_letivo_id = %s 
+                    AND t.escola_id = 60
+                    AND m.status IN ('Ativo', 'Transferido')
+                """, (int(str(aluno_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
+
+                resultado = cursor.fetchone()
+
+                return resultado is not None
+            finally:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao verificar matrícula: {str(e)}")
         print(f"Erro ao verificar matrícula: {str(e)}")
         return False
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
 
 def verificar_historico_matriculas(aluno_id):
     """
