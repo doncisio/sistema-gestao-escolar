@@ -2090,107 +2090,101 @@ def pesquisar(event=None):
     # OTIMIZAÇÃO 5: Pesquisa com FULLTEXT (mais rápida que LIKE)
     # Busca diretamente no banco com índice FULLTEXT para melhor performance
     # ============================================================================
-    conn = None
-    cursor = None
     resultados_filtrados = []
-    
     try:
-        conn = conectar_bd()
-        if conn is None:
-            raise Exception("Falha ao conectar ao banco de dados")
-        
-        cursor = conn.cursor()
-        
-        # Tentar usar FULLTEXT primeiro (mais rápido)
-        # Se falhar (índice não existe), usar LIKE tradicional
-        try:
-            # Query otimizada com FULLTEXT
-            query_fulltext = """
-            SELECT 
-                f.id AS id,
-                f.nome AS nome,
-                'Funcionário' AS tipo,
-                f.cargo AS cargo,
-                f.data_nascimento AS data_nascimento,
-                MATCH(f.nome) AGAINST(%s IN NATURAL LANGUAGE MODE) AS relevancia
-            FROM 
-                Funcionarios f
-            WHERE 
-                MATCH(f.nome) AGAINST(%s IN NATURAL LANGUAGE MODE)
-                AND f.cargo IN ('Administrador do Sistemas','Gestor Escolar','Professor@','Auxiliar administrativo',
-                    'Agente de Portaria','Merendeiro','Auxiliar de serviços gerais','Técnico em Administração Escolar',
-                    'Especialista (Coordenadora)','Tutor/Cuidador', 'Interprete de Libras')
-            UNION ALL
-            SELECT
-                a.id AS id,
-                a.nome AS nome,
-                'Aluno' AS tipo,
-                NULL AS cargo,
-                a.data_nascimento AS data_nascimento,
-                MATCH(a.nome) AGAINST(%s IN NATURAL LANGUAGE MODE) AS relevancia
-            FROM
-                Alunos a
-            WHERE 
-                MATCH(a.nome) AGAINST(%s IN NATURAL LANGUAGE MODE)
-                AND a.escola_id = 60
-            ORDER BY 
-                relevancia DESC, tipo, nome;
-            """
-            
-            cursor.execute(query_fulltext, (texto_pesquisa, texto_pesquisa, texto_pesquisa, texto_pesquisa))
-            resultados_filtrados = cursor.fetchall()
-            
-            # Remover coluna de relevância antes de exibir
-            resultados_filtrados = [row[:-1] for row in resultados_filtrados]
-            
-        except Error as e:
-            # Se FULLTEXT falhar, usar LIKE tradicional (fallback)
-            if "Can't find FULLTEXT index" in str(e) or "function" in str(e).lower():
-                query_like = """
-                SELECT 
-                    f.id AS id,
-                    f.nome AS nome,
-                    'Funcionário' AS tipo,
-                    f.cargo AS cargo,
-                    f.data_nascimento AS data_nascimento
-                FROM 
-                    Funcionarios f
-                WHERE 
-                    f.nome LIKE %s
-                    AND f.cargo IN ('Administrador do Sistemas','Gestor Escolar','Professor@','Auxiliar administrativo',
-                        'Agente de Portaria','Merendeiro','Auxiliar de serviços gerais','Técnico em Administração Escolar',
-                        'Especialista (Coordenadora)','Tutor/Cuidador', 'Interprete de Libras')
-                UNION ALL
-                SELECT
-                    a.id AS id,
-                    a.nome AS nome,
-                    'Aluno' AS tipo,
-                    NULL AS cargo,
-                    a.data_nascimento AS data_nascimento
-                FROM
-                    Alunos a
-                WHERE 
-                    a.nome LIKE %s
-                    AND a.escola_id = 60
-                ORDER BY 
-                    tipo, nome;
-                """
-                
-                termo_like = f'%{texto_pesquisa}%'
-                cursor.execute(query_like, (termo_like, termo_like))
-                resultados_filtrados = cursor.fetchall()
-            else:
-                raise  # Re-lançar outros erros
-    
+        with get_connection() as conn:
+            if conn is None:
+                raise Exception("Falha ao conectar ao banco de dados")
+            cursor = conn.cursor()
+            try:
+                # Tentar usar FULLTEXT primeiro (mais rápido)
+                # Se falhar (índice não existe), usar LIKE tradicional
+                try:
+                    # Query otimizada com FULLTEXT
+                    query_fulltext = """
+                    SELECT 
+                        f.id AS id,
+                        f.nome AS nome,
+                        'Funcionário' AS tipo,
+                        f.cargo AS cargo,
+                        f.data_nascimento AS data_nascimento,
+                        MATCH(f.nome) AGAINST(%s IN NATURAL LANGUAGE MODE) AS relevancia
+                    FROM 
+                        Funcionarios f
+                    WHERE 
+                        MATCH(f.nome) AGAINST(%s IN NATURAL LANGUAGE MODE)
+                        AND f.cargo IN ('Administrador do Sistemas','Gestor Escolar','Professor@','Auxiliar administrativo',
+                            'Agente de Portaria','Merendeiro','Auxiliar de serviços gerais','Técnico em Administração Escolar',
+                            'Especialista (Coordenadora)','Tutor/Cuidador', 'Interprete de Libras')
+                    UNION ALL
+                    SELECT
+                        a.id AS id,
+                        a.nome AS nome,
+                        'Aluno' AS tipo,
+                        NULL AS cargo,
+                        a.data_nascimento AS data_nascimento,
+                        MATCH(a.nome) AGAINST(%s IN NATURAL LANGUAGE MODE) AS relevancia
+                    FROM
+                        Alunos a
+                    WHERE 
+                        MATCH(a.nome) AGAINST(%s IN NATURAL LANGUAGE MODE)
+                        AND a.escola_id = 60
+                    ORDER BY 
+                        relevancia DESC, tipo, nome;
+                    """
+
+                    cursor.execute(query_fulltext, (texto_pesquisa, texto_pesquisa, texto_pesquisa, texto_pesquisa))
+                    resultados_filtrados = cursor.fetchall()
+
+                    # Remover coluna de relevância antes de exibir
+                    resultados_filtrados = [row[:-1] for row in resultados_filtrados]
+
+                except Error as e:
+                    # Se FULLTEXT falhar, usar LIKE tradicional (fallback)
+                    if "Can't find FULLTEXT index" in str(e) or "function" in str(e).lower():
+                        query_like = """
+                        SELECT 
+                            f.id AS id,
+                            f.nome AS nome,
+                            'Funcionário' AS tipo,
+                            f.cargo AS cargo,
+                            f.data_nascimento AS data_nascimento
+                        FROM 
+                            Funcionarios f
+                        WHERE 
+                            f.nome LIKE %s
+                            AND f.cargo IN ('Administrador do Sistemas','Gestor Escolar','Professor@','Auxiliar administrativo',
+                                'Agente de Portaria','Merendeiro','Auxiliar de serviços gerais','Técnico em Administração Escolar',
+                                'Especialista (Coordenadora)','Tutor/Cuidador', 'Interprete de Libras')
+                        UNION ALL
+                        SELECT
+                            a.id AS id,
+                            a.nome AS nome,
+                            'Aluno' AS tipo,
+                            NULL AS cargo,
+                            a.data_nascimento AS data_nascimento
+                        FROM
+                            Alunos a
+                        WHERE 
+                            a.nome LIKE %s
+                            AND a.escola_id = 60
+                        ORDER BY 
+                            tipo, nome;
+                        """
+
+                        termo_like = f'%{texto_pesquisa}%'
+                        cursor.execute(query_like, (termo_like, termo_like))
+                        resultados_filtrados = cursor.fetchall()
+                    else:
+                        raise  # Re-lançar outros erros
+            finally:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao realizar pesquisa no banco: {str(e)}")
         return
-    
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
     
     # Adiciona os resultados filtrados ao Treeview
     if resultados_filtrados:
@@ -2684,70 +2678,70 @@ def criar_acoes():
         def carregar_alunos(filtro=""):
             listbox_alunos.delete(0, END)
             alunos_dict.clear()
-            
+
             try:
-                conn = conectar_bd()
-                if conn is None:
-                    messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                    return
-                cursor = conn.cursor()
-                
-                # Obter ano letivo atual
-                cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = YEAR(CURDATE())")
-                ano_atual = cursor.fetchone()
-                
-                if not ano_atual:
-                    cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
-                    ano_atual = cursor.fetchone()
-                
-                ano_letivo_id = ano_atual[0] if ano_atual else 1
-                
-                if filtro:
-                    query = """
-                        SELECT DISTINCT a.id, a.nome, s.nome as serie, t.nome as turma
-                        FROM alunos a
-                        INNER JOIN matriculas m ON a.id = m.aluno_id
-                        INNER JOIN turmas t ON m.turma_id = t.id
-                        INNER JOIN serie s ON t.serie_id = s.id
-                        WHERE a.escola_id = 60 
-                        AND m.ano_letivo_id = %s
-                        AND m.status IN ('Ativo', 'Transferido')
-                        AND a.nome LIKE %s
-                        ORDER BY a.nome
-                    """
-                    cursor.execute(query, (int(str(ano_letivo_id)) if ano_letivo_id is not None else 1, f"%{filtro}%"))
-                else:
-                    query = """
-                        SELECT DISTINCT a.id, a.nome, s.nome as serie, t.nome as turma
-                        FROM alunos a
-                        INNER JOIN matriculas m ON a.id = m.aluno_id
-                        INNER JOIN turmas t ON m.turma_id = t.id
-                        INNER JOIN serie s ON t.serie_id = s.id
-                        WHERE a.escola_id = 60 
-                        AND m.ano_letivo_id = %s
-                        AND m.status IN ('Ativo', 'Transferido')
-                        ORDER BY a.nome
-                    """
-                    cursor.execute(query, (int(str(ano_letivo_id)) if ano_letivo_id is not None else 1,))
-                
-                resultados = cursor.fetchall()
-                
-                for idx, (aluno_id, nome, serie, turma) in enumerate(resultados):
-                    info_adicional = ""
-                    if serie:
-                        info_adicional = f" - {serie}"
-                        if turma:
-                            info_adicional += f" {turma}"
-                    
-                    texto = f"{nome}{info_adicional}"
-                    listbox_alunos.insert(END, texto)
-                    alunos_dict[idx] = aluno_id
-                
-                if cursor is not None:
-                    cursor.close()
-                if conn is not None:
-                    conn.close()
-                
+                with get_connection() as conn:
+                    if conn is None:
+                        messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+                        return
+                    cursor = conn.cursor()
+                    try:
+                        # Obter ano letivo atual
+                        cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = YEAR(CURDATE())")
+                        ano_atual = cursor.fetchone()
+
+                        if not ano_atual:
+                            cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
+                            ano_atual = cursor.fetchone()
+
+                        ano_letivo_id = ano_atual[0] if ano_atual else 1
+
+                        if filtro:
+                            query = """
+                                SELECT DISTINCT a.id, a.nome, s.nome as serie, t.nome as turma
+                                FROM alunos a
+                                INNER JOIN matriculas m ON a.id = m.aluno_id
+                                INNER JOIN turmas t ON m.turma_id = t.id
+                                INNER JOIN serie s ON t.serie_id = s.id
+                                WHERE a.escola_id = 60 
+                                AND m.ano_letivo_id = %s
+                                AND m.status IN ('Ativo', 'Transferido')
+                                AND a.nome LIKE %s
+                                ORDER BY a.nome
+                            """
+                            cursor.execute(query, (int(str(ano_letivo_id)) if ano_letivo_id is not None else 1, f"%{filtro}%"))
+                        else:
+                            query = """
+                                SELECT DISTINCT a.id, a.nome, s.nome as serie, t.nome as turma
+                                FROM alunos a
+                                INNER JOIN matriculas m ON a.id = m.aluno_id
+                                INNER JOIN turmas t ON m.turma_id = t.id
+                                INNER JOIN serie s ON t.serie_id = s.id
+                                WHERE a.escola_id = 60 
+                                AND m.ano_letivo_id = %s
+                                AND m.status IN ('Ativo', 'Transferido')
+                                ORDER BY a.nome
+                            """
+                            cursor.execute(query, (int(str(ano_letivo_id)) if ano_letivo_id is not None else 1,))
+
+                        resultados = cursor.fetchall()
+
+                        for idx, (aluno_id, nome, serie, turma) in enumerate(resultados):
+                            info_adicional = ""
+                            if serie:
+                                info_adicional = f" - {serie}"
+                                if turma:
+                                    info_adicional += f" {turma}"
+
+                            texto = f"{nome}{info_adicional}"
+                            listbox_alunos.insert(END, texto)
+                            alunos_dict[idx] = aluno_id
+                    finally:
+                        try:
+                            cursor.close()
+                        except Exception:
+                            pass
+
             except Exception as e:
                 messagebox.showerror("Erro", f"Erro ao carregar alunos: {str(e)}")
         
