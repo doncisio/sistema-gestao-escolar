@@ -30,11 +30,185 @@ import Seguranca
 from conexao import inicializar_pool, fechar_pool
 from db.connection import get_connection
 from typing import Any, cast
+from integrar_historico_escolar import abrir_interface_historico, abrir_historico_aluno
 import aluno
+# Import seguro para a interface de cadastro/edição de notas
+try:
+    import InterfaceCadastroEdicaoNotas as _InterfaceCadastroEdicaoNotas
+except Exception:
+    _InterfaceCadastroEdicaoNotas = None
+# Import opcional de relatórios de movimentação mensal.
+# Se o módulo não estiver disponível em tempo de import, definimos a
+# variável como None para evitar avisos de nome não definido e permitir
+# tratamento condicional em tempo de execução.
+try:
+    import movimentomensal
+except Exception:
+    movimentomensal = None
+try:
+    import boletim as _boletim_module
+except Exception:
+    _boletim_module = None
+
+# Import seguro para gerar listas de reunião (wrapper)
+try:
+    import gerar_lista_reuniao as _gerar_lista_reuniao
+except Exception:
+    _gerar_lista_reuniao = None
+
+# Import seguro para funções de notas (NotaAta)
+try:
+    import NotaAta as _NotaAta
+except Exception:
+    _NotaAta = None
+
+# Import seguro para a interface de Ata Geral
+try:
+    import AtaGeral as _AtaGeral
+except Exception:
+    _AtaGeral = None
+
+def lista_reuniao():
+    """Wrapper seguro para gerar a lista de reunião.
+    Se o módulo estiver disponível, chama `gerar_lista_reuniao.gerar_lista_reuniao()`;
+    caso contrário, mostra uma mensagem de erro amigável.
+    """
+    if _gerar_lista_reuniao and hasattr(_gerar_lista_reuniao, 'gerar_lista_reuniao'):
+        try:
+            _gerar_lista_reuniao.gerar_lista_reuniao()
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar lista de reunião: {e}")
+    else:
+        messagebox.showerror("Erro", "Função 'gerar_lista_reuniao' não disponível. Verifique o módulo 'gerar_lista_reuniao'.")
+
+# Import seguro para lista de notas
+try:
+    import Lista_notas as _lista_notas
+except Exception:
+    _lista_notas = None
+
+def lista_notas():
+    """Wrapper seguro para gerar a lista de notas.
+    Chama `Lista_notas.lista_notas()` se disponível; caso contrário exibe erro.
+    """
+    if _lista_notas and hasattr(_lista_notas, 'lista_notas'):
+        try:
+            _lista_notas.lista_notas()
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar lista de notas: {e}")
+    else:
+        messagebox.showerror("Erro", "Função 'lista_notas' não disponível. Verifique o módulo 'Lista_notas'.")
+
+# Import seguro para lista de frequência
+try:
+    import lista_frequencia as _lista_frequencia
+except Exception:
+    _lista_frequencia = None
+
+def lista_frequencia():
+    """Wrapper seguro para gerar a lista de frequência.
+    Chama `lista_frequencia.lista_frequencia()` se disponível; caso contrário exibe erro.
+    """
+    if _lista_frequencia and hasattr(_lista_frequencia, 'lista_frequencia'):
+        try:
+            _lista_frequencia.lista_frequencia()
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar lista de frequência: {e}")
+    else:
+        messagebox.showerror("Erro", "Função 'lista_frequencia' não disponível. Verifique o módulo 'lista_frequencia'.")
+
+def gerar_relatorio_notas(*args, **kwargs):
+    """Wrapper para `NotaAta.gerar_relatorio_notas`"""
+    if _NotaAta and hasattr(_NotaAta, 'gerar_relatorio_notas'):
+        return _NotaAta.gerar_relatorio_notas(*args, **kwargs)
+    else:
+        messagebox.showerror("Erro", "Função 'gerar_relatorio_notas' não disponível. Verifique o módulo 'NotaAta'.")
+        return None
+
+def gerar_relatorio_notas_com_assinatura(*args, **kwargs):
+    """Wrapper para `NotaAta.gerar_relatorio_notas_com_assinatura`"""
+    if _NotaAta and hasattr(_NotaAta, 'gerar_relatorio_notas_com_assinatura'):
+        try:
+            return _NotaAta.gerar_relatorio_notas_com_assinatura(*args, **kwargs)
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar relatório com assinatura: {e}")
+            return None
+    else:
+        messagebox.showerror("Erro", "Função 'gerar_relatorio_notas_com_assinatura' não disponível. Verifique o módulo 'NotaAta'.")
+        return None
+
+def relatorio_movimentacao_mensal(numero_mes):
+    if movimentomensal and hasattr(movimentomensal, 'relatorio_movimentacao_mensal'):
+        try:
+            return movimentomensal.relatorio_movimentacao_mensal(numero_mes)
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar relatório de movimentação: {e}")
+            return None
+    else:
+        messagebox.showerror("Erro", "Função 'relatorio_movimentacao_mensal' não disponível. Verifique o módulo 'movimentomensal'.")
+        return None
+
+def boletim(aluno_id, ano_letivo_id=None):
+    if _boletim_module and hasattr(_boletim_module, 'boletim'):
+        try:
+            return _boletim_module.boletim(aluno_id, ano_letivo_id)
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar boletim: {e}")
+            return None
+    else:
+        messagebox.showerror("Erro", "Função 'boletim' não disponível. Verifique o módulo 'boletim'.")
+        return None
+
+def nota_bimestre(bimestre=None, preencher_nulos=False):
+    if _NotaAta and hasattr(_NotaAta, 'nota_bimestre'):
+        return _NotaAta.nota_bimestre(bimestre, preencher_nulos=preencher_nulos)
+    else:
+        messagebox.showerror("Erro", "Função 'nota_bimestre' não disponível. Verifique o módulo 'NotaAta'.")
+        return None
+
+def nota_bimestre2(bimestre=None, preencher_nulos=False):
+    if _NotaAta and hasattr(_NotaAta, 'nota_bimestre2'):
+        return _NotaAta.nota_bimestre2(bimestre, preencher_nulos=preencher_nulos)
+    else:
+        messagebox.showerror("Erro", "Função 'nota_bimestre2' não disponível. Verifique o módulo 'NotaAta'.")
+        return None
+
+def nota_bimestre_com_assinatura(bimestre=None, preencher_nulos=False):
+    if _NotaAta and hasattr(_NotaAta, 'nota_bimestre_com_assinatura'):
+        return _NotaAta.nota_bimestre_com_assinatura(bimestre, preencher_nulos=preencher_nulos)
+    else:
+        messagebox.showerror("Erro", "Função 'nota_bimestre_com_assinatura' não disponível. Verifique o módulo 'NotaAta'.")
+        return None
+
+def nota_bimestre2_com_assinatura(bimestre=None, preencher_nulos=False):
+    if _NotaAta and hasattr(_NotaAta, 'nota_bimestre2_com_assinatura'):
+        return _NotaAta.nota_bimestre2_com_assinatura(bimestre, preencher_nulos=preencher_nulos)
+    else:
+        messagebox.showerror("Erro", "Função 'nota_bimestre2_com_assinatura' não disponível. Verifique o módulo 'NotaAta'.")
+        return None
+
+def abrir_interface_ata(janela_pai=None, status_label=None):
+    if _AtaGeral and hasattr(_AtaGeral, 'abrir_interface_ata'):
+        try:
+            return _AtaGeral.abrir_interface_ata(janela_pai, status_label)
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao abrir interface de Ata: {e}")
+            return None
+    else:
+        # Tenta import dinâmico como fallback
+        try:
+            from AtaGeral import abrir_interface_ata as _abrir_ata_dyn
+            return _abrir_ata_dyn(janela_pai, status_label)
+        except Exception as e:
+            messagebox.showerror("Erro", f"Função 'abrir_interface_ata' não disponível: {e}")
+            return None
 
 # Flag de teste: quando True, desativa o sistema de backup automático
 # para permitir testes manuais da interface sem que o app feche automaticamente.
 # Defina para False antes de commitar para produção.
+# Variáveis globais de fallback para evitar avisos estáticos
+query = None
+
 TEST_MODE = True
 
 def converter_para_int_seguro(valor: Any) -> int:
@@ -65,6 +239,65 @@ def converter_para_int_seguro(valor: Any) -> int:
         return int(valor)
     except Exception:
         return 0
+
+
+def _safe_get(row: Any, index: int, default: Any = None) -> Any:
+    """
+    Retorna de forma segura o valor na posição `index` de `row`.
+    - Se `row` for None retorna `default`.
+    - Se for tuple/list retorna o elemento ou `default` se fora do alcance.
+    - Se for dict tenta por chave numérica ou nomeada; se não existir, retorna `default`.
+    """
+    if row is None:
+        return default
+    try:
+        if isinstance(row, dict):
+            # tenta por chave inteira (ex: resultado[0] vindo como dict) ou por nome
+            if index in row:
+                return row[index]
+            # como fallback, tenta converter index para str e buscar
+            key = str(index)
+            return row.get(key, default)
+        if isinstance(row, (list, tuple)):
+            try:
+                return row[index]
+            except Exception:
+                return default
+        # Caso seja um único valor, index 0 retorna o próprio
+        if index == 0:
+            return row
+    except Exception:
+        return default
+    return default
+
+
+def _safe_slice(row: Any, start: int, end: int) -> List[Any]:
+    """
+    Retorna uma fatia segura de `row` como lista entre `start` (inclusive) e `end` (exclusive).
+    Se `row` for tuple/list retorna a slice; se None retorna lista de Nones do tamanho solicitado.
+    """
+    length = max(0, end - start)
+    if row is None:
+        return [None] * length
+    try:
+        if isinstance(row, (list, tuple)):
+            s = list(row[start:end])
+            # garantir tamanho esperado
+            if len(s) < length:
+                s.extend([None] * (length - len(s)))
+            return s
+        if isinstance(row, dict):
+            # tentar extrair por índices numéricos nas chaves
+            out = []
+            for i in range(start, end):
+                out.append(_safe_get(row, i, None))
+            return out
+        # valor único
+        if length == 1:
+            return [row]
+    except Exception:
+        pass
+    return [None] * length
 
 def obter_ano_letivo_atual() -> int:
     """Retorna o `id` do ano letivo atual. Se não encontrar, retorna o id do ano letivo mais recente.
@@ -430,9 +663,10 @@ def criar_tabela():
     
     # Garantir colunas e df padrão caso não estejam definidos ainda
     global colunas, df
-    if 'colunas' not in globals() or not colunas:
+    # Usar globals().get para evitar referência a variável possivelmente não associada
+    if 'colunas' not in globals() or not globals().get('colunas'):
         colunas = ['ID', 'Nome']
-    if 'df' not in globals() or df is None:
+    if 'df' not in globals() or globals().get('df') is None:
         df = pd.DataFrame(columns=colunas)
 
     # Criação do Treeview com barras de rolagem
@@ -1491,7 +1725,10 @@ def excluir_aluno_com_confirmacao(aluno_id):
     if resposta:
         try:
             # Executa a exclusão
-            resultado = aluno.excluir_aluno(aluno_id, treeview, query)
+            # `aluno.excluir_aluno` aceita `query` por compatibilidade, mas
+            # não usa o parâmetro internamente. Passar `None` evita
+            # referência a variável indefinida aqui e mantém a chamada válida.
+            resultado = aluno.excluir_aluno(aluno_id, treeview, None)
             
             if resultado:
                 messagebox.showinfo("Sucesso", "Aluno excluído com sucesso.")
@@ -1890,7 +2127,9 @@ def pesquisar(event=None):
                     # Remover coluna de relevância antes de exibir
                     resultados_filtrados = [row[:-1] for row in resultados_filtrados]
 
-                except Error as e:
+                # `Error` não estava importado aqui; capturamos qualquer exceção
+                # e tratamos o caso de FULLTEXT como fallback para LIKE.
+                except Exception as e:
                     # Se FULLTEXT falhar, usar LIKE tradicional (fallback)
                     if "Can't find FULLTEXT index" in str(e) or "function" in str(e).lower():
                         query_like = """
@@ -2191,9 +2430,10 @@ def criar_acoes():
         
         # Adicionar meses ao menu
         for i, mes in enumerate(meses_disponiveis, 1):
+            # Chamada segura via wrapper
             menu_meses.add_command(
                 label=mes,
-                command=lambda m=i: movimentomensal.relatorio_movimentacao_mensal(m)
+                command=lambda m=i: relatorio_movimentacao_mensal(m)
             )
         
         # Mostrar o menu na posição do mouse
@@ -2253,8 +2493,22 @@ def criar_acoes():
         janela_notas.protocol("WM_DELETE_WINDOW", ao_fechar)
         
         # Criar interface de cadastro de notas
-        app_notas = InterfaceCadastroEdicaoNotas.InterfaceCadastroEdicaoNotas(
-            janela_notas, janela_principal=janela)
+        if _InterfaceCadastroEdicaoNotas:
+            try:
+                app_notas = _InterfaceCadastroEdicaoNotas.InterfaceCadastroEdicaoNotas(janela_notas, janela_principal=janela)
+            except Exception as e:
+                messagebox.showerror("Erro", f"Falha ao abrir interface de notas: {e}")
+                janela.deiconify()
+                return
+        else:
+            # Tenta import dinâmico como fallback e mostra erro amigável se falhar
+            try:
+                from InterfaceCadastroEdicaoNotas import InterfaceCadastroEdicaoNotas as _ICEN
+                app_notas = _ICEN(janela_notas, janela_principal=janela)
+            except Exception as e:
+                messagebox.showerror("Erro", f"Não foi possível abrir a interface de cadastro/edição de notas: {e}")
+                janela.deiconify()
+                return
     
     # Função para abrir o relatório estatístico de análise de notas
     def abrir_relatorio_analise():
@@ -3544,6 +3798,10 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
                 cursor = conn.cursor()
 
                 # Executar a consulta otimizada para obter dados atualizados
+                # Se a variável global 'query' não estiver definida, não atualizar
+                if 'query' not in globals() or not globals().get('query'):
+                    print("Variável 'query' não definida; pulando atualização de tabela")
+                    return False
                 cursor.execute(query)
 
                 # Atualizar a variável global de resultados
@@ -4315,7 +4573,7 @@ def selecionar_mes_movimento():
         nome_mes = mes_selecionado.get()
         numero_mes = meses.index(nome_mes) + 1  # +1 porque o índice começa em 0
         janela_mes.destroy()
-        movimentomensal.relatorio_movimentacao_mensal(numero_mes)
+        relatorio_movimentacao_mensal(numero_mes)
     
     def cancelar():
         janela_mes.destroy()
@@ -4350,7 +4608,7 @@ def relatorio():
     for i, mes in enumerate(meses_disponiveis, 1):
         menu_meses.add_command(
             label=mes,
-            command=lambda m=i: movimentomensal.relatorio_movimentacao_mensal(m)
+            command=lambda m=i: relatorio_movimentacao_mensal(m)
         )
     
     # Mostrar o menu na posição do mouse
@@ -4448,27 +4706,34 @@ def abrir_relatorio_avancado_com_assinatura():
             status_label.config(text=f"Gerando relatório de notas com assinatura para {bimestre} ({nivel})...")
         janela.update()
         
-        # Gerar o relatório
-        try:
-            resultado = gerar_relatorio_notas_com_assinatura(
-                bimestre=bimestre,
-                nivel_ensino=nivel,
-                ano_letivo=ano,
-                status_matricula=status,
-                preencher_nulos=preencher_com_zeros
-            )
-            
-            if resultado:
-                if status_label is not None:
-                    status_label.config(text=f"Relatório com assinatura gerado com sucesso!")
-            else:
-                if status_label is not None:
-                    status_label.config(text=f"Nenhum dado encontrado para o relatório.")
-                messagebox.showwarning("Sem dados", f"Não foram encontrados dados para o {bimestre} no nível {nivel}.")
-        except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao gerar relatório: {str(e)}")
-            if status_label is not None:
-                status_label.config(text="")
+        # Gerar o relatório em background para não bloquear a UI
+        def _worker():
+            try:
+                resultado = gerar_relatorio_notas_com_assinatura(
+                    bimestre=bimestre,
+                    nivel_ensino=nivel,
+                    ano_letivo=ano,
+                    status_matricula=status,
+                    preencher_nulos=preencher_com_zeros
+                )
+                def _on_done():
+                    if resultado:
+                        if status_label is not None:
+                            status_label.config(text="Relatório com assinatura gerado com sucesso!")
+                    else:
+                        if status_label is not None:
+                            status_label.config(text="Nenhum dado encontrado para o relatório.")
+                        messagebox.showwarning("Sem dados", f"Não foram encontrados dados para o {bimestre} no nível {nivel}.")
+                janela.after(0, _on_done)
+            except Exception as e:
+                def _on_error():
+                    messagebox.showerror("Erro", f"Falha ao gerar relatório: {str(e)}")
+                    if status_label is not None:
+                        status_label.config(text="")
+                janela.after(0, _on_error)
+
+        from threading import Thread
+        Thread(target=_worker, daemon=True).start()
     
     # Botões
     Button(frame_botoes, text="Cancelar", command=janela_relatorio.destroy, width=10).pack(side=RIGHT, padx=5)
@@ -4571,30 +4836,37 @@ def abrir_relatorio_pendencias():
             status_label.config(text=f"Gerando relatório de pendências para {bimestre} ({nivel})...")
         janela.update()
         
-        # Gerar o relatório
-        try:
-            from relatorio_pendencias import gerar_pdf_pendencias
-            resultado = gerar_pdf_pendencias(
-                bimestre=bimestre,
-                nivel_ensino=nivel,
-                ano_letivo=ano,
-                escola_id=60
-            )
-            
-            if resultado:
-                if status_label is not None:
-                    status_label.config(text=f"Relatório de pendências gerado com sucesso!")
-            else:
-                if status_label is not None:
-                    status_label.config(text=f"Nenhuma pendência encontrada.")
-                messagebox.showinfo("Sem pendências", 
-                                   f"Não foram encontradas pendências para o {bimestre} no nível {nivel}.")
-        except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao gerar relatório: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            if status_label is not None:
-                status_label.config(text="")
+            # Gerar o relatório em background para não bloquear a UI
+        def _worker_pendencias():
+            try:
+                from relatorio_pendencias import gerar_pdf_pendencias
+                resultado = gerar_pdf_pendencias(
+                    bimestre=bimestre,
+                    nivel_ensino=nivel,
+                    ano_letivo=ano,
+                    escola_id=60
+                )
+                def _on_done():
+                    if resultado:
+                        if status_label is not None:
+                            status_label.config(text="Relatório de pendências gerado com sucesso!")
+                    else:
+                        if status_label is not None:
+                            status_label.config(text="Nenhuma pendência encontrada.")
+                        messagebox.showinfo("Sem pendências", 
+                                           f"Não foram encontradas pendências para o {bimestre} no nível {nivel}.")
+                janela.after(0, _on_done)
+            except Exception as e:
+                def _on_error():
+                    messagebox.showerror("Erro", f"Falha ao gerar relatório: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+                    if status_label is not None:
+                        status_label.config(text="")
+                janela.after(0, _on_error)
+
+        from threading import Thread
+        Thread(target=_worker_pendencias, daemon=True).start()
     
     # Botões estilizados
     btn_gerar = Button(frame_botoes, text="📄 Gerar Relatório", command=gerar_relatorio, 
