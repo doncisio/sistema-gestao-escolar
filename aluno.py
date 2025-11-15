@@ -451,141 +451,144 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
         conn = None
         cursor = None
         try:
-            # Conectar ao banco de dados
-            conn = conectar_bd()
-            cursor = cast(Any, conn).cursor()
-            
-            # Obter o ID da escola atual
-            escola_id = 3  # Valor padrão, ajuste conforme necessário
-            
-            # Inserir o aluno
-            data_nascimento_str = data_nascimento.strftime('%Y-%m-%d')
-            local_nascimento = e_local_nascimento.get() or "Paço do Lumiar"
-            uf_nascimento = e_uf_nascimento.get() or "MA"
-            endereco = e_endereco.get() or ""
-            sus = e_sus.get() or ""
-            descricao_transtorno = e_descricao_transtorno.get() or "Nenhum"
-            
-            # Inserir o aluno
-            cursor.execute("""
-                INSERT INTO alunos 
-                (nome, data_nascimento, local_nascimento, UF_nascimento, endereco, sus, sexo, cpf, nis, raca, 
-                escola_id, descricao_transtorno)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                nome, data_nascimento_str, local_nascimento, uf_nascimento, endereco, sus, sexo, cpf, e_nis.get(), raca, 
-                escola_id, descricao_transtorno
-            ))
-            
-            # Obter o ID do aluno inserido
-            aluno_id = cursor.lastrowid
-            
-            # Obter o ID da turma selecionada
-            turma_id = None
-            if turmas_ids and turma in turmas_ids:
-                turma_id = turmas_ids[turma]
-            else:
-                # Obter o ID do ano letivo atual (2025)
+            # Usar context manager centralizado para obter conexão
+            with get_connection() as conn:
+                if conn is None:
+                    messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+                    return
+                cursor = cast(Any, conn).cursor()
+
+                # Obter o ID da escola atual
+                escola_id = 3  # Valor padrão, ajuste conforme necessário
+
+                # Inserir o aluno
+                data_nascimento_str = data_nascimento.strftime('%Y-%m-%d')
+                local_nascimento = e_local_nascimento.get() or "Paço do Lumiar"
+                uf_nascimento = e_uf_nascimento.get() or "MA"
+                endereco = e_endereco.get() or ""
+                sus = e_sus.get() or ""
+                descricao_transtorno = e_descricao_transtorno.get() or "Nenhum"
+
+                cursor.execute("""
+                    INSERT INTO alunos 
+                    (nome, data_nascimento, local_nascimento, UF_nascimento, endereco, sus, sexo, cpf, nis, raca, 
+                    escola_id, descricao_transtorno)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    nome, data_nascimento_str, local_nascimento, uf_nascimento, endereco, sus, sexo, cpf, e_nis.get(), raca, 
+                    escola_id, descricao_transtorno
+                ))
+
+                # Obter o ID do aluno inserido
+                aluno_id = cursor.lastrowid
+
+                # Obter o ID da turma selecionada
+                turma_id = None
+                if turmas_ids and turma in turmas_ids:
+                    turma_id = turmas_ids[turma]
+                else:
+                    # Obter o ID do ano letivo atual (2025)
+                    cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = 2025")
+                    ano_letivo_id = cursor.fetchone()[0]
+
+                    # Obter o ID da série selecionada
+                    serie_id = next((s[0] for s in series if s[1] == serie), None)
+
+                    turno = c_turno.get()
+                    turma_nome = turma.split(" - ")[0] if " - " in turma else turma
+
+                    # Buscar a turma no banco de dados
+                    cursor.execute("""
+                        SELECT id FROM turmas 
+                        WHERE nome = %s AND serie_id = %s AND turno = %s AND ano_letivo_id = %s
+                    """, (turma_nome, serie_id, turno, ano_letivo_id))
+
+                    result = cursor.fetchone()
+                    if result:
+                        turma_id = result[0]
+
+                # Verificar se conseguiu obter o ID da turma
+                if not turma_id:
+                    raise Exception("Não foi possível obter o ID da turma selecionada.")
+
+                # Obter o ID do ano letivo (2025)
                 cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = 2025")
                 ano_letivo_id = cursor.fetchone()[0]
-                
-                # Obter o ID da série selecionada
-                serie_id = next((s[0] for s in series if s[1] == serie), None)
-                
-                turno = c_turno.get()
-                turma_nome = turma.split(" - ")[0] if " - " in turma else turma
-                
-                # Buscar a turma no banco de dados
+
+                # Inserir a matrícula
+                data_atual = datetime.now().strftime('%Y-%m-%d')
                 cursor.execute("""
-                    SELECT id FROM turmas 
-                    WHERE nome = %s AND serie_id = %s AND turno = %s AND ano_letivo_id = %s
-                """, (turma_nome, serie_id, turno, ano_letivo_id))
-                
-                result = cursor.fetchone()
-                if result:
-                    turma_id = result[0]
-            
-            # Verificar se conseguiu obter o ID da turma
-            if not turma_id:
-                raise Exception("Não foi possível obter o ID da turma selecionada.")
-            
-            # Obter o ID do ano letivo (2025)
-            cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = 2025")
-            ano_letivo_id = cursor.fetchone()[0]
-            
-            # Inserir a matrícula
-            data_atual = datetime.now().strftime('%Y-%m-%d')
-            cursor.execute("""
-                INSERT INTO matriculas (aluno_id, turma_id, data_matricula, ano_letivo_id, status) 
-                VALUES (%s, %s, %s, %s, %s)
-            """, (aluno_id, turma_id, data_atual, ano_letivo_id, "Ativo"))
-            
-            # Inserir/atualizar responsáveis
-            for frame in lista_frames_responsaveis:
-                nome_resp = frame.campos['nome'].get()
-                telefone = frame.campos['telefone'].get() or ""
-                rg = frame.campos['rg'].get() or ""
-                cpf_resp = frame.campos['cpf'].get()
-                parentesco = frame.campos['parentesco'].get() or ""
-                
-                # Verificar se já existe um responsável com esse CPF
-                cursor.execute("SELECT id FROM responsaveis WHERE cpf = %s", (cpf_resp,))
-                responsavel_existente = cursor.fetchone()
-                
-                if responsavel_existente:
-                    # Atualizar responsável existente
-                    responsavel_id = responsavel_existente[0]
+                    INSERT INTO matriculas (aluno_id, turma_id, data_matricula, ano_letivo_id, status) 
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (aluno_id, turma_id, data_atual, ano_letivo_id, "Ativo"))
+
+                # Inserir/atualizar responsáveis
+                for frame in lista_frames_responsaveis:
+                    nome_resp = frame.campos['nome'].get()
+                    telefone = frame.campos['telefone'].get() or ""
+                    rg = frame.campos['rg'].get() or ""
+                    cpf_resp = frame.campos['cpf'].get()
+                    parentesco = frame.campos['parentesco'].get() or ""
+
+                    # Verificar se já existe um responsável com esse CPF
+                    cursor.execute("SELECT id FROM responsaveis WHERE cpf = %s", (cpf_resp,))
+                    responsavel_existente = cursor.fetchone()
+
+                    if responsavel_existente:
+                        # Atualizar responsável existente
+                        responsavel_id = responsavel_existente[0]
+                        cursor.execute("""
+                            UPDATE responsaveis 
+                            SET nome = %s, telefone = %s, rg = %s, grau_parentesco = %s 
+                            WHERE id = %s
+                        """, (nome_resp, telefone, rg, parentesco, responsavel_id))
+                    else:
+                        # Inserir novo responsável
+                        cursor.execute("""
+                            INSERT INTO responsaveis (nome, telefone, rg, cpf, grau_parentesco) 
+                            VALUES (%s, %s, %s, %s, %s)
+                        """, (nome_resp, telefone, rg, cpf_resp, parentesco))
+                        responsavel_id = cursor.lastrowid
+
+                    # Associar responsável ao aluno
                     cursor.execute("""
-                        UPDATE responsaveis 
-                        SET nome = %s, telefone = %s, rg = %s, grau_parentesco = %s 
-                        WHERE id = %s
-                    """, (nome_resp, telefone, rg, parentesco, responsavel_id))
-                else:
-                    # Inserir novo responsável
-                    cursor.execute("""
-                        INSERT INTO responsaveis (nome, telefone, rg, cpf, grau_parentesco) 
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (nome_resp, telefone, rg, cpf_resp, parentesco))
-                    responsavel_id = cursor.lastrowid
-                
-                # Associar responsável ao aluno
-                cursor.execute("""
-                    INSERT INTO responsaveisalunos (responsavel_id, aluno_id) 
-                    VALUES (%s, %s)
-                """, (responsavel_id, aluno_id))
-            
-            # Commit das alterações
-            if conn:
+                        INSERT INTO responsaveisalunos (responsavel_id, aluno_id) 
+                        VALUES (%s, %s)
+                    """, (responsavel_id, aluno_id))
+
+                # Commit das alterações
                 conn.commit()
-            
-            # Atualizar a tabela na interface
-            if treeview and treeview.winfo_exists():
-                atualizar_treeview(treeview, cursor, query)
-            
+
+                # Atualizar a tabela na interface
+                if treeview and treeview.winfo_exists():
+                    atualizar_treeview(treeview, cursor, query)
+
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
+
+            # Fim do with get_connection()
+
             messagebox.showinfo("Sucesso", "Aluno cadastrado com sucesso!")
-            
+
             # Voltar para a tela principal
             voltar_pagina_principal()
-            
+
         except mysql.connector.Error as err:
             messagebox.showerror("Erro", f"Erro ao salvar no banco de dados: {err}")
             print(f"Erro MySQL: {err}")
-            if conn:
-                conn.rollback()
+            try:
+                if conn:
+                    conn.rollback()
+            except Exception:
+                pass
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao salvar: {e}")
             print(f"Erro geral: {e}")
-            if conn:
-                conn.rollback()
-        finally:
-            try:
-                if cursor:
-                    cursor.close()
-            except Exception:
-                pass
             try:
                 if conn:
-                    conn.close()
+                    conn.rollback()
             except Exception:
                 pass
 
