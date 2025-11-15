@@ -2819,36 +2819,35 @@ def criar_acoes():
             
             if aluno_id:
                 try:
-                    conn = conectar_bd()
-                    if conn is None:
-                        print("Erro: Não foi possível conectar ao banco de dados.")
-                        return
-                    cursor = conn.cursor()
-                    
-                    # Buscar responsáveis do aluno
-                    query = """
-                        SELECT DISTINCT 
-                            r.nome,
-                            r.cpf
-                        FROM responsaveis r
-                        INNER JOIN responsaveisalunos ra ON r.id = ra.responsavel_id
-                        WHERE ra.aluno_id = %s
-                    """
-                    cursor.execute(query, (aluno_id,))
-                    resultados = cursor.fetchall()
-                    
-                    responsaveis = []
-                    
-                    # Adicionar todos os responsáveis encontrados
-                    for row in resultados:
-                        if row[0]:
-                            responsaveis.append(row[0])
-                    
-                    if cursor is not None:
-                        cursor.close()
-                    if conn is not None:
-                        conn.close()
-                    
+                    with get_connection() as conn:
+                        if conn is None:
+                            print("Erro: Não foi possível conectar ao banco de dados.")
+                            return
+                        cursor = conn.cursor()
+                        try:
+                            # Buscar responsáveis do aluno
+                            query = """
+                                SELECT DISTINCT 
+                                    r.nome,
+                                    r.cpf
+                                FROM responsaveis r
+                                INNER JOIN responsaveisalunos ra ON r.id = ra.responsavel_id
+                                WHERE ra.aluno_id = %s
+                            """
+                            cursor.execute(query, (aluno_id,))
+                            resultados = cursor.fetchall()
+
+                            responsaveis = []
+                            # Adicionar todos os responsáveis encontrados
+                            for row in resultados:
+                                if row and row[0]:
+                                    responsaveis.append(row[0])
+                        finally:
+                            try:
+                                cursor.close()
+                            except Exception:
+                                pass
+
                     # Atualizar combobox
                     if responsaveis:
                         combo_responsavel['values'] = responsaveis
@@ -2856,7 +2855,6 @@ def criar_acoes():
                     else:
                         combo_responsavel['values'] = ["Responsável não cadastrado"]
                         combo_responsavel.set("Responsável não cadastrado")
-                    
                 except Exception as e:
                     print(f"Erro ao carregar responsáveis: {str(e)}")
         
