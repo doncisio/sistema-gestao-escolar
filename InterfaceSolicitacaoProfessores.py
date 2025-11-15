@@ -11,6 +11,7 @@ from reportlab.lib.units import inch
 from reportlab.lib.colors import black, white
 from conexao import conectar_bd
 from reportlab.lib.utils import ImageReader
+from typing import Any, cast
 
 
 class InterfaceSolicitacaoProfessores:
@@ -367,8 +368,10 @@ class InterfaceSolicitacaoProfessores:
     def _obter_nome_escola(self, escola_id: int = 60) -> str:
         try:
             conn = conectar_bd()
+            if not conn:
+                return f"Escola ID {escola_id}"
             try:
-                cur = conn.cursor()
+                cur = cast(Any, conn).cursor()
                 cur.execute("SELECT nome FROM escolas WHERE id = %s", (escola_id,))
                 row = cur.fetchone()
                 if row:
@@ -379,7 +382,7 @@ class InterfaceSolicitacaoProfessores:
                 return f"Escola ID {escola_id}"
             finally:
                 try:
-                    conn.close()
+                    cast(Any, conn).close()
                 except Exception:
                     pass
         except Exception:
@@ -390,8 +393,10 @@ class InterfaceSolicitacaoProfessores:
         resultados = []
         try:
             conn = conectar_bd()
+            if not conn:
+                return []
             try:
-                cur = conn.cursor()
+                cur = cast(Any, conn).cursor()
                 cur.execute("SELECT nome_setor, email_principal FROM setores_semed")
                 rows = cur.fetchall() or []
                 for r in rows:
@@ -404,7 +409,7 @@ class InterfaceSolicitacaoProfessores:
                         continue
             finally:
                 try:
-                    conn.close()
+                    cast(Any, conn).close()
                 except Exception:
                     pass
         except Exception:
@@ -589,7 +594,7 @@ class InterfaceSolicitacaoProfessores:
             if logo_path:
                 img_logo = Image(logo_path)
                 # Redimensionar proporcionalmente para caber em uma área máxima (mantém proporções originais)
-                img_logo._restrictSize(1.8 * inch, 1.0 * inch)
+                img_logo._restrictSize(1.8 * inch, 1.0 * inch)  # type: ignore[attr-defined]
             else:
                 img_logo = Spacer(1.0 * inch, 1.0 * inch)
         except Exception:

@@ -1,5 +1,10 @@
 from datetime import datetime
-from tkinter import *
+from tkinter import (
+    Label, Frame, Button, Entry, Toplevel, Canvas, Scrollbar,
+    NW, LEFT, RIGHT, TOP, BOTTOM, W, E, N, S,
+    BOTH, X, Y, VERTICAL, HORIZONTAL, END,
+    TRUE, FALSE, GROOVE, RAISED, FLAT, RIDGE, StringVar
+)
 from tkinter import messagebox, ttk
 from PIL import ImageTk, Image
 import mysql.connector
@@ -7,6 +12,9 @@ from mysql.connector import Error
 from conexao import conectar_bd
 from tkcalendar import DateEntry
 from typing import Any, cast
+
+# Constante útil para `sticky` em grids (N, S, E, W concatenados)
+NSEW = N + E + S + W
 
 class InterfaceEdicaoAluno:
     def __init__(self, master, aluno_id, janela_principal=None):
@@ -47,7 +55,7 @@ class InterfaceEdicaoAluno:
         # Conectar ao banco de dados
         try:
             self.conn = conectar_bd()
-            self.cursor = self.conn.cursor(buffered=True)
+            self.cursor = cast(Any, self.conn).cursor(buffered=True)
         except Exception as e:
             messagebox.showerror("Erro de Conexão", f"Não foi possível conectar ao banco de dados: {str(e)}")
             self.fechar_janela()
@@ -68,8 +76,8 @@ class InterfaceEdicaoAluno:
         if messagebox.askyesno("Confirmar", "Deseja realmente fechar a edição? Alterações não salvas serão perdidas."):
             # Fechar conexões com o banco de dados se existirem
             try:
-                self.cursor.close()
-                self.conn.close()
+                cast(Any, self.cursor).close()
+                cast(Any, self.conn).close()
             except:
                 pass
         
@@ -428,7 +436,7 @@ class InterfaceEdicaoAluno:
         c_parentesco.grid(row=4, column=0, sticky="ew", padx=10, pady=2)
         
         # Armazenando as entradas no frame para recuperação posterior
-        frame_resp.campos = {
+        cast(Any, frame_resp).campos = {
             'nome': e_nome_resp,
             'telefone': e_telefone,
             'rg': e_rg,
@@ -437,7 +445,7 @@ class InterfaceEdicaoAluno:
         }
         
         # Inicializando o ID do responsável (usado para edição)
-        frame_resp.responsavel_id = None
+        cast(Any, frame_resp).responsavel_id = None
         
         # Se foram fornecidos dados, preencher os campos
         if dados_resp:
@@ -448,7 +456,7 @@ class InterfaceEdicaoAluno:
             c_parentesco.set(dados_resp['grau_parentesco'] or "")
             
             # Salvar o ID do responsável no frame para uso posterior
-            frame_resp.responsavel_id = dados_resp['id']
+            cast(Any, frame_resp).responsavel_id = dados_resp['id']
         
         # Atualiza a região de rolagem do canvas
         self.frame_responsaveis.update_idletasks()
@@ -767,7 +775,7 @@ class InterfaceEdicaoAluno:
             # Verificar se existe conexão com o banco
             if not hasattr(self, 'conn') or not self.conn:
                 self.conn = conectar_bd()
-                self.cursor = self.conn.cursor(buffered=True)
+                self.cursor = cast(Any, self.conn).cursor(buffered=True)
                 
             cast(Any, self.cursor).execute("SELECT id, nome FROM escolas ORDER BY nome, id")
             escolas = cast(Any, self.cursor).fetchall()
@@ -809,7 +817,7 @@ class InterfaceEdicaoAluno:
             try:
                 # Tenta reconectar
                 self.conn = conectar_bd()
-                self.cursor = self.conn.cursor(buffered=True)
+                self.cursor = cast(Any, self.conn).cursor(buffered=True)
             except:
                 pass
         except Exception as e:

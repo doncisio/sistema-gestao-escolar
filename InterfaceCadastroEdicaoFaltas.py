@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 from datetime import datetime
 import calendar
 from conexao import conectar_bd
+from typing import Any, cast
 
 
 class InterfaceCadastroEdicaoFaltas:
@@ -115,21 +116,22 @@ class InterfaceCadastroEdicaoFaltas:
     def atualizar_dias_letivos(self):
         try:
             conn = conectar_bd()
-            cur = conn.cursor()
-            cur.execute(
+            cur = cast(Any, conn).cursor()
+            cast(Any, cur).execute(
                 """
                 SELECT dias_letivos FROM dias_letivos_mensais
                 WHERE ano_letivo = %s AND mes = %s
                 """,
                 (int(self.ano.get()), int(self.mes.get())),
             )
-            row = cur.fetchone()
+            row = cast(Any, cur).fetchone()
             valor = row[0] if row else None
             texto = f"Dias letivos: {valor}" if valor is not None else "Dias letivos: --"
             if hasattr(self, 'lbl_dias') and self.lbl_dias.winfo_exists():
                 self.lbl_dias.config(text=texto)
-            cur.close()
-            conn.close()
+            cast(Any, cur).close()
+            if conn:
+                cast(Any, conn).close()
         except Exception:
             if hasattr(self, 'lbl_dias') and self.lbl_dias.winfo_exists():
                 self.lbl_dias.config(text="Dias letivos: --")
@@ -140,8 +142,8 @@ class InterfaceCadastroEdicaoFaltas:
 
     # --- Dados ---
     def garantir_tabela(self, conn):
-        cur = conn.cursor()
-        cur.execute(
+        cur = cast(Any, conn).cursor()
+        cast(Any, cur).execute(
             """
             CREATE TABLE IF NOT EXISTS funcionario_faltas_mensal (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -156,15 +158,15 @@ class InterfaceCadastroEdicaoFaltas:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             """
         )
-        cur.close()
+        cast(Any, cur).close()
 
     def carregar_funcionarios(self):
         try:
             conn = conectar_bd()
             self.garantir_tabela(conn)
-            cur = conn.cursor(dictionary=True)
+            cur = cast(Any, conn).cursor(dictionary=True)
 
-            cur.execute(
+            cast(Any, cur).execute(
                 """
                 SELECT f.id, f.matricula, f.nome
                 FROM Funcionarios f
@@ -173,10 +175,10 @@ class InterfaceCadastroEdicaoFaltas:
                 """,
                 (self.escola_id,),
             )
-            funcionarios = cur.fetchall()
+            funcionarios = cast(Any, cur).fetchall()
 
             # Carregar faltas existentes do mês/ano selecionados
-            cur.execute(
+            cast(Any, cur).execute(
                 """
                 SELECT funcionario_id, p, f, fj, observacao
                 FROM funcionario_faltas_mensal
@@ -184,7 +186,7 @@ class InterfaceCadastroEdicaoFaltas:
                 """,
                 (self.ano.get(), self.mes.get()),
             )
-            regs = {r["funcionario_id"]: r for r in cur.fetchall()}
+            regs = {r["funcionario_id"]: r for r in cast(Any, cur).fetchall()}
 
             # Reset tabela
             for item in self.tabela.get_children():
@@ -244,8 +246,9 @@ class InterfaceCadastroEdicaoFaltas:
                 entrada_f.bind("<KeyRelease>", lambda e, fid=f["id"]: self._calcular_presenca(fid))
                 entrada_fj.bind("<KeyRelease>", lambda e, fid=f["id"]: self._calcular_presenca(fid))
 
-            cur.close()
-            conn.close()
+            cast(Any, cur).close()
+            if conn:
+                cast(Any, conn).close()
 
             # Ajustar on scroll/movimento/redimensionamento
             self.tabela.bind("<ButtonRelease-1>", self._ajustar_inputs)
@@ -356,7 +359,7 @@ class InterfaceCadastroEdicaoFaltas:
         try:
             conn = conectar_bd()
             self.garantir_tabela(conn)
-            cur = conn.cursor()
+            cur = cast(Any, conn).cursor()
             ano = int(self.ano.get())
             mes = int(self.mes.get())
 
@@ -364,8 +367,8 @@ class InterfaceCadastroEdicaoFaltas:
             total_dias_mes = calendar.monthrange(ano, mes)[1]
 
             # Obter observações já salvas para preservar quando não for informado
-            cur_exist = conn.cursor(dictionary=True)
-            cur_exist.execute(
+            cur_exist = cast(Any, conn).cursor(dictionary=True)
+            cast(Any, cur_exist).execute(
                 """
                 SELECT funcionario_id, observacao
                 FROM funcionario_faltas_mensal
@@ -373,8 +376,8 @@ class InterfaceCadastroEdicaoFaltas:
                 """,
                 (ano, mes),
             )
-            obs_existente_map = {r["funcionario_id"]: r.get("observacao") for r in cur_exist.fetchall()}
-            cur_exist.close()
+            obs_existente_map = {r["funcionario_id"]: r.get("observacao") for r in cast(Any, cur_exist).fetchall()}
+            cast(Any, cur_exist).close()
 
             inseridos = 0
             atualizados = 0
@@ -425,7 +428,7 @@ class InterfaceCadastroEdicaoFaltas:
                 obs_final = obs if obs else None
 
                 # Upsert
-                cur.execute(
+                cast(Any, cur).execute(
                     """
                     INSERT INTO funcionario_faltas_mensal (funcionario_id, ano, mes, p, f, fj, observacao)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -438,9 +441,11 @@ class InterfaceCadastroEdicaoFaltas:
                 else:
                     atualizados += 1
 
-            conn.commit()
-            cur.close()
-            conn.close()
+            if conn:
+                cast(Any, conn).commit()
+            cast(Any, cur).close()
+            if conn:
+                cast(Any, conn).close()
             
             # Exibir resultado
             mensagem = f"Faltas salvas com sucesso!\n\nInseridos: {inseridos}\nAtualizados: {atualizados}"

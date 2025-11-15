@@ -10,6 +10,7 @@ import sys
 from dotenv import load_dotenv
 import mysql.connector
 from mysql.connector import Error
+from typing import Any, cast
 
 # Carregar variáveis do .env
 load_dotenv()
@@ -85,7 +86,7 @@ def aplicar_otimizacoes_historico():
     if not conn:
         return False
     
-    cursor = conn.cursor()
+    cursor = cast(Any, conn).cursor()
     
     try:
         # ==================================================================

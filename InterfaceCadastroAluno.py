@@ -1,11 +1,20 @@
 from datetime import datetime
-from tkinter import *
+from tkinter import (
+    Label, Frame, Button, Entry, Toplevel, Canvas, Scrollbar,
+    NW, LEFT, RIGHT, TOP, BOTTOM, W, E, N, S,
+    BOTH, X, Y, VERTICAL, HORIZONTAL, END,
+    TRUE, FALSE, GROOVE, RAISED, FLAT, RIDGE, StringVar
+)
 from tkinter import messagebox, ttk
 from PIL import ImageTk, Image
 import mysql.connector
 from mysql.connector import Error
 from conexao import conectar_bd
 from tkcalendar import DateEntry
+from typing import Any, cast
+
+# Constante útil para `sticky` em grids (N, S, E, W concatenados)
+NSEW = N + E + S + W
 
 class InterfaceCadastroAluno:
     def __init__(self, master, janela_principal=None):
@@ -56,7 +65,7 @@ class InterfaceCadastroAluno:
         # Conectar ao banco de dados
         try:
             self.conn = conectar_bd()
-            self.cursor = self.conn.cursor(buffered=True)
+            self.cursor = cast(Any, self.conn).cursor(buffered=True)
         except Exception as e:
             messagebox.showerror("Erro de Conexão", f"Não foi possível conectar ao banco de dados: {str(e)}")
             self.fechar_janela()
@@ -76,8 +85,8 @@ class InterfaceCadastroAluno:
         # Fechar a conexão com o banco de dados
         if hasattr(self, 'conn') and self.conn:
             try:
-                self.cursor.close()
-                self.conn.close()
+                cast(Any, self.cursor).close()
+                cast(Any, self.conn).close()
             except:
                 pass
         
@@ -421,7 +430,7 @@ class InterfaceCadastroAluno:
         c_parentesco.grid(row=4, column=0, sticky="ew", padx=10, pady=2)
         
         # Armazenando as entradas no frame para recuperação posterior
-        frame_resp.campos = {
+        cast(Any, frame_resp).campos = {
             'nome': e_nome_resp,
             'telefone': e_telefone,
             'rg': e_rg,
@@ -430,7 +439,7 @@ class InterfaceCadastroAluno:
         }
         
         # Inicializando o ID do responsável (se é um novo responsável)
-        frame_resp.responsavel_id = None
+        cast(Any, frame_resp).responsavel_id = None
         
         # Atualiza a região de rolagem do canvas
         self.frame_responsaveis.update_idletasks()
@@ -495,7 +504,7 @@ class InterfaceCadastroAluno:
                 return
 
             # Inserir o aluno no banco de dados
-            self.cursor.execute(
+            cast(Any, self.cursor).execute(
                 """
                 INSERT INTO alunos (
                     nome, data_nascimento, local_nascimento, UF_nascimento,
@@ -512,13 +521,14 @@ class InterfaceCadastroAluno:
             )
             
             # Obter o ID do aluno inserido
-            aluno_id = self.cursor.lastrowid
+            aluno_id = cast(Any, self.cursor).lastrowid
             
             # Salvar os responsáveis
             self.salvar_responsaveis(aluno_id)
             
             # Confirmar a operação
-            self.conn.commit()
+            if hasattr(self, 'conn') and self.conn:
+                cast(Any, self.conn).commit()
             
             messagebox.showinfo("Sucesso", "Aluno cadastrado com sucesso!")
             
@@ -531,11 +541,11 @@ class InterfaceCadastroAluno:
         except mysql.connector.Error as err:
             messagebox.showerror("Erro", f"Não foi possível salvar os dados: {str(err)}")
             if hasattr(self, 'conn') and self.conn:
-                self.conn.rollback()
+                cast(Any, self.conn).rollback()
         except Exception as err:
             messagebox.showerror("Erro", f"Erro inesperado: {str(err)}")
             if hasattr(self, 'conn') and self.conn:
-                self.conn.rollback()
+                cast(Any, self.conn).rollback()
 
     def salvar_responsaveis(self, aluno_id):
         # Verificar se há pelo menos um responsável
@@ -577,12 +587,12 @@ class InterfaceCadastroAluno:
 
         # Verificar se já existe um responsável com esse CPF (somente se for um novo responsável)
         if not responsavel_id and cpf:
-            self.cursor.execute("SELECT id FROM responsaveis WHERE cpf = %s", (cpf,))
-            resp_existente = self.cursor.fetchone()
+            cast(Any, self.cursor).execute("SELECT id FROM responsaveis WHERE cpf = %s", (cpf,))
+            resp_existente = cast(Any, self.cursor).fetchone()
             if resp_existente:
                 responsavel_id = resp_existente[0]
                 # Atualizar os dados do responsável existente
-                self.cursor.execute(
+                cast(Any, self.cursor).execute(
                     """
                     UPDATE responsaveis 
                     SET nome = %s, grau_parentesco = %s, telefone = %s, rg = %s
@@ -592,7 +602,7 @@ class InterfaceCadastroAluno:
                 )
                 
                 # Associar o responsável ao aluno
-                self.cursor.execute(
+                cast(Any, self.cursor).execute(
                     "INSERT INTO responsaveisalunos (responsavel_id, aluno_id) VALUES (%s, %s)",
                     (responsavel_id, aluno_id)
                 )
@@ -600,7 +610,7 @@ class InterfaceCadastroAluno:
                 return responsavel_id
 
         if responsavel_id:  # Responsável existente, atualizar
-            self.cursor.execute(
+            cast(Any, self.cursor).execute(
                 """
                 UPDATE responsaveis 
                 SET nome = %s, grau_parentesco = %s, telefone = %s, rg = %s, cpf = %s
@@ -610,7 +620,7 @@ class InterfaceCadastroAluno:
             )
             
             # Associar o responsável ao aluno
-            self.cursor.execute(
+            cast(Any, self.cursor).execute(
                 "INSERT INTO responsaveisalunos (responsavel_id, aluno_id) VALUES (%s, %s)",
                 (responsavel_id, aluno_id)
             )
@@ -618,17 +628,17 @@ class InterfaceCadastroAluno:
             return responsavel_id
         else:  # Novo responsável, inserir
             # Inserir novo responsável
-            self.cursor.execute(
+            cast(Any, self.cursor).execute(
                 """
                 INSERT INTO responsaveis (nome, grau_parentesco, telefone, rg, cpf)
                 VALUES (%s, %s, %s, %s, %s)
                 """,
                 (nome, parentesco, telefone, rg, cpf)
             )
-            novo_responsavel_id = self.cursor.lastrowid
+            novo_responsavel_id = cast(Any, self.cursor).lastrowid
             
             # Associar o novo responsável ao aluno
-            self.cursor.execute(
+            cast(Any, self.cursor).execute(
                 "INSERT INTO responsaveisalunos (responsavel_id, aluno_id) VALUES (%s, %s)",
                 (novo_responsavel_id, aluno_id)
             )
@@ -638,8 +648,8 @@ class InterfaceCadastroAluno:
     def obter_escolas(self):
         """Obtém a lista de escolas do banco de dados"""
         try:
-            self.cursor.execute("SELECT id, nome FROM escolas ORDER BY nome, id")
-            escolas = self.cursor.fetchall()
+            cast(Any, self.cursor).execute("SELECT id, nome FROM escolas ORDER BY nome, id")
+            escolas = cast(Any, self.cursor).fetchall()
             
             # Criar mapeamento e valores para combobox
             self.escolas_map = {}

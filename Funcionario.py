@@ -8,6 +8,7 @@ from conexao import conectar_bd
 from PIL import ImageTk, Image
 from tkcalendar import DateEntry
 from tkinter import filedialog as fd
+from typing import Any, cast
 
 # Cores
 co0 = "#2e2d2b"  # preta
@@ -103,7 +104,7 @@ def salvar_funcionario(treeview, query):
         return
 
     try:
-        cursor = conn.cursor()
+        cursor = cast(Any, conn).cursor()
 
         # Inserir o funcionário
         cursor.execute("""
@@ -135,7 +136,7 @@ def carregar_funcionario_para_edicao(id_funcionario):
         return
 
     try:
-        cursor = conn.cursor()
+        cursor = cast(Any, conn).cursor()
         
         # Buscar os dados do funcionário no banco de dados pelo id
         cursor.execute("SELECT nome, cargo, polivalente, data_nascimento, cpf, telefone FROM Funcionarios WHERE id = %s", (id_funcionario,))
@@ -194,7 +195,7 @@ def atualizar_funcionario(id_funcionario, treeview, query):
         return
 
     try:
-        cursor = conn.cursor()
+        cursor = cast(Any, conn).cursor()
 
         # Comando SQL para atualizar os dados do funcionário
         cursor.execute("""

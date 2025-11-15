@@ -14,6 +14,7 @@ from conexao import conectar_bd
 from gerarPDF import salvar_e_abrir_pdf
 from utilitarios.gerenciador_documentos import salvar_documento_sistema
 from tkinter import messagebox
+from typing import Any, cast
 
 
 def obter_dados_responsavel_aluno(cursor, aluno_id):
@@ -103,7 +104,7 @@ def gerar_declaracao_comparecimento_responsavel(aluno_id, data_comparecimento=No
         if conn is None:
             messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
             return
-        cursor = conn.cursor()
+        cursor = cast(Any, conn).cursor()
         
         # Obter dados
         dados = obter_dados_responsavel_aluno(cursor, aluno_id)
@@ -132,7 +133,7 @@ def gerar_declaracao_comparecimento_responsavel(aluno_id, data_comparecimento=No
                 print("Aviso: não foi possível conectar ao banco para buscar CPF do responsável")
             else:
                 try:
-                    cursor_temp = conn_temp.cursor()
+                    cursor_temp = cast(Any, conn_temp).cursor()
                     cursor_temp.execute("""
                         SELECT r.cpf 
                         FROM responsaveis r

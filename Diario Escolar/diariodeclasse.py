@@ -12,7 +12,7 @@ from enum import Enum
 from conexao import conectar_bd
 from diariodeclasse_capa import create_custom_pdf
 from GerenciadorDocumentosSistema import GerenciadorDocumentosSistema
-from typing import Optional
+from typing import Optional, Any, cast
 
 # Constante para o tipo de documento
 TIPO_DIARIO_CLASSE = "Diário de Classe"
@@ -52,7 +52,7 @@ class Orientacao(Enum):
 # Função para criar o PDF
 def criar_pdf(nome_arquivo):
     conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    cursor = cast(Any, conn).cursor(dictionary=True)
 
     # Consulta SQL para buscar os dados necessários
     query = """

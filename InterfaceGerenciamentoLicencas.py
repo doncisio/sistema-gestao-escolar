@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 from datetime import datetime, timedelta
 from tkcalendar import DateEntry
 import mysql.connector
+from typing import Any, cast
 import sys
 import os
 # Importar a função de conexão correta
@@ -31,12 +32,12 @@ class InterfaceGerenciamentoLicencas:
         self.root.geometry("800x600")
         
         # Criar conexão com o banco
-        self.conn = conectar_bd()
+        self.conn: Any = conectar_bd()
         if not self.conn:
             messagebox.showerror("Erro Crítico", "Não foi possível conectar ao banco de dados. A janela de licenças não pode ser aberta.")
             return
         
-        self.cursor = self.conn.cursor(dictionary=True)
+        self.cursor: Any = cast(Any, self.conn).cursor(dictionary=True)
         
         try:
             # Criar a interface dentro de um bloco try
@@ -53,8 +54,8 @@ class InterfaceGerenciamentoLicencas:
             messagebox.showerror("Erro de Interface", f"Erro ao criar a interface de licenças: {e}")
             if self.conn:
                 try:
-                    self.cursor.close()
-                    self.conn.close()
+                    cast(Any, self.cursor).close()
+                    cast(Any, self.conn).close()
                 except: pass
             return
     
@@ -122,7 +123,7 @@ class InterfaceGerenciamentoLicencas:
         
         # ===== Frame esquerdo para exibir funcionários =====
         self.frame_esquerdo = ttk.LabelFrame(self.frame_principal, text="Funcionários", padding="10") # Estilo TLabeFrame aplicado
-        self.frame_esquerdo.grid(row=1, column=0, sticky=(tk.N, tk.S, tk.W, tk.E), padx=5, pady=5)
+        self.frame_esquerdo.grid(row=1, column=0, sticky='nsew', padx=5, pady=5)
         
         # Botões de filtro
         frame_filtros = ttk.Frame(self.frame_esquerdo) # Estilo TFrame aplicado
@@ -160,12 +161,12 @@ class InterfaceGerenciamentoLicencas:
         
         # Barra de rolagem para a Treeview
         scrollbar = ttk.Scrollbar(self.frame_esquerdo, orient=tk.VERTICAL, command=self.tree_funcionarios.yview)
-        self.tree_funcionarios.configure(yscroll=scrollbar.set)
+        self.tree_funcionarios.configure(yscrollcommand=cast(Any, scrollbar.set))
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
         # ===== Frame direito para formulário de licença =====
         self.frame_direito = ttk.LabelFrame(self.frame_principal, text="Licença", padding="10") # Estilo TLabelFrame aplicado
-        self.frame_direito.grid(row=1, column=1, sticky=(tk.N, tk.S, tk.W, tk.E), padx=5, pady=5)
+        self.frame_direito.grid(row=1, column=1, sticky='nsew', padx=5, pady=5)
         
         # Informações do funcionário
         ttk.Label(self.frame_direito, text="Funcionário:").grid(row=0, column=0, sticky=tk.W, pady=2) # Estilo TLabel
@@ -181,7 +182,7 @@ class InterfaceGerenciamentoLicencas:
         self.lbl_polivalente_funcionario.grid(row=2, column=1, sticky=tk.W, pady=2)
         
         # Separador
-        ttk.Separator(self.frame_direito, orient=tk.HORIZONTAL).grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        ttk.Separator(self.frame_direito, orient=tk.HORIZONTAL).grid(row=3, column=0, columnspan=2, sticky='we', pady=10)
         
         # Formulário para nova licença
         ttk.Label(self.frame_direito, text="Motivo da Licença:").grid(row=4, column=0, sticky=tk.W, pady=2) # Estilo TLabel
@@ -196,7 +197,7 @@ class InterfaceGerenciamentoLicencas:
             "Licença por Motivo de Doença em Pessoa da Família",
             "Outros"
         )
-        self.c_motivo.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=2)
+        self.c_motivo.grid(row=4, column=1, sticky='we', pady=2)
         
         ttk.Label(self.frame_direito, text="Data de Início:").grid(row=5, column=0, sticky=tk.W, pady=2) # Estilo TLabel
         # Aplicando cores ao DateEntry (pode variar a aparência dependendo da versão do tkcalendar)
@@ -217,7 +218,7 @@ class InterfaceGerenciamentoLicencas:
         # Usando tk.Text, aplicar cores diretamente
         self.t_observacao = tk.Text(self.frame_direito, width=30, height=5, background=co0, foreground=co7,
                                     font=('Ivy', 10), relief="solid", borderwidth=1)
-        self.t_observacao.grid(row=7, column=1, sticky=(tk.W, tk.E), pady=2)
+        self.t_observacao.grid(row=7, column=1, sticky='we', pady=2)
         
         # Botões
         frame_botoes = ttk.Frame(self.frame_direito) # Estilo TFrame
@@ -231,7 +232,7 @@ class InterfaceGerenciamentoLicencas:
         
         # Frame para histórico de licenças
         self.frame_historico = ttk.LabelFrame(self.frame_direito, text="Histórico de Licenças", padding="10") # Estilo TLabelFrame
-        self.frame_historico.grid(row=9, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        self.frame_historico.grid(row=9, column=0, columnspan=2, sticky='we', pady=5)
         
         # Treeview para histórico de licenças
         self.tree_licencas = ttk.Treeview(self.frame_historico, columns=("ID", "Motivo", "Início", "Fim"),
@@ -250,7 +251,7 @@ class InterfaceGerenciamentoLicencas:
         
         # Barra de rolagem para a Treeview de licenças
         scrollbar_licencas = ttk.Scrollbar(self.frame_historico, orient=tk.VERTICAL, command=self.tree_licencas.yview)
-        self.tree_licencas.configure(yscroll=scrollbar_licencas.set)
+        self.tree_licencas.configure(yscrollcommand=cast(Any, scrollbar_licencas.set))
         scrollbar_licencas.pack(side=tk.RIGHT, fill=tk.Y)
         
         # Botão para excluir licença
@@ -279,7 +280,7 @@ class InterfaceGerenciamentoLicencas:
             if funcionario:
                 # Selecionar o funcionário na árvore
                 for child in self.tree_funcionarios.get_children():
-                    if self.tree_funcionarios.item(child, 'values')[0] == str(funcionario['id']):
+                    if self.tree_funcionarios.item(child, 'values')[0] == str(cast(Any, funcionario)['id']):
                         self.tree_funcionarios.selection_set(child)
                         self.tree_funcionarios.see(child)
                         self.ao_selecionar_funcionario(None)
@@ -305,10 +306,10 @@ class InterfaceGerenciamentoLicencas:
             # Adicionar funcionários à treeview
             for funcionario in funcionarios:
                 self.tree_funcionarios.insert("", tk.END, values=(
-                    funcionario['id'],
-                    funcionario['nome'],
-                    funcionario['cargo'],
-                    funcionario['polivalente']
+                    cast(Any, funcionario)['id'],
+                    cast(Any, funcionario)['nome'],
+                    cast(Any, funcionario)['cargo'],
+                    cast(Any, funcionario)['polivalente']
                 ))
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar funcionários: {e}")
@@ -333,10 +334,10 @@ class InterfaceGerenciamentoLicencas:
             # Adicionar funcionários à treeview
             for funcionario in funcionarios:
                 self.tree_funcionarios.insert("", tk.END, values=(
-                    funcionario['id'],
-                    funcionario['nome'],
-                    funcionario['cargo'],
-                    funcionario['polivalente']
+                    cast(Any, funcionario)['id'],
+                    cast(Any, funcionario)['nome'],
+                    cast(Any, funcionario)['cargo'],
+                    cast(Any, funcionario)['polivalente']
                 ))
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar funcionários em licença: {e}")
@@ -360,10 +361,10 @@ class InterfaceGerenciamentoLicencas:
             # Adicionar funcionários à treeview
             for funcionario in funcionarios:
                 self.tree_funcionarios.insert("", tk.END, values=(
-                    funcionario['id'],
-                    funcionario['nome'],
-                    funcionario['cargo'],
-                    funcionario['polivalente']
+                    cast(Any, funcionario)['id'],
+                    cast(Any, funcionario)['nome'],
+                    cast(Any, funcionario)['cargo'],
+                    cast(Any, funcionario)['polivalente']
                 ))
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar funcionários: {e}")
@@ -393,10 +394,10 @@ class InterfaceGerenciamentoLicencas:
             # Adicionar funcionários à treeview
             for funcionario in funcionarios:
                 self.tree_funcionarios.insert("", tk.END, values=(
-                    funcionario['id'],
-                    funcionario['nome'],
-                    funcionario['cargo'],
-                    funcionario['polivalente']
+                    cast(Any, funcionario)['id'],
+                    cast(Any, funcionario)['nome'],
+                    cast(Any, funcionario)['cargo'],
+                    cast(Any, funcionario)['polivalente']
                 ))
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao pesquisar funcionários: {e}")
@@ -448,10 +449,10 @@ class InterfaceGerenciamentoLicencas:
             # Adicionar licenças à treeview
             for licenca in licencas:
                 self.tree_licencas.insert("", tk.END, values=(
-                    licenca['id'],
-                    licenca['motivo'],
-                    licenca['data_inicio'],
-                    licenca['data_fim']
+                    cast(Any, licenca)['id'],
+                    cast(Any, licenca)['motivo'],
+                    cast(Any, licenca)['data_inicio'],
+                    cast(Any, licenca)['data_fim']
                 ))
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar licenças: {e}")
@@ -494,7 +495,8 @@ class InterfaceGerenciamentoLicencas:
                 data_inicio, data_fim      # A licença existente está completamente dentro do período
             ))
             
-            sobreposicao = self.cursor.fetchone()['count']
+            _row = self.cursor.fetchone()
+            sobreposicao = cast(Any, _row)['count'] if _row is not None else 0
             
             if sobreposicao > 0:
                 resposta = messagebox.askyesno(
@@ -526,13 +528,13 @@ class InterfaceGerenciamentoLicencas:
             ))
             
             # Se for professor polivalente e tiver uma turma designada, verificar se precisa buscar substituto
-            if funcionario and funcionario['cargo'] == 'Professor@' and funcionario['polivalente'] == 'sim' and funcionario['turma']:
+            if funcionario and cast(Any, funcionario)['cargo'] == 'Professor@' and cast(Any, funcionario)['polivalente'] == 'sim' and cast(Any, funcionario).get('turma'):
                 messagebox.showinfo(
                     "Informação", 
                     "Professor polivalente em licença. Você pode designar um professor não polivalente seletivado como substituto."
                 )
             
-            self.conn.commit()
+            cast(Any, self.conn).commit()
             messagebox.showinfo("Sucesso", "Licença registrada com sucesso!")
             
             # Limpar formulário e recarregar licenças
@@ -540,7 +542,7 @@ class InterfaceGerenciamentoLicencas:
             self.carregar_licencas_funcionario()
             
         except Exception as e:
-            self.conn.rollback()
+            cast(Any, self.conn).rollback()
             messagebox.showerror("Erro", f"Erro ao registrar licença: {e}")
     
     def excluir_licenca(self):
@@ -568,14 +570,14 @@ class InterfaceGerenciamentoLicencas:
             
             if substituicoes:
                 # Perguntar se devem ser encerradas as substituições
-                substitutos_nomes = ", ".join([s['substituto_nome'] for s in substituicoes])
-                
+                substitutos_nomes = ", ".join([cast(Any, s)['substituto_nome'] for s in substituicoes])
+
                 resposta = messagebox.askyesno(
                     "Encerrar Substituições", 
                     f"Existem {len(substituicoes)} professor(es) substituto(s) para esta licença: {substitutos_nomes}.\n\n"
                     "Deseja encerrar as substituições automaticamente?"
                 )
-                
+
                 if resposta:
                     # Encerrar as substituições
                     for subst in substituicoes:
@@ -583,7 +585,7 @@ class InterfaceGerenciamentoLicencas:
                             UPDATE substituicoes_professores
                             SET data_fim = CURRENT_DATE()
                             WHERE id = %s
-                        """, (subst['id'],))
+                        """, (cast(Any, subst)['id'],))
         except Exception as e:
             print(f"Erro ao verificar substituições: {e}")
         
@@ -595,7 +597,7 @@ class InterfaceGerenciamentoLicencas:
         try:
             # Excluir licença
             self.cursor.execute("DELETE FROM licencas WHERE id = %s", (licenca_id,))
-            self.conn.commit()
+            cast(Any, self.conn).commit()
             
             messagebox.showinfo("Sucesso", "Licença excluída com sucesso!")
             
@@ -603,7 +605,7 @@ class InterfaceGerenciamentoLicencas:
             self.carregar_licencas_funcionario()
             
         except Exception as e:
-            self.conn.rollback()
+            cast(Any, self.conn).rollback()
             messagebox.showerror("Erro", f"Erro ao excluir licença: {e}")
     
     def limpar_formulario(self):
@@ -634,7 +636,7 @@ def abrir_interface_licencas(funcionario_id=None):
     try:
         # Tenta obter a janela principal (parent)
         if root.master:
-            root.transient(root.master)
+            root.transient(cast(Any, root.master))
     except:
         pass  # Se não for possível, simplesmente ignora
     root.focus_force()

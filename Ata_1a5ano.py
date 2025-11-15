@@ -249,7 +249,7 @@ def ata_geral():
     conn = conectar_bd()
     if conn is None:
         return
-    cursor = conn.cursor(dictionary=True)
+    cursor = cast(Any, conn).cursor(dictionary=True)
     
     # Verificar se o ano letivo terminou
     ano_letivo_terminado = verificar_ano_letivo_terminado(cursor)
