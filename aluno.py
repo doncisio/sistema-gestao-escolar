@@ -5,6 +5,7 @@ from tkcalendar import DateEntry
 from PIL import Image, ImageTk
 from datetime import datetime
 from conexao import conectar_bd
+from db.connection import get_connection
 import mysql.connector
 from Seguranca import atualizar_treeview
 from typing import Any, cast
@@ -125,76 +126,69 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
     # Obter séries do banco de dados
     def obter_series():
         try:
-            conn = conectar_bd()
-            if conn is None:
-                return []
-            cursor = cast(Any, conn).cursor()
-            
-            # Consulta para obter séries vinculadas ao ano letivo atual
-            cursor.execute("""
-                SELECT s.id, s.nome 
-                FROM serie s
-                JOIN turmas t ON s.id = t.serie_id
-                JOIN anosletivos a ON t.ano_letivo_id = a.id
-                WHERE a.ano_letivo = YEAR(GETDATE())
-                GROUP BY s.id, s.nome
-            """)
-            
-            series = cursor.fetchall()
-            if not series:  # Se não encontrar para o ano atual, tenta 2025
+            # Usar context manager centralizado para conexões
+            with get_connection() as conn:
+                if conn is None:
+                    return []
+                cursor = cast(Any, conn).cursor()
+
+                # Consulta para obter séries vinculadas ao ano letivo atual
                 cursor.execute("""
                     SELECT s.id, s.nome 
                     FROM serie s
                     JOIN turmas t ON s.id = t.serie_id
                     JOIN anosletivos a ON t.ano_letivo_id = a.id
-                    WHERE a.ano_letivo = 2025
+                    WHERE a.ano_letivo = YEAR(CURDATE())
                     GROUP BY s.id, s.nome
                 """)
+
                 series = cursor.fetchall()
-            
-            try:
-                cursor.close()
-            except Exception:
-                pass
-            try:
-                if conn:
-                    conn.close()
-            except Exception:
-                pass
-            return series
-        except mysql.connector.Error as err:
+                if not series:  # Se não encontrar para o ano atual, tenta 2025
+                    cursor.execute("""
+                        SELECT s.id, s.nome 
+                        FROM serie s
+                        JOIN turmas t ON s.id = t.serie_id
+                        JOIN anosletivos a ON t.ano_letivo_id = a.id
+                        WHERE a.ano_letivo = 2025
+                        GROUP BY s.id, s.nome
+                    """)
+                    series = cursor.fetchall()
+
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
+
+                return series
+        except Exception as err:
             print("Erro ao obter séries:", err)
             return []
     
     # Obter turmas com base na série selecionada
     def obter_turmas(serie_id):
         try:
-            conn = conectar_bd()
-            if conn is None:
-                return []
-            cursor = cast(Any, conn).cursor()
-            
-            # Consulta para obter turmas vinculadas à série e ao ano letivo
-            cursor.execute("""
-                SELECT t.id, t.nome, t.turno
-                FROM turmas t
-                JOIN anosletivos a ON t.ano_letivo_id = a.id
-                WHERE t.serie_id = %s AND a.ano_letivo = 2025
-                ORDER BY t.nome, t.turno
-            """, (serie_id,))
-            
-            turmas = cursor.fetchall()
-            try:
-                cursor.close()
-            except Exception:
-                pass
-            try:
-                if conn:
-                    conn.close()
-            except Exception:
-                pass
-            return turmas
-        except mysql.connector.Error as err:
+            with get_connection() as conn:
+                if conn is None:
+                    return []
+                cursor = cast(Any, conn).cursor()
+
+                # Consulta para obter turmas vinculadas à série e ao ano letivo
+                cursor.execute("""
+                    SELECT t.id, t.nome, t.turno
+                    FROM turmas t
+                    JOIN anosletivos a ON t.ano_letivo_id = a.id
+                    WHERE t.serie_id = %s AND a.ano_letivo = 2025
+                    ORDER BY t.nome, t.turno
+                """, (serie_id,))
+
+                turmas = cursor.fetchall()
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
+
+                return turmas
+        except Exception as err:
             print("Erro ao obter turmas:", err)
             return []
     
