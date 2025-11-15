@@ -404,6 +404,9 @@ def atualizar_dashboard():
 
 def criar_tabela():
     global treeview, tabela_frame
+    # Nota: Esta função não realiza operações diretas ao banco de dados.
+    # Dados e exibição são construídos a partir de estruturas em memória (ex.: `df`).
+    # Não é necessário abrir/fechar conexões aqui; manter o padrão de conexões curtas em outras funções.
     
     # Frame para conter a tabela e sua barra de rolagem
     tabela_frame = Frame(frame_tabela)
