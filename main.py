@@ -2906,24 +2906,13 @@ def criar_acoes():
 
         # Trabalho pesado em background
         def _worker():
-            import sys, os, importlib
             success = False
             error_msg = None
+            caminho = None
             try:
-                # Adicionar o diretório scripts_nao_utilizados ao path
-                scripts_dir = os.path.join(os.getcwd(), "scripts_nao_utilizados")
-                if scripts_dir not in sys.path:
-                    sys.path.insert(0, scripts_dir)
-
-                # Importar e recarregar o módulo de geração de crachás
-                try:
-                    import gerar_cracha  # type: ignore
-                    importlib.reload(gerar_cracha)
-                except ImportError as ie:
-                    raise ie
-
-                # Executar geração (pode demorar)
-                gerar_cracha.gerar_crachas_para_todos_os_alunos()
+                # Usar o serviço centralizado para gerar crachás
+                from services.report_service import gerar_crachas_para_todos_os_alunos as service_gerar
+                caminho = service_gerar()
                 success = True
             except Exception as e:
                 success = False
@@ -2953,7 +2942,7 @@ def criar_acoes():
                     return
 
                 # Sucesso: avisar e abrir pasta
-                caminho_crachas = os.path.join(os.getcwd(), "Cracha_Anos_Iniciais")
+                caminho_crachas = caminho or os.path.join(os.getcwd(), "Cracha_Anos_Iniciais")
                 messagebox.showinfo(
                     "Sucesso",
                     f"Crachás gerados com sucesso!\n\n"
