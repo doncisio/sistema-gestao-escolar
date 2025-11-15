@@ -22,10 +22,15 @@ def gerar_crachas_para_todos_os_alunos() -> str:
 
     try:
         import gerar_cracha  # type: ignore
-        importlib.reload(gerar_cracha)
     except ImportError:
         logger.exception("Módulo gerar_cracha não disponível")
         raise
+
+    # tentar recarregar o módulo quando possível, mas ignore falhas de reload
+    try:
+        importlib.reload(gerar_cracha)
+    except Exception:
+        pass
 
     # Executa a função principal do gerador (pode demorar)
     gerar_cracha.gerar_crachas_para_todos_os_alunos()
