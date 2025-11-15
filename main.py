@@ -2859,106 +2859,125 @@ def criar_acoes():
 
     # Função para gerar crachás
     def abrir_interface_crachas():
-        """Abre uma interface para gerar crachás de alunos e responsáveis"""
+        """Abre uma interface para gerar crachás de alunos e responsáveis de forma não bloqueante.
+
+        Cria a janela de progresso no thread principal e executa a geração em background.
+        """
         resposta = messagebox.askyesno(
             "Gerar Crachás",
             "Deseja gerar crachás para todos os alunos ativos?\n\n"
             "Os crachás serão salvos na pasta 'Cracha_Anos_Iniciais', "
             "organizados por série e turma."
         )
-        
-        if resposta:
+
+        if not resposta:
+            return
+
+        # Ocultar janela principal temporariamente
+        janela.withdraw()
+
+        # Criar janela de progresso (UI deve ser criada no thread principal)
+        janela_progresso = Toplevel(janela)
+        janela_progresso.title("Gerando Crachás")
+        janela_progresso.geometry("400x150")
+        janela_progresso.resizable(False, False)
+        janela_progresso.configure(bg=co1)
+
+        # Centralizar na tela
+        janela_progresso.update_idletasks()
+        x = (janela_progresso.winfo_screenwidth() // 2) - (400 // 2)
+        y = (janela_progresso.winfo_screenheight() // 2) - (150 // 2)
+        janela_progresso.geometry(f"400x150+{x}+{y}")
+
+        frame_prog = Frame(janela_progresso, bg=co1, padx=20, pady=20)
+        frame_prog.pack(fill=BOTH, expand=True)
+
+        Label(frame_prog, text="Gerando crachás...", font=("Arial", 12, "bold"), bg=co1, fg=co0).pack(pady=10)
+        Label(frame_prog, text="Aguarde, isso pode levar alguns minutos.", font=("Arial", 10), bg=co1, fg=co0).pack(pady=5)
+
+        progresso = Progressbar(frame_prog, mode='indeterminate', length=300)
+        progresso.pack(pady=10)
+        try:
+            progresso.start(10)
+        except Exception:
+            pass
+
+        janela_progresso.update()
+
+        # Trabalho pesado em background
+        def _worker():
+            import sys, os, importlib
+            success = False
+            error_msg = None
             try:
-                # Ocultar janela principal temporariamente
-                janela.withdraw()
-                
-                # Importar o módulo de geração de crachás
-                import sys
-                import os
-                
                 # Adicionar o diretório scripts_nao_utilizados ao path
                 scripts_dir = os.path.join(os.getcwd(), "scripts_nao_utilizados")
                 if scripts_dir not in sys.path:
                     sys.path.insert(0, scripts_dir)
-                
-                # Importar o módulo completo (importação dinâmica)
-                import gerar_cracha  # type: ignore
-                
-                # Recarregar se já foi importado antes
-                import importlib
-                if 'gerar_cracha' in sys.modules:
+
+                # Importar e recarregar o módulo de geração de crachás
+                try:
+                    import gerar_cracha  # type: ignore
                     importlib.reload(gerar_cracha)
-                
-                # Criar janela de progresso
-                janela_progresso = Toplevel(janela)
-                janela_progresso.title("Gerando Crachás")
-                janela_progresso.geometry("400x150")
-                janela_progresso.resizable(False, False)
-                janela_progresso.configure(bg=co1)
-                
-                # Centralizar na tela
-                janela_progresso.update_idletasks()
-                x = (janela_progresso.winfo_screenwidth() // 2) - (400 // 2)
-                y = (janela_progresso.winfo_screenheight() // 2) - (150 // 2)
-                janela_progresso.geometry(f"400x150+{x}+{y}")
-                
-                frame_prog = Frame(janela_progresso, bg=co1, padx=20, pady=20)
-                frame_prog.pack(fill=BOTH, expand=True)
-                
-                Label(frame_prog, text="Gerando crachás...", 
-                      font=("Arial", 12, "bold"), bg=co1, fg=co0).pack(pady=10)
-                
-                Label(frame_prog, text="Aguarde, isso pode levar alguns minutos.", 
-                      font=("Arial", 10), bg=co1, fg=co0).pack(pady=5)
-                
-                progresso = Progressbar(frame_prog, mode='indeterminate', length=300)
-                progresso.pack(pady=10)
-                progresso.start(10)
-                
-                janela_progresso.update()
-                
-                # Gerar os crachás usando o módulo importado
+                except ImportError as ie:
+                    raise ie
+
+                # Executar geração (pode demorar)
                 gerar_cracha.gerar_crachas_para_todos_os_alunos()
-                
-                # Parar o progresso
-                progresso.stop()
-                janela_progresso.destroy()
-                
-                # Caminho onde os crachás foram salvos
+                success = True
+            except Exception as e:
+                success = False
+                error_msg = e
+
+            # Atualizar UI no thread principal
+            def _on_done():
+                try:
+                    progresso.stop()
+                except Exception:
+                    pass
+                try:
+                    janela_progresso.destroy()
+                except Exception:
+                    pass
+                # Restaurar janela principal
+                try:
+                    janela.deiconify()
+                except Exception:
+                    pass
+
+                if not success:
+                    if isinstance(error_msg, ImportError):
+                        messagebox.showerror("Erro de Importação", f"Não foi possível importar o módulo de geração de crachás:\n{error_msg}")
+                    else:
+                        messagebox.showerror("Erro", f"Erro ao gerar crachás:\n{error_msg}")
+                    return
+
+                # Sucesso: avisar e abrir pasta
                 caminho_crachas = os.path.join(os.getcwd(), "Cracha_Anos_Iniciais")
-                
-                # Mostrar mensagem de sucesso
                 messagebox.showinfo(
                     "Sucesso",
                     f"Crachás gerados com sucesso!\n\n"
                     f"Os arquivos foram salvos em:\n{caminho_crachas}\n\n"
                     f"A pasta será aberta automaticamente."
                 )
-                
-                # Abrir a pasta automaticamente
-                import subprocess
-                import platform
-                
-                if platform.system() == 'Windows':
-                    os.startfile(caminho_crachas)
-                elif platform.system() == 'Darwin':  # macOS
-                    subprocess.Popen(['open', caminho_crachas])
-                else:  # Linux
-                    subprocess.Popen(['xdg-open', caminho_crachas])
-                
-            except ImportError as e:
-                messagebox.showerror(
-                    "Erro de Importação",
-                    f"Não foi possível importar o módulo de geração de crachás:\n{str(e)}"
-                )
-            except Exception as e:
-                messagebox.showerror(
-                    "Erro",
-                    f"Erro ao gerar crachás:\n{str(e)}"
-                )
-            finally:
-                # Restaurar janela principal
-                janela.deiconify()
+
+                try:
+                    import subprocess
+                    import platform
+                    if platform.system() == 'Windows':
+                        os.startfile(caminho_crachas)
+                    elif platform.system() == 'Darwin':
+                        subprocess.Popen(['open', caminho_crachas])
+                    else:
+                        subprocess.Popen(['xdg-open', caminho_crachas])
+                except Exception:
+                    # Problema ao abrir a pasta não é crítico
+                    logger.warning(f"Não foi possível abrir a pasta dos crachás: {caminho_crachas}")
+
+            janela.after(0, _on_done)
+
+        from threading import Thread
+        Thread(target=_worker, daemon=True).start()
 
     servicos_menu.add_command(
         label="Crachás Alunos/Responsáveis",
