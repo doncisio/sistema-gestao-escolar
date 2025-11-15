@@ -12,6 +12,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import numpy as np
 from datetime import datetime
+from typing import Any, cast
 
 class RelatorioAnaliseNotas:
     def __init__(self, root=None, janela_principal=None):
@@ -43,6 +44,9 @@ class RelatorioAnaliseNotas:
         self.janela.configure(bg=self.co0)
         
         # Obter ano letivo atual
+        # Inicializar dados para satisfazer o analisador estático
+        self.dados: dict = {}
+
         self.ano_letivo_atual = self.obter_ano_letivo_atual()
         
         if self.ano_letivo_atual:
@@ -54,8 +58,8 @@ class RelatorioAnaliseNotas:
     def obter_ano_letivo_atual(self):
         """Obtém o ID do ano letivo atual"""
         try:
-            conn = conectar_bd()
-            cursor = conn.cursor()
+            conn: Any = conectar_bd()
+            cursor = cast(Any, conn).cursor()
             
             cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = YEAR(CURDATE())")
             resultado = cursor.fetchone()
@@ -64,8 +68,10 @@ class RelatorioAnaliseNotas:
                 cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
                 resultado = cursor.fetchone()
             
-            cursor.close()
-            conn.close()
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
             
             return resultado[0] if resultado else None
             
@@ -179,12 +185,14 @@ class RelatorioAnaliseNotas:
     def carregar_niveis(self):
         """Carrega níveis de ensino"""
         try:
-            conn = conectar_bd()
-            cursor = conn.cursor()
+            conn: Any = conectar_bd()
+            cursor = cast(Any, conn).cursor()
             cursor.execute("SELECT id, nome FROM niveisensino ORDER BY nome")
             niveis = cursor.fetchall()
-            cursor.close()
-            conn.close()
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
             
             self.niveis_map = {nivel[1]: nivel[0] for nivel in niveis}
             self.cb_nivel['values'] = list(self.niveis_map.keys())
@@ -204,15 +212,17 @@ class RelatorioAnaliseNotas:
         nivel_id = self.niveis_map.get(self.cb_nivel.get())
         
         try:
-            conn = conectar_bd()
-            cursor = conn.cursor()
+            conn: Any = conectar_bd()
+            cursor = cast(Any, conn).cursor()
             cursor.execute(
                 "SELECT id, nome FROM serie WHERE nivel_id = %s ORDER BY nome",
                 (nivel_id,)
             )
             series = cursor.fetchall()
-            cursor.close()
-            conn.close()
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
             
             self.series_map = {serie[1]: serie[0] for serie in series}
             self.cb_serie['values'] = list(self.series_map.keys())
@@ -235,8 +245,8 @@ class RelatorioAnaliseNotas:
         serie_id = self.series_map.get(self.cb_serie.get())
         
         try:
-            conn = conectar_bd()
-            cursor = conn.cursor()
+            conn: Any = conectar_bd()
+            cursor = cast(Any, conn).cursor()
             cursor.execute("""
                 SELECT t.id, CONCAT(t.nome, ' - ', t.turno) AS turma_nome 
                 FROM turmas t 
@@ -244,8 +254,10 @@ class RelatorioAnaliseNotas:
                 ORDER BY t.nome
             """, (serie_id, self.ano_letivo_atual))
             turmas = cursor.fetchall()
-            cursor.close()
-            conn.close()
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
             
             self.turmas_map = {turma[1]: turma[0] for turma in turmas}
             self.cb_turma['values'] = ["Todas"] + list(self.turmas_map.keys())
@@ -273,12 +285,12 @@ class RelatorioAnaliseNotas:
             messagebox.showwarning("Aviso", "Selecione uma turma!")
             return
         
-        # Buscar dados
-        self.dados = self.buscar_dados_relatorio()
-        
-        if not self.dados or not self.dados.get('notas'):
+        # Buscar dados (atribuir apenas se houver resultado válido)
+        _dados = self.buscar_dados_relatorio()
+        if not _dados or not _dados.get('notas'):
             messagebox.showinfo("Informação", "Não há dados de notas para os filtros selecionados.")
             return
+        self.dados = _dados
         
         # Gerar cada aba
         self.gerar_visao_geral()
@@ -291,8 +303,8 @@ class RelatorioAnaliseNotas:
     def buscar_dados_relatorio(self):
         """Busca todos os dados necessários para o relatório"""
         try:
-            conn = conectar_bd()
-            cursor = conn.cursor()
+            conn: Any = conectar_bd()
+            cursor = cast(Any, conn).cursor()
             
             # Montar filtros
             serie_id = self.series_map.get(self.cb_serie.get())
@@ -399,8 +411,10 @@ class RelatorioAnaliseNotas:
                 if registro[6] is None:  # nota
                     pendencias.append(registro)
             
-            cursor.close()
-            conn.close()
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
             
             return {
                 'notas': notas,
@@ -415,6 +429,8 @@ class RelatorioAnaliseNotas:
     
     def gerar_visao_geral(self):
         """Gera a aba de visão geral com estatísticas e gráficos"""
+        if not getattr(self, 'dados', None):
+            return
         # Limpar aba
         for widget in self.aba_visao_geral.winfo_children():
             widget.destroy()
@@ -455,12 +471,18 @@ class RelatorioAnaliseNotas:
                     else:
                         reprovados += 1
             
+            # Forçar tipos float para satisfazer o analisador estático
+            media_geral = float(np.mean(notas))
+            maior_nota = float(np.max(notas))
+            menor_nota = float(np.min(notas))
+            desvio_padrao = float(np.std(notas))
+
             stats = {
                 'total_notas': len(notas),
-                'media_geral': np.mean(notas),
-                'maior_nota': np.max(notas),
-                'menor_nota': np.min(notas),
-                'desvio_padrao': np.std(notas),
+                'media_geral': media_geral,
+                'maior_nota': maior_nota,
+                'menor_nota': menor_nota,
+                'desvio_padrao': desvio_padrao,
                 'aprovados': aprovados,
                 'reprovados': reprovados,
                 'notas_vazias': len(self.dados['pendencias']),
@@ -500,7 +522,7 @@ class RelatorioAnaliseNotas:
         ax1 = fig.add_subplot(121)
         ax1.hist(notas, bins=20, color=self.co4, alpha=0.7, edgecolor='black')
         ax1.axvline(60, color=self.co8, linestyle='--', linewidth=2, label='Média mínima (60)')
-        ax1.axvline(np.mean(notas), color=self.co2, linestyle='--', linewidth=2, label=f'Média da turma ({np.mean(notas):.1f})')
+        ax1.axvline(stats['media_geral'], color=self.co2, linestyle='--', linewidth=2, label=f'Média da turma ({stats['media_geral']:.1f})')
         ax1.set_xlabel('Notas', fontsize=10)
         ax1.set_ylabel('Frequência', fontsize=10)
         ax1.set_title('Distribuição de Notas', fontsize=12, fontweight='bold')
@@ -549,6 +571,8 @@ class RelatorioAnaliseNotas:
     
     def gerar_analise_disciplinas(self):
         """Gera análise detalhada por disciplina"""
+        if not getattr(self, 'dados', None):
+            return
         # Limpar aba
         for widget in self.aba_disciplinas.winfo_children():
             widget.destroy()
@@ -669,6 +693,8 @@ class RelatorioAnaliseNotas:
     
     def criar_lista_pendencias_vazias(self, parent):
         """Cria lista de alunos com notas vazias"""
+        if not getattr(self, 'dados', None):
+            return
         # Frame com scrollbar
         frame = tk.Frame(parent, bg=self.co0)
         frame.pack(fill="both", expand=True, padx=5, pady=5)
@@ -707,6 +733,8 @@ class RelatorioAnaliseNotas:
     
     def criar_lista_notas_baixas(self, parent):
         """Cria lista de alunos com notas abaixo de 60"""
+        if not getattr(self, 'dados', None):
+            return
         # Frame com scrollbar
         frame = tk.Frame(parent, bg=self.co0)
         frame.pack(fill="both", expand=True, padx=5, pady=5)
@@ -758,6 +786,8 @@ class RelatorioAnaliseNotas:
     
     def criar_lista_risco_reprovacao(self, parent):
         """Cria lista de alunos em risco de reprovação (múltiplas notas baixas)"""
+        if not getattr(self, 'dados', None):
+            return
         # Frame com scrollbar
         frame = tk.Frame(parent, bg=self.co0)
         frame.pack(fill="both", expand=True, padx=5, pady=5)
@@ -828,6 +858,8 @@ class RelatorioAnaliseNotas:
     
     def gerar_rankings(self):
         """Gera rankings de melhores e piores desempenhos"""
+        if not getattr(self, 'dados', None):
+            return
         # Limpar aba
         for widget in self.aba_ranking.winfo_children():
             widget.destroy()

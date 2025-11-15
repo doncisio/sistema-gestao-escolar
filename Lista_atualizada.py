@@ -10,10 +10,14 @@ from reportlab.lib.colors import black, white, grey
 from conexao import conectar_bd
 from gerarPDF import salvar_e_abrir_pdf
 from biblio_editor import formatar_telefone
+from typing import Any, cast
 
 def fetch_student_data(ano_letivo):
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
+    if not conn:
+        print("Não foi possível conectar ao banco de dados.")
+        return None
+    cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
     # Busca as datas de início e fim do ano letivo
     data_ano = data_ano_letivo(ano_letivo)
@@ -113,10 +117,22 @@ def fetch_student_data(ano_letivo):
     except Exception as e:
         print("Erro ao executar a consulta:", str(e))
         return None
+    finally:
+        try:
+            cast(Any, cursor).close()
+        except Exception:
+            pass
+        try:
+            cast(Any, conn).close()
+        except Exception:
+            pass
 
 def data_funcionario(escola_id):
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
+    if not conn:
+        print("Não foi possível conectar ao banco de dados.")
+        return None
+    cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
     query = """
         SELECT 
@@ -145,10 +161,22 @@ def data_funcionario(escola_id):
     except Exception as e:
         print("Erro ao executar a consulta:", str(e))
         return None
+    finally:
+        try:
+            cast(Any, cursor).close()
+        except Exception:
+            pass
+        try:
+            cast(Any, conn).close()
+        except Exception:
+            pass
 
 def data_ano_letivo(ano_letivo):
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
+    if not conn:
+        print("Não foi possível conectar ao banco de dados.")
+        return None
+    cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
     query = """
         SELECT 
@@ -165,6 +193,15 @@ def data_ano_letivo(ano_letivo):
     except Exception as e:
         print("Erro ao executar a consulta:", str(e))
         return None
+    finally:
+        try:
+            cast(Any, cursor).close()
+        except Exception:
+            pass
+        try:
+            cast(Any, conn).close()
+        except Exception:
+            pass
 
 def add_employee_table(elements, funcionarios_df, figura_inferior, cabecalho):
     """
@@ -188,7 +225,7 @@ def add_employee_table(elements, funcionarios_df, figura_inferior, cabecalho):
     elements.append(Spacer(1, 0.15 * inch))
 
     # Cabeçalho da tabela de funcionários
-    data = [['Nº', 'Nome', 'Cargo', 'Disciplina']]
+    data: list[list[Any]] = [['Nº', 'Nome', 'Cargo', 'Disciplina']]
     for row_num, (index, row) in enumerate(funcionarios_df.iterrows(), start=1):
         nome = row['Funcionario']
         cargo = row['Cargo']
@@ -296,7 +333,7 @@ def add_class_table(elements, turma_df, nome_serie, nome_turma, turno, nome_prof
     elements.append(Paragraph(f"TOTAIS: MASCULINO ({total_masculino}) FEMININO ({total_feminino}) - TRANSFERIDOS: {total_transferidos}", ParagraphStyle(name='TotaisAlunos', fontSize=12, alignment=0)))
     elements.append(Spacer(1, 0.15 * inch))
 
-    data = [['Nº', 'Nome', 'Nascimento', 'Telefones', 'Transtorno', 'Situação']]
+    data: list[list[Any]] = [['Nº', 'Nome', 'Nascimento', 'Telefones', 'Transtorno', 'Situação']]
     for row_num, (index, row) in enumerate(turma_df.iterrows(), start=1):
         nome = row['NOME DO ALUNO']
         nascimento = row['NASCIMENTO'].strftime('%d/%m/%Y') if row['NASCIMENTO'] else "Data não disponível"

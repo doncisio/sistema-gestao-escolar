@@ -7,6 +7,7 @@ import io
 import os
 import re
 import unicodedata
+from typing import Any, cast
 
 
 def formatar_data(data_valor):
@@ -44,8 +45,8 @@ def formatar_telefone(telefone):
     return telefone
 
 
-def consultar_funcionarios(conn):
-    cursor = conn.cursor(dictionary=True)
+def consultar_funcionarios(conn: Any):
+    cursor = cast(Any, conn).cursor(dictionary=True)
     try:
         query = (
             """
@@ -142,7 +143,7 @@ def gerar_folhas_de_ponto(template_pdf: str, saida_pdf: str, mes_referencia: int
     if not os.path.isfile(template_pdf):
         raise FileNotFoundError(f"Arquivo base não encontrado: {template_pdf}")
 
-    conn = conectar_bd()
+    conn: Any = conectar_bd()
     try:
         funcionarios = consultar_funcionarios(conn)
         if not funcionarios:
@@ -182,7 +183,8 @@ def gerar_folhas_de_ponto(template_pdf: str, saida_pdf: str, mes_referencia: int
         print(f"Folhas de ponto geradas em: {saida_pdf}")
     finally:
         try:
-            conn.close()
+            if conn:
+                conn.close()
         except Exception:
             pass
 

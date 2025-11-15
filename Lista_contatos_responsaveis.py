@@ -8,11 +8,15 @@ from conexao import conectar_bd
 from Lista_atualizada import data_ano_letivo, create_pdf_buffer, add_cover_page, format_phone_numbers
 from gerarPDF import salvar_e_abrir_pdf
 from biblio_editor import formatar_telefone
+from typing import Any, cast
 
 
 def buscar_contatos_alunos(ano_letivo: int):
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
+    if not conn:
+        print("Não foi possível conectar ao banco de dados.")
+        return []
+    cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
     query = """
         SELECT 
@@ -34,12 +38,22 @@ def buscar_contatos_alunos(ano_letivo: int):
         GROUP BY a.id, a.nome, s.nome, t.nome, t.turno
         ORDER BY s.nome, t.nome, a.nome
     """
-
-    cursor.execute(query, (ano_letivo,))
-    registros = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return registros
+    try:
+        cursor.execute(query, (ano_letivo,))
+        registros = cursor.fetchall()
+        return registros
+    except Exception as e:
+        print("Erro ao executar a consulta:", str(e))
+        return []
+    finally:
+        try:
+            cast(Any, cursor).close()
+        except Exception:
+            pass
+        try:
+            cast(Any, conn).close()
+        except Exception:
+            pass
 
 
 def formatar_responsaveis_multilinha(responsaveis_concatenados: str) -> str:
@@ -67,7 +81,7 @@ def add_contacts_table(elements, turma_df, nome_serie, nome_turma, turno, figura
     elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=12, alignment=1)))
     elements.append(Spacer(1, 0.15 * inch))
 
-    data = [['Nº', 'Nome', 'Responsáveis', 'Telefone']]
+    data: list[list[Any]] = [['Nº', 'Nome', 'Responsáveis', 'Telefone']]
     for row_num, (index, row) in enumerate(turma_df.iterrows(), start=1):
         nome = row['ALUNO']
         responsaveis = formatar_responsaveis_multilinha(row['RESPONSAVEIS'] or '')

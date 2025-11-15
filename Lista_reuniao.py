@@ -9,6 +9,7 @@ from reportlab.lib.units import inch
 from reportlab.lib.colors import black, white, grey
 from gerarPDF import salvar_e_abrir_pdf, create_pdf_buffer_letter
 from Lista_atualizada import fetch_student_data
+from typing import Any
 
 def lista_reuniao():
     ano_letivo = 2025
@@ -106,7 +107,7 @@ def lista_reuniao():
         elements.append(Spacer(1, 0.2 * inch))
 
         # Criar a tabela para a turma
-        data = [['Nº', 'Nome', 'Telefone', 'Assinatura do Responsavél']]
+        data: list[list[Any]] = [['Nº', 'Nome', 'Telefone', 'Assinatura do Responsavél']]
         # Função para formatar os dados, garantindo que 'NASCIMENTO' não seja None
         for row_num, (index, row) in enumerate(turma_df.iterrows(), start=1):
             nome = row['NOME DO ALUNO']

@@ -11,9 +11,11 @@ Funcionalidades:
 """
 
 import mysql.connector
-from tkinter import *
+from tkinter import (Tk, Toplevel, Frame, Label, LabelFrame, Button,
+                     BOTH, LEFT, X, W, E, RIDGE, DISABLED, NORMAL)
 from tkinter import ttk, messagebox
 from conexao import conectar_bd
+from typing import Any, cast
 from datetime import datetime
 import traceback
 
@@ -37,9 +39,9 @@ class InterfaceTransicaoAnoLetivo:
         self.co4 = "#ff9800"  # laranja
         
         # Variáveis
-        self.ano_atual = None
-        self.ano_novo = None
-        self.estatisticas = {}
+        self.ano_atual: Any = None
+        self.ano_novo: Any = None
+        self.estatisticas: dict = {}
         
         self.criar_interface()
         self.carregar_dados_iniciais()
@@ -63,10 +65,11 @@ class InterfaceTransicaoAnoLetivo:
               font=("Arial", 12, "bold"), bg=self.co4, fg=self.co0,
               padx=10, pady=5).pack()
         
-        Label(aviso_frame, 
-              text="Certifique-se de fazer BACKUP antes de prosseguir.",
-              font=("Arial", 10), bg=self.co4, fg=self.co0,
-              padx=10, pady=(0, 5)).pack()
+        lbl_backup = Label(aviso_frame,
+                    text="Certifique-se de fazer BACKUP antes de prosseguir.",
+                    font=("Arial", 10), bg=self.co4, fg=self.co0,
+                    padx=10)
+        lbl_backup.pack(pady=(0, 5))
         
         # Frame de informações
         info_frame = LabelFrame(main_frame, text="Informações do Ano Letivo",
@@ -187,7 +190,7 @@ class InterfaceTransicaoAnoLetivo:
                 FROM anosletivos 
                 WHERE ano_letivo = YEAR(CURDATE())
             """)
-            resultado = cursor.fetchone()
+            resultado = cast(Any, cursor.fetchone())
             
             if not resultado:
                 # Buscar o ano mais recente
@@ -197,7 +200,7 @@ class InterfaceTransicaoAnoLetivo:
                     ORDER BY ano_letivo DESC 
                     LIMIT 1
                 """)
-                resultado = cursor.fetchone()
+                resultado = cast(Any, cursor.fetchone())
             
             if resultado:
                 self.ano_atual = resultado
@@ -231,7 +234,7 @@ class InterfaceTransicaoAnoLetivo:
                 AND m.status = 'Ativo'
             """, (self.ano_atual['id'],))
             
-            resultado = cursor.fetchone()
+            resultado = cast(Any, cursor.fetchone())
             total_matriculas = resultado['total'] if resultado else 0
             self.label_total_matriculas.config(text=str(total_matriculas))
             
@@ -243,7 +246,8 @@ class InterfaceTransicaoAnoLetivo:
                 WHERE s.nome LIKE '9%'
                 AND t.escola_id = 60
             """)
-            turmas_9ano = [row['id'] for row in cursor.fetchall()]
+            _rows = cast(Any, cursor.fetchall())
+            turmas_9ano = [row['id'] for row in _rows]
             
             # Alunos que continuarão (1º ao 8º ano - apenas Ativos)
             if turmas_9ano:
@@ -267,7 +271,7 @@ class InterfaceTransicaoAnoLetivo:
                     AND a.escola_id = 60
                 """, (self.ano_atual['id'],))
             
-            resultado = cursor.fetchone()
+            resultado = cast(Any, cursor.fetchone())
             alunos_continuar = resultado['total'] if resultado else 0
             self.label_alunos_continuar.config(text=str(alunos_continuar))
             
@@ -293,7 +297,7 @@ class InterfaceTransicaoAnoLetivo:
                 """.format(','.join(['%s'] * len(turmas_9ano))),
                 (self.ano_atual['id'], self.ano_atual['id']) + tuple(turmas_9ano))
                 
-                resultado = cursor.fetchone()
+                resultado = cast(Any, cursor.fetchone())
                 alunos_9ano_reprovados = resultado['total'] if resultado else 0
             
             self.label_alunos_9ano_reprovados.config(text=str(alunos_9ano_reprovados))
@@ -308,7 +312,7 @@ class InterfaceTransicaoAnoLetivo:
                 AND a.escola_id = 60
             """, (self.ano_atual['id'],))
             
-            resultado = cursor.fetchone()
+            resultado = cast(Any, cursor.fetchone())
             alunos_excluir = resultado['total'] if resultado else 0
             self.label_alunos_excluir.config(text=str(alunos_excluir))
             
@@ -447,7 +451,8 @@ class InterfaceTransicaoAnoLetivo:
             cursor.execute("""
                 SELECT id FROM anosletivos WHERE ano_letivo = %s
             """, (self.ano_novo['ano_letivo'],))
-            novo_ano_id = cursor.fetchone()['id']
+            _tmp = cast(Any, cursor.fetchone())
+            novo_ano_id = _tmp['id']
             
             # Passo 2: Encerrar matrículas antigas
             self.atualizar_status("Encerrando matrículas do ano anterior...", 30)
@@ -470,7 +475,8 @@ class InterfaceTransicaoAnoLetivo:
                 WHERE s.nome LIKE '9%'
                 AND t.escola_id = 60
             """)
-            turmas_9ano = [row['id'] for row in cursor.fetchall()]
+            _rows = cast(Any, cursor.fetchall())
+            turmas_9ano = [row['id'] for row in _rows]
             
             # Buscar alunos que NÃO são do 9º ano (esses vão para o próximo ano)
             cursor.execute("""
@@ -486,7 +492,7 @@ class InterfaceTransicaoAnoLetivo:
             """.format(','.join(['%s'] * len(turmas_9ano)) if turmas_9ano else "0"), 
             (self.ano_atual['id'],) + tuple(turmas_9ano) if turmas_9ano else (self.ano_atual['id'],))
             
-            alunos_normais = cursor.fetchall()
+            alunos_normais = cast(Any, cursor.fetchall())
             
             # Buscar alunos do 9º ano REPROVADOS (média < 60)
             if turmas_9ano:
@@ -513,7 +519,7 @@ class InterfaceTransicaoAnoLetivo:
                 """.format(','.join(['%s'] * len(turmas_9ano))),
                 (self.ano_atual['id'], self.ano_atual['id']) + tuple(turmas_9ano))
                 
-                alunos_9ano_reprovados = cursor.fetchall()
+                alunos_9ano_reprovados = cast(Any, cursor.fetchall())
             else:
                 alunos_9ano_reprovados = []
             
@@ -559,7 +565,11 @@ class InterfaceTransicaoAnoLetivo:
             self.fechar()
             
         except Exception as e:
-            conn.rollback()
+            if 'conn' in locals() and conn:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
             messagebox.showerror("Erro", f"Erro ao executar transição:\n{str(e)}")
             traceback.print_exc()
             self.btn_simular.config(state=NORMAL)

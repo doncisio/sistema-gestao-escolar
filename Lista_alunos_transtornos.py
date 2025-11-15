@@ -10,11 +10,15 @@ from reportlab.lib.colors import black, white, grey, HexColor
 from conexao import conectar_bd
 from gerarPDF import salvar_e_abrir_pdf
 from biblio_editor import formatar_telefone, formatar_cpf
+from typing import Any, cast
 
 def fetch_students_with_disorders(ano_letivo):
     """Busca alunos que possuem algum tipo de transtorno registrado"""
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
+    if not conn:
+        print("Não foi possível conectar ao banco de dados.")
+        return None
+    cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
     query = """
         SELECT 
@@ -74,8 +78,14 @@ def fetch_students_with_disorders(ano_letivo):
         print("Erro ao executar a consulta:", str(e))
         return None
     finally:
-        cursor.close()
-        conn.close()
+        try:
+            cast(Any, cursor).close()
+        except Exception:
+            pass
+        try:
+            cast(Any, conn).close()
+        except Exception:
+            pass
 
 def create_header(cabecalho, figura_inferior):
     """Cria o cabeçalho padrão para todas as páginas"""
@@ -153,7 +163,7 @@ def add_class_table_disorders(elements, turma_df, nome_serie, nome_turma, turno,
             transtorno,
             Paragraph(responsaveis, ParagraphStyle(name='Responsavel', fontSize=9, alignment=0)),
             Paragraph(telefones, ParagraphStyle(name='Telefone', fontSize=9, alignment=0))
-        ])
+        ])  # type: ignore[arg-type]
 
     # Define larguras das colunas
     col_widths = [30, 120, 70, 70, 90, 100, 75]

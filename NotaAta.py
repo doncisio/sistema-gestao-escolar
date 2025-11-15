@@ -11,6 +11,7 @@ import platform
 from conexao import conectar_bd
 from decimal import Decimal, ROUND_HALF_UP
 import re
+from typing import Any, cast
 
 
 # ============================================================================
@@ -161,8 +162,8 @@ def obter_professores_turma(turma_id, ano_letivo=2025):
         # Converter para int nativo do Python (caso seja numpy.int64)
         turma_id = int(turma_id)
         
-        conn = conectar_bd()
-        cursor = conn.cursor(dictionary=True)
+        conn: Any = conectar_bd()
+        cursor = cast(Any, conn).cursor(dictionary=True)
         
         # Verificar se existe a tabela funcionario_disciplinas
         cursor.execute("SHOW TABLES LIKE 'funcionario_disciplinas'")
@@ -380,8 +381,9 @@ def processar_dados_alunos(dados_aluno, disciplinas, preencher_nulos=False):
                 for idx in df.index:
                     if pd.notnull(df.at[idx, coluna]):
                         try:
-                            df.at[idx, coluna] = float(df.at[idx, coluna])
-                        except:
+                            raw_val = df.at[idx, coluna]
+                            df.at[idx, coluna] = float(cast(Any, raw_val))
+                        except Exception:
                             if preencher_nulos:
                                 df.at[idx, coluna] = 0.0
             except Exception as e:
@@ -426,9 +428,11 @@ def processar_dados_alunos(dados_aluno, disciplinas, preencher_nulos=False):
                 # Verificar se há data de matrícula antes de comparar
                 if pd.notnull(row['DATA_MATRICULA']):
                     if row['STATUS'] == 'Ativo' and row['DATA_MATRICULA'] > data_cutoff_ativo:
-                        df.at[index, 'NOME DO ALUNO'] += ' (2025.2)'  # Atualizado para 2025
+                        nome_atual = df.at[cast(Any, index), 'NOME DO ALUNO']
+                        df.at[cast(Any, index), 'NOME DO ALUNO'] = str(cast(Any, nome_atual)) + ' (2025.2)'
                     elif row['STATUS'] == 'Transferido' and row['DATA_MATRICULA'] > data_cutoff_transferido:
-                        df.at[index, 'NOME DO ALUNO'] += ' (Transf.)'
+                        nome_atual = df.at[cast(Any, index), 'NOME DO ALUNO']
+                        df.at[cast(Any, index), 'NOME DO ALUNO'] = str(cast(Any, nome_atual)) + ' (Transf.)'
     except Exception as e:
         print(f"Erro ao processar datas de matrícula: {e}")
     
@@ -614,7 +618,7 @@ def gerar_documento_pdf(df, bimestre, nome_arquivo, disciplinas, nivel_ensino, a
         elements.append(Spacer(1, 0.125 * inch))
         
         # Definir os dados da tabela com as notas
-        cabecalho_tabela = ['Nº', 'NOME DO ALUNO'] 
+        cabecalho_tabela: list[Any] = ['Nº', 'NOME DO ALUNO'] 
         for disciplina in disciplinas:
             # Usar apenas o nome para o cabeçalho (sem a parte 'NOTA_')
             nome_display = disciplina['nome']
@@ -849,7 +853,7 @@ def gerar_documento_pdf_com_assinatura(df, bimestre, nome_arquivo, disciplinas, 
         elements.append(Spacer(1, 0.125 * inch))
         
         # Definir os dados da tabela com as notas
-        cabecalho_tabela = ['Nº', 'NOME DO ALUNO'] 
+        cabecalho_tabela: list[Any] = ['Nº', 'NOME DO ALUNO'] 
         for disciplina in disciplinas:
             # Usar apenas o nome para o cabeçalho (sem a parte 'NOTA_')
             nome_display = disciplina['nome']
@@ -977,8 +981,8 @@ def gerar_relatorio_notas(bimestre=None, nivel_ensino="iniciais", ano_letivo=Non
             nome_arquivo = nome_arquivo.replace('.pdf', ' (com Transferidos).pdf')
         
         # Conectar ao banco de dados
-        conn = conectar_bd()
-        cursor = conn.cursor(dictionary=True)
+        conn: Any = conectar_bd()
+        cursor = cast(Any, conn).cursor(dictionary=True)
         
         # Ajustar a consulta SQL para usar todos os parâmetros
         query = construir_consulta_sql(
@@ -1096,8 +1100,8 @@ def gerar_relatorio_notas_com_assinatura(bimestre=None, nivel_ensino="iniciais",
             nome_arquivo = nome_arquivo.replace('.pdf', ' (com Transferidos).pdf')
         
         # Conectar ao banco de dados
-        conn = conectar_bd()
-        cursor = conn.cursor(dictionary=True)
+        conn: Any = conectar_bd()
+        cursor = cast(Any, conn).cursor(dictionary=True)
         
         # Ajustar a consulta SQL para usar todos os parâmetros
         query = construir_consulta_sql(
