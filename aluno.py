@@ -604,57 +604,69 @@ def excluir_aluno(aluno_id, treeview, query):
                                      "Tem certeza que deseja excluir este aluno?\nEsta ação não pode ser desfeita.")
         if not resposta:
             return False
-        
-        # Conectar ao banco de dados
-        conn = conectar_bd()
-        cursor = cast(Any, conn).cursor()
-        
-        # Verificar se o aluno existe
-        cursor.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
-        result = cursor.fetchone()
-        if not result:
-            messagebox.showerror("Erro", "Aluno não encontrado.")
-            return False
-        
-        # Excluir associações com responsáveis
-        cursor.execute("DELETE FROM responsaveisalunos WHERE aluno_id = %s", (aluno_id,))
-        
-        # Excluir matrículas
-        cursor.execute("DELETE FROM matriculas WHERE aluno_id = %s", (aluno_id,))
-        
-        # Excluir o aluno
-        cursor.execute("DELETE FROM alunos WHERE id = %s", (aluno_id,))
-        
+
+        # Usar context manager centralizado para obter conexão
+        with get_connection() as conn:
+            if conn is None:
+                messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+                return False
+            cursor = cast(Any, conn).cursor()
+
+            # Verificar se o aluno existe
+            cursor.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
+            result = cursor.fetchone()
+            if not result:
+                messagebox.showerror("Erro", "Aluno não encontrado.")
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
+                return False
+
+            # Excluir associações com responsáveis
+            cursor.execute("DELETE FROM responsaveisalunos WHERE aluno_id = %s", (aluno_id,))
+
+            # Excluir matrículas
+            cursor.execute("DELETE FROM matriculas WHERE aluno_id = %s", (aluno_id,))
+
+            # Excluir o aluno
+            cursor.execute("DELETE FROM alunos WHERE id = %s", (aluno_id,))
+
             # Commit das alterações
-        if conn:
-            conn.commit()
-        
+            try:
+                conn.commit()
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+
+            try:
+                cursor.close()
+            except Exception:
+                pass
+
         # Não é mais necessário atualizar a treeview aqui, pois a função em main.py fará isso
         # Isso evita atualizações duplicadas e possíveis erros
-        
+
         messagebox.showinfo("Sucesso", "Aluno excluído com sucesso!")
-        
+
         return True
     except mysql.connector.Error as err:
         messagebox.showerror("Erro", f"Erro ao excluir aluno: {err}")
         print(f"Erro MySQL ao excluir aluno: {err}")
-        if conn:
-            conn.rollback()
+        try:
+            if conn:
+                conn.rollback()
+        except Exception:
+            pass
         return False
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao excluir aluno: {e}")
         print(f"Erro geral ao excluir aluno: {e}")
-        if conn:
-            conn.rollback()
-        return False
-    finally:
-        try:
-            if cursor:
-                cursor.close()
-        except Exception:
-            pass
         try:
             if conn:
-                conn.close()
+                conn.rollback()
         except Exception:
             pass
+        return False
