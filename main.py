@@ -209,48 +209,74 @@ _cache_dados_estaticos = {}
 def obter_nome_escola():
     """Retorna o nome da escola com cache"""
     if 'nome_escola' not in _cache_dados_estaticos:
-            cursor.execute("SELECT nome FROM escolas WHERE id = 60")
-            resultado = cursor.fetchone()
-            if resultado:
-                # cursor.fetchone() normalmente retorna uma tuple (row),
-                # mas em alguns adaptadores/contexts pode retornar dict-like.
-                if isinstance(resultado, (list, tuple)):
-                    nome = resultado[0]
-                elif isinstance(resultado, dict):
-                    nome = resultado.get('nome', str(resultado))
-                else:
-                    nome = str(resultado)
-                _cache_dados_estaticos['nome_escola'] = nome
-            else:
-                _cache_dados_estaticos['nome_escola'] = "Escola não encontrada"
+        try:
+            with get_connection() as conn:
+                if conn is None:
+                    _cache_dados_estaticos['nome_escola'] = "Escola não encontrada"
+                    return _cache_dados_estaticos['nome_escola']
+                cursor = conn.cursor()
+                try:
+                    cursor.execute("SELECT nome FROM escolas WHERE id = 60")
+                    resultado = cursor.fetchone()
+                    if resultado:
+                        if isinstance(resultado, (list, tuple)):
+                            nome = resultado[0]
+                        elif isinstance(resultado, dict):
+                            nome = resultado.get('nome', str(resultado))
+                        else:
+                            nome = str(resultado)
+                        _cache_dados_estaticos['nome_escola'] = nome
+                    else:
+                        _cache_dados_estaticos['nome_escola'] = "Escola não encontrada"
+                finally:
+                    try:
+                        cursor.close()
+                    except Exception:
+                        pass
+        except Exception as e:
+            print(f"Erro ao obter nome da escola: {e}")
+            _cache_dados_estaticos['nome_escola'] = "Escola não encontrada"
     return _cache_dados_estaticos['nome_escola']
 
 def obter_ano_letivo_atual() -> int:
     """Retorna o ID do ano letivo atual (2025) com cache"""
     if 'ano_letivo_atual' not in _cache_dados_estaticos:
-        # Buscar especificamente o ano letivo 2025
-        cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = 2025")
-        resultado = cursor.fetchone()
-        if not resultado:
-            # Se não existe 2025, buscar pelo ano atual do sistema
-            cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = YEAR(CURDATE())")
-            resultado = cursor.fetchone()
-        if not resultado:
-            # Se ainda não encontrou, pegar o mais recente
-            cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
-            resultado = cursor.fetchone()
-        # Garantir que sempre retorna um int
-        if resultado:
-            # Extrai o id de forma segura (tuple/list ou dict)
-            if isinstance(resultado, (list, tuple)):
-                ano_id = resultado[0]
-            elif isinstance(resultado, dict):
-                # alguns cursors podem retornar dicts com chaves nomeadas
-                ano_id = resultado.get('id') or resultado.get('ano_letivo') or resultado
-            else:
-                ano_id = resultado
-            _cache_dados_estaticos['ano_letivo_atual'] = converter_para_int_seguro(ano_id)
-        else:
+        try:
+            with get_connection() as conn:
+                if conn is None:
+                    _cache_dados_estaticos['ano_letivo_atual'] = 1
+                    return 1
+                cursor = conn.cursor()
+                try:
+                    # Buscar especificamente o ano letivo 2025
+                    cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = 2025")
+                    resultado = cursor.fetchone()
+                    if not resultado:
+                        # Se não existe 2025, buscar pelo ano atual do sistema
+                        cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = YEAR(CURDATE())")
+                        resultado = cursor.fetchone()
+                    if not resultado:
+                        # Se ainda não encontrou, pegar o mais recente
+                        cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
+                        resultado = cursor.fetchone()
+                    # Garantir que sempre retorna um int
+                    if resultado:
+                        if isinstance(resultado, (list, tuple)):
+                            ano_id = resultado[0]
+                        elif isinstance(resultado, dict):
+                            ano_id = resultado.get('id') or resultado.get('ano_letivo') or resultado
+                        else:
+                            ano_id = resultado
+                        _cache_dados_estaticos['ano_letivo_atual'] = converter_para_int_seguro(ano_id)
+                    else:
+                        _cache_dados_estaticos['ano_letivo_atual'] = 1
+                finally:
+                    try:
+                        cursor.close()
+                    except Exception:
+                        pass
+        except Exception as e:
+            print(f"Erro ao obter ano letivo atual: {e}")
             _cache_dados_estaticos['ano_letivo_atual'] = 1
     return int(_cache_dados_estaticos['ano_letivo_atual'])
 
