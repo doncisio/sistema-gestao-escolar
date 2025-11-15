@@ -418,8 +418,8 @@ def processar_dados_alunos(dados_aluno, disciplinas, preencher_nulos=False):
         
         # Verificar se a coluna DATA_MATRICULA existe
         if 'DATA_MATRICULA' in df.columns:
-            # Converter a coluna DATA_MATRICULA para o tipo date
-            df['DATA_MATRICULA'] = df['DATA_MATRICULA'].apply(converter_para_data)
+            # Converter a coluna DATA_MATRICULA para o tipo date (usar .loc para evitar aviso do analisador)
+            df.loc[:, 'DATA_MATRICULA'] = df['DATA_MATRICULA'].apply(converter_para_data)
             
             # Processar marcações especiais
             for index, row in df.iterrows():

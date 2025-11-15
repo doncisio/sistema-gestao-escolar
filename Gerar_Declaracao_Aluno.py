@@ -9,9 +9,17 @@ from reportlab.lib.units import inch
 from reportlab.platypus import TableStyle
 import platform
 from conexao import conectar_bd
+from types import ModuleType
+from typing import Optional
 from gerarPDF import salvar_e_abrir_pdf
 from utilitarios.gerenciador_documentos import salvar_documento_sistema
 from utilitarios.tipos_documentos import TIPO_DECLARACAO
+messagebox: Optional[ModuleType] = None
+try:
+    import tkinter.messagebox as messagebox  # type: ignore
+except Exception:
+    # Em ambientes sem tkinter (ex: análise estática), mantém variável definida
+    messagebox = None
 
 def obter_dados_escola(cursor, escola_id):
     query_escola = """
@@ -253,10 +261,25 @@ def criar_pdf(buffer, cabecalho, rodape_texto, dados_aluno, responsaveis, marcac
 
 def gerar_declaracao_aluno(aluno_id, marcacoes, motivo_outros=""):
     conn = conectar_bd()
+    # Se a conexão falhar, `conectar_bd` pode retornar None — evitar acessar atributos de None
+    if conn is None:
+        if messagebox:
+            messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados para gerar a declaração.")
+        else:
+            print("Erro: Não foi possível conectar ao banco de dados para gerar a declaração.")
+        return
     cursor = conn.cursor()
 
     escola_id = 60
     dados_escola = obter_dados_escola(cursor, escola_id)
+    if not dados_escola:
+        cursor.close()
+        conn.close()
+        if messagebox:
+            messagebox.showerror("Erro", "Dados da escola não encontrados.")
+        else:
+            print("Erro: Dados da escola não encontrados.")
+        return
     dados_aluno = obter_dados_aluno(cursor, aluno_id)
     responsaveis = obter_responsaveis(cursor, aluno_id)
 
@@ -270,7 +293,7 @@ def gerar_declaracao_aluno(aluno_id, marcacoes, motivo_outros=""):
     rodape_texto = criar_rodape(dados_escola)
 
     # Criar nome do arquivo baseado nos dados do aluno
-    nome_aluno = dados_aluno[0]
+    nome_aluno = str(dados_aluno[0]) if dados_aluno and dados_aluno[0] is not None else "aluno"
     data_atual = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     nome_arquivo = f"Declaracao_{nome_aluno.replace(' ', '_')}_{data_atual}.pdf"
     
@@ -318,9 +341,10 @@ def gerar_declaracao_aluno(aluno_id, marcacoes, motivo_outros=""):
     # Abrir o arquivo local
     if not sucesso:
         # Se houver erro no upload, ainda abre o arquivo local mas mostra mensagem de erro
-        from tkinter import messagebox
-        messagebox.showwarning("Aviso", 
-                             "O documento foi gerado mas houve um erro ao salvá-lo no sistema:\n" + mensagem)
+        if messagebox:
+            messagebox.showwarning("Aviso", "O documento foi gerado mas houve um erro ao salvá-lo no sistema:\n" + mensagem)
+        else:
+            print("Aviso: O documento foi gerado mas houve um erro ao salvá-lo no sistema:\n" + mensagem)
     
     # Abrir o arquivo para visualização
     buffer.seek(0)

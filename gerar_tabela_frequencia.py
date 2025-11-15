@@ -8,7 +8,7 @@ from reportlab.lib import colors
 import os
 import datetime
 from Lista_atualizada import fetch_student_data
-from gerar_documentos import PASTAS_TURMAS, criar_pastas_se_nao_existirem, salvar_pdf, adicionar_cabecalho
+from scripts_nao_utilizados.gerar_documentos import PASTAS_TURMAS, criar_pastas_se_nao_existirem, salvar_pdf, adicionar_cabecalho
 
 def lista_frequencia():
     """Gera um PDF com a lista de frequência dos alunos, agrupados por turma."""

@@ -1,6 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, Frame, Label
-from tkinter import *
+from tkinter import ttk, filedialog, messagebox, Frame, Label, Entry, Button, LabelFrame, RAISED, RIDGE, END
 import mysql.connector
 from mysql.connector import Error
 from google.oauth2.credentials import Credentials
@@ -11,6 +10,8 @@ from googleapiclient.http import MediaFileUpload
 import os
 import pickle
 import webbrowser
+from datetime import datetime
+from typing import Any, cast
 from dotenv import load_dotenv
 
 class GerenciadorDocumentosFuncionarios:
@@ -117,7 +118,7 @@ class GerenciadorDocumentosFuncionarios:
         """Cria os elementos da interface"""
         # Frame principal
         main_frame = Frame(self.root, bg=self.co1, padx=10, pady=10)
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        main_frame.grid(row=0, column=0, sticky='nsew')
         
         # Título
         title_label = Label(main_frame, text="Gerenciador de Documentos de Funcionários", 
@@ -127,7 +128,7 @@ class GerenciadorDocumentosFuncionarios:
         # Frame de upload
         upload_frame = LabelFrame(main_frame, text="Upload de Documento", padx=10, pady=10,
                                 bg=self.co1, fg=self.co0, font=('Ivy', 10, 'bold'))
-        upload_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        upload_frame.grid(row=1, column=0, columnspan=3, sticky='we', pady=(0, 10))
         
         # Seleção de funcionário
         Label(upload_frame, text="Funcionário:", bg=self.co1, fg=self.co0,
@@ -135,13 +136,13 @@ class GerenciadorDocumentosFuncionarios:
         self.funcionario_var = tk.StringVar()
         self.funcionario_combo = ttk.Combobox(upload_frame, textvariable=self.funcionario_var, 
                                             width=40, font=('Ivy', 10))
-        self.funcionario_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        self.funcionario_combo.grid(row=0, column=1, sticky='we', pady=5, padx=(5, 0))
         
         # Descrição do documento
         Label(upload_frame, text="Descrição:", bg=self.co1, fg=self.co0,
               font=('Ivy', 10)).grid(row=1, column=0, sticky=tk.W, pady=5)
         self.descricao_entry = Entry(upload_frame, width=40, font=('Ivy', 10), bg=self.co0)
-        self.descricao_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        self.descricao_entry.grid(row=1, column=1, sticky='we', pady=5, padx=(5, 0))
         
         # Tipo de documento
         Label(upload_frame, text="Tipo:", bg=self.co1, fg=self.co0,
@@ -151,7 +152,7 @@ class GerenciadorDocumentosFuncionarios:
                                       width=40, font=('Ivy', 10))
         self.tipo_combo['values'] = ('Contrato', 'RG', 'CPF', 'Comprovante de Endereço', 
                                    'Diploma', 'Certificado', 'Outros')
-        self.tipo_combo.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        self.tipo_combo.grid(row=2, column=1, sticky='we', pady=5, padx=(5, 0))
         
         # Botão para selecionar arquivo
         Button(upload_frame, text="Selecionar Arquivo", command=self.selecionar_arquivo,
@@ -170,7 +171,7 @@ class GerenciadorDocumentosFuncionarios:
         # Frame de documentos
         docs_frame = LabelFrame(main_frame, text="Documentos do Funcionário", padx=10, pady=10,
                               bg=self.co1, fg=self.co0, font=('Ivy', 10, 'bold'))
-        docs_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(10, 0))
+        docs_frame.grid(row=2, column=0, columnspan=3, sticky='nsew', pady=(10, 0))
         
         # Configurar estilo da Treeview
         style = ttk.Style()
@@ -201,16 +202,16 @@ class GerenciadorDocumentosFuncionarios:
         self.tree.heading('Descrição', text='Descrição')
         self.tree.column('Descrição', width=250)
         
-        self.tree.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.tree.grid(row=0, column=0, columnspan=3, sticky='nsew')
         
         # Scrollbar para a treeview
         scrollbar = ttk.Scrollbar(docs_frame, orient=tk.VERTICAL, command=self.tree.yview)
-        scrollbar.grid(row=0, column=3, sticky=(tk.N, tk.S))
+        scrollbar.grid(row=0, column=3, sticky='ns')
         self.tree.configure(yscrollcommand=scrollbar.set)
         
         # Frame de botões (sempre visível na parte inferior)
         buttons_frame = Frame(docs_frame, bg=self.co1)
-        buttons_frame.grid(row=1, column=0, columnspan=4, pady=10, sticky=(tk.W, tk.E))
+        buttons_frame.grid(row=1, column=0, columnspan=4, pady=10, sticky='we')
         
         # Botão para carregar documentos
         Button(buttons_frame, text="Carregar Documentos", command=self.carregar_documentos,
@@ -301,6 +302,11 @@ class GerenciadorDocumentosFuncionarios:
     
     def get_or_create_drive_folder(self, folder_name, parent_id=None):
         """Obtém o ID de uma pasta no Google Drive ou cria se não existir"""
+        # Garantir que o serviço do Drive esteja configurado
+        if not self.service:
+            messagebox.showerror("Erro", "Serviço do Google Drive não configurado.")
+            return None
+
         try:
             query = f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder'"
             if parent_id:
@@ -329,6 +335,11 @@ class GerenciadorDocumentosFuncionarios:
 
     def upload_para_drive(self, file_path, file_name):
         """Faz upload do arquivo para o Google Drive dentro da pasta do funcionário"""
+        # Proteção: garantir serviço do Drive configurado
+        if not self.service:
+            messagebox.showerror("Erro", "Serviço do Google Drive não configurado.")
+            return None, None
+
         try:
             # 1️⃣ Pasta principal "Documentos Funcionários"
             main_folder_id = self.get_or_create_drive_folder("Documentos Funcionários")
@@ -369,6 +380,9 @@ class GerenciadorDocumentosFuncionarios:
         try:
             if not drive_file_id:
                 print("Arquivo sem ID do Drive. Ignorando exclusão.")
+                return
+            if not self.service:
+                messagebox.showerror("Erro", "Serviço do Google Drive não configurado.")
                 return
             self.service.files().delete(fileId=drive_file_id).execute()
             print(f"Arquivo do Drive {drive_file_id} excluído com sucesso.")
@@ -420,8 +434,14 @@ class GerenciadorDocumentosFuncionarios:
                 """
                 
                 valores = (self.funcionario_id, nome_arquivo, tipo, link_drive, descricao)
-                self.cursor.execute(sql, valores)
-                self.conn.commit()
+                # Proteção: garantir conexão e cursor antes de gravar
+                if not getattr(self, 'conn', None) or not getattr(self, 'cursor', None):
+                    messagebox.showerror("Erro", "Sem conexão com o banco de dados.")
+                    return
+                conn = self.conn
+                cursor = self.cursor
+                cursor.execute(sql, valores)
+                cast(Any, conn).commit()
                 
                 messagebox.showinfo("Sucesso", "Documento salvo com sucesso!")
                 
@@ -468,8 +488,23 @@ class GerenciadorDocumentosFuncionarios:
             documentos = self.cursor.fetchall()
             
             for doc in documentos:
-                # Formatar data
-                data_formatada = doc[3].strftime('%d/%m/%Y %H:%M') if doc[3] else ''
+                # Formatar data (proteger contra valores que não sejam datetime)
+                val_data = doc[3]
+                if val_data is None:
+                    data_formatada = ''
+                elif isinstance(val_data, datetime):
+                    data_formatada = val_data.strftime('%d/%m/%Y %H:%M')
+                elif isinstance(val_data, (int, float)):
+                    try:
+                        data_formatada = datetime.fromtimestamp(float(val_data)).strftime('%d/%m/%Y %H:%M')
+                    except Exception:
+                        data_formatada = str(val_data)
+                else:
+                    # Fallback para outros tipos (date, Decimal, str, etc.)
+                    try:
+                        data_formatada = str(val_data)
+                    except Exception:
+                        data_formatada = ''
                 self.tree.insert('', tk.END, values=(
                     doc[0], doc[1], doc[2] or '', data_formatada, doc[4] or ''
                 ))
@@ -496,7 +531,7 @@ class GerenciadorDocumentosFuncionarios:
             resultado = self.cursor.fetchone()
             
             if resultado and resultado[0]:
-                webbrowser.open(resultado[0])
+                webbrowser.open(str(resultado[0]))
             else:
                 messagebox.showerror("Erro", "Link do documento não encontrado.")
                 
@@ -532,27 +567,45 @@ class GerenciadorDocumentosFuncionarios:
             if resultado and resultado[0]:
                 link = resultado[0]
 
+                # Garantir que temos uma string para operar
+                try:
+                    link_str = str(link)
+                except Exception:
+                    link_str = ''
+
                 # Extrair file_id do link (funciona para qualquer formato de link do Drive)
                 file_id = None
-                if '/d/' in link:
-                    file_id = link.split('/d/')[1].split('/')[0]
-                elif 'id=' in link:
-                    file_id = link.split('id=')[1].split('&')[0]
-                else:
-                    file_id = link.split('/')[-1]
+                if '/d/' in link_str:
+                    parts = link_str.split('/d/')
+                    if len(parts) > 1:
+                        file_id = parts[1].split('/')[0]
+                elif 'id=' in link_str:
+                    parts = link_str.split('id=')
+                    if len(parts) > 1:
+                        file_id = parts[1].split('&')[0]
+                elif link_str:
+                    file_id = link_str.split('/')[-1]
 
-                # Excluir do Google Drive
+                # Excluir do Google Drive (se possível)
                 if file_id:
                     try:
-                        self.service.files().update(fileId=file_id, body={"trashed": True}).execute()
-                        print(f"✅ Documento excluído do Drive: {file_id}")
+                        if not self.service:
+                            print(f"⚠️ Serviço do Drive não configurado; não foi possível excluir {file_id}")
+                        else:
+                            self.service.files().update(fileId=file_id, body={"trashed": True}).execute()
+                            print(f"✅ Documento excluído do Drive: {file_id}")
                     except Exception as e:
                         print(f"⚠️ Aviso: não foi possível excluir do Drive: {e}")
 
             # Excluir do banco de dados
             sql_delete = "DELETE FROM documentos_funcionarios WHERE id = %s"
-            self.cursor.execute(sql_delete, (doc_id,))
-            self.conn.commit()
+            if not getattr(self, 'conn', None) or not getattr(self, 'cursor', None):
+                messagebox.showerror("Erro", "Sem conexão com o banco de dados.")
+                return
+            conn = self.conn
+            cursor = self.cursor
+            cursor.execute(sql_delete, (doc_id,))
+            cast(Any, conn).commit()
 
             # Atualizar a interface
             self.carregar_documentos()

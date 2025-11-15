@@ -6,6 +6,7 @@ Adiciona botão para acionar preenchimento a partir do GEDUC
 import tkinter as tk
 from tkinter import messagebox
 import threading
+from typing import Any, Dict, Optional, cast
 from automatizar_extracao_geduc import AutomacaoGEDUC
 from preencher_notas_automatico import criar_preenchimento_automatico
 
@@ -21,7 +22,7 @@ class IntegradorPreenchimentoAutomatico:
             interface_notas: Instância da InterfaceCadastroEdicaoNotas
         """
         self.interface = interface_notas
-        self.automacao = None
+        self.automacao: Optional[AutomacaoGEDUC] = None
         self.thread_preenchimento = None
         
     def adicionar_botao_preenchimento(self):
@@ -141,7 +142,7 @@ class IntegradorPreenchimentoAutomatico:
         # Variáveis com valores padrão preenchidos
         usuario_var = tk.StringVar(value="01813518386")
         senha_var = tk.StringVar(value="01813518386")
-        resultado = {'confirmado': False}
+        resultado: Dict[str, Any] = {'confirmado': False}
         
         # Conteúdo
         tk.Label(
@@ -343,8 +344,16 @@ class IntegradorPreenchimentoAutomatico:
         try:
             import time
             
+            # Verificar automação
+            if self.automacao is None:
+                print("✗ Automação do GEDUC não inicializada")
+                return False
+
+            # Usar variável local tipada para acalmar o analisador estático
+            automacao = cast(AutomacaoGEDUC, self.automacao)
+
             # Obter turmas disponíveis
-            turmas = self.automacao.obter_opcoes_select('IDTURMA')
+            turmas = automacao.obter_opcoes_select('IDTURMA')
             
             print(f"\n→ Procurando turma no GEDUC:")
             print(f"  Série: {selecoes['serie']}")
@@ -453,11 +462,11 @@ class IntegradorPreenchimentoAutomatico:
             
             # Selecionar turma
             print(f"\n✓ Turma encontrada: {turma_encontrada}")
-            self.automacao.selecionar_opcao('IDTURMA', turma_id)
+            automacao.selecionar_opcao('IDTURMA', turma_id)
             time.sleep(1)
             
             # Obter disciplinas disponíveis
-            disciplinas = self.automacao.obter_opcoes_select('IDTURMASDISP')
+            disciplinas = automacao.obter_opcoes_select('IDTURMASDISP')
             
             # Procurar disciplina correspondente
             disciplina_id = None
@@ -472,17 +481,17 @@ class IntegradorPreenchimentoAutomatico:
             
             # Selecionar disciplina
             print(f"  → Selecionando disciplina: {selecoes['disciplina']}")
-            self.automacao.selecionar_opcao('IDTURMASDISP', disciplina_id)
+            automacao.selecionar_opcao('IDTURMASDISP', disciplina_id)
             time.sleep(1)
             
             # Selecionar bimestre
             print(f"  → Selecionando bimestre: {selecoes['bimestre']}º")
-            self.automacao.selecionar_bimestre(int(selecoes['bimestre']))
+            automacao.selecionar_bimestre(int(selecoes['bimestre']))
             time.sleep(1)
             
             # Clicar em exibir alunos
             print("  → Carregando alunos...")
-            self.automacao.clicar_exibir_alunos()
+            automacao.clicar_exibir_alunos()
             time.sleep(2)
             
             print("✓ Navegação concluída")

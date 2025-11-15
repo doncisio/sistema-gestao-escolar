@@ -1,4 +1,9 @@
-def abrir_relatorio_avancado_com_assinatura():
+from tkinter import Toplevel, StringVar, IntVar, BooleanVar, Frame, BOTH, W, Label, Radiobutton, Checkbutton, LEFT, X, Button, RIGHT
+from tkinter import ttk, messagebox
+from NotaAta import gerar_relatorio_notas_com_assinatura
+
+
+def abrir_relatorio_avancado_com_assinatura(janela, status_label=None, co5="#003A70", co0="#F5F5F5"):
     # Criar janela para configuração de relatório avançado
     janela_relatorio = Toplevel(janela)
     janela_relatorio.title("Relatório de Notas com Assinatura - Opções Avançadas")
@@ -10,7 +15,7 @@ def abrir_relatorio_avancado_com_assinatura():
     # Variáveis para armazenar as opções
     bimestre_var = StringVar(value="1º bimestre")
     nivel_var = StringVar(value="iniciais")
-    ano_letivo_var = IntVar(value=2025)
+    ano_letivo_var = StringVar(value="2025")
     status_var = StringVar(value="Ativo")
     incluir_transferidos = BooleanVar(value=False)
     preencher_zeros = BooleanVar(value=False)
@@ -37,7 +42,7 @@ def abrir_relatorio_avancado_com_assinatura():
     
     # Ano letivo
     Label(frame_principal, text="Ano letivo:", anchor=W).grid(row=3, column=0, sticky=W, pady=5)
-    anos = [2023, 2024, 2025, 2026, 2027]
+    anos = ["2023", "2024", "2025", "2026", "2027"]
     combo_ano = ttk.Combobox(frame_principal, textvariable=ano_letivo_var, values=anos, state="readonly", width=20)
     combo_ano.grid(row=3, column=1, sticky=W, pady=5)
     
@@ -67,7 +72,7 @@ def abrir_relatorio_avancado_com_assinatura():
     def gerar_relatorio():
         bimestre = bimestre_var.get()
         nivel = nivel_var.get()
-        ano = ano_letivo_var.get()
+        ano = int(ano_letivo_var.get())
         preencher_com_zeros = preencher_zeros.get()
         
         # Configurar status de matrícula
@@ -78,10 +83,13 @@ def abrir_relatorio_avancado_com_assinatura():
         
         # Fechar a janela
         janela_relatorio.destroy()
-        
-        # Exibir feedback ao usuário
-        status_label.config(text=f"Gerando relatório de notas com assinatura para {bimestre} ({nivel})...")
-        janela.update()
+
+        # Exibir feedback ao usuário (se houver um label de status)
+        if status_label is not None:
+            status_label.config(text=f"Gerando relatório de notas com assinatura para {bimestre} ({nivel})...")
+
+        if janela is not None:
+            janela.update()
         
         # Gerar o relatório
         try:
@@ -94,13 +102,16 @@ def abrir_relatorio_avancado_com_assinatura():
             )
             
             if resultado:
-                status_label.config(text=f"Relatório com assinatura gerado com sucesso!")
+                if status_label is not None:
+                    status_label.config(text=f"Relatório com assinatura gerado com sucesso!")
             else:
-                status_label.config(text=f"Nenhum dado encontrado para o relatório.")
+                if status_label is not None:
+                    status_label.config(text=f"Nenhum dado encontrado para o relatório.")
                 messagebox.showwarning("Sem dados", f"Não foram encontrados dados para o {bimestre} no nível {nivel}.")
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao gerar relatório: {str(e)}")
-            status_label.config(text="")
+            if status_label is not None:
+                status_label.config(text="")
     
     # Botões
     Button(frame_botoes, text="Cancelar", command=janela_relatorio.destroy, width=10).pack(side=RIGHT, padx=5)

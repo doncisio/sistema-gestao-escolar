@@ -81,13 +81,24 @@ def abrir_historico_aluno(aluno_id, janela_pai=None):
     # Conectar ao banco para obter o nome do aluno
     from conexao import conectar_bd
     conn = conectar_bd()
+    if conn is None:
+        print("✗ Falha ao conectar ao banco de dados")
+        janela.destroy()
+        return
+
     cursor = conn.cursor()
-    
-    cursor.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
-    resultado = cursor.fetchone()
-    
-    cursor.close()
-    conn.close()
+    try:
+        cursor.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
+        resultado = cursor.fetchone()
+    finally:
+        try:
+            cursor.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
     
     if resultado:
         nome_aluno = resultado[0]

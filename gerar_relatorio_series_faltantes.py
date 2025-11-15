@@ -4,6 +4,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from conexao import conectar_bd
+from typing import Any, Dict, List, cast
 import datetime
 import os
 import logging
@@ -62,7 +63,8 @@ def gerar_relatorio_series_faltantes():
         """
         
         cursor.execute(query_alunos_ativos)
-        alunos_ativos = cursor.fetchall()
+        # Cursor foi criado com dictionary=True; cast para ajudar o analisador de tipos
+        alunos_ativos = cast(List[Dict[str, Any]], cursor.fetchall())
         logger.info(f"Encontrados {len(alunos_ativos)} alunos ativos")
 
         # Consulta para obter o histórico escolar de cada aluno
@@ -95,8 +97,11 @@ def gerar_relatorio_series_faltantes():
         alunos_completos = []
 
         for aluno in alunos_ativos:
-            cursor.execute(query_historico, (aluno['aluno_id'],))
-            historico = cursor.fetchall()
+            # `cursor` foi criado com dictionary=True, portanto `aluno` é um dict.
+            # Extrair explicitamente o aluno_id em variável local para ajudar o analisador de tipos.
+            aluno_id = aluno.get('aluno_id') if isinstance(aluno, dict) else None
+            cursor.execute(query_historico, (aluno_id,))
+            historico = cast(List[Dict[str, Any]], cursor.fetchall())
             
             # Criar dicionário com as séries existentes
             series_existentes = {registro['serie_id']: registro for registro in historico}
@@ -111,7 +116,7 @@ def gerar_relatorio_series_faltantes():
                 # Aluno tem histórico incompleto
                 for serie_faltante in series_faltantes:
                     alunos_incompletos.append({
-                        'aluno_id': aluno['aluno_id'],
+                        'aluno_id': aluno_id,
                         'nome_aluno': aluno['nome_aluno'],
                         'serie_atual': aluno['serie_atual'],
                         'serie_faltante': serie_faltante
@@ -120,7 +125,7 @@ def gerar_relatorio_series_faltantes():
                 # Aluno tem histórico completo
                 situacao_final = historico[-1]['situacao_final'] if historico else 'Sem histórico'
                 alunos_completos.append({
-                    'aluno_id': aluno['aluno_id'],
+                    'aluno_id': aluno_id,
                     'nome_aluno': aluno['nome_aluno'],
                     'serie_atual': aluno['serie_atual'],
                     'situacao_final': situacao_final

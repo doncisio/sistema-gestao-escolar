@@ -262,6 +262,8 @@ def gerar_pdf(df, figura_superior, figura_inferior, cabecalho, disciplinas_map, 
 
 def ata_geral_6a9ano():
     conn = conectar_bd()
+    if conn is None:
+        return
     cursor = conn.cursor(dictionary=True)
     
     # Verificar se o ano letivo terminou

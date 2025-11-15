@@ -98,7 +98,7 @@ for arquivo in os.listdir(caminho_dados):
             # Filtra colunas relevantes (desconsidera 'Nº')
             colunas_disciplinas = df.columns[2:]  # Supondo que as duas primeiras colunas são 'Nº' e 'NOME DO ALUNO'
             
-            for index, row in df.iterrows():
+            for _, row in df.iterrows():
                 nome_aluno = row['NOME DO ALUNO'].strip()  # Usando o nome correto da coluna
                 
                 # Verificar se o aluno já existe (normalizando o nome)

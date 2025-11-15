@@ -6,6 +6,7 @@ import mysql.connector
 from mysql.connector import Error
 from conexao import conectar_bd
 from tkcalendar import DateEntry
+from typing import Any, cast
 
 class InterfaceEdicaoAluno:
     def __init__(self, master, aluno_id, janela_principal=None):
@@ -472,14 +473,14 @@ class InterfaceEdicaoAluno:
     def carregar_dados_aluno(self):
         try:
             # Buscar dados do aluno
-            self.cursor.execute("""
+            cast(Any, self.cursor).execute("""
                 SELECT nome, data_nascimento, local_nascimento, UF_nascimento,
                        endereco, sus, sexo, cpf, nis, raca, escola_id,
                        descricao_transtorno
                 FROM alunos
                 WHERE id = %s
             """, (self.aluno_id,))
-            aluno = self.cursor.fetchone()
+            aluno = cast(Any, self.cursor).fetchone()
             
             if aluno:
                 nome, data_nascimento, local_nascimento, uf_nascimento, endereco, sus, sexo, cpf, nis, raca, escola_id, descricao_transtorno = aluno
@@ -527,14 +528,14 @@ class InterfaceEdicaoAluno:
     def carregar_responsaveis(self):
         try:
             # Consultar responsáveis associados ao aluno
-            self.cursor.execute("""
+            cast(Any, self.cursor).execute("""
                 SELECT r.id, r.nome, r.grau_parentesco, r.telefone, r.rg, r.cpf
                 FROM responsaveis r
                 JOIN responsaveisalunos ra ON r.id = ra.responsavel_id
                 WHERE ra.aluno_id = %s
             """, (self.aluno_id,))
             
-            responsaveis = self.cursor.fetchall()
+            responsaveis = cast(Any, self.cursor).fetchall()
             
             # Se não há responsáveis, adicionar um frame vazio
             if not responsaveis:
@@ -603,7 +604,7 @@ class InterfaceEdicaoAluno:
                 return
 
             # Atualizar o aluno no banco de dados
-            self.cursor.execute(
+            cast(Any, self.cursor).execute(
                 """
                 UPDATE alunos SET
                     nome = %s,
@@ -631,7 +632,8 @@ class InterfaceEdicaoAluno:
             self.salvar_responsaveis()
             
             # Confirmar a operação
-            self.conn.commit()
+            if hasattr(self, 'conn') and self.conn:
+                cast(Any, self.conn).commit()
             
             messagebox.showinfo("Sucesso", "Dados do aluno atualizados com sucesso!")
             
@@ -641,11 +643,11 @@ class InterfaceEdicaoAluno:
         except mysql.connector.Error as err:
             messagebox.showerror("Erro", f"Não foi possível salvar os dados: {str(err)}")
             if hasattr(self, 'conn') and self.conn:
-                self.conn.rollback()
+                cast(Any, self.conn).rollback()
         except Exception as err:
             messagebox.showerror("Erro", f"Erro inesperado: {str(err)}")
             if hasattr(self, 'conn') and self.conn:
-                self.conn.rollback()
+                cast(Any, self.conn).rollback()
 
     def salvar_responsaveis(self):
         # Verificar se há pelo menos um responsável
@@ -665,7 +667,7 @@ class InterfaceEdicaoAluno:
         
         # Primeiro, remover todas as associações existentes entre aluno e responsáveis
         # (preservando os registros de responsáveis para possível reutilização)
-        self.cursor.execute(
+        cast(Any, self.cursor).execute(
             "DELETE FROM responsaveisalunos WHERE aluno_id = %s",
             (self.aluno_id,)
         )
@@ -689,12 +691,12 @@ class InterfaceEdicaoAluno:
         try:
             # Verificar se já existe um responsável com esse CPF (somente se CPF não estiver vazio e for um novo responsável)
             if cpf and not responsavel_id:
-                self.cursor.execute("SELECT id FROM responsaveis WHERE cpf = %s", (cpf,))
-                resp_existente = self.cursor.fetchone()
+                cast(Any, self.cursor).execute("SELECT id FROM responsaveis WHERE cpf = %s", (cpf,))
+                resp_existente = cast(Any, self.cursor).fetchone()
                 if resp_existente:
                     responsavel_id = resp_existente[0]
                     # Atualizar os dados do responsável existente
-                    self.cursor.execute(
+                    cast(Any, self.cursor).execute(
                         """
                         UPDATE responsaveis 
                         SET nome = %s, grau_parentesco = %s, telefone = %s, rg = %s
@@ -704,7 +706,7 @@ class InterfaceEdicaoAluno:
                     )
                     
                     # Associar o responsável ao aluno
-                    self.cursor.execute(
+                    cast(Any, self.cursor).execute(
                         "INSERT INTO responsaveisalunos (responsavel_id, aluno_id) VALUES (%s, %s)",
                         (responsavel_id, self.aluno_id)
                     )
@@ -712,7 +714,7 @@ class InterfaceEdicaoAluno:
                     return responsavel_id
 
             if responsavel_id:  # Responsável existente, atualizar
-                self.cursor.execute(
+                cast(Any, self.cursor).execute(
                     """
                     UPDATE responsaveis 
                     SET nome = %s, grau_parentesco = %s, telefone = %s, rg = %s, cpf = %s
@@ -722,7 +724,7 @@ class InterfaceEdicaoAluno:
                 )
                 
                 # Associar o responsável ao aluno
-                self.cursor.execute(
+                cast(Any, self.cursor).execute(
                     "INSERT INTO responsaveisalunos (responsavel_id, aluno_id) VALUES (%s, %s)",
                     (responsavel_id, self.aluno_id)
                 )
@@ -730,17 +732,17 @@ class InterfaceEdicaoAluno:
                 return responsavel_id
             else:  # Novo responsável, inserir
                 # Inserir novo responsável
-                self.cursor.execute(
+                cast(Any, self.cursor).execute(
                     """
                     INSERT INTO responsaveis (nome, grau_parentesco, telefone, rg, cpf)
                     VALUES (%s, %s, %s, %s, %s)
                     """,
                     (nome, parentesco, telefone, rg, cpf)
                 )
-                novo_responsavel_id = self.cursor.lastrowid
+                novo_responsavel_id = cast(Any, self.cursor).lastrowid
                 
                 # Associar o novo responsável ao aluno
-                self.cursor.execute(
+                cast(Any, self.cursor).execute(
                     "INSERT INTO responsaveisalunos (responsavel_id, aluno_id) VALUES (%s, %s)",
                     (novo_responsavel_id, self.aluno_id)
                 )
@@ -767,8 +769,8 @@ class InterfaceEdicaoAluno:
                 self.conn = conectar_bd()
                 self.cursor = self.conn.cursor(buffered=True)
                 
-            self.cursor.execute("SELECT id, nome FROM escolas ORDER BY nome, id")
-            escolas = self.cursor.fetchall()
+            cast(Any, self.cursor).execute("SELECT id, nome FROM escolas ORDER BY nome, id")
+            escolas = cast(Any, self.cursor).fetchall()
             
             if not escolas:
                 messagebox.showwarning("Aviso", "Não foram encontradas escolas no banco de dados.")
@@ -832,7 +834,7 @@ class InterfaceEdicaoAluno:
                 widget.destroy()
             
             # Consultar matrícula do aluno
-            self.cursor.execute("""
+            cast(Any, self.cursor).execute("""
                 SELECT m.id, m.status, t.nome as turma, s.nome as serie, m.ano_letivo_id
                 FROM matriculas m
                 JOIN turmas t ON m.turma_id = t.id
@@ -842,7 +844,7 @@ class InterfaceEdicaoAluno:
                 LIMIT 1
             """, (self.aluno_id,))
             
-            matricula = self.cursor.fetchone()
+            matricula = cast(Any, self.cursor).fetchone()
             
             if matricula:
                 matricula_id, status, turma, serie, ano_letivo = matricula
@@ -942,8 +944,8 @@ class InterfaceEdicaoAluno:
         
         # Obter o status atual
         try:
-            self.cursor.execute("SELECT status FROM matriculas WHERE id = %s", (self.matricula_id,))
-            status_atual = self.cursor.fetchone()[0]
+            cast(Any, self.cursor).execute("SELECT status FROM matriculas WHERE id = %s", (self.matricula_id,))
+            status_atual = cast(Any, self.cursor).fetchone()[0]
         except:
             status_atual = "Desconhecido"
         
@@ -976,14 +978,14 @@ class InterfaceEdicaoAluno:
                 
             try:
                 # Atualizar o status da matrícula
-                self.cursor.execute(
+                cast(Any, self.cursor).execute(
                     "UPDATE matriculas SET status = %s WHERE id = %s", 
                     (novo_status.get(), self.matricula_id)
                 )
                 
                 # Registrar histórico da alteração de status
                 try:
-                    self.cursor.execute(
+                    cast(Any, self.cursor).execute(
                         """
                         INSERT INTO historico_matricula (matricula_id, status_anterior, status_novo, data_mudanca)
                         VALUES (%s, %s, %s, %s)
@@ -995,7 +997,8 @@ class InterfaceEdicaoAluno:
                     print(f"Falha ao registrar histórico da matrícula: {hist_err}")
                 
                 # Confirmar a operação
-                self.conn.commit()
+                if hasattr(self, 'conn') and self.conn:
+                    cast(Any, self.conn).commit()
                 
                 messagebox.showinfo("Sucesso", "Status da matrícula alterado com sucesso!")
                 
@@ -1008,7 +1011,7 @@ class InterfaceEdicaoAluno:
             except Exception as e:
                 messagebox.showerror("Erro", f"Não foi possível alterar o status: {str(e)}")
                 if hasattr(self, 'conn') and self.conn:
-                    self.conn.rollback()
+                    cast(Any, self.conn).rollback()
         
         # Botão salvar
         Button(frame_botoes, text="Salvar", command=salvar_alteracao,

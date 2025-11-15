@@ -59,7 +59,7 @@ def a_preencher_conselho():
     df = pd.DataFrame(dados_aluno)
 
     # Adicionando a coluna 'OBSERVACAO' com valor padrão vazio
-    df['OBSERVACAO'] = ''
+    df.loc[:, 'OBSERVACAO'] = ''
 
     # Ordenar o DataFrame por série, turma e nome do aluno
     df.sort_values(by=['NOME_SERIE', 'NOME_TURMA', 'NOME DO ALUNO'], inplace=True)
@@ -149,7 +149,7 @@ def a_preencher_conselho():
     # Contador para a coluna N°
     contador = 1
 
-    for index, row in df.iterrows():
+    for _, row in df.iterrows():
         turma_completa = f"{row['NOME_SERIE']} {row['NOME_TURMA']}"
         # Adiciona uma string vazia para a coluna 'Situação'
         dados_tabela_alunos.append([contador, row['NOME DO ALUNO'].upper(), turma_completa.upper(), ''])  # Situação em branco

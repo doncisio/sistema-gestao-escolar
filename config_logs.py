@@ -33,7 +33,8 @@ def setup_logging(log_file='logs/app.log', level=logging.INFO):
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 
-    logger._configured_for_app = True
+    # Evita aviso estático do Pylance ao atribuir atributo customizado
+    setattr(logger, '_configured_for_app', True)
 
 
 def get_logger(name=None):

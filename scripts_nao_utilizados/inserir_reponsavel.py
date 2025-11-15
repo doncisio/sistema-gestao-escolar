@@ -52,7 +52,7 @@ conn = conectar_bd()
 cursor = conn.cursor()
 
 try:
-    for index, row in df.iterrows():
+    for _, row in df.iterrows():
         nome_aluno = row['ALUNO']
         nome_responsavel = row['RESPONSAVEL']
         telefone_responsavel = row['TELEFONE']  # Lê o telefone do responsável
