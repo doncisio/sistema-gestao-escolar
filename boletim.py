@@ -9,7 +9,6 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer, PageBreak
 from reportlab.lib.styles import ParagraphStyle
 from gerarPDF import salvar_e_abrir_pdf
-from conexao import conectar_bd
 from db.connection import get_connection
 from biblio_editor import arredondar_personalizado, quebra_linha
 from config_logs import get_logger
