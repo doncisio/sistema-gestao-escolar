@@ -3,12 +3,12 @@ import io
 import os
 import pandas as pd
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
 from conexao import conectar_bd
+from typing import Any, cast
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import black, white
@@ -22,8 +22,8 @@ def gerar_documento_transferencia(aluno_id, ano_letivo_id):
     conn = None
     cursor = None
     try:
-        conn = conectar_bd()
-        cursor = conn.cursor(buffered=True)  # Usar cursor buffered
+        conn: Any = conectar_bd()
+        cursor = cast(Any, conn).cursor(buffered=True)  # Usar cursor buffered
 
         # Iniciar transação
         conn.start_transaction()

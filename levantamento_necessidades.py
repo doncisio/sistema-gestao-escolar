@@ -8,6 +8,7 @@ from conexao import conectar_bd
 from gerarPDF import salvar_e_abrir_pdf
 import io
 from reportlab.platypus import SimpleDocTemplate
+from typing import Any, cast
 
 def buscar_professores(cursor, escola_id=60):
     """Busca todos os professores da escola com informações detalhadas"""
@@ -138,8 +139,10 @@ def formatar_cpf(cpf):
 
 def gerar_levantamento_necessidades():
     # Estabelecer conexão com o banco de dados
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
+    if not conn:
+        raise RuntimeError("Não foi possível conectar ao banco de dados")
+    cursor: Any = cast(Any, conn).cursor(dictionary=True)
     
     # Buscar dados
     professores = buscar_professores(cursor)
@@ -431,8 +434,14 @@ def gerar_levantamento_necessidades():
     doc.build(elements)
     
     # Fechar conexão com o banco de dados
-    cursor.close()
-    conn.close()
+    try:
+        cast(Any, cursor).close()
+    except Exception:
+        pass
+    try:
+        cast(Any, conn).close()
+    except Exception:
+        pass
     
     # Retorna o buffer
     buffer.seek(0)

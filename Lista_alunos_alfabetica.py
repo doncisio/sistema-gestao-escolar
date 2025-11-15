@@ -11,15 +11,27 @@ from conexao import conectar_bd
 from gerarPDF import salvar_e_abrir_pdf
 from biblio_editor import formatar_telefone
 import unicodedata
+from typing import Any, cast
 
 def fetch_student_data(ano_letivo):
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
+    if not conn:
+        print("Não foi possível conectar ao banco de dados.")
+        return None
+    cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
     # Busca as datas de início e fim do ano letivo
     data_ano = data_ano_letivo(ano_letivo)
     if not data_ano:
         print("Ano letivo não encontrado.")
+        try:
+            cast(Any, cursor).close()
+        except Exception:
+            pass
+        try:
+            cast(Any, conn).close()
+        except Exception:
+            pass
         return None
 
     data_inicio = data_ano['data_inicio']
@@ -96,10 +108,21 @@ def fetch_student_data(ano_letivo):
     except Exception as e:
         print("Erro ao executar a consulta:", str(e))
         return None
+    finally:
+        try:
+            cast(Any, cursor).close()
+        except Exception:
+            pass
+        try:
+            cast(Any, conn).close()
+        except Exception:
+            pass
 
 def data_ano_letivo(ano_letivo):
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
+    if not conn:
+        return None
+    cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
     query = """
         SELECT 
@@ -116,6 +139,15 @@ def data_ano_letivo(ano_letivo):
     except Exception as e:
         print("Erro ao executar a consulta:", str(e))
         return None
+    finally:
+        try:
+            cast(Any, cursor).close()
+        except Exception:
+            pass
+        try:
+            cast(Any, conn).close()
+        except Exception:
+            pass
 
 def create_header(cabecalho, figura_inferior):
     """Cria o cabeçalho padrão para todas as páginas"""
@@ -318,7 +350,7 @@ def add_alphabetical_list(elements, df, figura_inferior, cabecalho):
                 turno, 
                 sexo, 
                 Paragraph(situacao, ParagraphStyle(name='Situacao', fontSize=10))
-            ])
+            ])  # type: ignore[arg-type]
         
         # Cria a tabela
         table = Table(data, colWidths=[0.4 * inch, 2.5 * inch, 1 * inch, 0.8 * inch, 0.5 * inch, 1.5 * inch])

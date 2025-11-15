@@ -5,6 +5,7 @@ from reportlab.lib.colors import black, HexColor, Color
 from reportlab.lib.pagesizes import landscape, letter
 import os
 from conexao import conectar_bd
+from typing import Any, cast
 from biblio_editor import create_pdf_buffer, quebra_linha
 from gerarPDF import salvar_e_abrir_pdf
 import io
@@ -79,8 +80,8 @@ def buscar_docentes(cursor, escola_id=60):
 
 def gerar_tabela_docentes():
     # Estabelecer conexão com o banco de dados
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
+    cursor = cast(Any, conn).cursor(dictionary=True)
     
     # Buscar dados dos professores
     professores = buscar_docentes(cursor, escola_id=60)
@@ -228,8 +229,16 @@ def gerar_tabela_docentes():
     doc.build(elements)
     
     # Fechar conexão com o banco de dados
-    cursor.close()
-    conn.close()
+    try:
+        if cursor:
+            cursor.close()
+    except Exception:
+        pass
+    try:
+        if conn:
+            conn.close()
+    except Exception:
+        pass
     
     # Retorna o buffer
     buffer.seek(0)

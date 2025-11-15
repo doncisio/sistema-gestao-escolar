@@ -10,6 +10,7 @@ IMPORTANTE: Execute em uma cópia do banco de dados!
 
 import mysql.connector
 from conexao import conectar_bd
+from typing import Any, cast
 
 
 def verificar_situacao_atual():
@@ -19,12 +20,12 @@ def verificar_situacao_atual():
     print("="*60)
     
     try:
-        conn = conectar_bd()
+        conn: Any = conectar_bd()
         if not conn:
             print("❌ Erro: Não foi possível conectar ao banco de dados.")
             return
         
-        cursor = conn.cursor(dictionary=True)
+        cursor = cast(Any, conn).cursor(dictionary=True)
         
         # 1. Ano letivo atual
         cursor.execute("""
@@ -33,7 +34,12 @@ def verificar_situacao_atual():
             ORDER BY ano_letivo DESC 
             LIMIT 1
         """)
-        ano_atual = cursor.fetchone()
+        ano_atual = cast(Any, cursor.fetchone())
+        if not ano_atual:
+            print("❌ Erro: não foi possível obter o ano letivo atual.")
+            cursor.close()
+            conn.close()
+            return
         print(f"\n📅 Ano Letivo Atual: {ano_atual['ano_letivo']} (ID: {ano_atual['id']})")
         
         # 2. Total de matrículas por status
@@ -48,7 +54,7 @@ def verificar_situacao_atual():
         """, (ano_atual['id'],))
         
         print(f"\n📊 Matrículas no ano {ano_atual['ano_letivo']}:")
-        for row in cursor.fetchall():
+        for row in cast(Any, cursor.fetchall()):
             print(f"   {row['status']}: {row['total']}")
         
         # 3. Alunos únicos ativos
@@ -61,7 +67,7 @@ def verificar_situacao_atual():
             AND a.escola_id = 60
         """, (ano_atual['id'],))
         
-        resultado = cursor.fetchone()
+        resultado = cast(Any, cursor.fetchone())
         print(f"\n👥 Total de Alunos Únicos (Ativos): {resultado['total']}")
         
         # 4. Alunos que NÃO serão rematriculados
@@ -74,7 +80,7 @@ def verificar_situacao_atual():
             AND a.escola_id = 60
         """, (ano_atual['id'],))
         
-        resultado = cursor.fetchone()
+        resultado = cast(Any, cursor.fetchone())
         print(f"❌ Alunos que NÃO serão rematriculados: {resultado['total']}")
         
         # 5. Distribuição por série/turma
@@ -95,7 +101,7 @@ def verificar_situacao_atual():
         
         print(f"\n📚 Distribuição por Série/Turma:")
         total_geral = 0
-        for row in cursor.fetchall():
+        for row in cast(Any, cursor.fetchall()):
             print(f"   {row['serie_turma']}: {row['total_ativos']} alunos")
             total_geral += row['total_ativos']
         print(f"   ───────────────────")
@@ -126,7 +132,7 @@ def simular_transicao():
             print("❌ Erro: Não foi possível conectar ao banco de dados.")
             return
         
-        cursor = conn.cursor(dictionary=True)
+        cursor = cast(Any, conn).cursor(dictionary=True)
         
         # Buscar ano atual
         cursor.execute("""
@@ -135,7 +141,12 @@ def simular_transicao():
             ORDER BY ano_letivo DESC 
             LIMIT 1
         """)
-        ano_atual = cursor.fetchone()
+        ano_atual = cast(Any, cursor.fetchone())
+        if not ano_atual:
+            print("❌ Erro: não foi possível obter o ano letivo atual para simulação.")
+            cursor.close()
+            conn.close()
+            return
         ano_novo = ano_atual['ano_letivo'] + 1
         
         print(f"\n📅 Transição: {ano_atual['ano_letivo']} → {ano_novo}")
@@ -148,7 +159,7 @@ def simular_transicao():
             AND status = 'Ativo'
         """, (ano_atual['id'],))
         
-        resultado = cursor.fetchone()
+        resultado = cast(Any, cursor.fetchone())
         print(f"\n🔒 Matrículas que serão encerradas (status → 'Concluído'): {resultado['total']}")
         
         # Contar novas matrículas que serão criadas
@@ -161,7 +172,7 @@ def simular_transicao():
             AND a.escola_id = 60
         """, (ano_atual['id'],))
         
-        resultado = cursor.fetchone()
+        resultado = cast(Any, cursor.fetchone())
         print(f"✨ Novas matrículas que serão criadas: {resultado['total']}")
         
         # Alunos excluídos
@@ -178,7 +189,7 @@ def simular_transicao():
         """, (ano_atual['id'],))
         
         print(f"\n❌ Alunos que NÃO serão rematriculados:")
-        for row in cursor.fetchall():
+        for row in cast(Any, cursor.fetchall()):
             print(f"   {row['status']}: {row['total']}")
         
         cursor.close()
@@ -207,7 +218,7 @@ def verificar_proximos_anos():
             print("❌ Erro: Não foi possível conectar ao banco de dados.")
             return
         
-        cursor = conn.cursor(dictionary=True)
+        cursor = cast(Any, conn).cursor(dictionary=True)
         
         cursor.execute("""
             SELECT id, ano_letivo
@@ -216,7 +227,7 @@ def verificar_proximos_anos():
         """)
         
         print("\n📋 Anos Letivos Cadastrados:")
-        for row in cursor.fetchall():
+        for row in cast(Any, cursor.fetchall()):
             print(f"   {row['ano_letivo']} (ID: {row['id']})")
         
         cursor.close()

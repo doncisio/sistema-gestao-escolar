@@ -6,12 +6,13 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.lib.colors import black, white, lightgrey
+from reportlab.lib.colors import black, white, lightgrey, red, grey
 import pandas as pd
 import datetime
 import os
 from conexao import conectar_bd
 from NotaAta import abrir_pdf_com_programa_padrao
+from typing import Any, cast
 
 
 def buscar_pendencias_notas(bimestre, nivel_ensino="iniciais", ano_letivo=None, escola_id=60):
@@ -38,8 +39,8 @@ def buscar_pendencias_notas(bimestre, nivel_ensino="iniciais", ano_letivo=None, 
         filtro_serie = "s.id > 7"
         nivel_id = 3
     
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
+    cursor = cast(Any, conn).cursor(dictionary=True)
     
     # Query para buscar alunos ativos e suas notas
     query = f"""
@@ -73,8 +74,10 @@ def buscar_pendencias_notas(bimestre, nivel_ensino="iniciais", ano_letivo=None, 
     
     cursor.execute(query)
     dados = cursor.fetchall()
-    cursor.close()
-    conn.close()
+    if cursor:
+        cursor.close()
+    if conn:
+        conn.close()
     
     # Organizar dados por turma
     pendencias = {}
@@ -210,7 +213,7 @@ def gerar_pdf_pendencias(bimestre, nivel_ensino="iniciais", ano_letivo=None, esc
     alerta_style = ParagraphStyle(
         'Alerta',
         fontSize=10,
-        textColor='red',
+        textColor=red,
         spaceAfter=6,
         fontName='Helvetica-Bold'
     )
@@ -234,7 +237,7 @@ def gerar_pdf_pendencias(bimestre, nivel_ensino="iniciais", ano_letivo=None, esc
         'Rodape',
         fontSize=8,
         alignment=1,
-        textColor='grey'
+        textColor=grey
     )
     
     # ===== CABEÇALHO PADRÃO =====

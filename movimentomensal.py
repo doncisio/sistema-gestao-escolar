@@ -14,6 +14,7 @@ import re
 from reportlab.lib.pagesizes import landscape
 from PyPDF2 import PdfReader, PdfWriter
 import io
+from typing import Any, cast
 
 
 def add_cover_page(doc, elements, cabecalho, figura_superior, figura_inferior, mes=None):
@@ -499,8 +500,8 @@ def gerar_tabela_corpo_docente(elements, professores, titulo):
     # Definir cabeçalhos
     headers = ["Nº", "NOME DO SERVIDOR", "CARGO", "SITUAÇÃO FUNCIONAL", "HABILITAÇÃO", "CLASSE REGENTE", "LICENÇA"]
     
-    # Preparar dados
-    data = [headers]
+    # Preparar dados (aceita Paragraphs e strings)
+    data: list[list[Any]] = [headers]
     
     for i, professor in enumerate(professores, 1):
         licenca_info = ""
@@ -810,8 +811,8 @@ def relatorio_movimentacao_mensal(mes=None):
     figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
     
     # Estabelecer conexão com o banco de dados
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
+    cursor = cast(Any, conn).cursor(dictionary=True)
     
     # Buscar dados dos professores e tutores
     professores_1_5 = buscar_corpo_docente_1_5(cursor, escola_id=60)
@@ -938,8 +939,8 @@ def gerar_relatorio_1_5(elements, cabecalho, figura_inferior, mes):
     ano_letivo = 2025
     
     # Conectar ao banco para obter as datas do ano letivo
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
+    cursor = cast(Any, conn).cursor(dictionary=True)
     
     # Buscar datas do ano letivo
     cursor.execute("SELECT id, data_inicio, data_fim FROM anosletivos WHERE ano_letivo = %s", (ano_letivo,))
@@ -1280,8 +1281,8 @@ def gerar_relatorio_6_9(elements, cabecalho, figura_inferior, mes):
     ano_letivo = 2025
     
     # Conectar ao banco para obter as datas do ano letivo
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
+    cursor = cast(Any, conn).cursor(dictionary=True)
     
     # Buscar datas do ano letivo
     cursor.execute("SELECT id, data_inicio, data_fim FROM anosletivos WHERE ano_letivo = %s", (ano_letivo,))

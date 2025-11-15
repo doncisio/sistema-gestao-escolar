@@ -5,6 +5,7 @@ Script de validação e visualização de arquivos Excel de notas gerados
 import openpyxl
 import os
 from pathlib import Path
+from typing import Any, cast
 
 def validar_excel_notas(excel_path):
     """
@@ -17,7 +18,7 @@ def validar_excel_notas(excel_path):
         
         # Carregar workbook
         wb = openpyxl.load_workbook(excel_path)
-        ws = wb.active
+        ws = cast(Any, wb.active)
         
         # Informações gerais
         print(f"📋 Nome da planilha: {ws.title}")
@@ -131,7 +132,7 @@ def criar_visualizacao_ascii(excel_path):
     """
     try:
         wb = openpyxl.load_workbook(excel_path)
-        ws = wb.active
+        ws = cast(Any, wb.active)
         
         # Encontrar linha de cabeçalho
         linha_header = 4

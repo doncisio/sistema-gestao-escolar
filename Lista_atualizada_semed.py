@@ -10,18 +10,30 @@ from reportlab.lib.colors import black, white, grey
 from conexao import conectar_bd
 from gerarPDF import salvar_e_abrir_pdf
 from biblio_editor import formatar_telefone, formatar_cpf
+from typing import Any, cast
 from tabela_docentes import gerar_tabela_docentes
 from reportlab.lib.colors import HexColor
 from reportlab.lib.styles import getSampleStyleSheet
 
 def fetch_student_data(ano_letivo):
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
+    if not conn:
+        print("Não foi possível conectar ao banco de dados.")
+        return None
+    cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
     # Busca as datas de início e fim do ano letivo
     data_ano = data_ano_letivo(ano_letivo)
     if not data_ano:
         print("Ano letivo não encontrado.")
+        try:
+            cast(Any, cursor).close()
+        except Exception:
+            pass
+        try:
+            cast(Any, conn).close()
+        except Exception:
+            pass
         return None
 
     data_inicio = data_ano['data_inicio']
@@ -106,10 +118,22 @@ def fetch_student_data(ano_letivo):
     except Exception as e:
         print("Erro ao executar a consulta:", str(e))
         return None
+    finally:
+        try:
+            cast(Any, cursor).close()
+        except Exception:
+            pass
+        try:
+            cast(Any, conn).close()
+        except Exception:
+            pass
 
 def data_funcionario(escola_id):
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
+    if not conn:
+        print("Não foi possível conectar ao banco de dados.")
+        return None
+    cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
     query = """
         WITH professores_disciplinas AS (
@@ -203,20 +227,32 @@ def data_funcionario(escola_id):
     try:
         cursor.execute(query, (escola_id, escola_id, escola_id))
         data = cursor.fetchall()
-        
+
         # Debug: Imprimir todos os funcionários retornados
         print("\nTodos os funcionários retornados:")
         for funcionario in data:
             print(f"ID: {funcionario['id']}, Nome: {funcionario['Funcionario']}, Cargo: {funcionario['Cargo']}, Disciplina: {funcionario['Disciplina']}, Turmas: {funcionario['Turmas']}")
-        
+
         return data
     except Exception as e:
         print("Erro ao executar a consulta:", str(e))
         return None
+    finally:
+        try:
+            cast(Any, cursor).close()
+        except Exception:
+            pass
+        try:
+            cast(Any, conn).close()
+        except Exception:
+            pass
 
 def data_ano_letivo(ano_letivo):
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
+    if not conn:
+        print("Não foi possível conectar ao banco de dados.")
+        return None
+    cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
     query = """
         SELECT 
@@ -233,6 +269,15 @@ def data_ano_letivo(ano_letivo):
     except Exception as e:
         print("Erro ao executar a consulta:", str(e))
         return None
+    finally:
+        try:
+            cast(Any, cursor).close()
+        except Exception:
+            pass
+        try:
+            cast(Any, conn).close()
+        except Exception:
+            pass
 
 def create_header(cabecalho, figura_inferior):
     """Cria o cabeçalho padrão para todas as páginas"""
@@ -280,12 +325,12 @@ def add_employee_table(elements, funcionarios_df, figura_inferior, cabecalho):
     elements.append(Spacer(1, 0.15 * inch))
 
     # Cabeçalho da tabela de funcionários
-    data = [['Nº', 'Nome', 'Cargo', 'Disciplina']]
+    data: list[list[Any]] = [['Nº', 'Nome', 'Cargo', 'Disciplina']]
     for row_num, (index, row) in enumerate(funcionarios_df.iterrows(), start=1):
         nome = row['Funcionario']
         cargo = row['Cargo']
         disciplina = row['Disciplina']
-        data.append([row_num, nome, cargo, disciplina])
+        data.append([row_num, nome, cargo, disciplina])  # type: ignore[arg-type]
 
     # Cria a tabela
     table = Table(data)
@@ -383,7 +428,7 @@ def calcular_larguras_colunas(data, max_width):
     }
     
     # Calcula a largura necessária para cada coluna
-    col_widths = [0] * len(data[0])
+    col_widths = [0.0] * len(data[0])
     for row in data:
         for i, cell in enumerate(row):
             if isinstance(cell, str):
@@ -395,7 +440,7 @@ def calcular_larguras_colunas(data, max_width):
             
             # Adiciona um pequeno padding
             width += 20
-            col_widths[i] = max(col_widths[i], width, min_widths[i])
+            col_widths[i] = max(col_widths[i], width, float(min_widths[i]))
     
     # Ajusta as larguras para caber na página
     total_width = sum(col_widths)
@@ -437,7 +482,7 @@ def add_class_table(elements, turma_df, nome_serie, nome_turma, turno, nome_prof
     turma_df = alunos_ativos
 
     # Prepara os dados da tabela
-    data = [['Nº', 'Nome', 'Nascimento', 'CPF', 'Transtorno']]
+    data: list[list[Any]] = [['Nº', 'Nome', 'Nascimento', 'CPF', 'Transtorno']]
     
     # Ordena o DataFrame pelo nome do aluno
     turma_df = turma_df.sort_values('NOME DO ALUNO')
@@ -454,7 +499,7 @@ def add_class_table(elements, turma_df, nome_serie, nome_turma, turno, nome_prof
             nascimento, 
             cpf, 
             transtorno
-        ])
+        ])  # type: ignore[arg-type]
 
     # Calcula as larguras das colunas dinamicamente
     max_width = 595.27 - 54
@@ -664,7 +709,7 @@ def gerar_tabela_tutores(elements, tutores, titulo):
     headers = ["Nome", "Cargo", "Turno", "C.H.", "Vínculo"]
     
     # Preparar dados
-    data = [headers]
+    data: list[list[Any]] = [headers]
     
     for tutor in tutores:
         # Ajustar o cargo para mostrar "Tutor/Cuidador" corretamente
@@ -679,7 +724,7 @@ def gerar_tabela_tutores(elements, tutores, titulo):
             tutor['carga_horaria'],
             tutor['vinculo']
         ]
-        data.append(row)
+        data.append(row)  # type: ignore[arg-type]
     
     # Criar tabela
     table = Table(data)
@@ -728,7 +773,7 @@ def gerar_tabela_funcionarios_administrativos(elements, funcionarios, titulo):
     headers = ["Nome", "Cargo", "Turno", "C.H.", "Vínculo"]
     
     # Preparar dados
-    data = [headers]
+    data: list[list[Any]] = [headers]
     
     for funcionario in funcionarios:
         row = [
@@ -738,7 +783,7 @@ def gerar_tabela_funcionarios_administrativos(elements, funcionarios, titulo):
             funcionario['carga_horaria'],
             funcionario['vinculo']
         ]
-        data.append(row)
+        data.append(row)  # type: ignore[arg-type]
     
     # Criar tabela
     table = Table(data)
@@ -914,13 +959,25 @@ def lista_atualizada():
         primeira_tabela = False
 
     # Busca os dados dos tutores e funcionários administrativos
-    conn = conectar_bd()
-    cursor = conn.cursor(dictionary=True)
+    conn: Any = conectar_bd()
     escola_id = 60
-    
-    tutores = buscar_tutores(cursor, escola_id)
-    funcionarios_admin = buscar_funcionarios_administrativos(cursor, escola_id)
-    
+    tutores = None
+    funcionarios_admin = None
+    if conn:
+        cursor: Any = cast(Any, conn).cursor(dictionary=True)
+        try:
+            tutores = buscar_tutores(cursor, escola_id)
+            funcionarios_admin = buscar_funcionarios_administrativos(cursor, escola_id)
+        finally:
+            try:
+                cast(Any, cursor).close()
+            except Exception:
+                pass
+            try:
+                cast(Any, conn).close()
+            except Exception:
+                pass
+
     # Adiciona as tabelas de tutores e funcionários administrativos
     if tutores or funcionarios_admin:
         # Adiciona o cabeçalho antes das tabelas
@@ -936,8 +993,7 @@ def lista_atualizada():
         if funcionarios_admin:
             gerar_tabela_funcionarios_administrativos(elements, funcionarios_admin, "FUNCIONÁRIOS ADMINISTRATIVOS")
     
-    cursor.close()
-    conn.close()
+    # conexões já fechadas acima
 
     # Constrói o documento principal
     doc.build(elements)
