@@ -1,14 +1,13 @@
-from tkinter.ttk import *
-from tkinter import *
-from tkinter import ttk
 import tkinter as tk
 from tkinter import messagebox
+from tkinter import ttk
 from tkcalendar import DateEntry
 from PIL import Image, ImageTk
 from datetime import datetime
 from conexao import conectar_bd
 import mysql.connector
 from Seguranca import atualizar_treeview
+from typing import Any, cast
 
 # Cores
 co0 = "#2e2d2b"  # preta
@@ -50,84 +49,86 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
         frame_detalhes.grid_columnconfigure(i, weight=1)
     
     # Primeira linha - Nome e Data de Nascimento
-    l_nome = Label(frame_detalhes, text="Nome *", height=1, anchor=NW, font=('Ivy 10'), bg=co1, fg=co4)
-    l_nome.grid(row=0, column=0, columnspan=2, sticky=W, padx=10, pady=5)
+    l_nome = tk.Label(frame_detalhes, text="Nome *", height=1, anchor=tk.NW, font=('Ivy 10'), bg=co1, fg=co4)
+    l_nome.grid(row=0, column=0, columnspan=2, sticky=tk.W, padx=10, pady=5)
     global e_nome
-    e_nome = Entry(frame_detalhes, width=40, justify='left', relief='solid')
-    e_nome.grid(row=0, column=0, columnspan=2, sticky=W, padx=10, pady=25)
+    e_nome = tk.Entry(frame_detalhes, width=40, justify='left', relief='solid')
+    e_nome.grid(row=0, column=0, columnspan=2, sticky=tk.W, padx=10, pady=25)
     
-    l_data_nascimento = Label(frame_detalhes, text="Data de Nascimento *", height=1, anchor=NW, font=('Ivy 10'), bg=co1, fg=co4)
-    l_data_nascimento.grid(row=0, column=2, sticky=W, padx=10, pady=5)
+    l_data_nascimento = tk.Label(frame_detalhes, text="Data de Nascimento *", height=1, anchor=tk.NW, font=('Ivy 10'), bg=co1, fg=co4)
+    l_data_nascimento.grid(row=0, column=2, sticky=tk.W, padx=10, pady=5)
     global c_data_nascimento
     c_data_nascimento = DateEntry(frame_detalhes, width=12, background='darkblue', foreground='white', borderwidth=2, date_pattern='yyyy-mm-dd')
-    c_data_nascimento.grid(row=0, column=2, sticky=W, padx=10, pady=25)
+    c_data_nascimento.grid(row=0, column=2, sticky=tk.W, padx=10, pady=25)
     
     # Segunda linha - Endereço e Cartão SUS
-    l_endereco = Label(frame_detalhes, text="Endereço", height=1, anchor=NW, font=('Ivy 10'), bg=co1, fg=co4)
-    l_endereco.grid(row=1, column=0, columnspan=2, sticky=W, padx=10, pady=5)
+    l_endereco = tk.Label(frame_detalhes, text="Endereço", height=1, anchor=tk.NW, font=('Ivy 10'), bg=co1, fg=co4)
+    l_endereco.grid(row=1, column=0, columnspan=2, sticky=tk.W, padx=10, pady=5)
     global e_endereco
-    e_endereco = Entry(frame_detalhes, width=40, justify='left', relief='solid')
-    e_endereco.grid(row=1, column=0, columnspan=2, sticky=W, padx=10, pady=25)
+    e_endereco = tk.Entry(frame_detalhes, width=40, justify='left', relief='solid')
+    e_endereco.grid(row=1, column=0, columnspan=2, sticky=tk.W, padx=10, pady=25)
     
-    l_sus = Label(frame_detalhes, text="Cartão SUS", height=1, anchor=NW, font=('Ivy 10'), bg=co1, fg=co4)
-    l_sus.grid(row=1, column=2, sticky=W, padx=10, pady=5)
+    l_sus = tk.Label(frame_detalhes, text="Cartão SUS", height=1, anchor=tk.NW, font=('Ivy 10'), bg=co1, fg=co4)
+    l_sus.grid(row=1, column=2, sticky=tk.W, padx=10, pady=5)
     global e_sus
-    e_sus = Entry(frame_detalhes, width=20, justify='left', relief='solid')
-    e_sus.grid(row=1, column=2, sticky=W, padx=10, pady=25)
+    e_sus = tk.Entry(frame_detalhes, width=20, justify='left', relief='solid')
+    e_sus.grid(row=1, column=2, sticky=tk.W, padx=10, pady=25)
     
     # Terceira linha - CPF, NIS e Sexo
-    l_cpf = Label(frame_detalhes, text="CPF", height=1, anchor=NW, font=('Ivy 10'), bg=co1, fg=co4)
-    l_cpf.grid(row=2, column=0, sticky=W, padx=10, pady=5)
+    l_cpf = tk.Label(frame_detalhes, text="CPF", height=1, anchor=tk.NW, font=('Ivy 10'), bg=co1, fg=co4)
+    l_cpf.grid(row=2, column=0, sticky=tk.W, padx=10, pady=5)
     global e_cpf
-    e_cpf = Entry(frame_detalhes, width=20, justify='left', relief='solid')
-    e_cpf.grid(row=2, column=0, sticky=W, padx=10, pady=25)
+    e_cpf = tk.Entry(frame_detalhes, width=20, justify='left', relief='solid')
+    e_cpf.grid(row=2, column=0, sticky=tk.W, padx=10, pady=25)
     
-    l_nis = Label(frame_detalhes, text="NIS", height=1, anchor=NW, font=('Ivy 10'), bg=co1, fg=co4)
-    l_nis.grid(row=2, column=1, sticky=W, padx=10, pady=5)
+    l_nis = tk.Label(frame_detalhes, text="NIS", height=1, anchor=tk.NW, font=('Ivy 10'), bg=co1, fg=co4)
+    l_nis.grid(row=2, column=1, sticky=tk.W, padx=10, pady=5)
     global e_nis
-    e_nis = Entry(frame_detalhes, width=20, justify='left', relief='solid')
-    e_nis.grid(row=2, column=1, sticky=W, padx=10, pady=25)
+    e_nis = tk.Entry(frame_detalhes, width=20, justify='left', relief='solid')
+    e_nis.grid(row=2, column=1, sticky=tk.W, padx=10, pady=25)
     
-    l_sexo = Label(frame_detalhes, text="Sexo", height=1, anchor=NW, font=('Ivy 10'), bg=co1, fg=co4)
-    l_sexo.grid(row=2, column=2, sticky=W, padx=10, pady=5)
+    l_sexo = tk.Label(frame_detalhes, text="Sexo", height=1, anchor=tk.NW, font=('Ivy 10'), bg=co1, fg=co4)
+    l_sexo.grid(row=2, column=2, sticky=tk.W, padx=10, pady=5)
     global c_sexo
     c_sexo = ttk.Combobox(frame_detalhes, width=10, values=opcoes_sexo)
-    c_sexo.grid(row=2, column=2, sticky=W, padx=10, pady=25)
+    c_sexo.grid(row=2, column=2, sticky=tk.W, padx=10, pady=25)
     
-    l_local_nascimento = Label(frame_detalhes, text="Local de Nascimento", height=1, anchor=NW, font=('Ivy 10'), bg=co1, fg=co4)
-    l_local_nascimento.grid(row=2, column=3, sticky=W, padx=10, pady=5)
+    l_local_nascimento = tk.Label(frame_detalhes, text="Local de Nascimento", height=1, anchor=tk.NW, font=('Ivy 10'), bg=co1, fg=co4)
+    l_local_nascimento.grid(row=2, column=3, sticky=tk.W, padx=10, pady=5)
     global e_local_nascimento
-    e_local_nascimento = Entry(frame_detalhes, width=25, justify='left', relief='solid')
-    e_local_nascimento.grid(row=2, column=3, sticky=W, padx=10, pady=25)
+    e_local_nascimento = tk.Entry(frame_detalhes, width=25, justify='left', relief='solid')
+    e_local_nascimento.grid(row=2, column=3, sticky=tk.W, padx=10, pady=25)
     
     # Quarta linha - UF Nascimento, Raça
-    l_uf_nascimento = Label(frame_detalhes, text="UF Nascimento", height=1, anchor=NW, font=('Ivy 10'), bg=co1, fg=co4)
-    l_uf_nascimento.grid(row=3, column=0, sticky=W, padx=10, pady=5)
+    l_uf_nascimento = tk.Label(frame_detalhes, text="UF Nascimento", height=1, anchor=tk.NW, font=('Ivy 10'), bg=co1, fg=co4)
+    l_uf_nascimento.grid(row=3, column=0, sticky=tk.W, padx=10, pady=5)
     global e_uf_nascimento
-    e_uf_nascimento = Entry(frame_detalhes, width=5, justify='left', relief='solid')
-    e_uf_nascimento.grid(row=3, column=0, sticky=W, padx=10, pady=25)
+    e_uf_nascimento = tk.Entry(frame_detalhes, width=5, justify='left', relief='solid')
+    e_uf_nascimento.grid(row=3, column=0, sticky=tk.W, padx=10, pady=25)
     e_uf_nascimento.insert(0, "MA")  # Valor padrão
     
-    l_raca = Label(frame_detalhes, text="Cor/Raça *", height=1, anchor=NW, font=('Ivy 10'), bg=co1, fg=co4)
-    l_raca.grid(row=3, column=1, sticky=W, padx=10, pady=5)
+    l_raca = tk.Label(frame_detalhes, text="Cor/Raça *", height=1, anchor=tk.NW, font=('Ivy 10'), bg=co1, fg=co4)
+    l_raca.grid(row=3, column=1, sticky=tk.W, padx=10, pady=5)
     global c_raca
     c_raca = ttk.Combobox(frame_detalhes, width=15, values=["preto", "pardo", "branco", "indígena", "amarelo"])
-    c_raca.grid(row=3, column=1, sticky=W, padx=10, pady=25)
+    c_raca.grid(row=3, column=1, sticky=tk.W, padx=10, pady=25)
     c_raca.set("pardo")  # Valor padrão
     
     # Quinta linha - Descrição do Transtorno
-    l_descricao_transtorno = Label(frame_detalhes, text="Descrição do Transtorno", height=1, anchor=NW, font=('Ivy 10'), bg=co1, fg=co4)
-    l_descricao_transtorno.grid(row=4, column=0, columnspan=3, sticky=W, padx=10, pady=5)
+    l_descricao_transtorno = tk.Label(frame_detalhes, text="Descrição do Transtorno", height=1, anchor=tk.NW, font=('Ivy 10'), bg=co1, fg=co4)
+    l_descricao_transtorno.grid(row=4, column=0, columnspan=3, sticky=tk.W, padx=10, pady=5)
     global e_descricao_transtorno
-    e_descricao_transtorno = Entry(frame_detalhes, width=50, justify='left', relief='solid')
-    e_descricao_transtorno.grid(row=4, column=0, columnspan=3, sticky=W, padx=10, pady=25)
+    e_descricao_transtorno = tk.Entry(frame_detalhes, width=50, justify='left', relief='solid')
+    e_descricao_transtorno.grid(row=4, column=0, columnspan=3, sticky=tk.W, padx=10, pady=25)
     e_descricao_transtorno.insert(0, "Nenhum")  # Valor padrão
     
     # Obter séries do banco de dados
     def obter_series():
         try:
             conn = conectar_bd()
-            cursor = conn.cursor()
+            if conn is None:
+                return []
+            cursor = cast(Any, conn).cursor()
             
             # Consulta para obter séries vinculadas ao ano letivo atual
             cursor.execute("""
@@ -151,8 +152,15 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
                 """)
                 series = cursor.fetchall()
             
-            cursor.close()
-            conn.close()
+            try:
+                cursor.close()
+            except Exception:
+                pass
+            try:
+                if conn:
+                    conn.close()
+            except Exception:
+                pass
             return series
         except mysql.connector.Error as err:
             print("Erro ao obter séries:", err)
@@ -162,7 +170,9 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
     def obter_turmas(serie_id):
         try:
             conn = conectar_bd()
-            cursor = conn.cursor()
+            if conn is None:
+                return []
+            cursor = cast(Any, conn).cursor()
             
             # Consulta para obter turmas vinculadas à série e ao ano letivo
             cursor.execute("""
@@ -174,8 +184,15 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
             """, (serie_id,))
             
             turmas = cursor.fetchall()
-            cursor.close()
-            conn.close()
+            try:
+                cursor.close()
+            except Exception:
+                pass
+            try:
+                if conn:
+                    conn.close()
+            except Exception:
+                pass
             return turmas
         except mysql.connector.Error as err:
             print("Erro ao obter turmas:", err)
@@ -210,8 +227,8 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
             c_turno.set(turno)
     
     # Sexta linha - Série, Turma e Turno
-    l_serie = Label(frame_detalhes, text="Série *", height=1, anchor=NW, font=('Ivy 10'), bg=co1, fg=co4)
-    l_serie.grid(row=5, column=0, sticky=W, padx=10, pady=5)
+    l_serie = tk.Label(frame_detalhes, text="Série *", height=1, anchor=tk.NW, font=('Ivy 10'), bg=co1, fg=co4)
+    l_serie.grid(row=5, column=0, sticky=tk.W, padx=10, pady=5)
     
     # Obter séries
     series = obter_series()
@@ -219,31 +236,31 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
     
     global c_serie, c_turma, c_turno, turmas_ids
     c_serie = ttk.Combobox(frame_detalhes, width=25, values=series_nomes)
-    c_serie.grid(row=5, column=0, sticky=W, padx=10, pady=25)
+    c_serie.grid(row=5, column=0, sticky=tk.W, padx=10, pady=25)
     c_serie.bind("<<ComboboxSelected>>", atualizar_turmas)
     
-    l_turma = Label(frame_detalhes, text="Turma *", height=1, anchor=NW, font=('Ivy 10'), bg=co1, fg=co4)
-    l_turma.grid(row=5, column=1, sticky=W, padx=10, pady=5)
+    l_turma = tk.Label(frame_detalhes, text="Turma *", height=1, anchor=tk.NW, font=('Ivy 10'), bg=co1, fg=co4)
+    l_turma.grid(row=5, column=1, sticky=tk.W, padx=10, pady=5)
     c_turma = ttk.Combobox(frame_detalhes, width=15)
-    c_turma.grid(row=5, column=1, sticky=W, padx=10, pady=25)
+    c_turma.grid(row=5, column=1, sticky=tk.W, padx=10, pady=25)
     c_turma.bind("<<ComboboxSelected>>", atualizar_turno)
     
-    l_turno = Label(frame_detalhes, text="Turno", height=1, anchor=NW, font=('Ivy 10'), bg=co1, fg=co4)
-    l_turno.grid(row=5, column=2, sticky=W, padx=10, pady=5)
+    l_turno = tk.Label(frame_detalhes, text="Turno", height=1, anchor=tk.NW, font=('Ivy 10'), bg=co1, fg=co4)
+    l_turno.grid(row=5, column=2, sticky=tk.W, padx=10, pady=5)
     c_turno = ttk.Combobox(frame_detalhes, width=10, values=["MAT", "VESP"], state="disabled")
-    c_turno.grid(row=5, column=2, sticky=W, padx=10, pady=25)
+    c_turno.grid(row=5, column=2, sticky=tk.W, padx=10, pady=25)
     
-    # Botão para avançar para o cadastro de responsáveis
-    botao_responsavel = Button(frame_detalhes, text="Continuar para Responsáveis >>", height=2, 
-                             bg=co3, fg=co1, font=('Ivy 10 bold'), relief=RAISED, overrelief=RIDGE,
-                             command=responsavel)
-    botao_responsavel.grid(row=6, column=0, columnspan=3, pady=10, padx=10, sticky=EW)
+    # Botão para avançar para o cadastro de responsáveis (command será atribuído após definição)
+    botao_responsavel = tk.Button(frame_detalhes, text="Continuar para Responsáveis >>", height=2,
+                             bg=co3, fg=co1, font=('Ivy 10 bold'), relief=tk.RAISED, overrelief=tk.RIDGE,
+                             command=lambda: None)
+    botao_responsavel.grid(row=6, column=0, columnspan=3, pady=10, padx=10, sticky=tk.EW)
     
     # Função para criar interface de responsáveis
     def responsavel():
         # Remove o botão original de continuar cadastro
         for widget in frame_detalhes.winfo_children():
-            if isinstance(widget, Button) and "Continuar para Responsáveis" in widget["text"]:
+            if isinstance(widget, tk.Button) and "Continuar para Responsáveis" in widget["text"]:
                 widget.destroy()
         
         # Limpar o frame da tabela para adicionar os responsáveis
@@ -252,16 +269,16 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
         
         # Criando um frame para abrigar a lista de responsáveis
         global frame_lista_responsaveis
-        frame_lista_responsaveis = Frame(frame_tabela, bg=co1)
-        frame_lista_responsaveis.pack(fill=BOTH, expand=True)
+        frame_lista_responsaveis = tk.Frame(frame_tabela, bg=co1)
+        frame_lista_responsaveis.pack(fill=tk.BOTH, expand=True)
         
         # Criando um canvas com scrollbar para os responsáveis
-        canvas = Canvas(frame_lista_responsaveis, bg=co1)
+        canvas = tk.Canvas(frame_lista_responsaveis, bg=co1)
         scrollbar = ttk.Scrollbar(frame_lista_responsaveis, orient="vertical", command=canvas.yview)
         
         # Frame interno para os responsáveis
         global frame_responsaveis
-        frame_responsaveis = Frame(canvas, bg=co1)
+        frame_responsaveis = tk.Frame(canvas, bg=co1)
         
         # Configurando o canvas
         canvas.configure(yscrollcommand=scrollbar.set)
@@ -288,34 +305,40 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
             widget.destroy()
         
         # Botão para voltar
-        b_voltar = Button(frame_dados, text="<< Voltar", bg=co5, fg=co1, 
-                        font=('Ivy 10'), relief=RAISED, overrelief=RIDGE,
-                        command=voltar_pagina_principal)
+        b_voltar = tk.Button(frame_dados, text="<< Voltar", bg=co5, fg=co1, 
+                font=('Ivy 10'), relief=tk.RAISED, overrelief=tk.RIDGE,
+                command=voltar_pagina_principal)
         b_voltar.grid(row=0, column=0, padx=10, pady=5, sticky="w")
         
         # Botão para adicionar novos responsáveis
-        b_add_responsavel = Button(frame_dados, text="+ Adicionar Responsável", bg=co3, fg=co1, 
-                                 font=('Ivy 10 bold'), relief=RAISED, overrelief=RIDGE, 
-                                 command=add_responsavel)
+        b_add_responsavel = tk.Button(frame_dados, text="+ Adicionar Responsável", bg=co3, fg=co1, 
+                     font=('Ivy 10 bold'), relief=tk.RAISED, overrelief=tk.RIDGE, 
+                     command=add_responsavel)
         b_add_responsavel.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
         
         # Botão para salvar
-        b_salvar = Button(frame_dados, text="Salvar Aluno", bg=co7, fg=co1, 
-                        font=('Ivy 10 bold'), relief=RAISED, overrelief=RIDGE,
-                        command=lambda: salvar_aluno(treeview, query))
+        b_salvar = tk.Button(frame_dados, text="Salvar Aluno", bg=co7, fg=co1, 
+                font=('Ivy 10 bold'), relief=tk.RAISED, overrelief=tk.RIDGE,
+                command=lambda: salvar_aluno(treeview, query))
         b_salvar.grid(row=0, column=2, padx=10, pady=5, sticky="e")
         
         # Adiciona o primeiro responsável automaticamente
         add_responsavel()
-    
+
+    # Atribui o comando ao botão de avançar agora que `responsavel` está definido
+    try:
+        botao_responsavel.config(command=responsavel)
+    except Exception:
+        pass
+
     # Função para adicionar um novo responsável
     def add_responsavel():
         global contador_responsaveis
         contador_responsaveis += 1
         
         # Criando um frame para cada responsável
-        frame_resp = Frame(frame_responsaveis, bg=co2, bd=1, relief="solid")
-        frame_resp.pack(fill=X, expand=True, padx=5, pady=5)
+        frame_resp = tk.Frame(frame_responsaveis, bg=co2, bd=1, relief="solid")
+        frame_resp.pack(fill=tk.X, expand=True, padx=5, pady=5)
         
         # Configurar o layout do frame responsável para ser responsivo
         for i in range(4):  # 4 colunas
@@ -325,54 +348,54 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
         lista_frames_responsaveis.append(frame_resp)
         
         # Título do responsável
-        l_titulo = Label(frame_resp, text=f"Responsável {contador_responsaveis}", height=1, 
-                        anchor=NW, font=('Ivy 12 bold'), bg=co2, fg=co4)
+        l_titulo = tk.Label(frame_resp, text=f"Responsável {contador_responsaveis}", height=1, 
+                anchor=tk.NW, font=('Ivy 12 bold'), bg=co2, fg=co4)
         l_titulo.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=5)
         
         # Botão para remover o responsável
-        b_remover = Button(frame_resp, text="Remover", bg=co6, fg=co1, 
-                          font=('Ivy 8'), relief=RAISED, overrelief=RIDGE, 
-                          command=lambda f=frame_resp: remover_responsavel(f))
+        b_remover = tk.Button(frame_resp, text="Remover", bg=co6, fg=co1, 
+                  font=('Ivy 8'), relief=tk.RAISED, overrelief=tk.RIDGE, 
+                  command=lambda f=frame_resp: remover_responsavel(f))
         b_remover.grid(row=0, column=3, padx=5, pady=5, sticky="e")
         
         # Campos do responsável
         # Nome
-        l_nome_resp = Label(frame_resp, text="Nome do Responsável *", height=1, anchor=NW, 
-                          font=('Ivy 10'), bg=co2, fg=co4)
+        l_nome_resp = tk.Label(frame_resp, text="Nome do Responsável *", height=1, anchor=tk.NW, 
+                  font=('Ivy 10'), bg=co2, fg=co4)
         l_nome_resp.grid(row=1, column=0, sticky="w", padx=10, pady=2)
-        e_nome_resp = Entry(frame_resp, justify='left', relief='solid')
+        e_nome_resp = tk.Entry(frame_resp, justify='left', relief='solid')
         e_nome_resp.grid(row=2, column=0, sticky="ew", padx=10, pady=2)
         
         # Telefone
-        l_telefone = Label(frame_resp, text="Telefone", height=1, anchor=NW, 
-                          font=('Ivy 10'), bg=co2, fg=co4)
+        l_telefone = tk.Label(frame_resp, text="Telefone", height=1, anchor=tk.NW, 
+                  font=('Ivy 10'), bg=co2, fg=co4)
         l_telefone.grid(row=1, column=1, sticky="w", padx=10, pady=2)
-        e_telefone = Entry(frame_resp, justify='left', relief='solid')
+        e_telefone = tk.Entry(frame_resp, justify='left', relief='solid')
         e_telefone.grid(row=2, column=1, sticky="ew", padx=10, pady=2)
         
         # RG
-        l_rg = Label(frame_resp, text="RG", height=1, anchor=NW, 
-                    font=('Ivy 10'), bg=co2, fg=co4)
+        l_rg = tk.Label(frame_resp, text="RG", height=1, anchor=tk.NW, 
+                font=('Ivy 10'), bg=co2, fg=co4)
         l_rg.grid(row=1, column=2, sticky="w", padx=10, pady=2)
-        e_rg = Entry(frame_resp, justify='left', relief='solid')
+        e_rg = tk.Entry(frame_resp, justify='left', relief='solid')
         e_rg.grid(row=2, column=2, sticky="ew", padx=10, pady=2)
         
         # CPF
-        l_cpf = Label(frame_resp, text="CPF *", height=1, anchor=NW, 
-                     font=('Ivy 10'), bg=co2, fg=co4)
+        l_cpf = tk.Label(frame_resp, text="CPF *", height=1, anchor=tk.NW, 
+                 font=('Ivy 10'), bg=co2, fg=co4)
         l_cpf.grid(row=1, column=3, sticky="w", padx=10, pady=2)
-        e_cpf = Entry(frame_resp, justify='left', relief='solid')
+        e_cpf = tk.Entry(frame_resp, justify='left', relief='solid')
         e_cpf.grid(row=2, column=3, sticky="ew", padx=10, pady=2)
         
         # Parentesco
-        l_parentesco = Label(frame_resp, text="Parentesco", height=1, anchor=NW, 
-                            font=('Ivy 10'), bg=co2, fg=co4)
+        l_parentesco = tk.Label(frame_resp, text="Parentesco", height=1, anchor=tk.NW, 
+                    font=('Ivy 10'), bg=co2, fg=co4)
         l_parentesco.grid(row=3, column=0, sticky="w", padx=10, pady=2)
         c_parentesco = ttk.Combobox(frame_resp, values=opcoes_parentesco)
         c_parentesco.grid(row=4, column=0, sticky="ew", padx=10, pady=2)
         
         # Armazenando as entradas no frame para recuperação posterior
-        frame_resp.campos = {
+        cast(Any, frame_resp).campos = {
             'nome': e_nome_resp,
             'telefone': e_telefone,
             'rg': e_rg,
@@ -398,7 +421,7 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
     def reordenar_responsaveis():
         for i, frame in enumerate(lista_frames_responsaveis, 1):
             for widget in frame.winfo_children():
-                if isinstance(widget, Label) and "Responsável" in widget.cget("text"):
+                if isinstance(widget, tk.Label) and "Responsável" in widget.cget("text"):
                     widget.config(text=f"Responsável {i}")
                     break
     
@@ -431,10 +454,12 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
                 messagebox.showerror("Erro", f"Preencha nome e CPF do Responsável {i}.")
                 return
         
+        conn = None
+        cursor = None
         try:
             # Conectar ao banco de dados
             conn = conectar_bd()
-            cursor = conn.cursor()
+            cursor = cast(Any, conn).cursor()
             
             # Obter o ID da escola atual
             escola_id = 3  # Valor padrão, ajuste conforme necessário
@@ -536,7 +561,8 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
                 """, (responsavel_id, aluno_id))
             
             # Commit das alterações
-            conn.commit()
+            if conn:
+                conn.commit()
             
             # Atualizar a tabela na interface
             if treeview and treeview.winfo_exists():
@@ -558,15 +584,23 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
             if conn:
                 conn.rollback()
         finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
-            if 'conn' in locals() and conn:
-                conn.close()
+            try:
+                if cursor:
+                    cursor.close()
+            except Exception:
+                pass
+            try:
+                if conn:
+                    conn.close()
+            except Exception:
+                pass
 
 # Funções auxiliares para serem chamadas de outros módulos
 
 def excluir_aluno(aluno_id, treeview, query):
     """Exclui um aluno do banco de dados e atualiza a treeview."""
+    conn = None
+    cursor = None
     try:
         # Confirmar exclusão
         resposta = messagebox.askyesno("Confirmar Exclusão", 
@@ -576,7 +610,7 @@ def excluir_aluno(aluno_id, treeview, query):
         
         # Conectar ao banco de dados
         conn = conectar_bd()
-        cursor = conn.cursor()
+        cursor = cast(Any, conn).cursor()
         
         # Verificar se o aluno existe
         cursor.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
@@ -594,8 +628,9 @@ def excluir_aluno(aluno_id, treeview, query):
         # Excluir o aluno
         cursor.execute("DELETE FROM alunos WHERE id = %s", (aluno_id,))
         
-        # Commit das alterações
-        conn.commit()
+            # Commit das alterações
+        if conn:
+            conn.commit()
         
         # Não é mais necessário atualizar a treeview aqui, pois a função em main.py fará isso
         # Isso evita atualizações duplicadas e possíveis erros
@@ -616,7 +651,13 @@ def excluir_aluno(aluno_id, treeview, query):
             conn.rollback()
         return False
     finally:
-        if 'cursor' in locals() and cursor:
-            cursor.close()
-        if 'conn' in locals() and conn:
-            conn.close()
+        try:
+            if cursor:
+                cursor.close()
+        except Exception:
+            pass
+        try:
+            if conn:
+                conn.close()
+        except Exception:
+            pass

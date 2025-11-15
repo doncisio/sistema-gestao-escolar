@@ -1,12 +1,19 @@
 from datetime import datetime
-from tkinter import *
+from tkinter import (
+    Label, Frame, Button, Entry, Toplevel, Canvas, Scrollbar,
+    NW, LEFT, RIGHT, TOP, BOTTOM, W, E, N, S,
+    BOTH, X, Y, VERTICAL, HORIZONTAL, END,
+    TRUE, FALSE, GROOVE, RAISED, FLAT, StringVar
+)
 from tkinter import messagebox, ttk
 from PIL import ImageTk, Image
 import mysql.connector
 from mysql.connector import Error
 from conexao import conectar_bd
+import tkinter as tk
 from tkcalendar import DateEntry
 from InterfaceGerenciamentoLicencas import abrir_interface_licencas
+from typing import Any, cast
 
 class InterfaceEdicaoFuncionario:
     def __init__(self, master, funcionario_id, janela_principal=None):
@@ -62,9 +69,13 @@ class InterfaceEdicaoFuncionario:
         self.master.grid_columnconfigure(0, weight=1)
 
         # Conectar ao banco de dados
+        self.conn: Any = None
+        self.cursor: Any = None
         try:
             self.conn = conectar_bd()
-            self.cursor = self.conn.cursor(buffered=True)
+            if self.conn is None:
+                raise Exception("Falha ao conectar ao banco de dados")
+            self.cursor = cast(Any, self.conn).cursor(buffered=True)
         except Exception as e:
             messagebox.showerror("Erro de Conexão", f"Não foi possível conectar ao banco de dados: {str(e)}")
             self.fechar_janela()
@@ -230,7 +241,7 @@ class InterfaceEdicaoFuncionario:
                bg=self.co1,
                fg=self.co0,
                width=20,
-               state=DISABLED)
+               state=tk.DISABLED)
         self.btn_disciplinas.grid(row=0, column=1, padx=5, pady=5)
         
         # Botão de Licenças (moved to col 3)
@@ -292,7 +303,7 @@ class InterfaceEdicaoFuncionario:
         
         # COLUNA 1 - Informações Básicas
         col1_frame = Frame(form_frame, bg=self.co1, padx=10, pady=5, relief="flat")
-        col1_frame.grid(row=0, column=0, sticky=NSEW)
+        col1_frame.grid(row=0, column=0, sticky=tk.NSEW)
         
         # Título da seção
         Label(col1_frame, text="Informações Básicas", font=('Arial 11 bold'), bg=self.co1, fg=self.co5).pack(anchor=W, pady=(0, 10))
@@ -335,7 +346,7 @@ class InterfaceEdicaoFuncionario:
         
         # COLUNA 2 - Informações Profissionais
         col2_frame = Frame(form_frame, bg=self.co1, padx=10, pady=5, relief="flat")
-        col2_frame.grid(row=0, column=1, sticky=NSEW)
+        col2_frame.grid(row=0, column=1, sticky=tk.NSEW)
         
         # Título da seção
         Label(col2_frame, text="Informações Profissionais", font=('Arial 11 bold'), bg=self.co1, fg=self.co5).pack(anchor=W, pady=(0, 10))
@@ -363,7 +374,7 @@ class InterfaceEdicaoFuncionario:
         
         # COLUNA 3 - Informações Complementares
         col3_frame = Frame(form_frame, bg=self.co1, padx=10, pady=5, relief="flat")
-        col3_frame.grid(row=0, column=2, sticky=NSEW)
+        col3_frame.grid(row=0, column=2, sticky=tk.NSEW)
         
         # Título da seção
         Label(col3_frame, text="Informações Complementares", font=('Arial 11 bold'), bg=self.co1, fg=self.co5).pack(anchor=W, pady=(0, 10))
@@ -431,8 +442,8 @@ class InterfaceEdicaoFuncionario:
         self.obter_escolas()
 
         # Checkbox para indicar vínculo com a escola (ID: 60)
-        self.var_vinculado_escola = IntVar(value=1)
-        self.chk_vinculado = Checkbutton(
+        self.var_vinculado_escola = tk.IntVar(value=1)
+        self.chk_vinculado = tk.Checkbutton(
             prof_frame,
             text='Vinculado à escola (ID: 60)',
             variable=self.var_vinculado_escola,
@@ -569,11 +580,11 @@ class InterfaceEdicaoFuncionario:
         if cargo == "Professor@":
             self.frame_professor.pack(fill=BOTH, expand=True, pady=10)
             self.frame_disciplinas_container.pack(fill=BOTH, expand=True, padx=10, pady=5)
-            self.btn_disciplinas.config(state=NORMAL)
+            self.btn_disciplinas.config(state=tk.NORMAL)
         else:
             self.frame_professor.pack_forget()
             self.frame_disciplinas_container.pack_forget()
-            self.btn_disciplinas.config(state=DISABLED)
+            self.btn_disciplinas.config(state=tk.DISABLED)
             
             # Limpar as disciplinas existentes
             for frame in self.lista_frames_disciplinas:
@@ -593,11 +604,11 @@ class InterfaceEdicaoFuncionario:
             
             # Manter frame de disciplinas e botão habilitado
             self.frame_disciplinas_container.pack(fill=BOTH, expand=True, padx=10, pady=5)
-            self.btn_disciplinas.config(state=NORMAL)
+            self.btn_disciplinas.config(state=tk.NORMAL)
         else:
             # Professor não polivalente - mostrar disciplinas
             self.frame_disciplinas_container.pack(fill=BOTH, expand=True, padx=10, pady=5)
-            self.btn_disciplinas.config(state=NORMAL)
+            self.btn_disciplinas.config(state=tk.NORMAL)
             
             # Ocultar campo de professor volante
             self.lbl_volante.grid_remove()
@@ -654,7 +665,7 @@ class InterfaceEdicaoFuncionario:
         self.carregar_disciplinas(c_disciplina)
         
         # Armazenar o combobox no frame para recuperação posterior
-        frame_disc.c_disciplina = c_disciplina
+        cast(Any, frame_disc).c_disciplina = c_disciplina
         
         # Seleção de turmas para esta disciplina
         Label(content_frame, text="Turmas * (Selecione uma ou mais turmas usando Ctrl+Clique)", 
@@ -672,8 +683,8 @@ class InterfaceEdicaoFuncionario:
         scrollbar.pack(side=RIGHT, fill=Y)
         
         # Criar uma Listbox para selecionar múltiplas turmas
-        lista_turmas = Listbox(frame_turmas, width=50, height=6, 
-                               selectmode=MULTIPLE, exportselection=0,
+        lista_turmas = tk.Listbox(frame_turmas, width=50, height=6, 
+                       selectmode=tk.MULTIPLE, exportselection=0,
                                font=('Arial 9'), bg=self.co1, 
                                selectbackground=self.co5, selectforeground=self.co1)
         lista_turmas.pack(side=LEFT, fill=BOTH, expand=True)
@@ -686,7 +697,7 @@ class InterfaceEdicaoFuncionario:
         self.carregar_turmas_para_disciplina(lista_turmas)
         
         # Armazenar a lista de turmas no frame para recuperação posterior
-        frame_disc.lista_turmas = lista_turmas
+        cast(Any, frame_disc).lista_turmas = lista_turmas
         
         # Adicionar evento para atualizar disciplinas quando turmas forem selecionadas
         lista_turmas.bind('<<ListboxSelect>>', lambda e: self.atualizar_disciplinas_por_turmas(frame_disc))
@@ -789,17 +800,17 @@ class InterfaceEdicaoFuncionario:
         """Atualiza o combobox de disciplinas baseado nas turmas selecionadas"""
         try:
             # Obter turmas selecionadas
-            turmas_selecionadas = frame_disc.lista_turmas.curselection()
+            turmas_selecionadas = cast(Any, frame_disc).lista_turmas.curselection()
             
             if not turmas_selecionadas:
                 # Se nenhuma turma selecionada, mostrar todas as disciplinas
-                self.carregar_disciplinas(frame_disc.c_disciplina)
+                self.carregar_disciplinas(cast(Any, frame_disc).c_disciplina)
                 return
             
             # Obter IDs das turmas selecionadas
             turmas_ids = []
             for idx in turmas_selecionadas:
-                turma_nome = frame_disc.lista_turmas.get(idx)
+                turma_nome = cast(Any, frame_disc).lista_turmas.get(idx)
                 turma_id = self.turmas_disciplina_map.get(turma_nome)
                 if turma_id:
                     turmas_ids.append(turma_id)
@@ -820,19 +831,19 @@ class InterfaceEdicaoFuncionario:
             
             if niveis:
                 # Salvar a disciplina atualmente selecionada
-                disciplina_atual = frame_disc.c_disciplina.get()
+                disciplina_atual = cast(Any, frame_disc).c_disciplina.get()
                 
                 # Carregar disciplinas filtradas por nível
-                self.carregar_disciplinas(frame_disc.c_disciplina, niveis)
+                self.carregar_disciplinas(cast(Any, frame_disc).c_disciplina, niveis)
                 
                 # Tentar restaurar a seleção anterior se ainda estiver disponível
-                if disciplina_atual and disciplina_atual in frame_disc.c_disciplina['values']:
-                    frame_disc.c_disciplina.set(disciplina_atual)
+                if disciplina_atual and disciplina_atual in cast(Any, frame_disc).c_disciplina['values']:
+                    cast(Any, frame_disc).c_disciplina.set(disciplina_atual)
                     
         except Exception as e:
             print(f"Erro ao atualizar disciplinas por turmas: {str(e)}")
             # Em caso de erro, carregar todas as disciplinas
-            self.carregar_disciplinas(frame_disc.c_disciplina)
+            self.carregar_disciplinas(cast(Any, frame_disc).c_disciplina)
 
     def carregar_dados_funcionario(self):
         try:
@@ -915,7 +926,7 @@ class InterfaceEdicaoFuncionario:
                     
                     # Sempre carregar disciplinas para professores (polivalentes ou não)
                     self.frame_disciplinas_container.pack(fill=BOTH, expand=True, padx=10, pady=5)
-                    self.btn_disciplinas.config(state=NORMAL)
+                    self.btn_disciplinas.config(state=tk.NORMAL)
                     self.carregar_disciplinas_funcionario()
                 # Ajustar visibilidade dos botões de vínculo
                 try:
@@ -964,8 +975,8 @@ class InterfaceEdicaoFuncionario:
                 for disciplina_id, info in disciplinas_map.items():
                     print(f"\nCriando frame para disciplina: {info['nome']}")
                     frame_disc = self.add_disciplina()
-                    frame_disc.c_disciplina.set(info['nome'])
-                    print(f"  Disciplina definida: {frame_disc.c_disciplina.get()}")
+                    cast(Any, frame_disc).c_disciplina.set(info['nome'])
+                    print(f"  Disciplina definida: {cast(Any, frame_disc).c_disciplina.get()}")
                     
                     # Selecionar as turmas
                     if info['turmas']:
@@ -978,8 +989,8 @@ class InterfaceEdicaoFuncionario:
                         if any(turma_id is not None for turma_id in turmas_ids):
                             # Converter IDs para nomes
                             turmas_nomes = []
-                            for i in range(frame_disc.lista_turmas.size()):
-                                turma_nome = frame_disc.lista_turmas.get(i)
+                            for i in range(cast(Any, frame_disc).lista_turmas.size()):
+                                turma_nome = cast(Any, frame_disc).lista_turmas.get(i)
                                 turma_id = self.turmas_disciplina_map.get(turma_nome)
                                 if turma_id in turmas_ids:
                                     turmas_nomes.append(i)
@@ -989,7 +1000,7 @@ class InterfaceEdicaoFuncionario:
                             
                             # Selecionar as turmas na lista
                             for idx in turmas_nomes:
-                                frame_disc.lista_turmas.selection_set(idx)
+                                cast(Any, frame_disc).lista_turmas.selection_set(idx)
                                 print(f"    Selecionado índice {idx}")
             else:
                 print("Nenhum registro encontrado para este funcionário")
@@ -1153,12 +1164,12 @@ class InterfaceEdicaoFuncionario:
                     # Verificar se cada disciplina tem pelo menos uma turma selecionada
                     for frame in self.lista_frames_disciplinas:
                         if frame.winfo_exists():
-                            disciplina_nome = frame.c_disciplina.get()
+                            disciplina_nome = cast(Any, frame).c_disciplina.get()
                             if not disciplina_nome:
                                 messagebox.showerror("Erro", "Todas as disciplinas adicionadas devem ser selecionadas.")
                                 return
                             
-                            turmas_selecionadas = frame.lista_turmas.curselection()
+                            turmas_selecionadas = cast(Any, frame).lista_turmas.curselection()
                             if not turmas_selecionadas:
                                 messagebox.showerror("Erro", "Selecione pelo menos uma turma para cada disciplina.")
                                 return
@@ -1187,11 +1198,11 @@ class InterfaceEdicaoFuncionario:
                 # Se for professor não polivalente com vínculo seletivo ou contratado
                 # Verificar primeira disciplina para obter uma turma
                 if self.lista_frames_disciplinas and self.lista_frames_disciplinas[0].winfo_exists():
-                    disciplina_nome = self.lista_frames_disciplinas[0].c_disciplina.get()
-                    turmas_selecionadas = self.lista_frames_disciplinas[0].lista_turmas.curselection()
+                    disciplina_nome = cast(Any, self.lista_frames_disciplinas[0]).c_disciplina.get()
+                    turmas_selecionadas = cast(Any, self.lista_frames_disciplinas[0]).lista_turmas.curselection()
                     
                     if turmas_selecionadas:
-                        turma_nome = self.lista_frames_disciplinas[0].lista_turmas.get(turmas_selecionadas[0])
+                        turma_nome = cast(Any, self.lista_frames_disciplinas[0]).lista_turmas.get(turmas_selecionadas[0])
                         primeira_turma_id = self.turmas_disciplina_map.get(turma_nome)
                         
                         # Verificar se está substituindo um professor em licença
@@ -1277,7 +1288,7 @@ class InterfaceEdicaoFuncionario:
                 # Depois, inserir as novas disciplinas
                 for frame in self.lista_frames_disciplinas:
                     if frame.winfo_exists():
-                        disciplina_nome = frame.c_disciplina.get()
+                        disciplina_nome = cast(Any, frame).c_disciplina.get()
                         if disciplina_nome and disciplina_nome in self.disciplinas_map:
                             disciplina_id = self.disciplinas_map[disciplina_nome]
                             

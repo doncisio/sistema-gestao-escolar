@@ -28,6 +28,7 @@ import Lista_atualizada
 import Lista_atualizada_semed
 import Seguranca
 from conexao import conectar_bd, inicializar_pool, fechar_pool
+from typing import Any, cast
 import aluno
 
 def converter_para_int_seguro(valor: Any) -> int:
@@ -191,7 +192,7 @@ if conn is None:
     messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
     exit()
 
-cursor = conn.cursor()
+cursor = cast(Any, conn).cursor()
 cursor.execute(query)
 resultados = cursor.fetchall()
 colunas = ['ID', 'Nome', 'Tipo', 'Cargo', 'Data de Nascimento']
@@ -434,7 +435,7 @@ def criar_dashboard():
     try:
         conn_temp = conectar_bd()
         if conn_temp:
-            cursor_temp = conn_temp.cursor()
+            cursor_temp = cast(Any, conn_temp).cursor()
             cursor_temp.execute("SELECT ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
             resultado_ano = cursor_temp.fetchone()
             if not resultado_ano:
@@ -1199,7 +1200,7 @@ def verificar_matricula_ativa(aluno_id):
         conn = conectar_bd()
         if conn is None:
             return False
-        cursor = conn.cursor()
+        cursor = cast(Any, conn).cursor()
         
         # Obtém o ID do ano letivo atual
         cursor.execute("SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
@@ -1283,7 +1284,7 @@ def verificar_historico_matriculas(aluno_id):
         conn = conectar_bd()
         if conn is None:
             return False, []
-        cursor = conn.cursor()
+        cursor = cast(Any, conn).cursor()
         
         # Verifica se o aluno possui matrícula em qualquer ano letivo
         cursor.execute("""
@@ -1354,7 +1355,7 @@ def matricular_aluno(aluno_id):
         if conn is None:
             messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
             return
-        cursor = conn.cursor()
+        cursor = cast(Any, conn).cursor()
         
         # Obter nome do aluno
         cursor.execute("SELECT nome FROM alunos WHERE id = %s", (int(str(aluno_id)),))

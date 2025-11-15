@@ -1,11 +1,20 @@
 from datetime import datetime
-from tkinter import *
+from tkinter import (
+    Label, Frame, Button, Entry, Toplevel, Canvas, Scrollbar,
+    NW, LEFT, RIGHT, TOP, BOTTOM, W, E, N, S,
+    BOTH, X, Y, VERTICAL, HORIZONTAL, Listbox, MULTIPLE, NORMAL, END,
+    TRUE, FALSE, GROOVE, RAISED, FLAT, DISABLED, StringVar
+)
 from tkinter import messagebox, ttk
 from PIL import ImageTk, Image
 import mysql.connector
 from mysql.connector import Error
 from conexao import conectar_bd
 from tkcalendar import DateEntry
+from typing import Any, cast
+
+# Constante útil para `sticky` em grids (N, S, E, W concatenados)
+NSEW = N + E + S + W
 
 class InterfaceCadastroFuncionario:
     def __init__(self, master, janela_principal=None):
@@ -60,7 +69,7 @@ class InterfaceCadastroFuncionario:
         # Conectar ao banco de dados
         try:
             self.conn = conectar_bd()
-            self.cursor = self.conn.cursor(buffered=True)
+            self.cursor = cast(Any, self.conn).cursor(buffered=True)
         except Exception as e:
             messagebox.showerror("Erro de Conexão", f"Não foi possível conectar ao banco de dados: {str(e)}")
             self.fechar_janela()
@@ -81,8 +90,8 @@ class InterfaceCadastroFuncionario:
         # Fechar a conexão com o banco de dados
         if hasattr(self, 'conn') and self.conn:
             try:
-                self.cursor.close()
-                self.conn.close()
+                cast(Any, self.cursor).close()
+                cast(Any, self.conn).close()
             except:
                 pass
         
@@ -444,8 +453,8 @@ class InterfaceCadastroFuncionario:
     def _get_enum_values(self, table, column):
         """Retorna a lista de valores permitidos para um ENUM no banco (sem aspas)."""
         try:
-            self.cursor.execute("SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s", (table, column))
-            row = self.cursor.fetchone()
+            cast(Any, self.cursor).execute("SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s", (table, column))
+            row = cast(Any, self.cursor).fetchone()
             if not row or not row[0]:
                 return []
             col_type = row[0]  # ex: "enum('MAT','VESP')"
@@ -594,7 +603,7 @@ class InterfaceCadastroFuncionario:
         self.carregar_disciplinas(c_disciplina)
         
         # Armazenar o combobox no frame para recuperação posterior
-        frame_disc.c_disciplina = c_disciplina
+        cast(Any, frame_disc).c_disciplina = c_disciplina
         
         # Seleção de turmas para esta disciplina
         Label(content_frame, text="Turmas * (Selecione uma ou mais turmas usando Ctrl+Clique)", 
@@ -626,7 +635,7 @@ class InterfaceCadastroFuncionario:
         self.carregar_turmas_para_disciplina(lista_turmas)
         
         # Armazenar a lista de turmas no frame para recuperação posterior
-        frame_disc.lista_turmas = lista_turmas
+        cast(Any, frame_disc).lista_turmas = lista_turmas
         
         # Adicionar evento para atualizar disciplinas quando turmas forem selecionadas
         lista_turmas.bind('<<ListboxSelect>>', lambda e: self.atualizar_disciplinas_por_turmas(frame_disc))
@@ -646,7 +655,7 @@ class InterfaceCadastroFuncionario:
         """Carrega as turmas disponíveis para a disciplina"""
         try:
             # Obter as turmas da escola 60
-            self.cursor.execute("""
+            cast(Any, self.cursor).execute("""
                 SELECT t.id, s.nome as serie_nome, t.nome as turma_nome,
                 CASE WHEN t.turno = 'MAT' THEN 'Matutino' ELSE 'Vespertino' END as turno_nome
                 FROM turmas t 
@@ -654,26 +663,26 @@ class InterfaceCadastroFuncionario:
                 WHERE t.escola_id = 60
                 ORDER BY s.nome, t.nome
             """)
-            
-            turmas = self.cursor.fetchall()
+
+            turmas = cast(Any, self.cursor).fetchall()
             self.turmas_disciplina_map = {}
-            
+
             # Limpar a lista
             lista_turmas.delete(0, END)
-            
+
             # Adicionar as turmas à lista com formatação melhorada
             for turma in turmas:
                 turma_id = turma[0]
                 serie_nome = turma[1]
                 turma_nome = turma[2]
                 turno_nome = turma[3]
-                
+
                 # Formato: "1º Ano - Turma A (Matutino)"
                 display_text = f"{serie_nome} - Turma {turma_nome} ({turno_nome})"
-                
+
                 lista_turmas.insert(END, display_text)
                 self.turmas_disciplina_map[display_text] = turma_id
-                
+
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar turmas para disciplina: {str(e)}")
 
@@ -699,12 +708,12 @@ class InterfaceCadastroFuncionario:
                 # Filtrar por níveis de ensino específicos
                 placeholders = ', '.join(['%s'] * len(nivel_ids))
                 query = f"SELECT id, nome FROM disciplinas WHERE escola_id = 60 AND nivel_id IN ({placeholders}) ORDER BY nome"
-                self.cursor.execute(query, nivel_ids)
+                cast(Any, self.cursor).execute(query, nivel_ids)
             else:
                 # Carregar todas as disciplinas
-                self.cursor.execute("SELECT id, nome FROM disciplinas WHERE escola_id = 60 ORDER BY nome")
+                cast(Any, self.cursor).execute("SELECT id, nome FROM disciplinas WHERE escola_id = 60 ORDER BY nome")
             
-            disciplinas = self.cursor.fetchall()
+            disciplinas = cast(Any, self.cursor).fetchall()
             
             if not disciplinas:
                 if nivel_ids:
@@ -755,8 +764,8 @@ class InterfaceCadastroFuncionario:
                 JOIN serie s ON t.serie_id = s.id
                 WHERE t.id IN ({placeholders})
             """
-            self.cursor.execute(query, turmas_ids)
-            niveis = [row[0] for row in self.cursor.fetchall()]
+            cast(Any, self.cursor).execute(query, turmas_ids)
+            niveis = [row[0] for row in cast(Any, self.cursor).fetchall()]
             
             if niveis:
                 # Salvar a disciplina atualmente selecionada
@@ -874,7 +883,7 @@ class InterfaceCadastroFuncionario:
                                 professor_substituido = None
             
             # Inserir o funcionário no banco de dados
-            self.cursor.execute(
+            cast(Any, self.cursor).execute(
                 """
                 INSERT INTO funcionarios (
                     nome, matricula, data_admissao, data_nascimento, cpf, carga_horaria,
@@ -891,7 +900,7 @@ class InterfaceCadastroFuncionario:
             )
             
             # Obter o ID do funcionário inserido
-            funcionario_id = self.cursor.lastrowid
+            funcionario_id = cast(Any, self.cursor).lastrowid
             
             # Para todos os professores, salvar as disciplinas se houver
             if cargo == "Professor@" and self.lista_frames_disciplinas:
@@ -908,14 +917,14 @@ class InterfaceCadastroFuncionario:
                                 for idx in turmas_selecionadas:
                                     turma_nome = frame.lista_turmas.get(idx)
                                     turma_id = self.turmas_disciplina_map.get(turma_nome)
-                                    
+
                                     if turma_id:
-                                        self.cursor.execute(
+                                        cast(Any, self.cursor).execute(
                                             "INSERT INTO funcionario_disciplinas (funcionario_id, disciplina_id, turma_id) VALUES (%s, %s, %s)",
                                             (funcionario_id, disciplina_id, turma_id)
                                         )
                             else:  # Se nenhuma turma foi selecionada, inserir apenas a disciplina
-                                self.cursor.execute(
+                                cast(Any, self.cursor).execute(
                                     "INSERT INTO funcionario_disciplinas (funcionario_id, disciplina_id, turma_id) VALUES (%s, %s, NULL)",
                                     (funcionario_id, disciplina_id)
                                 )
@@ -933,7 +942,8 @@ class InterfaceCadastroFuncionario:
                 )
             
             # Confirmar a operação
-            self.conn.commit()
+            if hasattr(self, 'conn') and self.conn:
+                cast(Any, self.conn).commit()
             
             messagebox.showinfo("Sucesso", "Funcionário cadastrado com sucesso!")
             
@@ -945,7 +955,8 @@ class InterfaceCadastroFuncionario:
             
         except Exception as e:
             print(f"Erro ao salvar funcionário: {e}")
-            self.conn.rollback()
+            if hasattr(self, 'conn') and self.conn:
+                cast(Any, self.conn).rollback()
             messagebox.showerror("Erro", f"Ocorreu um erro ao salvar o funcionário: {str(e)}")
 
     def obter_cargos(self):
@@ -962,8 +973,8 @@ class InterfaceCadastroFuncionario:
         """Obtém a lista de escolas do banco de dados"""
         try:
             # Limitar apenas à escola com ID 60
-            self.cursor.execute("SELECT id, nome FROM escolas WHERE id = 60")
-            escolas = self.cursor.fetchall()
+            cast(Any, self.cursor).execute("SELECT id, nome FROM escolas WHERE id = 60")
+            escolas = cast(Any, self.cursor).fetchall()
             self.escolas_map = {escola[1]: escola[0] for escola in escolas}
             self.c_escola['values'] = list(self.escolas_map.keys())
             
@@ -972,8 +983,8 @@ class InterfaceCadastroFuncionario:
                 self.c_escola.set(list(self.escolas_map.keys())[0])
             else:
                 # Caso a escola ID 60 não seja encontrada, buscar todas as escolas
-                self.cursor.execute("SELECT id, nome FROM escolas ORDER BY nome, id")
-                escolas = self.cursor.fetchall()
+                cast(Any, self.cursor).execute("SELECT id, nome FROM escolas ORDER BY nome, id")
+                escolas = cast(Any, self.cursor).fetchall()
                 
                 # Criar mapeamento e valores para combobox
                 self.escolas_map = {}
@@ -1013,18 +1024,13 @@ class InterfaceCadastroFuncionario:
         As turmas agora são gerenciadas através do frame de disciplinas"""
         pass
 
-    def atualizar_turmas_por_escola(self, event=None):
-        """Método obsoleto - mantido por compatibilidade mas não faz nada
-        As turmas agora são gerenciadas através do frame de disciplinas"""
-        pass
-
     def verificar_professores_em_licenca(self, cargo, polivalente, turma_id):
         if cargo != "Professor@" or polivalente != "não" or not turma_id:
             return None
         
         try:
             # Buscar professor polivalente que está de licença e associado à mesma turma
-            self.cursor.execute("""
+            cast(Any, self.cursor).execute("""
                 SELECT f.id, f.nome
                 FROM funcionarios f
                 JOIN licencas l ON f.id = l.funcionario_id
@@ -1035,7 +1041,7 @@ class InterfaceCadastroFuncionario:
                 LIMIT 1
             """, (turma_id,))
             
-            resultado = self.cursor.fetchone()
+            resultado = cast(Any, self.cursor).fetchone()
             
             if resultado:
                 return resultado

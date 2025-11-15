@@ -12,6 +12,7 @@ import traceback
 import datetime
 import os
 from config_logs import get_logger
+from typing import Any, cast
 
 logger = get_logger(__name__)
 
@@ -23,7 +24,7 @@ def buscar_alunos_lista_atualizada():
         return []
     
     try:
-        cursor = conn.cursor()
+        cursor = cast(Any, conn).cursor()
         logger.info("Conexão estabelecida com sucesso")
         
         query = """
@@ -58,7 +59,7 @@ def buscar_ultimo_ano_historico(nome_aluno):
         return None
     
     try:
-        cursor = conn.cursor()
+        cursor = cast(Any, conn).cursor()
         query = """
         SELECT MAX(ano) 
         FROM historico_escolar 

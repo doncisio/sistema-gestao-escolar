@@ -12,6 +12,7 @@ from gerarPDF import salvar_e_abrir_pdf
 from conexao import conectar_bd
 from biblio_editor import arredondar_personalizado, quebra_linha
 from config_logs import get_logger
+from typing import Any, cast
 
 logger = get_logger(__name__)
 
@@ -61,7 +62,7 @@ def obter_disciplinas_por_serie(serie_id):
     conn = conectar_bd()
     if conn is None:
         return {}
-    cursor = conn.cursor()
+    cursor = cast(Any, conn).cursor()
     
     try:
         # Primeiro determinar o nível de ensino da série
@@ -103,7 +104,7 @@ def consultar_dados_aluno(aluno_id, ano_letivo_id):
     conn = conectar_bd()
     if conn is None:
         return []
-    cursor = conn.cursor()
+    cursor = cast(Any, conn).cursor()
 
     query_aluno = """
         SELECT
@@ -386,7 +387,7 @@ def boletiminiciais(aluno_id, ano_letivo_id):
         recuperacoes = {}
         disciplina_ids = {}
     else:
-        cursor = conn.cursor()
+        cursor = cast(Any, conn).cursor()
         try:
             # Dicionário para armazenar as recuperações e IDs das disciplinas
             recuperacoes = {}
@@ -707,7 +708,7 @@ def boletimfinais(aluno_id, ano_letivo_id):
     if conn is None:
         logger.error("Erro ao conectar ao banco de dados.")
         return
-    cursor = conn.cursor()
+    cursor = cast(Any, conn).cursor()
 
     # Consulta para obter informações do aluno específico
     query_aluno = """
@@ -780,7 +781,7 @@ def boletimfinais(aluno_id, ano_letivo_id):
     if conn is None:
         disciplina_id_map = {}
     else:
-        cursor = conn.cursor()
+        cursor = cast(Any, conn).cursor()
         try:
             # Buscar IDs das disciplinas que o aluno cursou
             placeholders = ', '.join(['%s'] * len(ordem_disciplinas))
@@ -1025,7 +1026,7 @@ def boletimfinais(aluno_id, ano_letivo_id):
         recuperacoes = {}
         avaliacoes = {}
     else:
-        cursor = conn.cursor()
+        cursor = cast(Any, conn).cursor()
         try:
             # Buscar todas as recuperações
             cursor.execute("""
@@ -1302,7 +1303,7 @@ def boletim(aluno_id, ano_letivo_id):
     if conn is None:
         logger.error("Erro ao conectar ao banco de dados.")
         return
-    cursor = conn.cursor()
+    cursor = cast(Any, conn).cursor()
 
     try:
         # Verificar se o aluno possui matrícula ativa no ano letivo especificado

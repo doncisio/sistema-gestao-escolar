@@ -9,6 +9,7 @@ from reportlab.lib.units import inch
 from reportlab.lib.colors import black, white
 from reportlab.lib.enums import TA_JUSTIFY
 from conexao import conectar_bd
+from typing import Any, cast
 from gerarPDF import salvar_e_abrir_pdf, criar_pdf
 from inserir_no_historico_escolar import inserir_no_historico_escolar
 from utilitarios.gerenciador_documentos import salvar_documento_sistema
@@ -264,7 +265,7 @@ def ata_geral_6a9ano():
     conn = conectar_bd()
     if conn is None:
         return
-    cursor = conn.cursor(dictionary=True)
+    cursor = cast(Any, conn).cursor(dictionary=True)
     
     # Verificar se o ano letivo terminou
     ano_letivo_terminado = verificar_ano_letivo_terminado(cursor)

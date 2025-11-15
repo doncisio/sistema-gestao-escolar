@@ -45,7 +45,7 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
             messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
             return
         # Cast para Any para suprimir checagens estritas de tipo no Pylance
-        cursor = cast(Any, conn.cursor())
+        cursor = cast(Any, conn).cursor()
         
         # Buscar dados do aluno
         cursor.execute("""
