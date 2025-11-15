@@ -10,6 +10,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import ParagraphStyle
 from gerarPDF import salvar_e_abrir_pdf
 from conexao import conectar_bd
+from db.connection import get_connection
 from biblio_editor import arredondar_personalizado, quebra_linha
 from config_logs import get_logger
 from typing import Any, cast
@@ -59,53 +60,47 @@ def _safe_int(val, default=0):
 
 def obter_disciplinas_por_serie(serie_id):
     """Obter as disciplinas adequadas para a série especificada."""
-    conn = conectar_bd()
-    if conn is None:
-        return {}
-    cursor = cast(Any, conn).cursor()
-    
     try:
-        # Primeiro determinar o nível de ensino da série
-        cursor.execute("""
-            SELECT nivel_id FROM serie WHERE id = %s
-        """, (_safe_int(serie_id, 0),))
-        
-        nivel_result = cursor.fetchone()
-        if not nivel_result:
-            return {}
-            
-        nivel_id = _to_int_param(nivel_result[0])
-        
-        # Obter as disciplinas para este nível de ensino
-        cursor.execute("""
-            SELECT id, nome FROM disciplinas 
-            WHERE nivel_id = %s
-            ORDER BY nome
-        """, (_safe_int(nivel_id, 0),))
-        
-        disciplinas = cursor.fetchall()
-        
-        # Mapear as disciplinas para um dicionário nome -> id
-        disciplina_id_map = {disc[1]: disc[0] for disc in disciplinas}
-        
-        return disciplina_id_map
-    
-    finally:
-        try:
-            cursor.close()
-        except Exception:
-            pass
-        try:
-            conn.close()
-        except Exception:
-            pass
+        with get_connection() as conn:
+            if conn is None:
+                return {}
+            cursor = cast(Any, conn).cursor()
+            try:
+                # Primeiro determinar o nível de ensino da série
+                cursor.execute("""
+                    SELECT nivel_id FROM serie WHERE id = %s
+                """, (_safe_int(serie_id, 0),))
+
+                nivel_result = cursor.fetchone()
+                if not nivel_result:
+                    return {}
+
+                nivel_id = _to_int_param(nivel_result[0])
+
+                # Obter as disciplinas para este nível de ensino
+                cursor.execute("""
+                    SELECT id, nome FROM disciplinas 
+                    WHERE nivel_id = %s
+                    ORDER BY nome
+                """, (_safe_int(nivel_id, 0),))
+
+                disciplinas = cursor.fetchall()
+
+                # Mapear as disciplinas para um dicionário nome -> id
+                disciplina_id_map = {disc[1]: disc[0] for disc in disciplinas}
+
+                return disciplina_id_map
+            finally:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
+    except Exception:
+        # Em caso de erro de conexão ou execução, retornar vazio
+        logger.exception("Erro ao obter disciplinas por serie")
+        return {}
 
 def consultar_dados_aluno(aluno_id, ano_letivo_id):
-    conn = conectar_bd()
-    if conn is None:
-        return []
-    cursor = cast(Any, conn).cursor()
-
     query_aluno = """
         SELECT
             escolas.nome AS nome_escola,
@@ -141,19 +136,23 @@ def consultar_dados_aluno(aluno_id, ano_letivo_id):
         ORDER BY disciplinas.nome, notas.bimestre;
     """
     try:
-        params = (_to_int_param(aluno_id), _to_int_param(ano_letivo_id))
-        cursor.execute(query_aluno, params)
-        dados_aluno = cursor.fetchall()
-        return dados_aluno
-    finally:
-        try:
-            cursor.close()
-        except Exception:
-            pass
-        try:
-            conn.close()
-        except Exception:
-            pass
+        with get_connection() as conn:
+            if conn is None:
+                return []
+            cursor = cast(Any, conn).cursor()
+            try:
+                params = (_to_int_param(aluno_id), _to_int_param(ano_letivo_id))
+                cursor.execute(query_aluno, params)
+                dados_aluno = cursor.fetchall()
+                return dados_aluno
+            finally:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
+    except Exception:
+        logger.exception("Erro ao consultar dados do aluno")
+        return []
 
 
 def boletiminiciais(aluno_id, ano_letivo_id):
