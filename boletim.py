@@ -1298,69 +1298,73 @@ def boletimfinais(aluno_id, ano_letivo_id):
 
 def boletim(aluno_id, ano_letivo_id):
     """Busca o serie_id e ano_letivo_id para um aluno específico e gera o boletim apropriado."""
-    conn = conectar_bd()
-    if conn is None:
-        logger.error("Erro ao conectar ao banco de dados.")
-        return
-    cursor = cast(Any, conn).cursor()
-
     try:
-        # Verificar se o aluno possui matrícula ativa no ano letivo especificado
-        query = """
-        SELECT t.serie_id, a.ano_letivo, s.nome, m.id as matricula_id
-        FROM matriculas m
-        JOIN turmas t ON m.turma_id = t.id
-        JOIN anosletivos a ON m.ano_letivo_id = a.id
-        JOIN serie s ON t.serie_id = s.id
-        WHERE m.aluno_id = %s AND m.ano_letivo_id = %s AND m.status = 'Ativo'
-        """
-        params = (_to_int_param(aluno_id), _to_int_param(ano_letivo_id))
-        cursor.execute(query, params)
-        resultado = cursor.fetchone()
-        
-        if resultado:
-            serie_id = _safe_int(resultado[0], 0)
-            nome_serie = resultado[2]
-            matricula_id = resultado[3]
-            
-            # Verificar se existem notas registradas para o aluno no ano letivo
-            query_notas = """
-            SELECT COUNT(*) 
-            FROM notas 
-            WHERE aluno_id = %s AND ano_letivo_id = %s
-            """
-            cursor.execute(query_notas, (_to_int_param(aluno_id), _to_int_param(ano_letivo_id)))
-            _row = cursor.fetchone()
-            count_notas = _row[0] if _row else 0
-            
-            # Verificar se existem faltas registradas para o aluno no ano letivo
-            query_faltas = """
-            SELECT COUNT(*) 
-            FROM faltas_bimestrais 
-            WHERE aluno_id = %s AND ano_letivo_id = %s
-            """
-            cursor.execute(query_faltas, (_to_int_param(aluno_id), _to_int_param(ano_letivo_id)))
-            _row = cursor.fetchone()
-            count_faltas = _row[0] if _row else 0
-            
-            if count_notas == 0:
-                logger.warning(f"Não há notas registradas para o aluno ID {aluno_id} no ano letivo selecionado.")
+        with get_connection() as conn:
+            if conn is None:
+                logger.error("Erro ao conectar ao banco de dados.")
                 return
-            
-            logger.info(f"Gerando boletim para o aluno ID {aluno_id} da série {nome_serie}")
-            logger.info(f"Total de notas: {count_notas}, Total de registros de faltas: {count_faltas}")
-            
-            # Verificar se é anos iniciais ou finais
-            if serie_id > 7:  # Anos finais (6º ao 9º)
-                boletimfinais(aluno_id, ano_letivo_id)
-            else:  # Anos iniciais (1º ao 5º)
-                boletiminiciais(aluno_id, ano_letivo_id)
-        else:
-            logger.info(f"Nenhuma matrícula ativa encontrada para aluno_id: {aluno_id} no ano letivo: {ano_letivo_id}")
-
-    finally:
-        cursor.close()
-        conn.close()
+            cursor = cast(Any, conn).cursor()
+            try:
+                # Verificar se o aluno possui matrícula ativa no ano letivo especificado
+                query = """
+                SELECT t.serie_id, a.ano_letivo, s.nome, m.id as matricula_id
+                FROM matriculas m
+                JOIN turmas t ON m.turma_id = t.id
+                JOIN anosletivos a ON m.ano_letivo_id = a.id
+                JOIN serie s ON t.serie_id = s.id
+                WHERE m.aluno_id = %s AND m.ano_letivo_id = %s AND m.status = 'Ativo'
+                """
+                params = (_to_int_param(aluno_id), _to_int_param(ano_letivo_id))
+                cursor.execute(query, params)
+                resultado = cursor.fetchone()
+                
+                if resultado:
+                    serie_id = _safe_int(resultado[0], 0)
+                    nome_serie = resultado[2]
+                    matricula_id = resultado[3]
+                    
+                    # Verificar se existem notas registradas para o aluno no ano letivo
+                    query_notas = """
+                    SELECT COUNT(*) 
+                    FROM notas 
+                    WHERE aluno_id = %s AND ano_letivo_id = %s
+                    """
+                    cursor.execute(query_notas, (_to_int_param(aluno_id), _to_int_param(ano_letivo_id)))
+                    _row = cursor.fetchone()
+                    count_notas = _row[0] if _row else 0
+                    
+                    # Verificar se existem faltas registradas para o aluno no ano letivo
+                    query_faltas = """
+                    SELECT COUNT(*) 
+                    FROM faltas_bimestrais 
+                    WHERE aluno_id = %s AND ano_letivo_id = %s
+                    """
+                    cursor.execute(query_faltas, (_to_int_param(aluno_id), _to_int_param(ano_letivo_id)))
+                    _row = cursor.fetchone()
+                    count_faltas = _row[0] if _row else 0
+                    
+                    if count_notas == 0:
+                        logger.warning(f"Não há notas registradas para o aluno ID {aluno_id} no ano letivo selecionado.")
+                        return
+                    
+                    logger.info(f"Gerando boletim para o aluno ID {aluno_id} da série {nome_serie}")
+                    logger.info(f"Total de notas: {count_notas}, Total de registros de faltas: {count_faltas}")
+                    
+                    # Verificar se é anos iniciais ou finais
+                    if serie_id > 7:  # Anos finais (6º ao 9º)
+                        boletimfinais(aluno_id, ano_letivo_id)
+                    else:  # Anos iniciais (1º ao 5º)
+                        boletiminiciais(aluno_id, ano_letivo_id)
+                else:
+                    logger.info(f"Nenhuma matrícula ativa encontrada para aluno_id: {aluno_id} no ano letivo: {ano_letivo_id}")
+            finally:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
+    except Exception:
+        logger.exception("Erro ao processar geração de boletim")
+        return
  
 # Comentário explicativo e exemplo de uso:
 """
