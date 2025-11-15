@@ -3641,93 +3641,85 @@ def obter_estatisticas_alunos():
         if tempo_decorrido < 300:  # 5 minutos
             return _cache_estatisticas_dashboard['dados']
     
-    # Buscar dados atualizados
-    conn = None
-    cursor = None
+    # Buscar dados atualizados usando o context manager de conexão
     try:
-        conn = conectar_bd()
-        if conn is None:
-            return None
-        cursor = conn.cursor()
-        
-        # Obter ano letivo atual do cache
-        ano_letivo_id = obter_ano_letivo_atual()
-        
-        escola_id = 60  # ID fixo da escola
-        
-        # Query otimizada para obter todas as estatísticas de uma vez
-        # CORRIGIDO: Conta ALUNOS ÚNICOS da tabela Alunos (não registros de matrícula)
-        # Usa a.escola_id ao invés de t.escola_id para corresponder à Lista_atualizada.py
-        cursor.execute("""
-            SELECT 
-                COUNT(DISTINCT CASE WHEN m.status = 'Ativo' THEN a.id END) as total_ativos,
-                COUNT(DISTINCT CASE WHEN m.status IN ('Transferido', 'Transferida') THEN a.id END) as total_transferidos
-            FROM Alunos a
-            JOIN Matriculas m ON a.id = m.aluno_id
-            JOIN turmas t ON m.turma_id = t.id
-            WHERE m.ano_letivo_id = %s 
-            AND a.escola_id = 60
-            AND m.status IN ('Ativo', 'Transferido', 'Transferida')
-        """, (ano_letivo_id,))
-        
-        resultado_geral = cursor.fetchone()
-        if resultado_geral:
-            total_ativos = converter_para_int_seguro(resultado_geral[0])
-            total_transferidos = converter_para_int_seguro(resultado_geral[1])
-        else:
-            total_ativos = 0
-            total_transferidos = 0
-        total_matriculados = total_ativos + total_transferidos
-        
-        # Estatísticas por série E TURMA - conta ALUNOS ÚNICOS e ATIVOS
-        # CORRIGIDO: Usa Alunos a e filtra por a.escola_id
-        cursor.execute("""
-            SELECT 
-                CONCAT(s.nome, ' ', t.nome) as serie_turma,
-                COUNT(DISTINCT a.id) as quantidade,
-                COUNT(DISTINCT CASE WHEN m.status = 'Ativo' THEN a.id END) as ativos
-            FROM Alunos a
-            JOIN Matriculas m ON a.id = m.aluno_id
-            JOIN turmas t ON m.turma_id = t.id
-            JOIN serie s ON t.serie_id = s.id
-            WHERE m.ano_letivo_id = %s 
-            AND a.escola_id = 60
-            AND m.status = 'Ativo'
-            GROUP BY t.id, s.nome, t.nome
-            ORDER BY s.nome, t.nome
-        """, (ano_letivo_id,))
-        
-        por_serie = []
-        for row in cursor.fetchall():
-            por_serie.append({
-                'serie': row[0],
-                'quantidade': row[1],
-                'ativos': row[2]
-            })
-        
-        # Montar resultado
-        dados = {
-            'total_matriculados': total_matriculados,
-            'total_ativos': total_ativos,
-            'total_transferidos': total_transferidos,
-            'por_serie': por_serie
-        }
-        
-        # Atualizar cache
-        _cache_estatisticas_dashboard['dados'] = dados
-        _cache_estatisticas_dashboard['timestamp'] = tempo_atual
-        
-        cursor.close()
-        conn.close()
-        
-        return dados
-        
+        with get_connection() as conn:
+            if conn is None:
+                return None
+            cursor = conn.cursor()
+            try:
+                # Obter ano letivo atual do cache
+                ano_letivo_id = obter_ano_letivo_atual()
+
+                escola_id = 60  # ID fixo da escola
+
+                # Query otimizada para obter todas as estatísticas de uma vez
+                cursor.execute("""
+                    SELECT 
+                        COUNT(DISTINCT CASE WHEN m.status = 'Ativo' THEN a.id END) as total_ativos,
+                        COUNT(DISTINCT CASE WHEN m.status IN ('Transferido', 'Transferida') THEN a.id END) as total_transferidos
+                    FROM Alunos a
+                    JOIN Matriculas m ON a.id = m.aluno_id
+                    JOIN turmas t ON m.turma_id = t.id
+                    WHERE m.ano_letivo_id = %s 
+                    AND a.escola_id = %s
+                    AND m.status IN ('Ativo', 'Transferido', 'Transferida')
+                """, (ano_letivo_id, escola_id))
+
+                resultado_geral = cursor.fetchone()
+                if resultado_geral:
+                    total_ativos = converter_para_int_seguro(resultado_geral[0])
+                    total_transferidos = converter_para_int_seguro(resultado_geral[1])
+                else:
+                    total_ativos = 0
+                    total_transferidos = 0
+                total_matriculados = total_ativos + total_transferidos
+
+                # Estatísticas por série E TURMA - conta ALUNOS ÚNICOS e ATIVOS
+                cursor.execute("""
+                    SELECT 
+                        CONCAT(s.nome, ' ', t.nome) as serie_turma,
+                        COUNT(DISTINCT a.id) as quantidade,
+                        COUNT(DISTINCT CASE WHEN m.status = 'Ativo' THEN a.id END) as ativos
+                    FROM Alunos a
+                    JOIN Matriculas m ON a.id = m.aluno_id
+                    JOIN turmas t ON m.turma_id = t.id
+                    JOIN serie s ON t.serie_id = s.id
+                    WHERE m.ano_letivo_id = %s 
+                    AND a.escola_id = %s
+                    AND m.status = 'Ativo'
+                    GROUP BY t.id, s.nome, t.nome
+                    ORDER BY s.nome, t.nome
+                """, (ano_letivo_id, escola_id))
+
+                por_serie = []
+                for row in cursor.fetchall():
+                    por_serie.append({
+                        'serie': row[0],
+                        'quantidade': row[1],
+                        'ativos': row[2]
+                    })
+
+                # Montar resultado
+                dados = {
+                    'total_matriculados': total_matriculados,
+                    'total_ativos': total_ativos,
+                    'total_transferidos': total_transferidos,
+                    'por_serie': por_serie
+                }
+
+                # Atualizar cache
+                _cache_estatisticas_dashboard['dados'] = dados
+                _cache_estatisticas_dashboard['timestamp'] = tempo_atual
+
+                return dados
+            finally:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
     except Exception as e:
         print(f"Erro ao obter estatísticas: {str(e)}")
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
         return None
 
 def atualizar_tabela_principal(forcar_atualizacao=False):
