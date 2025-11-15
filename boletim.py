@@ -704,14 +704,15 @@ def boletiminiciais(aluno_id, ano_letivo_id):
     salvar_e_abrir_pdf(buffer)
 
 def boletimfinais(aluno_id, ano_letivo_id):
-    conn = conectar_bd()
-    if conn is None:
-        logger.error("Erro ao conectar ao banco de dados.")
-        return
-    cursor = cast(Any, conn).cursor()
-
     # Consulta para obter informações do aluno específico
-    query_aluno = """
+    try:
+        with get_connection() as conn:
+            if conn is None:
+                logger.error("Erro ao conectar ao banco de dados.")
+                return
+            cursor = cast(Any, conn).cursor()
+
+            query_aluno = """
         SELECT
             escolas.nome AS nome_escola,
             alunos.nome AS nome_aluno,
@@ -746,11 +747,16 @@ def boletimfinais(aluno_id, ano_letivo_id):
         ORDER BY disciplinas.nome, notas.bimestre;
     """
 
-    params = (_to_int_param(aluno_id), _to_int_param(ano_letivo_id))
-    cursor.execute(query_aluno, params)
-    dados_aluno = cursor.fetchall()
-    cursor.close()
-    conn.close()
+            params = (_to_int_param(aluno_id), _to_int_param(ano_letivo_id))
+            cursor.execute(query_aluno, params)
+            dados_aluno = cursor.fetchall()
+            try:
+                cursor.close()
+            except Exception:
+                pass
+    except Exception:
+        logger.exception("Erro ao obter dados do aluno em boletimfinais")
+        return
 
     if not dados_aluno:
         logger.info("Aluno não encontrado ou sem notas registradas.")
@@ -776,31 +782,31 @@ def boletimfinais(aluno_id, ano_letivo_id):
     ordem_disciplinas = sorted(list(disciplinas_cursadas))
     
     # Obter os IDs das disciplinas para posterior consulta de recuperação e avaliação final
-    conn = conectar_bd()
-    disciplina_id_map = {}
-    if conn is None:
-        disciplina_id_map = {}
-    else:
-        cursor = cast(Any, conn).cursor()
-        try:
-            # Buscar IDs das disciplinas que o aluno cursou
-            placeholders = ', '.join(['%s'] * len(ordem_disciplinas))
-            cursor.execute(f"""
-                SELECT id, nome FROM disciplinas 
-                WHERE nome IN ({placeholders})
-            """, _tuple_of_str(ordem_disciplinas))
+    try:
+        with get_connection() as conn:
+            disciplina_id_map = {}
+            if conn is None:
+                disciplina_id_map = {}
+            else:
+                cursor = cast(Any, conn).cursor()
+                try:
+                    # Buscar IDs das disciplinas que o aluno cursou
+                    placeholders = ', '.join(['%s'] * len(ordem_disciplinas))
+                    cursor.execute(f"""
+                        SELECT id, nome FROM disciplinas 
+                        WHERE nome IN ({placeholders})
+                    """, _tuple_of_str(ordem_disciplinas))
 
-            for disc_id, disc_nome in cursor.fetchall():
-                disciplina_id_map[disc_nome] = disc_id
-        finally:
-            try:
-                cursor.close()
-            except Exception:
-                pass
-            try:
-                conn.close()
-            except Exception:
-                pass
+                    for disc_id, disc_nome in cursor.fetchall():
+                        disciplina_id_map[disc_nome] = disc_id
+                finally:
+                    try:
+                        cursor.close()
+                    except Exception:
+                        pass
+    except Exception:
+        logger.exception("Erro ao obter disciplina_id_map em boletimfinais")
+        disciplina_id_map = {}
     
     if not ordem_disciplinas:
         logger.info("Não foi possível encontrar disciplinas cursadas pelo aluno")
@@ -1021,103 +1027,104 @@ def boletimfinais(aluno_id, ano_letivo_id):
     finalizado = False
     
     # Obter todas as recuperações e avaliações finais de uma vez
-    conn = conectar_bd()
-    if conn is None:
+    try:
+        with get_connection() as conn:
+            if conn is None:
+                recuperacoes = {}
+                avaliacoes = {}
+            else:
+                cursor = cast(Any, conn).cursor()
+                try:
+                    # Buscar todas as recuperações
+                    cursor.execute("""
+                        SELECT disciplina_id, nota 
+                        FROM recuperacao 
+                        WHERE aluno_id = %s AND ano_letivo_id = %s
+                    """, (_to_int_param(aluno_id), _to_int_param(ano_letivo_id)))
+                    resultados_rec = cursor.fetchall()
+                    recuperacoes = {r[0]: r[1] for r in resultados_rec}
+
+                    # Buscar todas as avaliações finais
+                    cursor.execute("""
+                        SELECT disciplina_id, nota 
+                        FROM avaliacao_final 
+                        WHERE aluno_id = %s AND ano_letivo_id = %s
+                    """, (_to_int_param(aluno_id), _to_int_param(ano_letivo_id)))
+                    resultados_av = cursor.fetchall()
+                    avaliacoes = {r[0]: r[1] for r in resultados_av}
+
+                    # Preencher a tabela data_nota com as disciplinas e suas respectivas notas
+                    for disciplina in ordem_disciplinas:
+                        # Calcular média aritmética das notas
+                        notas = []
+                        for nota in notas_disciplinas[disciplina]:
+                            if nota != "--":
+                                notas.append(_safe_float(nota))
+
+                        if not notas:
+                            continue  # Pular disciplinas sem notas registradas
+
+                        # Calcular média anual com as notas disponíveis
+                        media_anual_sem_arredondamento = sum(notas) / len(notas)
+                        media_anual_arredondada = arredondar_personalizado(media_anual_sem_arredondamento)
+
+                        # Verificar se temos o ID desta disciplina
+                        disciplina_id = disciplina_id_map.get(disciplina)
+
+                        if disciplina_id:
+                            # Verificar se há recuperação para esta disciplina
+                            nota_recuperacao = "--"
+                            media_final_arredondada = media_anual_arredondada
+
+                            if disciplina_id in recuperacoes:
+                                rec_val = _safe_float(recuperacoes[disciplina_id], 0.0)
+                                nota_recuperacao = f"{rec_val/10:.1f}"
+                                media_final_sem_arredondamento = (media_anual_sem_arredondamento + rec_val) / 2
+                                media_final_arredondada = arredondar_personalizado(media_final_sem_arredondamento)
+
+                            # Adicionar a linha à tabela data_nota com as notas reais
+                            data_nota.append([
+                                _cell(quebra_linha(disciplina)),
+                                _cell(notas_disciplinas[disciplina][0]),
+                                _cell(str(faltas_bimestrais[disciplina][0]) if faltas_bimestrais[disciplina][0] > 0 else "--"),
+                                _cell(notas_disciplinas[disciplina][1]),
+                                _cell(str(faltas_bimestrais[disciplina][1]) if faltas_bimestrais[disciplina][1] > 0 else "--"),
+                                _cell(notas_disciplinas[disciplina][2]),
+                                _cell(str(faltas_bimestrais[disciplina][2]) if faltas_bimestrais[disciplina][2] > 0 else "--"),
+                                _cell(notas_disciplinas[disciplina][3]),
+                                _cell(str(faltas_bimestrais[disciplina][3]) if faltas_bimestrais[disciplina][3] > 0 else "--"),
+                                _cell(f"{media_anual_arredondada:.1f}"),
+                                _cell(nota_recuperacao),
+                                _cell(f"{media_final_arredondada:.1f}" if len(notas) == 4 else "--"),
+                                _cell(str(sum(faltas_bimestrais[disciplina]))),
+                                _cell("AP" if len(notas) == 4 and media_final_arredondada >= 6 else ("RP" if len(notas) == 4 else "--"))
+                            ])
+                        else:
+                            data_nota.append([
+                                _cell(quebra_linha(disciplina)),
+                                _cell(notas_disciplinas[disciplina][0]),
+                                _cell(str(faltas_bimestrais[disciplina][0]) if faltas_bimestrais[disciplina][0] > 0 else "--"),
+                                _cell(notas_disciplinas[disciplina][1]),
+                                _cell(str(faltas_bimestrais[disciplina][1]) if faltas_bimestrais[disciplina][1] > 0 else "--"),
+                                _cell(notas_disciplinas[disciplina][2]),
+                                _cell(str(faltas_bimestrais[disciplina][2]) if faltas_bimestrais[disciplina][2] > 0 else "--"),
+                                _cell(notas_disciplinas[disciplina][3]),
+                                _cell(str(faltas_bimestrais[disciplina][3]) if faltas_bimestrais[disciplina][3] > 0 else "--"),
+                                _cell(f"{media_anual_arredondada:.1f}"),
+                                _cell("--"),
+                                _cell(f"{media_anual_arredondada:.1f}" if len(notas) == 4 else "--"),
+                                _cell(str(sum(faltas_bimestrais[disciplina]))),
+                                _cell("AP" if len(notas) == 4 and media_anual_arredondada >= 6 else ("RP" if len(notas) == 4 else "--"))
+                            ])
+                finally:
+                    try:
+                        cursor.close()
+                    except Exception:
+                        pass
+    except Exception:
+        logger.exception("Erro ao obter recuperações/avaliacoes em boletimfinais")
         recuperacoes = {}
         avaliacoes = {}
-    else:
-        cursor = cast(Any, conn).cursor()
-        try:
-            # Buscar todas as recuperações
-            cursor.execute("""
-                SELECT disciplina_id, nota 
-                FROM recuperacao 
-                WHERE aluno_id = %s AND ano_letivo_id = %s
-            """, (_to_int_param(aluno_id), _to_int_param(ano_letivo_id)))
-            resultados_rec = cursor.fetchall()
-            recuperacoes = {r[0]: r[1] for r in resultados_rec}
-
-            # Buscar todas as avaliações finais
-            cursor.execute("""
-                SELECT disciplina_id, nota 
-                FROM avaliacao_final 
-                WHERE aluno_id = %s AND ano_letivo_id = %s
-            """, (_to_int_param(aluno_id), _to_int_param(ano_letivo_id)))
-            resultados_av = cursor.fetchall()
-            avaliacoes = {r[0]: r[1] for r in resultados_av}
-
-            # Preencher a tabela data_nota com as disciplinas e suas respectivas notas
-            for disciplina in ordem_disciplinas:
-                # Calcular média aritmética das notas
-                notas = []
-                for nota in notas_disciplinas[disciplina]:
-                    if nota != "--":
-                        notas.append(_safe_float(nota))
-
-                if not notas:
-                    continue  # Pular disciplinas sem notas registradas
-
-                # Calcular média anual com as notas disponíveis
-                media_anual_sem_arredondamento = sum(notas) / len(notas)
-                media_anual_arredondada = arredondar_personalizado(media_anual_sem_arredondamento)
-
-                # Verificar se temos o ID desta disciplina
-                disciplina_id = disciplina_id_map.get(disciplina)
-
-                if disciplina_id:
-                    # Verificar se há recuperação para esta disciplina
-                    nota_recuperacao = "--"
-                    media_final_arredondada = media_anual_arredondada
-
-                    if disciplina_id in recuperacoes:
-                        rec_val = _safe_float(recuperacoes[disciplina_id], 0.0)
-                        nota_recuperacao = f"{rec_val/10:.1f}"
-                        media_final_sem_arredondamento = (media_anual_sem_arredondamento + rec_val) / 2
-                        media_final_arredondada = arredondar_personalizado(media_final_sem_arredondamento)
-
-                    # Adicionar a linha à tabela data_nota com as notas reais
-                    data_nota.append([
-                        _cell(quebra_linha(disciplina)),
-                        _cell(notas_disciplinas[disciplina][0]),
-                        _cell(str(faltas_bimestrais[disciplina][0]) if faltas_bimestrais[disciplina][0] > 0 else "--"),
-                        _cell(notas_disciplinas[disciplina][1]),
-                        _cell(str(faltas_bimestrais[disciplina][1]) if faltas_bimestrais[disciplina][1] > 0 else "--"),
-                        _cell(notas_disciplinas[disciplina][2]),
-                        _cell(str(faltas_bimestrais[disciplina][2]) if faltas_bimestrais[disciplina][2] > 0 else "--"),
-                        _cell(notas_disciplinas[disciplina][3]),
-                        _cell(str(faltas_bimestrais[disciplina][3]) if faltas_bimestrais[disciplina][3] > 0 else "--"),
-                        _cell(f"{media_anual_arredondada:.1f}"),
-                        _cell(nota_recuperacao),
-                        _cell(f"{media_final_arredondada:.1f}" if len(notas) == 4 else "--"),
-                        _cell(str(sum(faltas_bimestrais[disciplina]))),
-                        _cell("AP" if len(notas) == 4 and media_final_arredondada >= 6 else ("RP" if len(notas) == 4 else "--"))
-                    ])
-                else:
-                    data_nota.append([
-                        _cell(quebra_linha(disciplina)),
-                        _cell(notas_disciplinas[disciplina][0]),
-                        _cell(str(faltas_bimestrais[disciplina][0]) if faltas_bimestrais[disciplina][0] > 0 else "--"),
-                        _cell(notas_disciplinas[disciplina][1]),
-                        _cell(str(faltas_bimestrais[disciplina][1]) if faltas_bimestrais[disciplina][1] > 0 else "--"),
-                        _cell(notas_disciplinas[disciplina][2]),
-                        _cell(str(faltas_bimestrais[disciplina][2]) if faltas_bimestrais[disciplina][2] > 0 else "--"),
-                        _cell(notas_disciplinas[disciplina][3]),
-                        _cell(str(faltas_bimestrais[disciplina][3]) if faltas_bimestrais[disciplina][3] > 0 else "--"),
-                        _cell(f"{media_anual_arredondada:.1f}"),
-                        _cell("--"),
-                        _cell(f"{media_anual_arredondada:.1f}" if len(notas) == 4 else "--"),
-                        _cell(str(sum(faltas_bimestrais[disciplina]))),
-                        _cell("AP" if len(notas) == 4 and media_anual_arredondada >= 6 else ("RP" if len(notas) == 4 else "--"))
-                    ])
-        finally:
-            try:
-                cursor.close()
-            except Exception:
-                pass
-            try:
-                conn.close()
-            except Exception:
-                pass
 
     # Criando a tabela de notas com ReportLab
     tabela_notas = Table(data_nota, colWidths=[1.6 * inch] + [0.70 * inch] * 12 + [1.1 * inch])
