@@ -1303,65 +1303,62 @@ def verificar_historico_matriculas(aluno_id):
         bool: True se o aluno possui histórico de matrícula, False caso contrário
         list: Lista de tuplas (ano_letivo, ano_letivo_id) com matrícula (vazio se não houver)
     """
-    conn = None
-    cursor = None
     try:
-        conn = conectar_bd()
-        if conn is None:
-            return False, []
-        cursor = cast(Any, conn).cursor()
-        
-        # Verifica se o aluno possui matrícula em qualquer ano letivo
-        cursor.execute("""
-            SELECT DISTINCT al.ano_letivo, al.id, m.status
-            FROM matriculas m
-            JOIN turmas t ON m.turma_id = t.id
-            JOIN anosletivos al ON m.ano_letivo_id = al.id
-            WHERE m.aluno_id = %s 
-            AND m.status IN ('Ativo', 'Transferido')
-            ORDER BY al.ano_letivo DESC
-        """, (aluno_id,))
-        
-        resultados = cursor.fetchall()
-        
-        # Se não houver resultados, verificar diretamente se há o ano letivo 2024 (ID=1)
-        if not resultados:
-            cursor.execute("SELECT ano_letivo, id FROM anosletivos WHERE id = 1")
-            ano_2024 = cursor.fetchone()
-            if ano_2024:
-                # Verificar se o aluno tem qualquer matrícula para este ano
+        with get_connection() as conn:
+            if conn is None:
+                return False, []
+            cursor = cast(Any, conn).cursor()
+            try:
+                # Verifica se o aluno possui matrícula em qualquer ano letivo
                 cursor.execute("""
-                    SELECT COUNT(*) FROM matriculas 
-                    WHERE aluno_id = %s AND ano_letivo_id = 1
-                """, (int(str(aluno_id)),))
-                resultado_count = cursor.fetchone()
-                tem_matricula = bool(resultado_count and resultado_count[0] and int(str(resultado_count[0])) > 0)
-                
-                if tem_matricula:
-                    resultados = [(ano_2024[0], ano_2024[1], 'Ativo')]
-        
-        # Se encontrou resultados, retorna True e a lista de anos letivos
-        if resultados:
-            anos_letivos = [(ano, id_ano) for ano, id_ano, _ in resultados]
-            return True, anos_letivos
-        else:
-            # Se ainda não encontrou, busca todos os anos letivos disponíveis
-            cursor.execute("SELECT ano_letivo, id FROM anosletivos ORDER BY ano_letivo DESC")
-            todos_anos = cursor.fetchall()
-            
-            if todos_anos:
-                return True, todos_anos
-            return False, []
-        
+                    SELECT DISTINCT al.ano_letivo, al.id, m.status
+                    FROM matriculas m
+                    JOIN turmas t ON m.turma_id = t.id
+                    JOIN anosletivos al ON m.ano_letivo_id = al.id
+                    WHERE m.aluno_id = %s 
+                    AND m.status IN ('Ativo', 'Transferido')
+                    ORDER BY al.ano_letivo DESC
+                """, (aluno_id,))
+
+                resultados = cursor.fetchall()
+
+                # Se não houver resultados, verificar diretamente se há o ano letivo 2024 (ID=1)
+                if not resultados:
+                    cursor.execute("SELECT ano_letivo, id FROM anosletivos WHERE id = 1")
+                    ano_2024 = cursor.fetchone()
+                    if ano_2024:
+                        # Verificar se o aluno tem qualquer matrícula para este ano
+                        cursor.execute("""
+                            SELECT COUNT(*) FROM matriculas 
+                            WHERE aluno_id = %s AND ano_letivo_id = 1
+                        """, (int(str(aluno_id)),))
+                        resultado_count = cursor.fetchone()
+                        tem_matricula = bool(resultado_count and resultado_count[0] and int(str(resultado_count[0])) > 0)
+
+                        if tem_matricula:
+                            resultados = [(ano_2024[0], ano_2024[1], 'Ativo')]
+
+                # Se encontrou resultados, retorna True e a lista de anos letivos
+                if resultados:
+                    anos_letivos = [(ano, id_ano) for ano, id_ano, _ in resultados]
+                    return True, anos_letivos
+                else:
+                    # Se ainda não encontrou, busca todos os anos letivos disponíveis
+                    cursor.execute("SELECT ano_letivo, id FROM anosletivos ORDER BY ano_letivo DESC")
+                    todos_anos = cursor.fetchall()
+
+                    if todos_anos:
+                        return True, todos_anos
+                    return False, []
+            finally:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao verificar histórico de matrículas: {str(e)}")
         print(f"Erro ao verificar histórico de matrículas: {str(e)}")
         return False, []
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
 
 def matricular_aluno(aluno_id):
     """
@@ -1763,49 +1760,54 @@ def excluir_funcionario_com_confirmacao(funcionario_id):
     
     if resposta:
         try:
-            # Conecta ao banco de dados
-            conexao = conectar_bd()
-            if conexao is None:
-                messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                return False
-            cursor = conexao.cursor()
-            
-            # Verifica se o funcionário existe
-            cursor.execute("SELECT nome FROM funcionarios WHERE id = %s", (funcionario_id,))
-            funcionario = cursor.fetchone()
-            
-            if not funcionario:
-                messagebox.showerror("Erro", "Funcionário não encontrado.")
-                return False
-            
-            # Exclui associações com funcionario_disciplinas
-            cursor.execute("DELETE FROM funcionario_disciplinas WHERE funcionario_id = %s", (funcionario_id,))
-            
-            # Exclui o funcionário
-            cursor.execute("DELETE FROM funcionarios WHERE id = %s", (funcionario_id,))
-            conexao.commit()
-            
-            messagebox.showinfo("Sucesso", "Funcionário excluído com sucesso.")
-            
-            # Atualizar a tabela principal
-            atualizar_tabela_principal()
-            
-            # Volta para a tela principal
-            voltar()
-            
-            return True
-            
+            with get_connection() as conexao:
+                if conexao is None:
+                    messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+                    return False
+                cursor = conexao.cursor()
+                try:
+                    # Verifica se o funcionário existe
+                    cursor.execute("SELECT nome FROM funcionarios WHERE id = %s", (funcionario_id,))
+                    funcionario = cursor.fetchone()
+
+                    if not funcionario:
+                        messagebox.showerror("Erro", "Funcionário não encontrado.")
+                        return False
+
+                    # Exclui associações com funcionario_disciplinas
+                    cursor.execute("DELETE FROM funcionario_disciplinas WHERE funcionario_id = %s", (funcionario_id,))
+
+                    # Exclui o funcionário
+                    cursor.execute("DELETE FROM funcionarios WHERE id = %s", (funcionario_id,))
+                    conexao.commit()
+
+                    messagebox.showinfo("Sucesso", "Funcionário excluído com sucesso.")
+
+                    # Atualizar a tabela principal
+                    atualizar_tabela_principal()
+
+                    # Volta para a tela principal
+                    voltar()
+
+                    return True
+                except Exception as e:
+                    # Tenta rollback se suportado
+                    try:
+                        conexao.rollback()
+                    except Exception:
+                        pass
+                    messagebox.showerror("Erro", f"Erro ao excluir funcionário: {str(e)}")
+                    print(f"Erro ao excluir funcionário: {str(e)}")
+                    return False
+                finally:
+                    try:
+                        cursor.close()
+                    except Exception:
+                        pass
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao excluir funcionário: {str(e)}")
             print(f"Erro ao excluir funcionário: {str(e)}")
-            if 'conexao' in locals() and conexao:
-                conexao.rollback()
             return False
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
-            if 'conexao' in locals() and conexao:
-                conexao.close()
 
 def editar_aluno_e_destruir_frames():
     # Obter o ID do aluno selecionado na tabela
