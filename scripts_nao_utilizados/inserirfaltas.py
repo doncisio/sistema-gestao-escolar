@@ -21,7 +21,7 @@ def main():
     conn = conectar_bd()
     cursor = conn.cursor()
 
-    for index, row in df.iterrows():
+    for _, row in df.iterrows():
         nome_aluno = row['nome do aluno']
         faltas = {
             '1º bimestre': row['1º bimestre'],

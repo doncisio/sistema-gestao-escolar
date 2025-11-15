@@ -58,7 +58,7 @@ def lista_atualizada():
     df = pd.DataFrame(dados_aluno)
 
     # Adicionando a coluna 'OBSERVACAO' com valor padrão vazio
-    df['OBSERVACAO'] = ''
+    df.loc[:, 'OBSERVACAO'] = ''
 
     # Informações do cabeçalho
     cabecalho = [

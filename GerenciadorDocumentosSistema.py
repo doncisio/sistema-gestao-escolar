@@ -1,10 +1,10 @@
-from tkinter import ttk, filedialog, messagebox, Frame, Label
-from tkinter import *
+from tkinter import ttk, filedialog, messagebox, Frame, Label, LabelFrame, Button, StringVar, BOTH, X, LEFT, RIGHT, VERTICAL, HORIZONTAL, NSEW, NS, EW, BOTTOM, RAISED, RIDGE, END, Y
 import tkinter as tk
 import os
 import mysql.connector
 from mysql.connector import Error
 from datetime import datetime
+from typing import Any, cast
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -288,13 +288,25 @@ class GerenciadorDocumentosSistema:
             # Preencher a tabela
             for doc in documentos:
                 id_doc, tipo, nome, data, finalidade, descricao, nome_aluno, nome_funcionario = doc
-                # Formatar a data
-                if data:
-                    data = data.strftime('%d/%m/%Y %H:%M')
+                # Formatar a data com proteções de tipo (datetime / timestamp / outros)
+                if data is None:
+                    data_str = ''
+                elif isinstance(data, datetime):
+                    data_str = data.strftime('%d/%m/%Y %H:%M')
+                elif isinstance(data, (int, float)):
+                    try:
+                        data_str = datetime.fromtimestamp(float(data)).strftime('%d/%m/%Y %H:%M')
+                    except Exception:
+                        data_str = str(data)
+                else:
+                    try:
+                        data_str = str(data)
+                    except Exception:
+                        data_str = ''
                 # Definir pessoa relacionada
                 pessoa = nome_aluno if nome_aluno else nome_funcionario
                 self.tree.insert('', 'end', values=(
-                    id_doc, tipo, nome, data, 
+                    id_doc, tipo, nome, data_str,
                     finalidade if finalidade else '',
                     descricao if descricao else '',
                     pessoa if pessoa else ''
@@ -322,7 +334,7 @@ class GerenciadorDocumentosSistema:
             resultado = self.cursor.fetchone()
             
             if resultado and resultado[0]:
-                webbrowser.open(resultado[0])
+                webbrowser.open(str(resultado[0]))
             else:
                 messagebox.showwarning(
                     "Aviso", 
@@ -359,27 +371,46 @@ class GerenciadorDocumentosSistema:
             resultado = self.cursor.fetchone()
             
             if resultado and resultado[0]:
-                # Extrair ID do arquivo do Drive do link
+                # Extrair ID do arquivo do Drive do link com proteção de tipo
                 link = resultado[0]
+                link_str = ''
                 try:
-                    if '/d/' in link:
-                        drive_id = link.split('/d/')[1].split('/')[0]
-                    elif 'id=' in link:
-                        drive_id = link.split('id=')[1].split('&')[0]
-                    else:
-                        drive_id = link.split('/')[-2]
-                    
-                    # Tentar excluir do Drive
-                    self.service.files().delete(fileId=drive_id).execute()
-                except Exception as e:
-                    print(f"Erro ao excluir do Drive: {e}")
+                    link_str = str(link)
+                except Exception:
+                    link_str = ''
+
+                drive_id = None
+                if '/d/' in link_str:
+                    parts = link_str.split('/d/')
+                    if len(parts) > 1:
+                        drive_id = parts[1].split('/')[0]
+                elif 'id=' in link_str:
+                    parts = link_str.split('id=')
+                    if len(parts) > 1:
+                        drive_id = parts[1].split('&')[0]
+                elif link_str:
+                    # Fallback: pegar último segmento plausível
+                    parts = link_str.strip('/').split('/')
+                    if parts:
+                        drive_id = parts[-1]
+
+                # Tentar excluir do Drive (se possível)
+                if drive_id:
+                    try:
+                        if not self.service:
+                            print(f"Erro: serviço do Drive não configurado; não foi possível excluir {drive_id}")
+                        else:
+                            self.service.files().delete(fileId=drive_id).execute()
+                    except Exception as e:
+                        print(f"Erro ao excluir do Drive: {e}")
             
             # Excluir do banco de dados
             self.cursor.execute(
                 "DELETE FROM documentos_emitidos WHERE id = %s",
                 (doc_id,)
             )
-            self.conn.commit()
+            if getattr(self, 'conn', None):
+                cast(Any, self.conn).commit()
             
             # Atualizar a tabela
             self.carregar_documentos()
@@ -390,7 +421,8 @@ class GerenciadorDocumentosSistema:
             )
             
         except Exception as e:
-            self.conn.rollback()
+            if getattr(self, 'conn', None):
+                cast(Any, self.conn).rollback()
             messagebox.showerror("Erro", f"Erro ao excluir documento: {e}")
     
     def identificar_duplicados(self):
@@ -467,7 +499,12 @@ class GerenciadorDocumentosSistema:
             for idx, dup in enumerate(duplicados, 1):
                 tipo, aluno_id, func_id, finalidade, total, ids_str, datas_str = dup
                 
-                ids = [int(x) for x in ids_str.split(',')]
+                # Garantir que ids_str seja string antes de split
+                ids = []
+                try:
+                    ids = [int(x) for x in str(ids_str).split(',') if x.strip()]
+                except Exception:
+                    ids = []
                 # Manter o primeiro ID (mais recente) e remover os outros
                 ids_para_remover = ids[1:]
                 
@@ -491,18 +528,33 @@ class GerenciadorDocumentosSistema:
                         if resultado and resultado[0]:
                             link = resultado[0]
                             nome = resultado[1]
-                            
-                            # Extrair file_id e excluir do Drive
+                            # Extrair file_id com proteção de tipo
                             try:
-                                if '/d/' in link:
-                                    drive_id = link.split('/d/')[1].split('/')[0]
-                                elif 'id=' in link:
-                                    drive_id = link.split('id=')[1].split('&')[0]
-                                else:
-                                    drive_id = link.split('/')[-2]
-                                
-                                self.service.files().delete(fileId=drive_id).execute()
-                                text_widget.insert(tk.END, f"    ✓ Removido do Drive: {nome}\n", "detalhe")
+                                link_str = str(link)
+                            except Exception:
+                                link_str = ''
+
+                            drive_id = None
+                            if '/d/' in link_str:
+                                parts = link_str.split('/d/')
+                                if len(parts) > 1:
+                                    drive_id = parts[1].split('/')[0]
+                            elif 'id=' in link_str:
+                                parts = link_str.split('id=')
+                                if len(parts) > 1:
+                                    drive_id = parts[1].split('&')[0]
+                            elif link_str:
+                                parts = link_str.strip('/').split('/')
+                                if parts:
+                                    drive_id = parts[-1]
+
+                            try:
+                                if drive_id:
+                                    if not self.service:
+                                        text_widget.insert(tk.END, f"    ⚠ Serviço Drive não configurado; não foi possível remover: {nome}\n", "erro")
+                                    else:
+                                        self.service.files().delete(fileId=drive_id).execute()
+                                        text_widget.insert(tk.END, f"    ✓ Removido do Drive: {nome}\n", "detalhe")
                             except Exception as e:
                                 text_widget.insert(tk.END, f"    ⚠ Erro ao remover do Drive: {str(e)[:50]}\n", "erro")
                         
@@ -513,7 +565,9 @@ class GerenciadorDocumentosSistema:
                     except Exception as e:
                         text_widget.insert(tk.END, f"    ✗ Erro ao processar ID {doc_id}: {str(e)[:50]}\n", "erro")
                 
-                self.conn.commit()
+                # Commit protegido (garantir que conn exista)
+                if getattr(self, 'conn', None):
+                    cast(Any, self.conn).commit()
                 text_widget.see(tk.END)
                 progresso_window.update()
             
@@ -539,7 +593,8 @@ class GerenciadorDocumentosSistema:
             self.carregar_documentos()
             
         except Exception as e:
-            self.conn.rollback()
+            if getattr(self, 'conn', None):
+                cast(Any, self.conn).rollback()
             text_widget.insert(tk.END, f"\n✗ ERRO GERAL: {str(e)}\n", "erro")
             text_widget.see(tk.END)
     
@@ -592,12 +647,23 @@ class GerenciadorDocumentosSistema:
         total_docs_duplicados = 0
         for dup in duplicados:
             tipo, aluno_id, func_id, finalidade, total, ids_str, datas_str = dup
-            
+
             pessoa = f"Aluno: {aluno_id}" if aluno_id else f"Func: {func_id}" if func_id else "N/A"
             final = finalidade if finalidade else "N/A"
-            
+
             tree.insert('', 'end', values=(tipo, pessoa, final, total, ids_str))
-            total_docs_duplicados += (total - 1)  # -1 porque vamos manter um
+            if isinstance(total, int):
+                t = total
+            elif isinstance(total, float):
+                t = int(total)
+            elif isinstance(total, str) and total.isdigit():
+                t = int(total)
+            else:
+                try:
+                    t = int(str(total))
+                except Exception:
+                    t = 0
+            total_docs_duplicados += max(0, t - 1)
         
         # Frame de informações
         info_frame = Frame(relatorio_window, bg=self.co1)

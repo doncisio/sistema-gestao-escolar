@@ -4,6 +4,7 @@ Faz login, navega pelas páginas e extrai todas as notas automaticamente
 """
 
 from selenium import webdriver
+from typing import Optional
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -41,7 +42,8 @@ class AutomacaoGEDUC:
         Inicializa o navegador
         headless: Se True, executa sem abrir janela do navegador
         """
-        self.driver = None
+        # Tipo opcional: pode ser None até o navegador ser iniciado
+        self.driver: Optional[webdriver.Chrome] = None
         self.headless = headless
         self.url_base = "https://semed.geduc.com.br"
         self.dados_extraidos = []
@@ -137,6 +139,7 @@ class AutomacaoGEDUC:
                 raise Exception("Nenhum método de inicialização funcionou")
             
             # Sucesso!
+            assert self.driver is not None, "navegador não iniciado"
             self.driver.set_page_load_timeout(30)
             print(f"✓ Navegador iniciado com sucesso usando: {metodo_usado}")
             return True
@@ -173,6 +176,11 @@ class AutomacaoGEDUC:
         
         timeout_recaptcha: Tempo máximo (segundos) para aguardar resolução do reCAPTCHA
         """
+        # Garantir que o navegador foi iniciado antes de usar o driver
+        if self.driver is None:
+            print("✗ Erro: navegador não iniciado. Chame iniciar_navegador() antes de fazer login.")
+            return False
+
         try:
             print("→ Acessando página de login...")
             self.driver.get(f"{self.url_base}/index.php?class=LoginForm")
@@ -244,6 +252,7 @@ class AutomacaoGEDUC:
         Navega até a página de registro de notas
         """
         try:
+            assert self.driver is not None, "navegador não iniciado"
             print("→ Navegando para registro de notas...")
             
             # URL da página de registro de notas
@@ -265,6 +274,7 @@ class AutomacaoGEDUC:
         Navega até a página de recuperação bimestral
         """
         try:
+            assert self.driver is not None, "navegador não iniciado"
             print("→ Navegando para recuperação bimestral...")
             
             # URL da página de recuperação bimestral
@@ -287,6 +297,7 @@ class AutomacaoGEDUC:
         Retorna lista de dicionários com {'value': valor, 'text': texto}
         """
         try:
+            assert self.driver is not None, "navegador não iniciado"
             select_element = Select(self.driver.find_element(By.NAME, select_name))
             opcoes = []
             
@@ -312,6 +323,7 @@ class AutomacaoGEDUC:
         Seleciona uma opção em um elemento select pelo valor
         """
         try:
+            assert self.driver is not None, "navegador não iniciado"
             select_element = Select(self.driver.find_element(By.NAME, select_name))
             select_element.select_by_value(str(valor))
             time.sleep(0.5)  # Aguardar processamento
@@ -326,6 +338,7 @@ class AutomacaoGEDUC:
         numero_bimestre: 1, 2, 3 ou 4
         """
         try:
+            assert self.driver is not None, "navegador não iniciado"
             # Buscar todos os radio buttons de avaliação
             radios = self.driver.find_elements(By.NAME, "IDAVALIACOES")
             
@@ -357,6 +370,7 @@ class AutomacaoGEDUC:
         Clica no botão para exibir os alunos
         """
         try:
+            assert self.driver is not None, "navegador não iniciado"
             # Buscar botão de exibir alunos
             botoes = self.driver.find_elements(By.TAG_NAME, "button")
             
@@ -393,6 +407,7 @@ class AutomacaoGEDUC:
         bimestre_numero: Número do bimestre (se None, tenta extrair do HTML)
         """
         try:
+            assert self.driver is not None, "navegador não iniciado"
             # Obter HTML da página
             html_content = self.driver.page_source
             soup = BeautifulSoup(html_content, 'html.parser')
@@ -510,6 +525,7 @@ class AutomacaoGEDUC:
             Lista de dicts: [{'nome': 'ALUNO', 'recuperacao': 7.0}, ...]
         """
         try:
+            assert self.driver is not None, "navegador não iniciado"
             # Aguardar tabela carregar
             wait = WebDriverWait(self.driver, 10)
             tabela = wait.until(
@@ -603,6 +619,7 @@ class AutomacaoGEDUC:
         callback_progresso: Função para atualizar progresso (opcional)
         """
         try:
+            assert self.driver is not None, "navegador não iniciado"
             print("\n" + "="*60)
             print("INICIANDO EXTRAÇÃO AUTOMÁTICA DE NOTAS")
             print("="*60 + "\n")
@@ -766,10 +783,12 @@ class AutomacaoGEDUC:
                 if idx == 0:
                     # Renomear a planilha ativa padrão
                     ws = wb.active
+                    assert ws is not None, "Planilha padrão não encontrada"
                     ws.title = nome_disciplina
                 else:
                     # Criar nova planilha
                     ws = wb.create_sheet(title=nome_disciplina)
+                    assert ws is not None, "Falha ao criar nova planilha"
                 
                 # Preencher planilha com dados da disciplina
                 self._preencher_planilha(ws, dados_disciplina)

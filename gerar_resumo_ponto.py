@@ -8,6 +8,7 @@ import calendar
 import sys
 import re
 import unicodedata
+from typing import List
 
 
 def nome_mes_pt(mes_num):
@@ -312,9 +313,10 @@ def desenhar_tabela_profissionais(can, profissionais, largura, altura, offset_y_
         widths = [available_width / len(titulos)] * len(titulos)
 
     # Constrói as posições X cumulativas (todas as colunas dinâmicas)
-    xs = [margem_esq]
+    # Garantir que `xs` seja uma lista de floats para evitar misturar int/float
+    xs: List[float] = [float(margem_esq)]
     for w in widths:
-        xs.append(xs[-1] + w)
+        xs.append(xs[-1] + float(w))
 
     # Colunas como pares (titulo, x_left) para compatibilidade com o restante do desenho
     colunas = [(titulos[i], xs[i]) for i in range(len(titulos))]
@@ -481,6 +483,9 @@ def gerar_resumo_ponto(mes: int, ano: int):
     base4 = _encontrar_arquivo_base("Resumo de Frequencia4.pdf", "Resumo de Frequência4.pdf")
 
     conn = conectar_bd()
+    if conn is None:
+        print("Erro: não foi possível conectar ao banco de dados.")
+        return
     try:
         profissionais = consultar_profissionais(conn, mes, ano)
         escola = consultar_escola(conn, 60)

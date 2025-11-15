@@ -1,7 +1,6 @@
 from datetime import datetime
-from tkinter import messagebox, ttk
-from tkinter.ttk import *
-from tkinter import *
+from tkinter import messagebox, Label, Entry, Button, END, NW
+import tkinter.ttk as ttk
 import mysql.connector
 from mysql.connector import Error
 from Seguranca import atualizar_treeview
@@ -145,7 +144,7 @@ def carregar_funcionario_para_edicao(id_funcionario):
         if funcionario:
             # Preencher os campos com os dados do funcionário
             e_nomef.delete(0, END)
-            e_nomef.insert(END, funcionario[0])
+            e_nomef.insert(END, str(funcionario[0]) if funcionario[0] is not None else "")
 
             c_cargof.set(funcionario[1])
 
@@ -154,10 +153,10 @@ def carregar_funcionario_para_edicao(id_funcionario):
             data_nascimentof.set_date(funcionario[3])  # Preenchendo campo DateEntry com a data
             
             e_cpff.delete(0, END)
-            e_cpff.insert(END, funcionario[4])
+            e_cpff.insert(END, str(funcionario[4]) if funcionario[4] is not None else "")
 
             c_telefonef.delete(0, END)
-            c_telefonef.insert(END, funcionario[5])
+            c_telefonef.insert(END, str(funcionario[5]) if funcionario[5] is not None else "")
 
         else:
             messagebox.showerror("Erro", "Funcionário não encontrado.")

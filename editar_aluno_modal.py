@@ -1,5 +1,6 @@
 from datetime import datetime
-from tkinter import *
+from tkinter import Toplevel, Frame, Label, Entry, Button, StringVar
+from tkinter import LEFT, RIGHT, BOTH, X, Y, VERTICAL, W
 from tkinter import messagebox, ttk
 from PIL import ImageTk, Image
 import mysql.connector
@@ -7,6 +8,7 @@ from mysql.connector import Error
 from conexao import conectar_bd
 from tkcalendar import DateEntry
 from Seguranca import atualizar_treeview
+from typing import Any, Optional, cast
 
 def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
     """
@@ -31,13 +33,19 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
     co9 = "#6FA8DC"  # Azul claro
     
     # Variáveis para conexão e cursor
-    conn = None
-    cursor = None
+    conn: Any = None
+    cursor: Any = None
     
     try:
         # Obter informações do aluno
         conn = conectar_bd()
-        cursor = conn.cursor()
+        # Se a conexão falhar, `conectar_bd` pode retornar None.
+        # Evita acessar atributos de None (Pylance: reportOptionalMemberAccess).
+        if conn is None:
+            messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+            return
+        # Cast para Any para suprimir checagens estritas de tipo no Pylance
+        cursor = cast(Any, conn.cursor())
         
         # Buscar dados do aluno
         cursor.execute("""
@@ -144,7 +152,7 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
             Label(frame_col1, text="Nome Completo *", **label_estilo).pack(anchor=W, pady=(5, 0))
             e_nome = Entry(frame_col1, **entry_estilo)
             e_nome.pack(fill=X, pady=(0, 10))
-            e_nome.insert(0, nome)
+            e_nome.insert(0, str(nome) if nome is not None else "")
             
             # Data de Nascimento
             Label(frame_col1, text="Data de Nascimento", **label_estilo).pack(anchor=W, pady=(5, 0))
@@ -158,7 +166,7 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
             Label(frame_col1, text="Local de Nascimento", **label_estilo).pack(anchor=W, pady=(5, 0))
             e_local_nascimento = Entry(frame_col1, **entry_estilo)
             e_local_nascimento.pack(fill=X, pady=(0, 10))
-            e_local_nascimento.insert(0, local_nascimento if local_nascimento else "Paço do Lumiar")
+            e_local_nascimento.insert(0, str(local_nascimento) if local_nascimento else "Paço do Lumiar")
             
             # UF de Nascimento
             Label(frame_col1, text="UF de Nascimento", **label_estilo).pack(anchor=W, pady=(5, 0))
@@ -182,7 +190,7 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
             Label(frame_cpf, text="CPF", **label_estilo).pack(anchor=W, pady=(5, 0))
             e_cpf = Entry(frame_cpf, width=20, relief='solid')
             e_cpf.pack(fill=X, pady=(0, 10))
-            e_cpf.insert(0, cpf if cpf else "")
+            e_cpf.insert(0, str(cpf) if cpf else "")
             
             # NIS (col 2)
             frame_nis = Frame(frame_col2, bg=co1)
@@ -191,19 +199,19 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
             Label(frame_nis, text="NIS", **label_estilo).pack(anchor=W, pady=(5, 0))
             e_nis = Entry(frame_nis, width=20, relief='solid')
             e_nis.pack(fill=X, pady=(0, 10))
-            e_nis.insert(0, nis if nis else "")
+            e_nis.insert(0, str(nis) if nis else "")
             
             # Cartão SUS
             Label(frame_col2, text="Cartão SUS", **label_estilo).pack(anchor=W, pady=(5, 0))
             e_sus = Entry(frame_col2, **entry_estilo)
             e_sus.pack(fill=X, pady=(0, 10))
-            e_sus.insert(0, sus if sus else "")
+            e_sus.insert(0, str(sus) if sus else "")
             
             # Endereço
             Label(frame_col2, text="Endereço", **label_estilo).pack(anchor=W, pady=(5, 0))
             e_endereco = Entry(frame_col2, **entry_estilo)
             e_endereco.pack(fill=X, pady=(0, 10))
-            e_endereco.insert(0, endereco if endereco else "")
+            e_endereco.insert(0, str(endereco) if endereco else "")
             
             # Sexo
             Label(frame_col2, text="Sexo", **label_estilo).pack(anchor=W, pady=(5, 0))
@@ -267,7 +275,7 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
             Label(frame_linha2, text="Descrição do Transtorno", **label_estilo).pack(anchor=W, pady=(5, 0))
             e_descricao_transtorno = Entry(frame_linha2, width=60, relief='solid')
             e_descricao_transtorno.pack(fill=X, pady=(0, 10))
-            e_descricao_transtorno.insert(0, descricao_transtorno if descricao_transtorno else "Nenhum")
+            e_descricao_transtorno.insert(0, str(descricao_transtorno) if descricao_transtorno else "Nenhum")
             
             # ---- ABA DE MATRÍCULA ----
             # Frame para os campos de matrícula
@@ -391,7 +399,7 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
                     serie_frame.pack(fill=X, pady=10)
                     
                     Label(serie_frame, text="Série:", bg=co1, fg=co7).pack(anchor=W)
-                    serie_var = StringVar(value=serie_atual[1] if serie_atual else "")
+                    serie_var = StringVar(value=str(serie_atual[1]) if serie_atual and serie_atual[1] is not None else "")
                     cb_serie = ttk.Combobox(serie_frame, textvariable=serie_var, width=40)
                     cb_serie.pack(fill=X, pady=(5, 0))
                     
@@ -400,7 +408,7 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
                     turma_frame.pack(fill=X, pady=10)
                     
                     Label(turma_frame, text="Turma:", bg=co1, fg=co7).pack(anchor=W)
-                    turma_var = StringVar(value=serie_atual[3] if serie_atual else "")
+                    turma_var = StringVar(value=str(serie_atual[3]) if serie_atual and serie_atual[3] is not None else "")
                     cb_turma = ttk.Combobox(turma_frame, textvariable=turma_var, width=40)
                     cb_turma.pack(fill=X, pady=(5, 0))
                     
@@ -665,7 +673,7 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
                     
                     # Atualizar a tabela principal se treeview estiver disponível
                     if treeview is not None and query is not None:
-                        atualizar_treeview(treeview, query)
+                        atualizar_treeview(treeview, cursor, query)
                     
                 except Exception as e:
                     conn.rollback()
@@ -876,27 +884,27 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
                 # Campos do formulário
                 Label(frame, text="Nome *", bg=co1, fg=co7).pack(anchor=W)
                 e_nome = Entry(frame, width=40)
-                e_nome.insert(0, dados[0])
+                e_nome.insert(0, str(dados[0]) if dados[0] else "")
                 e_nome.pack(fill=X, pady=(0, 10))
                 
                 Label(frame, text="Grau de Parentesco *", bg=co1, fg=co7).pack(anchor=W)
                 e_parentesco = Entry(frame, width=40)
-                e_parentesco.insert(0, dados[1])
+                e_parentesco.insert(0, str(dados[1]) if dados[1] else "")
                 e_parentesco.pack(fill=X, pady=(0, 10))
                 
                 Label(frame, text="Telefone", bg=co1, fg=co7).pack(anchor=W)
                 e_telefone = Entry(frame, width=40)
-                e_telefone.insert(0, dados[2] if dados[2] else "")
+                e_telefone.insert(0, str(dados[2]) if dados[2] else "")
                 e_telefone.pack(fill=X, pady=(0, 10))
                 
                 Label(frame, text="RG", bg=co1, fg=co7).pack(anchor=W)
                 e_rg = Entry(frame, width=40)
-                e_rg.insert(0, dados[3] if dados[3] else "")
+                e_rg.insert(0, str(dados[3]) if dados[3] else "")
                 e_rg.pack(fill=X, pady=(0, 10))
                 
                 Label(frame, text="CPF", bg=co1, fg=co7).pack(anchor=W)
                 e_cpf = Entry(frame, width=40)
-                e_cpf.insert(0, dados[4] if dados[4] else "")
+                e_cpf.insert(0, str(dados[4]) if dados[4] else "")
                 e_cpf.pack(fill=X, pady=(0, 10))
                 
                 def salvar():

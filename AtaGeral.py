@@ -146,7 +146,12 @@ def abrir_interface_ata(janela_pai=None, status_label=None):
                 messagebox.showinfo("Sucesso", f"Ata Geral para {nivel} do ano {ano} gerada com sucesso!")
         
         # Executar após um breve delay para atualizar a interface
-        janela_pai.after(100, executar_geracao)
+        # Protege caso `janela_pai` seja None (evita acesso a atributo de None)
+        if janela_pai is not None:
+            janela_pai.after(100, executar_geracao)
+        else:
+            # Usa a própria janela de progresso quando não há janela pai
+            prog_janela.after(100, executar_geracao)
     
     # Botões
     frame_botoes = tk.Frame(frame)

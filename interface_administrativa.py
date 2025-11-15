@@ -1,7 +1,13 @@
-from tkinter import *
+from tkinter import (
+    Label, Frame, Button, Entry, Toplevel, Canvas, Scrollbar,
+    NW, LEFT, RIGHT, TOP, BOTTOM, W, E, N, S,
+    BOTH, X, Y, VERTICAL, HORIZONTAL, END,
+    TRUE, FALSE, GROOVE, RAISED, FLAT, StringVar
+)
 from tkinter import ttk, messagebox
 from PIL import ImageTk, Image
 from conexao import conectar_bd
+from typing import Any, cast
 
 class InterfaceAdministrativa:
     def __init__(self, master, janela_principal=None):
@@ -58,11 +64,16 @@ class InterfaceAdministrativa:
         self.master.grid_columnconfigure(0, weight=1)  # Coluna principal expande
 
         # Conectar ao banco de dados usando a mesma função que main.py
+        self.conn = conectar_bd()
+        if self.conn is None:
+            messagebox.showerror("Erro de Conexão", "Não foi possível conectar ao banco de dados")
+            self.fechar_janela()
+            return
+
         try:
-            self.conn = conectar_bd()
             self.cursor = self.conn.cursor()
         except Exception as e:
-            messagebox.showerror("Erro de Conexão", f"Não foi possível conectar ao banco de dados: {str(e)}")
+            messagebox.showerror("Erro de Conexão", f"Não foi possível criar cursor: {str(e)}")
             self.fechar_janela()
             return
 
@@ -426,7 +437,7 @@ class InterfaceAdministrativa:
                     widget.destroy()
             
             # Carregar escolas do banco de dados
-            self.cursor.execute("""
+            cast(Any, self.cursor).execute("""
                 SELECT id, nome, endereco, inep,
                 CONCAT(
                     SUBSTR(REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '/', ''), '-', ''), 1, 2), '.',
@@ -470,7 +481,7 @@ class InterfaceAdministrativa:
         try:
             # Carregar disciplinas do banco de dados usando a tabela niveisensino
             try:
-                self.cursor.execute("""
+                cast(Any, self.cursor).execute("""
                     SELECT d.id, d.nome, n.nome as nivel, d.carga_horaria 
                     FROM disciplinas d
                     LEFT JOIN niveisensino n ON d.nivel_id = n.id
@@ -479,7 +490,7 @@ class InterfaceAdministrativa:
             except Exception as e:
                 # Se o JOIN falhar, tente carregar apenas os dados básicos
                 if "niveisensino" in str(e):
-                    self.cursor.execute("""
+                    cast(Any, self.cursor).execute("""
                         SELECT id, nome, nivel_id as nivel, carga_horaria 
                         FROM disciplinas 
                         WHERE escola_id = %s
@@ -562,7 +573,7 @@ class InterfaceAdministrativa:
         def salvar():
             try:
                 # Inserir nova escola no banco de dados
-                self.cursor.execute("""
+                cast(Any, self.cursor).execute("""
                     INSERT INTO escolas (nome, endereco, inep, cnpj, municipio)
                     VALUES (%s, %s, %s, %s, %s)
                 """, (
@@ -572,7 +583,8 @@ class InterfaceAdministrativa:
                     cnpj_entry.get(),
                     municipio_entry.get()
                 ))
-                self.conn.commit()
+                if hasattr(self, 'conn') and self.conn:
+                    cast(Any, self.conn).commit()
                 messagebox.showinfo("Sucesso", "Escola adicionada com sucesso!")
                 dialog.destroy()
                 self.carregar_escolas()
@@ -633,7 +645,7 @@ class InterfaceAdministrativa:
 
             def salvar_edicao():
                 try:
-                    self.cursor.execute("""
+                    cast(Any, self.cursor).execute("""
                         UPDATE escolas
                         SET nome = %s, endereco = %s, inep = %s, cnpj = %s, municipio = %s
                         WHERE id = %s
@@ -645,7 +657,8 @@ class InterfaceAdministrativa:
                         municipio_entry.get(),
                         escola_values[0]
                     ))
-                    self.conn.commit()
+                    if hasattr(self, 'conn') and self.conn:
+                        cast(Any, self.conn).commit()
                     messagebox.showinfo("Sucesso", "Escola atualizada com sucesso!")
                     dialog.destroy()
                     self.carregar_escolas()
@@ -656,9 +669,10 @@ class InterfaceAdministrativa:
                 if messagebox.askyesno("Confirmar Exclusão", 
                                      "Tem certeza que deseja excluir esta escola? Todas as disciplinas associadas também serão excluídas."):
                     try:
-                        self.cursor.execute("DELETE FROM disciplinas WHERE escola_id = %s", (escola_values[0],))
-                        self.cursor.execute("DELETE FROM escolas WHERE id = %s", (escola_values[0],))
-                        self.conn.commit()
+                        cast(Any, self.cursor).execute("DELETE FROM disciplinas WHERE escola_id = %s", (escola_values[0],))
+                        cast(Any, self.cursor).execute("DELETE FROM escolas WHERE id = %s", (escola_values[0],))
+                        if hasattr(self, 'conn') and self.conn:
+                            cast(Any, self.conn).commit()
                         messagebox.showinfo("Sucesso", "Escola excluída com sucesso!")
                         dialog.destroy()
                         self.carregar_escolas()
@@ -752,22 +766,22 @@ class InterfaceAdministrativa:
             
             # Carregar níveis do banco de dados
             try:
-                self.cursor.execute("SELECT id, nome FROM niveisensino")
+                cast(Any, self.cursor).execute("SELECT id, nome FROM niveisensino")
                 niveis = self.cursor.fetchall()
                 nivel_atual_id = None
                 
                 Label(main_frame, text="Nível de Ensino:", font=('Ivy 11 bold'), bg=self.co10).pack(anchor=W, pady=(0, 5))
                 nivel_var = StringVar(dialog)
-                nivel_menu = ttk.Combobox(main_frame, textvariable=nivel_var, values=[nivel[1] for nivel in niveis], width=40)
+                nivel_menu = ttk.Combobox(main_frame, textvariable=nivel_var, values=[str(nivel[1]) for nivel in niveis], width=40)
                 nivel_menu.pack(fill=X, pady=(0, 15))
                 
                 # Obter o ano letivo atual
-                self.cursor.execute("SELECT id, ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
+                cast(Any, self.cursor).execute("SELECT id, ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
                 resultado_ano = self.cursor.fetchone()
                 
                 if not resultado_ano:
                     # Se não encontrar o ano atual, pegar o último registrado
-                    self.cursor.execute("SELECT id, ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
+                    cast(Any, self.cursor).execute("SELECT id, ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
                     resultado_ano = self.cursor.fetchone()
                 
                 if resultado_ano:
@@ -796,7 +810,7 @@ class InterfaceAdministrativa:
                 selecao_frame.pack(fill=X, pady=5)
                 
                 # Carregar anos letivos
-                self.cursor.execute("SELECT id, ano_letivo FROM anosletivos ORDER BY ano_letivo DESC")
+                cast(Any, self.cursor).execute("SELECT id, ano_letivo FROM anosletivos ORDER BY ano_letivo DESC")
                 anos_letivos = self.cursor.fetchall()
                 
                 Label(selecao_frame, text="Ano Letivo:", bg=self.co10).pack(side=LEFT, padx=(0, 5))
@@ -807,13 +821,13 @@ class InterfaceAdministrativa:
                 ano_menu.pack(side=LEFT, padx=5)
                 
                 # Carregar séries/níveis
-                self.cursor.execute("SELECT id, nome FROM serie ORDER BY nome")
+                cast(Any, self.cursor).execute("SELECT id, nome FROM serie ORDER BY nome")
                 series = self.cursor.fetchall()
                 
                 Label(selecao_frame, text="Série:", bg=self.co10).pack(side=LEFT, padx=(20, 5))
                 serie_var = StringVar(dialog)
                 serie_menu = ttk.Combobox(selecao_frame, textvariable=serie_var, 
-                                        values=[serie[1] for serie in series], 
+                                        values=[str(serie[1]) for serie in series], 
                                         width=20)
                 serie_menu.pack(side=LEFT, padx=5)
                 
@@ -851,7 +865,7 @@ class InterfaceAdministrativa:
                             return
                         
                         # Verificar se já existe um registro para esta combinação
-                        self.cursor.execute("""
+                        cast(Any, self.cursor).execute("""
                             SELECT id FROM carga_horaria_total 
                             WHERE serie_id = %s AND escola_id = %s AND ano_letivo_id = %s
                         """, (serie_id, escola_id, ano_id))
@@ -860,7 +874,7 @@ class InterfaceAdministrativa:
                         
                         if resultado:
                             # Atualizar registro existente
-                            self.cursor.execute("""
+                            cast(Any, self.cursor).execute("""
                                 UPDATE carga_horaria_total 
                                 SET carga_horaria_total = %s 
                                 WHERE id = %s
@@ -868,14 +882,15 @@ class InterfaceAdministrativa:
                             mensagem = "Carga horária total atualizada com sucesso!"
                         else:
                             # Inserir novo registro
-                            self.cursor.execute("""
+                            cast(Any, self.cursor).execute("""
                                 INSERT INTO carga_horaria_total 
                                 (serie_id, ano_letivo_id, escola_id, carga_horaria_total) 
                                 VALUES (%s, %s, %s, %s)
                             """, (serie_id, ano_id, escola_id, carga_horaria_valor))
                             mensagem = "Carga horária total adicionada com sucesso!"
                         
-                        self.conn.commit()
+                        if self.conn:
+                            cast(Any, self.conn).commit()
                         messagebox.showinfo("Sucesso", mensagem)
                         
                         # Limpar campos
@@ -935,7 +950,7 @@ class InterfaceAdministrativa:
                     
                     try:
                         # Buscar cargas horárias
-                        self.cursor.execute("""
+                        cast(Any, self.cursor).execute("""
                             SELECT cht.id, cht.carga_horaria_total, al.ano_letivo, s.nome
                             FROM carga_horaria_total cht
                             JOIN anosletivos al ON cht.ano_letivo_id = al.id
@@ -1122,7 +1137,7 @@ class InterfaceAdministrativa:
                     limpar_campos_disciplina()
                     
                     # Obter disciplinas para este nível
-                    self.cursor.execute("""
+                    cast(Any, self.cursor).execute("""
                         SELECT id, nome, carga_horaria 
                         FROM disciplinas 
                         WHERE escola_id = %s AND nivel_id = %s
@@ -1145,7 +1160,7 @@ class InterfaceAdministrativa:
                         # Adicionar campos para as disciplinas existentes
                         for disciplina in disciplinas_nivel:
                             adicionar_campo_disciplina(
-                                nome_disciplina=disciplina[1],
+                                nome_disciplina=str(disciplina[1]),
                                 carga_horaria=str(disciplina[2]),
                                 disciplina_id=disciplina[0]
                             )
@@ -1270,7 +1285,7 @@ class InterfaceAdministrativa:
                         return
                     
                     # Obter IDs de todas as disciplinas existentes deste nível nesta escola
-                    self.cursor.execute("""
+                    cast(Any, self.cursor).execute("""
                         SELECT id FROM disciplinas 
                         WHERE escola_id = %s AND nivel_id = %s
                     """, (escola_id, nivel_id))
@@ -1287,7 +1302,7 @@ class InterfaceAdministrativa:
                     
                     # 1. Adicionar novas disciplinas
                     for nome_disciplina, carga_horaria in novas_disciplinas:
-                        self.cursor.execute("""
+                        cast(Any, self.cursor).execute("""
                             INSERT INTO disciplinas (nome, nivel_id, carga_horaria, escola_id)
                             VALUES (%s, %s, %s, %s)
                         """, (
@@ -1300,7 +1315,7 @@ class InterfaceAdministrativa:
                     
                     # 2. Atualizar disciplinas existentes
                     for nome_disciplina, carga_horaria, disciplina_id in disciplinas_atualizadas:
-                        self.cursor.execute("""
+                        cast(Any, self.cursor).execute("""
                             UPDATE disciplinas
                             SET nome = %s, carga_horaria = %s, nivel_id = %s
                             WHERE id = %s
@@ -1314,12 +1329,13 @@ class InterfaceAdministrativa:
                     
                     # 3. Excluir disciplinas removidas
                     for disciplina_id in ids_para_excluir:
-                        self.cursor.execute("""
+                        cast(Any, self.cursor).execute("""
                             DELETE FROM disciplinas WHERE id = %s
                         """, (disciplina_id,))
                         disciplinas_excluidas += 1
                     
-                    self.conn.commit()
+                    if hasattr(self,'conn') and self.conn:
+                        cast(Any, self.conn).commit()
                     
                     # Processar carga horária total se fornecida
                     carga_total = carga_total_entry.get().strip()
@@ -1329,20 +1345,21 @@ class InterfaceAdministrativa:
                             
                             if carga_total_id:
                                 # Atualizar registro existente
-                                self.cursor.execute("""
+                                cast(Any, self.cursor).execute("""
                                     UPDATE carga_horaria_total 
                                     SET carga_horaria_total = %s 
                                     WHERE id = %s
                                 """, (carga_total_valor, carga_total_id))
                             else:
                                 # Inserir novo registro
-                                self.cursor.execute("""
+                                cast(Any, self.cursor).execute("""
                                     INSERT INTO carga_horaria_total 
                                     (serie_id, ano_letivo_id, escola_id, carga_horaria_total) 
                                     VALUES (%s, %s, %s, %s)
                                 """, (nivel_id, ano_letivo_id, escola_id, carga_total_valor))
                             
-                            self.conn.commit()
+                            if hasattr(self,'conn') and self.conn:
+                                cast(Any, self.conn).commit()
                         except ValueError:
                             messagebox.showwarning("Aviso", "A carga horária total deve ser um número inteiro. Este campo não foi salvo.")
                         except Exception as e:
@@ -1480,22 +1497,22 @@ class InterfaceAdministrativa:
             
             # Carregar níveis do banco de dados
             try:
-                self.cursor.execute("SELECT id, nome FROM niveisensino")
+                cast(Any, self.cursor).execute("SELECT id, nome FROM niveisensino")
                 niveis = self.cursor.fetchall()
                 nivel_atual_id = None
                 
                 Label(main_frame, text="Nível de Ensino:", font=('Ivy 11 bold'), bg=self.co10).pack(anchor=W, pady=(0, 5))
                 nivel_var = StringVar(dialog)
-                nivel_menu = ttk.Combobox(main_frame, textvariable=nivel_var, values=[nivel[1] for nivel in niveis], width=40)
+                nivel_menu = ttk.Combobox(main_frame, textvariable=nivel_var, values=[str(nivel[1]) for nivel in niveis], width=40)
                 nivel_menu.pack(fill=X, pady=(0, 15))
                 
                 # Obter o ano letivo atual
-                self.cursor.execute("SELECT id, ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
+                cast(Any, self.cursor).execute("SELECT id, ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
                 resultado_ano = self.cursor.fetchone()
                 
                 if not resultado_ano:
                     # Se não encontrar o ano atual, pegar o último registrado
-                    self.cursor.execute("SELECT id, ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
+                    cast(Any, self.cursor).execute("SELECT id, ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
                     resultado_ano = self.cursor.fetchone()
                 
                 if resultado_ano:
@@ -1524,7 +1541,7 @@ class InterfaceAdministrativa:
                 selecao_frame.pack(fill=X, pady=5)
                 
                 # Carregar anos letivos
-                self.cursor.execute("SELECT id, ano_letivo FROM anosletivos ORDER BY ano_letivo DESC")
+                cast(Any, self.cursor).execute("SELECT id, ano_letivo FROM anosletivos ORDER BY ano_letivo DESC")
                 anos_letivos = self.cursor.fetchall()
                 
                 Label(selecao_frame, text="Ano Letivo:", bg=self.co10).pack(side=LEFT, padx=(0, 5))
@@ -1535,13 +1552,13 @@ class InterfaceAdministrativa:
                 ano_menu.pack(side=LEFT, padx=5)
                 
                 # Carregar séries/níveis
-                self.cursor.execute("SELECT id, nome FROM serie ORDER BY nome")
+                cast(Any, self.cursor).execute("SELECT id, nome FROM serie ORDER BY nome")
                 series = self.cursor.fetchall()
                 
                 Label(selecao_frame, text="Série:", bg=self.co10).pack(side=LEFT, padx=(20, 5))
                 serie_var = StringVar(dialog)
                 serie_menu = ttk.Combobox(selecao_frame, textvariable=serie_var, 
-                                        values=[serie[1] for serie in series], 
+                                        values=[str(serie[1]) for serie in series], 
                                         width=20)
                 serie_menu.pack(side=LEFT, padx=5)
                 
@@ -1579,7 +1596,7 @@ class InterfaceAdministrativa:
                             return
                         
                         # Verificar se já existe um registro para esta combinação
-                        self.cursor.execute("""
+                        cast(Any, self.cursor).execute("""
                             SELECT id FROM carga_horaria_total 
                             WHERE serie_id = %s AND escola_id = %s AND ano_letivo_id = %s
                         """, (serie_id, escola_id, ano_id))
@@ -1588,7 +1605,7 @@ class InterfaceAdministrativa:
                         
                         if resultado:
                             # Atualizar registro existente
-                            self.cursor.execute("""
+                            cast(Any, self.cursor).execute("""
                                 UPDATE carga_horaria_total 
                                 SET carga_horaria_total = %s 
                                 WHERE id = %s
@@ -1596,14 +1613,15 @@ class InterfaceAdministrativa:
                             mensagem = "Carga horária total atualizada com sucesso!"
                         else:
                             # Inserir novo registro
-                            self.cursor.execute("""
+                            cast(Any, self.cursor).execute("""
                                 INSERT INTO carga_horaria_total 
                                 (serie_id, ano_letivo_id, escola_id, carga_horaria_total) 
                                 VALUES (%s, %s, %s, %s)
                             """, (serie_id, ano_id, escola_id, carga_horaria_valor))
                             mensagem = "Carga horária total adicionada com sucesso!"
                         
-                        self.conn.commit()
+                        if hasattr(self,'conn') and self.conn:
+                            cast(Any, self.conn).commit()
                         messagebox.showinfo("Sucesso", mensagem)
                         
                         # Limpar campos
@@ -1663,7 +1681,7 @@ class InterfaceAdministrativa:
                     
                     try:
                         # Buscar cargas horárias
-                        self.cursor.execute("""
+                        cast(Any, self.cursor).execute("""
                             SELECT cht.id, cht.carga_horaria_total, al.ano_letivo, s.nome
                             FROM carga_horaria_total cht
                             JOIN anosletivos al ON cht.ano_letivo_id = al.id
@@ -1850,7 +1868,7 @@ class InterfaceAdministrativa:
                     limpar_campos_disciplina()
                     
                     # Obter disciplinas para este nível
-                    self.cursor.execute("""
+                    cast(Any, self.cursor).execute("""
                         SELECT id, nome, carga_horaria 
                         FROM disciplinas 
                         WHERE escola_id = %s AND nivel_id = %s
@@ -1873,7 +1891,7 @@ class InterfaceAdministrativa:
                         # Adicionar campos para as disciplinas existentes
                         for disciplina in disciplinas_nivel:
                             adicionar_campo_disciplina(
-                                nome_disciplina=disciplina[1],
+                                nome_disciplina=str(disciplina[1]),
                                 carga_horaria=str(disciplina[2]),
                                 disciplina_id=disciplina[0]
                             )
@@ -1998,7 +2016,7 @@ class InterfaceAdministrativa:
                         return
                     
                     # Obter IDs de todas as disciplinas existentes deste nível nesta escola
-                    self.cursor.execute("""
+                    cast(Any, self.cursor).execute("""
                         SELECT id FROM disciplinas 
                         WHERE escola_id = %s AND nivel_id = %s
                     """, (escola_id, nivel_id))
@@ -2015,7 +2033,7 @@ class InterfaceAdministrativa:
                     
                     # 1. Adicionar novas disciplinas
                     for nome_disciplina, carga_horaria in novas_disciplinas:
-                        self.cursor.execute("""
+                        cast(Any, self.cursor).execute("""
                             INSERT INTO disciplinas (nome, nivel_id, carga_horaria, escola_id)
                             VALUES (%s, %s, %s, %s)
                         """, (
@@ -2028,7 +2046,7 @@ class InterfaceAdministrativa:
                     
                     # 2. Atualizar disciplinas existentes
                     for nome_disciplina, carga_horaria, disciplina_id in disciplinas_atualizadas:
-                        self.cursor.execute("""
+                        cast(Any, self.cursor).execute("""
                             UPDATE disciplinas
                             SET nome = %s, carga_horaria = %s, nivel_id = %s
                             WHERE id = %s
@@ -2042,12 +2060,13 @@ class InterfaceAdministrativa:
                     
                     # 3. Excluir disciplinas removidas
                     for disciplina_id in ids_para_excluir:
-                        self.cursor.execute("""
+                        cast(Any, self.cursor).execute("""
                             DELETE FROM disciplinas WHERE id = %s
                         """, (disciplina_id,))
                         disciplinas_excluidas += 1
-                    
-                    self.conn.commit()
+
+                    if hasattr(self,'conn') and self.conn:
+                        cast(Any, self.conn).commit()
                     
                     # Processar carga horária total se fornecida
                     carga_total = carga_total_entry.get().strip()
@@ -2057,20 +2076,21 @@ class InterfaceAdministrativa:
                             
                             if carga_total_id:
                                 # Atualizar registro existente
-                                self.cursor.execute("""
+                                cast(Any, self.cursor).execute("""
                                     UPDATE carga_horaria_total 
                                     SET carga_horaria_total = %s 
                                     WHERE id = %s
                                 """, (carga_total_valor, carga_total_id))
                             else:
                                 # Inserir novo registro
-                                self.cursor.execute("""
+                                cast(Any, self.cursor).execute("""
                                     INSERT INTO carga_horaria_total 
                                     (serie_id, ano_letivo_id, escola_id, carga_horaria_total) 
                                     VALUES (%s, %s, %s, %s)
                                 """, (nivel_id, ano_letivo_id, escola_id, carga_total_valor))
                             
-                            self.conn.commit()
+                            if hasattr(self,'conn') and self.conn:
+                                cast(Any, self.conn).commit()
                         except ValueError:
                             messagebox.showwarning("Aviso", "A carga horária total deve ser um número inteiro. Este campo não foi salvo.")
                         except Exception as e:
@@ -2211,7 +2231,7 @@ class InterfaceAdministrativa:
             
         try:
             # Consulta SQL com like para pesquisar pelo nome, INEP, CNPJ ou município
-            self.cursor.execute("""
+            cast(Any, self.cursor).execute("""
                 SELECT id, nome, endereco, inep,
                 CONCAT(
                     SUBSTR(REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '/', ''), '-', ''), 1, 2), '.',
@@ -2270,7 +2290,8 @@ class InterfaceAdministrativa:
         Ajusta os elementos da interface quando a janela é redimensionada.
         """
         # Só processar quando o evento for da janela principal
-        if event.widget != self.master:
+        # Proteger contra chamada sem evento (event pode ser None)
+        if event is None or getattr(event, 'widget', None) != self.master:
             return
             
         # Re-configurar larguras das colunas proporcionalmente ao tamanho da janela

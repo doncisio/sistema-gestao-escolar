@@ -100,6 +100,9 @@ def gerar_declaracao_comparecimento_responsavel(aluno_id, data_comparecimento=No
     """
     try:
         conn = conectar_bd()
+        if conn is None:
+            messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+            return
         cursor = conn.cursor()
         
         # Obter dados
@@ -122,19 +125,34 @@ def gerar_declaracao_comparecimento_responsavel(aluno_id, data_comparecimento=No
         if nome_responsavel_param:
             nome_responsavel = nome_responsavel_param
             # Buscar CPF do responsável selecionado
+            cpf_responsavel = None
             conn_temp = conectar_bd()
-            cursor_temp = conn_temp.cursor()
-            cursor_temp.execute("""
-                SELECT r.cpf 
-                FROM responsaveis r
-                INNER JOIN responsaveisalunos ra ON r.id = ra.responsavel_id
-                WHERE ra.aluno_id = %s AND r.nome = %s
-                LIMIT 1
-            """, (aluno_id, nome_responsavel_param))
-            result = cursor_temp.fetchone()
-            cpf_responsavel = result[0] if result else None
-            cursor_temp.close()
-            conn_temp.close()
+            if conn_temp is None:
+                # Não conseguimos abrir conexão temporária; manter cpf_responsavel como None
+                print("Aviso: não foi possível conectar ao banco para buscar CPF do responsável")
+            else:
+                try:
+                    cursor_temp = conn_temp.cursor()
+                    cursor_temp.execute("""
+                        SELECT r.cpf 
+                        FROM responsaveis r
+                        INNER JOIN responsaveisalunos ra ON r.id = ra.responsavel_id
+                        WHERE ra.aluno_id = %s AND r.nome = %s
+                        LIMIT 1
+                    """, (aluno_id, nome_responsavel_param))
+                    result = cursor_temp.fetchone()
+                    cpf_responsavel = result[0] if result else None
+                except Exception:
+                    cpf_responsavel = None
+                finally:
+                    try:
+                        cursor_temp.close()
+                    except Exception:
+                        pass
+                    try:
+                        conn_temp.close()
+                    except Exception:
+                        pass
         else:
             nome_responsavel = dados[5] if dados[5] else "Responsável"
             cpf_responsavel = dados[6]
@@ -163,7 +181,9 @@ def gerar_declaracao_comparecimento_responsavel(aluno_id, data_comparecimento=No
         
         # Criar nome do arquivo
         data_arquivo = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        nome_arquivo = f"Declaracao_Comparecimento_{nome_responsavel.replace(' ', '_')}_{data_arquivo}.pdf"
+        # Garantir que o nome do responsável seja string segura para arquivo
+        safe_nome_responsavel = (str(nome_responsavel) if nome_responsavel else "Responsavel").replace(' ', '_')
+        nome_arquivo = f"Declaracao_Comparecimento_{safe_nome_responsavel}_{data_arquivo}.pdf"
         caminho_arquivo = os.path.join('documentos_gerados', nome_arquivo)
         os.makedirs('documentos_gerados', exist_ok=True)
         

@@ -8,7 +8,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import black, white, grey
 from Lista_atualizada import fetch_student_data
-from gerar_documentos import PASTAS_TURMAS, criar_pastas_se_nao_existirem, salvar_pdf, adicionar_cabecalho
+from scripts_nao_utilizados.gerar_documentos import PASTAS_TURMAS, criar_pastas_se_nao_existirem, salvar_pdf, adicionar_cabecalho
 
 def gerar_lista_reuniao():
     """Gera um PDF com a lista de reunião dos alunos, agrupados por turma."""
@@ -101,10 +101,12 @@ def gerar_lista_reuniao():
         data = [['Nº', 'Nome', 'Telefone', 'Assinatura do Responsável', 'Parentesco']]
         for row_num, (index, row) in enumerate(turma_df.iterrows(), start=1):
             nome = row['NOME DO ALUNO']
+            # Garantir que valores adicionados à tabela sejam strings para satisfazer o analisador de tipo
+            nome_str = str(nome) if pd.notnull(nome) else ""
             telefones_str = ''
             assinatura = ''
             parentesco = ''
-            data.append([row_num, nome, telefones_str, assinatura, parentesco])
+            data.append([str(row_num), nome_str, telefones_str, assinatura, parentesco])
         
         # Ajustando as larguras das colunas para melhor aproveitamento do espaço horizontal
         table = Table(data, colWidths=[0.4 * inch, 3 * inch, 1.5 * inch, 3 * inch, 1.5 * inch])

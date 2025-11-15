@@ -13,6 +13,7 @@ from gerarPDF import salvar_e_abrir_pdf, criar_pdf
 from inserir_no_historico_escolar import inserir_no_historico_escolar
 from biblio_editor import adicionar_quebra_linha, quebra_linha, arredondar_personalizado, criar_cabecalho_pdf
 import datetime
+from typing import Any, Dict, Optional, cast, List
 
 def formatar_data_extenso(data=None):
     """Formata a data em extenso em português do Brasil"""
@@ -258,7 +259,7 @@ def ata_geral():
 
     try:
         cursor.execute("SELECT numero_dias_aula FROM anosletivos WHERE ano_letivo = 2025")
-        resultado_ano_letivo = cursor.fetchone()
+        resultado_ano_letivo = cast(Optional[Dict[str, Any]], cursor.fetchone())
         if resultado_ano_letivo is None:
             print("Nenhum ano letivo encontrado para 2025.")
             return
@@ -276,7 +277,7 @@ def ata_geral():
             WHERE ano_letivo_id = (SELECT id FROM anosletivos WHERE ano_letivo = 2025)
             GROUP BY aluno_id
         """)
-        faltas_bimestrais_resultado = cursor.fetchall()
+        faltas_bimestrais_resultado = cast(List[Dict[str, Any]], cursor.fetchall())
         faltas_dict = {f['aluno_id']: f['total_faltas'] for f in faltas_bimestrais_resultado}
     except Exception as e:
         print(f"Erro ao executar a consulta de faltas: {e}")
