@@ -32,6 +32,10 @@ from db.connection import get_connection
 from typing import Any, cast
 from integrar_historico_escolar import abrir_interface_historico, abrir_historico_aluno
 import aluno
+from config_logs import get_logger
+
+# Logger da aplicação
+logger = get_logger(__name__)
 # Import seguro para a interface de cadastro/edição de notas
 try:
     import InterfaceCadastroEdicaoNotas as _InterfaceCadastroEdicaoNotas
@@ -211,93 +215,8 @@ query = None
 
 TEST_MODE = True
 
-def converter_para_int_seguro(valor: Any) -> int:
-    """
-    Converte qualquer valor para int de forma segura.
-    Lida com None, strings, floats, Decimal, etc.
-    """
-    try:
-        if valor is None:
-            return 0
-        if isinstance(valor, int):
-            return valor
-        if isinstance(valor, float):
-            return int(valor)
-        if isinstance(valor, str):
-            v = valor.strip()
-            if v == "":
-                return 0
-            # Tenta converter float->int ou diretamente int
-            try:
-                return int(v)
-            except Exception:
-                try:
-                    return int(float(v))
-                except Exception:
-                    return 0
-        # Fallback genérico
-        return int(valor)
-    except Exception:
-        return 0
-
-
-def _safe_get(row: Any, index: int, default: Any = None) -> Any:
-    """
-    Retorna de forma segura o valor na posição `index` de `row`.
-    - Se `row` for None retorna `default`.
-    - Se for tuple/list retorna o elemento ou `default` se fora do alcance.
-    - Se for dict tenta por chave numérica ou nomeada; se não existir, retorna `default`.
-    """
-    if row is None:
-        return default
-    try:
-        if isinstance(row, dict):
-            # tenta por chave inteira (ex: resultado[0] vindo como dict) ou por nome
-            if index in row:
-                return row[index]
-            # como fallback, tenta converter index para str e buscar
-            key = str(index)
-            return row.get(key, default)
-        if isinstance(row, (list, tuple)):
-            try:
-                return row[index]
-            except Exception:
-                return default
-        # Caso seja um único valor, index 0 retorna o próprio
-        if index == 0:
-            return row
-    except Exception:
-        return default
-    return default
-
-
-def _safe_slice(row: Any, start: int, end: int) -> List[Any]:
-    """
-    Retorna uma fatia segura de `row` como lista entre `start` (inclusive) e `end` (exclusive).
-    Se `row` for tuple/list retorna a slice; se None retorna lista de Nones do tamanho solicitado.
-    """
-    length = max(0, end - start)
-    if row is None:
-        return [None] * length
-    try:
-        if isinstance(row, (list, tuple)):
-            s = list(row[start:end])
-            # garantir tamanho esperado
-            if len(s) < length:
-                s.extend([None] * (length - len(s)))
-            return s
-        if isinstance(row, dict):
-            # tentar extrair por índices numéricos nas chaves
-            out = []
-            for i in range(start, end):
-                out.append(_safe_get(row, i, None))
-            return out
-        # valor único
-        if length == 1:
-            return [row]
-    except Exception:
-        pass
-    return [None] * length
+# Importar utilitários compartilhados
+from utils.safe import converter_para_int_seguro, _safe_get, _safe_slice
 
 def obter_ano_letivo_atual() -> int:
     """Retorna o `id` do ano letivo atual. Se não encontrar, retorna o id do ano letivo mais recente.
@@ -321,7 +240,7 @@ def obter_ano_letivo_atual() -> int:
                 pass
             return int(res[0]) if res and res[0] is not None else 1
     except Exception as e:
-        print(f"Erro ao obter ano letivo atual: {e}")
+        logger.error(f"Erro ao obter ano letivo atual: {e}")
         return 1
 from horarios_escolares import InterfaceHorariosEscolares
 from tkinter import filedialog
@@ -351,7 +270,7 @@ status_label = None
 # MELHORIA 4: Inicializar Connection Pool
 # Inicializa o pool de conexões no início da aplicação para melhor performance
 # ============================================================================
-print("Inicializando sistema...")
+logger.info("Inicializando sistema...")
 inicializar_pool()
 
 
@@ -455,172 +374,192 @@ def criar_dashboard():
     
     # Limpar dashboard anterior se existir
     if dashboard_canvas is not None:
-        dashboard_canvas.get_tk_widget().destroy()
+        try:
+            dashboard_canvas.get_tk_widget().destroy()
+        except Exception:
+            pass
         dashboard_canvas = None
-    
-    # Obter dados estatísticos
-    dados = obter_estatisticas_alunos()
-    
-    if dados is None or not dados['por_serie']:
-        # Mostrar mensagem se não houver dados
-        label_vazio = Label(
-            frame_tabela, 
-            text="Nenhum dado disponível para exibir no dashboard",
-            font=('Calibri', 14),
-            bg=co1,
-            fg=co0
-        )
-        label_vazio.pack(pady=50)
-        return
-    
-    # Criar frame para o dashboard
+
+    # Criar frame para o dashboard com UI de carregamento e manter a UI responsiva
     dashboard_frame = Frame(frame_tabela, bg=co1)
     dashboard_frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
-    
+
     # Frame para informações gerais (topo)
     info_frame = Frame(dashboard_frame, bg=co1)
     info_frame.pack(fill=X, pady=(0, 10))
-    
-    # Buscar o ano letivo atual para exibir no título
-    try:
-        with get_connection() as conn_temp:
-            if conn_temp:
-                cursor_temp = cast(Any, conn_temp).cursor()
-                try:
-                    cursor_temp.execute("SELECT ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
-                    resultado_ano = cursor_temp.fetchone()
-                    if not resultado_ano:
-                        cursor_temp.execute("SELECT ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
-                        resultado_ano = cursor_temp.fetchone()
-                    # Extrair de forma segura o valor do ano letivo (pode ser tuple/list ou dict dependendo do cursor)
-                    if resultado_ano:
-                        if isinstance(resultado_ano, (list, tuple)):
-                            ano_val = resultado_ano[0]
-                        elif isinstance(resultado_ano, dict):
-                            ano_val = resultado_ano.get('ano_letivo') or next(iter(resultado_ano.values()), None)
-                        else:
-                            ano_val = resultado_ano
-                        ano_letivo_exibir = ano_val if ano_val is not None else "Corrente"
-                    else:
-                        ano_letivo_exibir = "Corrente"
-                finally:
-                    try:
-                        cursor_temp.close()
-                    except Exception:
-                        pass
-            else:
-                ano_letivo_exibir = "Corrente"
-    except:
-        ano_letivo_exibir = "Corrente"
-    
-    # Título
-    Label(
+
+    # Título temporário enquanto os dados carregam
+    title_label = Label(
         info_frame,
-        text=f"Dashboard - Alunos Matriculados no Ano Letivo de {ano_letivo_exibir}",
+        text="Dashboard - Carregando...",
         font=('Calibri', 16, 'bold'),
         bg=co1,
         fg=co0
-    ).pack(pady=(0, 10))
-    
-    # Informações totais
-    totais_frame = Frame(info_frame, bg=co1)
-    totais_frame.pack()
-    
-    Label(
-        totais_frame,
-        text=f"Total Matriculados: {dados['total_matriculados']}",
-        font=('Calibri', 12, 'bold'),
-        bg=co1,
-        fg=co0
-    ).pack(side=LEFT, padx=20)
-    
-    Label(
-        totais_frame,
-        text=f"Ativos: {dados['total_ativos']}",
-        font=('Calibri', 12, 'bold'),
-        bg=co1,
-        fg=co0
-    ).pack(side=LEFT, padx=20)
-    
-    Label(
-        totais_frame,
-        text=f"Transferidos: {dados['total_transferidos']}",
-        font=('Calibri', 12, 'bold'),
-        bg=co1,
-        fg=co0
-    ).pack(side=LEFT, padx=20)
-    
-    # Frame para o gráfico
-    grafico_frame = Frame(dashboard_frame, bg=co1)
-    grafico_frame.pack(fill=BOTH, expand=True)
-    
-    # Preparar dados para o gráfico
-    series = [item['serie'] for item in dados['por_serie']]
-    quantidades = [item['quantidade'] for item in dados['por_serie']]
-    
-    # Criar figura do matplotlib com fundo ajustado
-    fig = Figure(figsize=(11, 6.5), dpi=100, facecolor=co1)
-    ax = fig.add_subplot(111)
-    ax.set_facecolor(co1)
-    
-    # Cores personalizadas para o gráfico
-    cores = ['#1976d2', '#388e3c', '#d32f2f', '#f57c00', '#7b1fa2', 
-             '#0097a7', '#5d4037', '#455a64', '#c2185b', '#afb42b']
-    
-    # Criar gráfico de pizza
-    resultado_pie = ax.pie(
-        quantidades,
-        labels=series,
-        autopct='%1.1f%%',
-        startangle=90,
-        colors=cores[:len(series)],
-        textprops={'fontsize': 10, 'weight': 'bold', 'color': co0}
     )
-    
-    # Melhorar aparência dos textos
-    if len(resultado_pie) >= 3:
-        wedges, texts, autotexts = resultado_pie
-        for autotext in autotexts:
-            autotext.set_color('white')
-            autotext.set_fontsize(10)
-            autotext.set_fontweight('bold')
-    else:
-        wedges, texts = resultado_pie
-    
-    # Título com mais espaço e cor ajustada
-    ax.set_title('Distribuição de Alunos por Série', 
-                 fontsize=14, weight='bold', pad=25, color=co0)
-    
-    # Adicionar legenda com quantidades - reposicionada para não sobrepor
-    legendas = [f'{s}: {q} alunos' for s, q in zip(series, quantidades)]
-    legend = ax.legend(legendas, loc='center left', bbox_to_anchor=(1.15, 0.5), 
-                      fontsize=9, frameon=True, facecolor=co1, edgecolor=co0)
-    
-    # Ajustar cor do texto da legenda
-    for text in legend.get_texts():
-        text.set_color(co0)
-    
-    # Ajustar layout com mais espaço para a legenda e título
-    fig.tight_layout(rect=(0, 0, 0.85, 0.95))
-    
-    # Integrar com Tkinter
-    canvas = FigureCanvasTkAgg(fig, master=grafico_frame)
-    canvas.draw()
-    canvas.get_tk_widget().pack(fill=BOTH, expand=True)
-    
-    dashboard_canvas = canvas
-    
-    # Botão para atualizar dashboard
-    btn_atualizar = Button(
-        dashboard_frame,
-        text="🔄 Atualizar Dashboard",
-        font=('Calibri', 11, 'bold'),
-        bg=co4,
-        fg=co1,
-        relief=RAISED,
-        command=lambda: atualizar_dashboard()
-    )
-    btn_atualizar.pack(pady=10)
+    title_label.pack(pady=(0, 10))
+
+    # Area de loading
+    loading_frame = Frame(dashboard_frame, bg=co1)
+    loading_frame.pack(fill=BOTH, expand=True)
+    loading_label = Label(loading_frame, text="Carregando dados, aguarde...", font=('Calibri', 12), bg=co1, fg=co0)
+    loading_label.pack(pady=20)
+    progress = Progressbar(loading_frame, mode='indeterminate')
+    progress.pack(pady=10, padx=20)
+    try:
+        progress.start(10)
+    except Exception:
+        pass
+
+    # Trabalho pesado em background: buscar dados e construir figura
+    def _worker():
+        try:
+            dados = obter_estatisticas_alunos()
+
+            if not dados or not dados.get('por_serie'):
+                def _on_empty():
+                    try:
+                        progress.stop()
+                    except Exception:
+                        pass
+                    try:
+                        loading_frame.destroy()
+                    except Exception:
+                        pass
+                    Label(dashboard_frame, text="Nenhum dado disponível para exibir no dashboard", font=('Calibri', 14), bg=co1, fg=co0).pack(pady=50)
+                janela.after(0, _on_empty)
+                return
+
+            # Determinar ano letivo em background (operações de DB são aceitáveis fora da UI)
+            try:
+                with get_connection() as conn_temp:
+                    if conn_temp:
+                        cursor_temp = cast(Any, conn_temp).cursor()
+                        try:
+                            cursor_temp.execute("SELECT ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
+                            resultado_ano = cursor_temp.fetchone()
+                            if not resultado_ano:
+                                cursor_temp.execute("SELECT ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
+                                resultado_ano = cursor_temp.fetchone()
+                            if resultado_ano:
+                                if isinstance(resultado_ano, (list, tuple)):
+                                    ano_val = resultado_ano[0]
+                                elif isinstance(resultado_ano, dict):
+                                    ano_val = resultado_ano.get('ano_letivo') or next(iter(resultado_ano.values()), None)
+                                else:
+                                    ano_val = resultado_ano
+                                ano_letivo_exibir = ano_val if ano_val is not None else "Corrente"
+                            else:
+                                ano_letivo_exibir = "Corrente"
+                        finally:
+                            try:
+                                cursor_temp.close()
+                            except Exception:
+                                pass
+                    else:
+                        ano_letivo_exibir = "Corrente"
+            except Exception:
+                ano_letivo_exibir = "Corrente"
+
+            # Preparar dados para o gráfico
+            series = [item['serie'] for item in dados['por_serie']]
+            quantidades = [item['quantidade'] for item in dados['por_serie']]
+
+            # Construir figura do matplotlib (pode ser feito em background)
+            fig = Figure(figsize=(11, 6.5), dpi=100, facecolor=co1)
+            ax = fig.add_subplot(111)
+            ax.set_facecolor(co1)
+            cores = ['#1976d2', '#388e3c', '#d32f2f', '#f57c00', '#7b1fa2', '#0097a7', '#5d4037', '#455a64', '#c2185b', '#afb42b']
+            resultado_pie = ax.pie(
+                quantidades,
+                labels=series,
+                autopct='%1.1f%%',
+                startangle=90,
+                colors=cores[:len(series)],
+                textprops={'fontsize': 10, 'weight': 'bold', 'color': co0}
+            )
+
+            # Ajustes visuais
+            try:
+                if len(resultado_pie) >= 3:
+                    wedges, texts, autotexts = resultado_pie
+                    for autotext in autotexts:
+                        autotext.set_color('white')
+                        autotext.set_fontsize(10)
+                        autotext.set_fontweight('bold')
+                else:
+                    wedges, texts = resultado_pie
+            except Exception:
+                pass
+
+            ax.set_title('Distribuição de Alunos por Série', fontsize=14, weight='bold', pad=25, color=co0)
+            legendas = [f'{s}: {q} alunos' for s, q in zip(series, quantidades)]
+            try:
+                legend = ax.legend(legendas, loc='center left', bbox_to_anchor=(1.15, 0.5), fontsize=9, frameon=True, facecolor=co1, edgecolor=co0)
+                for text in legend.get_texts():
+                    text.set_color(co0)
+            except Exception:
+                pass
+
+            fig.tight_layout(rect=(0, 0, 0.85, 0.95))
+
+            # Atualizar UI na thread principal
+            def _on_main():
+                nonlocal fig
+                global dashboard_canvas
+                try:
+                    progress.stop()
+                except Exception:
+                    pass
+                try:
+                    loading_frame.destroy()
+                except Exception:
+                    pass
+
+                # Atualiza título
+                title_label.config(text=f"Dashboard - Alunos Matriculados no Ano Letivo de {ano_letivo_exibir}")
+
+                # Informações totais
+                totais_frame = Frame(info_frame, bg=co1)
+                totais_frame.pack()
+                try:
+                    Label(totais_frame, text=f"Total Matriculados: {dados['total_matriculados']}", font=('Calibri', 12, 'bold'), bg=co1, fg=co0).pack(side=LEFT, padx=20)
+                    Label(totais_frame, text=f"Ativos: {dados['total_ativos']}", font=('Calibri', 12, 'bold'), bg=co1, fg=co0).pack(side=LEFT, padx=20)
+                    Label(totais_frame, text=f"Transferidos: {dados['total_transferidos']}", font=('Calibri', 12, 'bold'), bg=co1, fg=co0).pack(side=LEFT, padx=20)
+                except Exception:
+                    pass
+
+                # Frame para o gráfico
+                grafico_frame = Frame(dashboard_frame, bg=co1)
+                grafico_frame.pack(fill=BOTH, expand=True)
+
+                try:
+                    canvas = FigureCanvasTkAgg(fig, master=grafico_frame)
+                    canvas.draw()
+                    canvas.get_tk_widget().pack(fill=BOTH, expand=True)
+                    dashboard_canvas = canvas
+                except Exception as e:
+                    Label(grafico_frame, text=f"Erro ao renderizar gráfico: {e}", bg=co1, fg='red').pack(pady=10)
+
+                # Botão para atualizar dashboard
+                btn_atualizar = Button(dashboard_frame, text="🔄 Atualizar Dashboard", font=('Calibri', 11, 'bold'), bg=co4, fg=co1, relief=RAISED, command=lambda: atualizar_dashboard())
+                btn_atualizar.pack(pady=10)
+
+            janela.after(0, _on_main)
+        except Exception as e:
+            def _on_error():
+                try:
+                    progress.stop()
+                except Exception:
+                    pass
+                try:
+                    loading_frame.destroy()
+                except Exception:
+                    pass
+                messagebox.showerror("Dashboard", f"Falha ao gerar dashboard: {e}")
+            janela.after(0, _on_error)
+
+    from threading import Thread
+    Thread(target=_worker, daemon=True).start()
 
 def atualizar_dashboard():
     """
@@ -803,7 +742,7 @@ def selecionar_item(event):
         try:
             with get_connection() as conn:
                 if conn is None:
-                    print("Erro: Não foi possível conectar ao banco de dados.")
+                    logger.error("Erro: Não foi possível conectar ao banco de dados.")
                     return
                 cursor = conn.cursor()
 
@@ -933,7 +872,7 @@ def selecionar_item(event):
                               bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
         
         except Exception as e:
-            print(f"Erro ao verificar matrícula: {str(e)}")
+            logger.error(f"Erro ao verificar matrícula: {str(e)}")
         finally:
             try:
                 if cursor:
@@ -1030,7 +969,7 @@ def on_select(event):
             try:
                 with get_connection() as conn:
                     if conn is None:
-                        print("Erro: Não foi possível conectar ao banco de dados.")
+                        logger.error("Erro: Não foi possível conectar ao banco de dados.")
                         return
                     cursor = conn.cursor()
 
@@ -1156,7 +1095,7 @@ def on_select(event):
                                   bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
             
             except Exception as e:
-                print(f"Erro ao verificar matrícula: {str(e)}")
+                logger.error(f"Erro ao verificar matrícula: {str(e)}")
             finally:
                 try:
                     if cursor:
@@ -1301,7 +1240,7 @@ def verificar_matricula_ativa(aluno_id):
                     pass
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao verificar matrícula: {str(e)}")
-        print(f"Erro ao verificar matrícula: {str(e)}")
+        logger.error(f"Erro ao verificar matrícula: {str(e)}")
         return False
 
 def verificar_historico_matriculas(aluno_id):
@@ -1394,7 +1333,7 @@ def verificar_historico_matriculas(aluno_id):
                     pass
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao verificar histórico de matrículas: {str(e)}")
-        print(f"Erro ao verificar histórico de matrículas: {str(e)}")
+        logger.error(f"Erro ao verificar histórico de matrículas: {str(e)}")
         return False, []
 
 def matricular_aluno(aluno_id):
@@ -1536,11 +1475,11 @@ def matricular_aluno(aluno_id):
         def carregar_turmas(event=None):
             serie_nome = serie_var.get()
             if not serie_nome:
-                print("Série não selecionada")
+                logger.warning("Série não selecionada")
                 return
 
             if serie_nome not in series_map:
-                print(f"Série '{serie_nome}' não encontrada no mapeamento: {series_map}")
+                logger.warning(f"Série '{serie_nome}' não encontrada no mapeamento: {series_map}")
                 return
 
             serie_id = series_map[serie_nome]
@@ -1579,14 +1518,14 @@ def matricular_aluno(aluno_id):
                     turma_nome = turmas_nomes[0]
                     cb_turma.set(turma_nome)
                     turma_var.set(turma_nome)
-                    print(f"Turma selecionada automaticamente: '{turma_nome}'")
+                    logger.info(f"Turma selecionada automaticamente: '{turma_nome}'")
                 else:
                     cb_turma.set("")
                     turma_var.set("")
 
             except Exception as e:
                 messagebox.showerror("Erro", f"Erro ao carregar turmas: {str(e)}")
-                print(f"Erro detalhado: {str(e)}")
+                logger.error(f"Erro detalhado: {str(e)}")
 
         # Vincular evento ao combobox de série
         cb_serie.bind("<<ComboboxSelected>>", carregar_turmas)
@@ -1597,14 +1536,14 @@ def matricular_aluno(aluno_id):
             turma_nome = turma_var.get()
             data_str = data_matricula_var.get()
 
-            print(f"Série selecionada: '{serie_nome}', Turma selecionada: '{turma_nome}'")
-            print(f"Séries disponíveis: {list(series_map.keys())}")
-            print(f"Turmas disponíveis: {list(turmas_map.keys())}")
+            logger.debug(f"Série selecionada: '{serie_nome}', Turma selecionada: '{turma_nome}'")
+            logger.debug(f"Séries disponíveis: {list(series_map.keys())}")
+            logger.debug(f"Turmas disponíveis: {list(turmas_map.keys())}")
 
             if len(turmas_map) == 1 and (not turma_nome or turma_nome not in turmas_map):
                 turma_nome = list(turmas_map.keys())[0]
                 turma_var.set(turma_nome)
-                print(f"Turma ajustada automaticamente para: '{turma_nome}'")
+                logger.info(f"Turma ajustada automaticamente para: '{turma_nome}'")
 
             if not serie_nome or serie_nome not in series_map:
                 messagebox.showwarning("Aviso", "Por favor, selecione uma série válida.")
@@ -1659,7 +1598,7 @@ def matricular_aluno(aluno_id):
                                 (int(str(matricula_id)) if matricula_id is not None else 0, str(status_atual) if status_atual is not None else '', 'Ativo', data_formatada)
                             )
                         except Exception as hist_err:
-                            print(f"Falha ao registrar histórico da matrícula (update): {hist_err}")
+                            logger.error(f"Falha ao registrar histórico da matrícula (update): {hist_err}")
                     else:
                         cursor.execute(
                             """
@@ -1679,7 +1618,7 @@ def matricular_aluno(aluno_id):
                                 (novo_matricula_id, None, 'Ativo', data_formatada)
                             )
                         except Exception as hist_err:
-                            print(f"Falha ao registrar histórico da matrícula (insert): {hist_err}")
+                            logger.error(f"Falha ao registrar histórico da matrícula (insert): {hist_err}")
 
                     conn.commit()
                     cursor.close()
@@ -1740,7 +1679,7 @@ def excluir_aluno_com_confirmacao(aluno_id):
                 messagebox.showerror("Erro", "Não foi possível excluir o aluno.")
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao excluir aluno: {str(e)}")
-            print(f"Erro ao excluir aluno: {str(e)}")
+            logger.error(f"Erro ao excluir aluno: {str(e)}")
 
 def excluir_funcionario_com_confirmacao(funcionario_id):
     # Pergunta ao usuário para confirmar a exclusão
@@ -1785,7 +1724,7 @@ def excluir_funcionario_com_confirmacao(funcionario_id):
                     except Exception:
                         pass
                     messagebox.showerror("Erro", f"Erro ao excluir funcionário: {str(e)}")
-                    print(f"Erro ao excluir funcionário: {str(e)}")
+                    logger.error(f"Erro ao excluir funcionário: {str(e)}")
                     return False
                 finally:
                     try:
@@ -1794,7 +1733,7 @@ def excluir_funcionario_com_confirmacao(funcionario_id):
                         pass
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao excluir funcionário: {str(e)}")
-            print(f"Erro ao excluir funcionário: {str(e)}")
+            logger.error(f"Erro ao excluir funcionário: {str(e)}")
             return False
 
 def editar_aluno_e_destruir_frames():
@@ -1840,7 +1779,7 @@ def editar_aluno_e_destruir_frames():
         
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao abrir interface de edição: {str(e)}")
-        print(f"Erro ao abrir interface de edição: {str(e)}")
+        logger.error(f"Erro ao abrir interface de edição: {str(e)}")
         # Se ocorrer erro, garantir que a janela principal esteja visível
         janela.deiconify()
 
@@ -2826,7 +2765,7 @@ def criar_acoes():
                 try:
                     with get_connection() as conn:
                         if conn is None:
-                            print("Erro: Não foi possível conectar ao banco de dados.")
+                            logger.error("Erro: Não foi possível conectar ao banco de dados.")
                             return
                         cursor = conn.cursor()
                         try:
@@ -2861,7 +2800,7 @@ def criar_acoes():
                         combo_responsavel['values'] = ["Responsável não cadastrado"]
                         combo_responsavel.set("Responsável não cadastrado")
                 except Exception as e:
-                    print(f"Erro ao carregar responsáveis: {str(e)}")
+                    logger.error(f"Erro ao carregar responsáveis: {str(e)}")
         
         # Vincular evento de seleção
         listbox_alunos.bind("<<ListboxSelect>>", on_aluno_select)
@@ -3602,7 +3541,7 @@ def verificar_e_gerar_boletim(aluno_id, ano_letivo_id=None):
             
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao verificar status e gerar boletim: {str(e)}")
-        print(f"Erro ao verificar status e gerar boletim: {str(e)}")
+        logger.error(f"Erro ao verificar status e gerar boletim: {str(e)}")
     finally:
         try:
             if cursor:
@@ -3759,7 +3698,7 @@ def obter_estatisticas_alunos():
                 except Exception:
                     pass
     except Exception as e:
-        print(f"Erro ao obter estatísticas: {str(e)}")
+        logger.error(f"Erro ao obter estatísticas: {str(e)}")
         return None
 
 def atualizar_tabela_principal(forcar_atualizacao=False):
@@ -3773,7 +3712,7 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
     try:
         # Verificar se temos uma treeview válida antes de tentar atualizar
         if 'treeview' not in globals() or not treeview.winfo_exists():
-            print("Treeview não existe, não é possível atualizar")
+            logger.warning("Treeview não existe, não é possível atualizar")
             return False
         
         # Verificar cache (evita recargas desnecessárias)
@@ -3786,7 +3725,7 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
         if not forcar_atualizacao and _cache_dados_tabela['timestamp']:
             tempo_decorrido = tempo_atual - _cache_dados_tabela['timestamp']
             if tempo_decorrido < 2.0:
-                print(f"Cache ainda válido ({tempo_decorrido:.1f}s), pulando atualização")
+                logger.debug(f"Cache ainda válido ({tempo_decorrido:.1f}s), pulando atualização")
                 return True
             
         # Conectar ao banco de dados
@@ -3800,7 +3739,7 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
                 # Executar a consulta otimizada para obter dados atualizados
                 # Se a variável global 'query' não estiver definida, não atualizar
                 if 'query' not in globals() or not globals().get('query'):
-                    print("Variável 'query' não definida; pulando atualização de tabela")
+                    logger.warning("Variável 'query' não definida; pulando atualização de tabela")
                     return False
                 cursor.execute(query)
 
@@ -3814,7 +3753,7 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
 
                 # Se os dados não mudaram, não precisa atualizar a interface
                 if not forcar_atualizacao and _cache_dados_tabela['hash'] == novo_hash:
-                    print("Dados não mudaram, mantendo interface atual")
+                    logger.debug("Dados não mudaram, mantendo interface atual")
                     _cache_dados_tabela['timestamp'] = tempo_atual
                     return True
 
@@ -3832,7 +3771,7 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
                 for item in treeview.get_children():
                     treeview.delete(item)
         except TclError as tcl_e:
-            print(f"Erro ao limpar treeview: {str(tcl_e)}")
+            logger.error(f"Erro ao limpar treeview: {str(tcl_e)}")
             raise  # Relançar para ser tratado pelo bloco de exceção principal
             
         # Inserir os novos dados
@@ -3851,7 +3790,7 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
                         pass
                 treeview.insert("", "end", values=resultado)
         except TclError as tcl_e:
-            print(f"Erro ao inserir dados na treeview: {str(tcl_e)}")
+            logger.error(f"Erro ao inserir dados na treeview: {str(tcl_e)}")
             raise  # Relançar para ser tratado pelo bloco de exceção principal
             
         # Fechar cursor (a conexão é fechada pelo context manager)
@@ -3861,12 +3800,12 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
         except Exception:
             pass
         
-        print("Tabela atualizada com sucesso!")
+        logger.info("Tabela atualizada com sucesso!")
         return True
         
     except TclError as e:
         # Tratamento específico para erros do Tkinter
-        print(f"Erro do Tkinter ao atualizar tabela: {str(e)}")
+        logger.error(f"Erro do Tkinter ao atualizar tabela: {str(e)}")
         
         # Fechar conexões primeiro
         if 'cursor' in locals() and cursor:
@@ -3876,7 +3815,7 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
         return False
     
     except Exception as e:
-        print(f"Erro ao atualizar tabela: {str(e)}")
+        logger.error(f"Erro ao atualizar tabela: {str(e)}")
         # Não mostrar messagebox para evitar loops de erro
         
         # Garantir que a conexão seja fechada mesmo em caso de erro
@@ -3913,7 +3852,7 @@ def editar_funcionario_e_destruir_frames():
         
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao abrir interface de edição: {str(e)}")
-        print(f"Erro ao abrir interface de edição: {str(e)}")
+        logger.error(f"Erro ao abrir interface de edição: {str(e)}")
         # Se ocorrer erro, garantir que a janela principal esteja visível
         if janela.winfo_viewable() == 0:
             janela.deiconify()
@@ -4078,7 +4017,7 @@ def selecionar_ano_para_boletim(aluno_id):
         
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao preparar seleção de ano letivo: {str(e)}")
-        print(f"Erro ao preparar seleção de ano letivo: {str(e)}")
+        logger.error(f"Erro ao preparar seleção de ano letivo: {str(e)}")
     finally:
         try:
             if cursor:
@@ -4139,7 +4078,7 @@ def criar_menu_boletim(parent_frame, aluno_id, tem_matricula_ativa):
 
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao obter informações de anos letivos: {str(e)}")
-        print(f"Erro ao obter informações de anos letivos: {str(e)}")
+        logger.error(f"Erro ao obter informações de anos letivos: {str(e)}")
     finally:
         try:
             if cursor:
@@ -4523,7 +4462,7 @@ def editar_matricula(aluno_id):
 
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao abrir edição de matrícula: {str(e)}")
-        print(f"Erro detalhado: {str(e)}")
+        logger.error(f"Erro detalhado: {str(e)}")
 
 def selecionar_mes_movimento():
     # Criar uma nova janela
@@ -4909,7 +4848,7 @@ def ao_fechar_programa():
         if not TEST_MODE:
             Seguranca.parar_backup_automatico(executar_backup_final=True)
     except Exception as e:
-        print(f"Erro ao executar backup final: {e}")
+        logger.error(f"Erro ao executar backup final: {e}")
     finally:
         # ============================================================================
         # MELHORIA 4: Fechar Connection Pool ao encerrar
@@ -4917,7 +4856,7 @@ def ao_fechar_programa():
         try:
             fechar_pool()
         except Exception as e:
-            print(f"Erro ao fechar connection pool: {e}")
+            logger.error(f"Erro ao fechar connection pool: {e}")
         
         # Fechar a janela
         janela.destroy()
@@ -4937,7 +4876,7 @@ if not TEST_MODE:
     try:
         Seguranca.iniciar_backup_automatico()
     except Exception as e:
-        print(f"Erro ao iniciar backup automático: {e}")
+        logger.error(f"Erro ao iniciar backup automático: {e}")
 
 # Configurar o protocolo de fechamento da janela
 janela.protocol("WM_DELETE_WINDOW", ao_fechar_programa)
