@@ -27,7 +27,7 @@ from Gerar_Declaracao_Aluno import gerar_declaracao_aluno
 import Lista_atualizada
 import Lista_atualizada_semed
 import Seguranca
-from conexao import conectar_bd, inicializar_pool, fechar_pool
+from conexao import inicializar_pool, fechar_pool
 from db.connection import get_connection
 from typing import Any, cast
 import aluno
