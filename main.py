@@ -319,19 +319,16 @@ try:
     from preencher_folha_ponto import gerar_folhas_de_ponto as _gerar_folhas_de_ponto_legacy, nome_mes_pt as nome_mes_pt_folha
 except Exception:
     _gerar_folhas_de_ponto_legacy = None
-    # Fallback: garantir que `nome_mes_pt_folha` sempre exista como função
-    # Usar o mesmo nome de parâmetro esperado pelo módulo legado para satisfazer o type checker
-    def nome_mes_pt_folha(mes_num):
-        return str(mes_num)
+    # Fallback: usar utilitário consolidado para nome do mês
+    from utils.dates import nome_mes_pt as nome_mes_pt_folha
 # Import seguro para resumo de ponto — importamos o módulo como fallback
 try:
     from gerar_resumo_ponto import nome_mes_pt as nome_mes_pt_resumo  # type: ignore
     import gerar_resumo_ponto as _gerar_resumo_ponto  # type: ignore
 except Exception:
     _gerar_resumo_ponto = None
-    # Fallback: garantir que `nome_mes_pt_resumo` é sempre uma função (evita erros de tipo)
-    def nome_mes_pt_resumo(m):
-        return str(m)
+    # Fallback: usar utilitário consolidado para nome do mês
+    from utils.dates import nome_mes_pt as nome_mes_pt_resumo
 
 
 def gerar_resumo_ponto(*args, **kwargs):
@@ -2496,11 +2493,14 @@ def criar_acoes():
         # Obter mês atual
         mes_atual = datetime.now().month
         
-        # Lista de meses
-        meses = [
-            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-        ]
+        # Lista de meses (gerada a partir do utilitário compartilhado)
+        try:
+            meses = [nome_mes_pt_folha(i) for i in range(1, 13)]
+        except Exception:
+            meses = [
+                "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+            ]
         
         # Filtrar apenas os meses até o atual
         meses_disponiveis = meses[:mes_atual]
@@ -4630,11 +4630,14 @@ def selecionar_mes_movimento():
     Label(frame_mes, text="Selecione o mês para o relatório:", 
           font=('Ivy', 12), bg=co1, fg=co0).pack(pady=10)
     
-    # Lista de meses
-    meses = [
-        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-    ]
+    # Lista de meses (gerada a partir do utilitário centralizado)
+    try:
+        meses = [nome_mes_pt_folha(i) for i in range(1, 13)]
+    except Exception:
+        meses = [
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+        ]
     
     # Obter mês atual
     mes_atual = datetime.now().month
@@ -4680,11 +4683,14 @@ def relatorio():
     # Obter mês atual
     mes_atual = datetime.now().month
     
-    # Lista de meses
-    meses = [
-        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-    ]
+    # Lista de meses (gerada a partir do utilitário centralizado)
+    try:
+        meses = [nome_mes_pt_folha(i) for i in range(1, 13)]
+    except Exception:
+        meses = [
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+        ]
     
     # Filtrar apenas os meses até o atual
     meses_disponiveis = meses[:mes_atual]
