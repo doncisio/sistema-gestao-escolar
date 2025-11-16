@@ -36,6 +36,153 @@ from config_logs import get_logger
 
 # Logger da aplicação
 logger = get_logger(__name__)
+
+
+def _run_report_in_background(fn, descricao: str):
+    # Delegar para o módulo de UI (`ui.dashboard`) que oferece janela de progresso
+    try:
+        from ui.dashboard import run_report_in_background
+        return run_report_in_background(fn, descricao, janela=janela, status_label=status_label, co1=co1, co0=co0, co6=co6)
+    except Exception:
+        # Se falhar (ex.: módulo não disponível), usar fallback mínimo local
+        def _worker():
+            try:
+                res = fn()
+                try:
+                    if status_label is not None:
+                        status_label.config(text=f"{descricao} gerado com sucesso.")
+                except Exception:
+                    pass
+                try:
+                    messagebox.showinfo(descricao, f"{descricao} gerado com sucesso.")
+                except Exception:
+                    pass
+                return res
+            except Exception as e:
+                try:
+                    messagebox.showerror(f"Erro - {descricao}", f"Falha ao gerar {descricao}: {e}")
+                except Exception:
+                    pass
+                return None
+
+        from threading import Thread
+        Thread(target=_worker, daemon=True).start()
+
+
+def _run_report_module_returning_buffer(module_fn, descricao: str):
+    """Helper: para módulos que retornam um `BytesIO` buffer.
+    Chama `module_fn()` em background e, quando recebe o buffer,
+    salva/abre o PDF via `gerarPDF.salvar_e_abrir_pdf` (no worker).
+    Retorna o caminho do arquivo salvo para o on_done do wrapper.
+    """
+    try:
+        from ui.dashboard import run_report_module_returning_buffer
+        return run_report_module_returning_buffer(module_fn, descricao, janela=janela, status_label=status_label, co1=co1, co0=co0, co6=co6)
+    except Exception:
+        # Fallback local
+        def _worker():
+            res = module_fn()
+            if not res:
+                return None
+            try:
+                from gerarPDF import salvar_e_abrir_pdf
+                return salvar_e_abrir_pdf(res)
+            except Exception:
+                raise
+
+        _run_report_in_background(_worker, descricao)
+
+
+def relatorio_levantamento_necessidades():
+    try:
+        import levantamento_necessidades as _lev
+    except Exception:
+        _lev = None
+
+    if _lev and hasattr(_lev, 'gerar_levantamento_necessidades'):
+        try:
+            _run_report_module_returning_buffer(_lev.gerar_levantamento_necessidades, "Levantamento de Necessidades")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao agendar levantamento de necessidades: {e}")
+    else:
+        messagebox.showerror("Erro", "Função 'gerar_levantamento_necessidades' não disponível. Verifique o módulo 'levantamento_necessidades'.")
+
+
+def relatorio_contatos_responsaveis():
+    try:
+        import Lista_contatos_responsaveis as _cont
+    except Exception:
+        _cont = None
+
+    if _cont and hasattr(_cont, 'gerar_pdf_contatos'):
+        try:
+            _run_report_module_returning_buffer(_cont.gerar_pdf_contatos, "Contatos de Responsáveis")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao agendar relatório de contatos: {e}")
+    else:
+        messagebox.showerror("Erro", "Função 'gerar_pdf_contatos' não disponível. Verifique o módulo 'Lista_contatos_responsaveis'.")
+
+
+def relatorio_lista_alfabetica():
+    try:
+        import Lista_alunos_alfabetica as _alf
+    except Exception:
+        _alf = None
+
+    if _alf and hasattr(_alf, 'lista_alfabetica'):
+        try:
+            _run_report_in_background(_alf.lista_alfabetica, "Lista Alfabética")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao agendar lista alfabética: {e}")
+    else:
+        messagebox.showerror("Erro", "Função 'lista_alfabetica' não disponível. Verifique o módulo 'Lista_alunos_alfabetica'.")
+
+
+def relatorio_alunos_transtornos():
+    try:
+        import Lista_alunos_transtornos as _tr
+    except Exception:
+        _tr = None
+
+    if _tr and hasattr(_tr, 'lista_alunos_transtornos'):
+        try:
+            _run_report_in_background(_tr.lista_alunos_transtornos, "Alunos com Transtornos")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao agendar relatório de transtornos: {e}")
+    else:
+        messagebox.showerror("Erro", "Função 'lista_alunos_transtornos' não disponível. Verifique o módulo 'Lista_alunos_transtornos'.")
+
+
+def relatorio_termo_responsabilidade():
+    try:
+        import termo_responsabilidade_empresa as _term
+    except Exception:
+        _term = None
+
+    if _term and hasattr(_term, 'gerar_termo_responsabilidade'):
+        try:
+            _fn = cast(Any, _term).gerar_termo_responsabilidade
+            _run_report_in_background(_fn, "Termo de Responsabilidade")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao agendar termo de responsabilidade: {e}")
+    else:
+        messagebox.showerror("Erro", "Função 'gerar_termo_responsabilidade' não disponível. Verifique o módulo 'termo_responsabilidade_empresa'.")
+
+
+def relatorio_tabela_docentes():
+    try:
+        import tabela_docentes as _td
+    except Exception:
+        _td = None
+
+    if _td and hasattr(_td, 'gerar_tabela_docentes'):
+        try:
+            _run_report_module_returning_buffer(cast(Any, _td).gerar_tabela_docentes, "Tabela de Docentes")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao agendar tabela de docentes: {e}")
+    else:
+        messagebox.showerror("Erro", "Função 'gerar_tabela_docentes' não disponível. Verifique o módulo 'tabela_docentes'.")
+
 # Import seguro para a interface de cadastro/edição de notas
 try:
     import InterfaceCadastroEdicaoNotas as _InterfaceCadastroEdicaoNotas
@@ -86,18 +233,28 @@ def lista_reuniao():
     # Primeira opção: delegar para o serviço centralizado, se disponível
     if report_service is not None and hasattr(report_service, 'gerar_lista_reuniao'):
         try:
-            return report_service.gerar_lista_reuniao()
+            logger.info("Chamando report_service.gerar_lista_reuniao() via menu")
+            # Cast para Any para ajudar o verificador de tipos (Pylance) a entender
+            # que `report_service` não é None no ramo protegido pelo if acima.
+            resultado = cast(Any, report_service).gerar_lista_reuniao()
+            logger.info("report_service.gerar_lista_reuniao() retornou: %s", resultado)
+            return resultado
         except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao gerar lista de reunião: {e}")
+            # Logar traceback completo para diagnóstico quando chamado pela UI
+            logger.exception("Erro ao chamar report_service.gerar_lista_reuniao(): %s", e)
+            # Mostrar mensagem mais informativa ao usuário
+            tb = traceback.format_exc()
+            messagebox.showerror("Erro", f"Falha ao gerar lista de reunião: {e}\n\nDetalhes técnicos foram registrados no log.")
             return None
 
     # Fallback: usar o módulo legado já importado de forma segura
     if _gerar_lista_reuniao and hasattr(_gerar_lista_reuniao, 'gerar_lista_reuniao'):
-        try:
-            _gerar_lista_reuniao.gerar_lista_reuniao()
-        except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao gerar lista de reunião: {e}")
-            return None
+        # Bind the legacy function to a local variable (cast to Any) so the
+        # background worker receives a concrete callable and static analyzers
+        # (Pylance) do not complain about optional member access inside a lambda.
+        _fn = cast(Any, _gerar_lista_reuniao).gerar_lista_reuniao
+        _run_report_in_background(_fn, "Lista de Reunião")
+        return None
     else:
         messagebox.showerror("Erro", "Função 'gerar_lista_reuniao' não disponível. Verifique o módulo 'gerar_lista_reuniao'.")
         return None
@@ -122,11 +279,9 @@ def lista_notas():
 
     # Fallback para módulo legado
     if _lista_notas and hasattr(_lista_notas, 'lista_notas'):
-        try:
-            _lista_notas.lista_notas()
-        except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao gerar lista de notas: {e}")
-            return None
+        _fn = cast(Any, _lista_notas).lista_notas
+        _run_report_in_background(_fn, "Lista de Notas")
+        return None
     else:
         messagebox.showerror("Erro", "Função 'lista_notas' não disponível. Verifique o módulo 'Lista_notas'.")
         return None
@@ -151,14 +306,32 @@ def lista_frequencia():
 
     # Fallback para módulo legado
     if _lista_frequencia and hasattr(_lista_frequencia, 'lista_frequencia'):
-        try:
-            _lista_frequencia.lista_frequencia()
-        except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao gerar lista de frequência: {e}")
-            return None
-    else:
-        messagebox.showerror("Erro", "Função 'lista_frequencia' não disponível. Verifique o módulo 'lista_frequencia'.")
+        _fn = cast(Any, _lista_frequencia).lista_frequencia
+        _run_report_in_background(_fn, "Lista de Frequência")
         return None
+
+
+def lista_atualizada_wrapper():
+    try:
+        if hasattr(Lista_atualizada, 'lista_atualizada'):
+            _run_report_in_background(Lista_atualizada.lista_atualizada, "Lista Atualizada")
+        else:
+            messagebox.showerror("Erro", "Função 'lista_atualizada' não disponível no módulo Lista_atualizada.")
+    except Exception as e:
+        messagebox.showerror("Erro", f"Falha ao gerar Lista Atualizada: {e}")
+
+
+def lista_atualizada_semed_wrapper():
+    try:
+        if hasattr(Lista_atualizada_semed, 'lista_atualizada'):
+            _run_report_in_background(Lista_atualizada_semed.lista_atualizada, "Lista Atualizada SEMED")
+        else:
+            messagebox.showerror("Erro", "Função 'lista_atualizada' não disponível no módulo Lista_atualizada_semed.")
+    except Exception as e:
+        messagebox.showerror("Erro", f"Falha ao gerar Lista Atualizada SEMED: {e}")
+    # NOTE: Não usar `else:` aqui — bloco `else` em `try/except/else` executa quando
+    # não houve exceção, o que causava a exibição indevida de uma mensagem de erro
+    # mesmo quando a geração foi agendada com sucesso. Removido para comportamento correto.
 
 def gerar_relatorio_notas(*args, **kwargs):
     """Wrapper para `NotaAta.gerar_relatorio_notas`"""
@@ -309,7 +482,8 @@ def obter_ano_letivo_atual() -> int:
                 cur.close()
             except Exception:
                 pass
-            return int(res[0]) if res and res[0] is not None else 1
+            # Usar conversor seguro para evitar passar tipos inesperados (ex.: date)
+            return converter_para_int_seguro(res[0]) if res and res[0] is not None else 1
     except Exception as e:
         logger.error(f"Erro ao obter ano letivo atual: {e}")
         return 1
@@ -399,6 +573,7 @@ co9 = "#6FA8DC"  # Azul claro (substituindo o azul claro anterior para melhor ha
 selected_item = None
 label_rodape = None
 status_label = None
+dashboard_manager = None
 
 
 # ============================================================================
@@ -501,212 +676,30 @@ def criar_frames():
 dashboard_canvas = None
 
 def criar_dashboard():
-    """
-    Cria e exibe um dashboard com gráfico de pizza mostrando a distribuição
-    de alunos matriculados por série no ano letivo atual.
-    """
-    global dashboard_canvas
-    
-    # Limpar dashboard anterior se existir
-    if dashboard_canvas is not None:
-        try:
-            dashboard_canvas.get_tk_widget().destroy()
-        except Exception:
-            pass
-        dashboard_canvas = None
-
-    # Criar frame para o dashboard com UI de carregamento e manter a UI responsiva
-    dashboard_frame = Frame(frame_tabela, bg=co1)
-    dashboard_frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
-
-    # Frame para informações gerais (topo)
-    info_frame = Frame(dashboard_frame, bg=co1)
-    info_frame.pack(fill=X, pady=(0, 10))
-
-    # Título temporário enquanto os dados carregam
-    title_label = Label(
-        info_frame,
-        text="Dashboard - Carregando...",
-        font=('Calibri', 16, 'bold'),
-        bg=co1,
-        fg=co0
-    )
-    title_label.pack(pady=(0, 10))
-
-    # Area de loading
-    loading_frame = Frame(dashboard_frame, bg=co1)
-    loading_frame.pack(fill=BOTH, expand=True)
-    loading_label = Label(loading_frame, text="Carregando dados, aguarde...", font=('Calibri', 12), bg=co1, fg=co0)
-    loading_label.pack(pady=20)
-    progress = Progressbar(loading_frame, mode='indeterminate')
-    progress.pack(pady=10, padx=20)
+    # Delega a criação do dashboard ao DashboardManager (instanciado mais abaixo).
     try:
-        progress.start(10)
+        if 'dashboard_manager' in globals() and dashboard_manager:
+            return dashboard_manager.criar_dashboard()
     except Exception:
         pass
-
-    # Trabalho pesado em background: buscar dados e construir figura
-    def _worker():
-        try:
-            dados = obter_estatisticas_alunos()
-
-            if not dados or not dados.get('por_serie'):
-                def _on_empty():
-                    try:
-                        progress.stop()
-                    except Exception:
-                        pass
-                    try:
-                        loading_frame.destroy()
-                    except Exception:
-                        pass
-                    Label(dashboard_frame, text="Nenhum dado disponível para exibir no dashboard", font=('Calibri', 14), bg=co1, fg=co0).pack(pady=50)
-                janela.after(0, _on_empty)
-                return
-
-            # Determinar ano letivo em background (operações de DB são aceitáveis fora da UI)
-            try:
-                with get_connection() as conn_temp:
-                    if conn_temp:
-                        cursor_temp = cast(Any, conn_temp).cursor()
-                        try:
-                            cursor_temp.execute("SELECT ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
-                            resultado_ano = cursor_temp.fetchone()
-                            if not resultado_ano:
-                                cursor_temp.execute("SELECT ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
-                                resultado_ano = cursor_temp.fetchone()
-                            if resultado_ano:
-                                if isinstance(resultado_ano, (list, tuple)):
-                                    ano_val = resultado_ano[0]
-                                elif isinstance(resultado_ano, dict):
-                                    ano_val = resultado_ano.get('ano_letivo') or next(iter(resultado_ano.values()), None)
-                                else:
-                                    ano_val = resultado_ano
-                                ano_letivo_exibir = ano_val if ano_val is not None else "Corrente"
-                            else:
-                                ano_letivo_exibir = "Corrente"
-                        finally:
-                            try:
-                                cursor_temp.close()
-                            except Exception:
-                                pass
-                    else:
-                        ano_letivo_exibir = "Corrente"
-            except Exception:
-                ano_letivo_exibir = "Corrente"
-
-            # Preparar dados para o gráfico
-            series = [item['serie'] for item in dados['por_serie']]
-            quantidades = [item['quantidade'] for item in dados['por_serie']]
-
-            # Construir figura do matplotlib (pode ser feito em background)
-            fig = Figure(figsize=(11, 6.5), dpi=100, facecolor=co1)
-            ax = fig.add_subplot(111)
-            ax.set_facecolor(co1)
-            cores = ['#1976d2', '#388e3c', '#d32f2f', '#f57c00', '#7b1fa2', '#0097a7', '#5d4037', '#455a64', '#c2185b', '#afb42b']
-            resultado_pie = ax.pie(
-                quantidades,
-                labels=series,
-                autopct='%1.1f%%',
-                startangle=90,
-                colors=cores[:len(series)],
-                textprops={'fontsize': 10, 'weight': 'bold', 'color': co0}
-            )
-
-            # Ajustes visuais
-            try:
-                if len(resultado_pie) >= 3:
-                    wedges, texts, autotexts = resultado_pie
-                    for autotext in autotexts:
-                        autotext.set_color('white')
-                        autotext.set_fontsize(10)
-                        autotext.set_fontweight('bold')
-                else:
-                    wedges, texts = resultado_pie
-            except Exception:
-                pass
-
-            ax.set_title('Distribuição de Alunos por Série', fontsize=14, weight='bold', pad=25, color=co0)
-            legendas = [f'{s}: {q} alunos' for s, q in zip(series, quantidades)]
-            try:
-                legend = ax.legend(legendas, loc='center left', bbox_to_anchor=(1.15, 0.5), fontsize=9, frameon=True, facecolor=co1, edgecolor=co0)
-                for text in legend.get_texts():
-                    text.set_color(co0)
-            except Exception:
-                pass
-
-            fig.tight_layout(rect=(0, 0, 0.85, 0.95))
-
-            # Atualizar UI na thread principal
-            def _on_main():
-                nonlocal fig
-                global dashboard_canvas
-                try:
-                    progress.stop()
-                except Exception:
-                    pass
-                try:
-                    loading_frame.destroy()
-                except Exception:
-                    pass
-
-                # Atualiza título
-                title_label.config(text=f"Dashboard - Alunos Matriculados no Ano Letivo de {ano_letivo_exibir}")
-
-                # Informações totais
-                totais_frame = Frame(info_frame, bg=co1)
-                totais_frame.pack()
-                try:
-                    Label(totais_frame, text=f"Total Matriculados: {dados['total_matriculados']}", font=('Calibri', 12, 'bold'), bg=co1, fg=co0).pack(side=LEFT, padx=20)
-                    Label(totais_frame, text=f"Ativos: {dados['total_ativos']}", font=('Calibri', 12, 'bold'), bg=co1, fg=co0).pack(side=LEFT, padx=20)
-                    Label(totais_frame, text=f"Transferidos: {dados['total_transferidos']}", font=('Calibri', 12, 'bold'), bg=co1, fg=co0).pack(side=LEFT, padx=20)
-                except Exception:
-                    pass
-
-                # Frame para o gráfico
-                grafico_frame = Frame(dashboard_frame, bg=co1)
-                grafico_frame.pack(fill=BOTH, expand=True)
-
-                try:
-                    canvas = FigureCanvasTkAgg(fig, master=grafico_frame)
-                    canvas.draw()
-                    canvas.get_tk_widget().pack(fill=BOTH, expand=True)
-                    dashboard_canvas = canvas
-                except Exception as e:
-                    Label(grafico_frame, text=f"Erro ao renderizar gráfico: {e}", bg=co1, fg='red').pack(pady=10)
-
-                # Botão para atualizar dashboard
-                btn_atualizar = Button(dashboard_frame, text="🔄 Atualizar Dashboard", font=('Calibri', 11, 'bold'), bg=co4, fg=co1, relief=RAISED, command=lambda: atualizar_dashboard())
-                btn_atualizar.pack(pady=10)
-
-            janela.after(0, _on_main)
-        except Exception as e:
-            def _on_error():
-                try:
-                    progress.stop()
-                except Exception:
-                    pass
-                try:
-                    loading_frame.destroy()
-                except Exception:
-                    pass
-                messagebox.showerror("Dashboard", f"Falha ao gerar dashboard: {e}")
-            janela.after(0, _on_error)
-
-    from threading import Thread
-    Thread(target=_worker, daemon=True).start()
+    return None
 
 def atualizar_dashboard():
     """
     Força a atualização do cache e recria o dashboard.
     """
-    # Limpar cache
+    try:
+        if 'dashboard_manager' in globals() and dashboard_manager:
+            dashboard_manager.atualizar_dashboard()
+            messagebox.showinfo("Dashboard", "Dashboard atualizado com sucesso!")
+            return
+    except Exception:
+        pass
+
+    # Fallback: limpar cache e recriar via função antiga
     _cache_estatisticas_dashboard['timestamp'] = None
     _cache_estatisticas_dashboard['dados'] = None
-    
-    # Recriar dashboard
     criar_dashboard()
-    
     messagebox.showinfo("Dashboard", "Dashboard atualizado com sucesso!")
 
 def criar_tabela():
@@ -2039,14 +2032,59 @@ def gerar_declaracao(id_pessoa=None):
                 messagebox.showwarning("Aviso", "Por favor, especifique o motivo.")
                 return
         
-        if tipo_pessoa == 'Aluno':
-            gerar_declaracao_aluno(id_pessoa, marcacoes, motivo_outros)
-        elif tipo_pessoa == 'Funcionário':
-            gerar_declaracao_funcionario(id_pessoa)
-        else:
-            messagebox.showerror("Erro", "Tipo de usuário desconhecido.")
-        
+        # Executar geração da declaração em background para não bloquear a UI
+        def _worker():
+            if tipo_pessoa == 'Aluno':
+                return gerar_declaracao_aluno(id_pessoa, marcacoes, motivo_outros)
+            elif tipo_pessoa == 'Funcionário':
+                return gerar_declaracao_funcionario(id_pessoa)
+            else:
+                raise RuntimeError('Tipo de usuário desconhecido')
+
+        def _on_done(resultado):
+            try:
+                if resultado is True or resultado is None:
+                    # Alguns geradores retornam None; considerar sucesso se não houve exceção
+                    if status_label is not None:
+                        status_label.config(text="Declaração gerada com sucesso.")
+                    messagebox.showinfo("Concluído", "Declaração gerada com sucesso.")
+                else:
+                    # Se o worker retornou caminho ou objeto, mostrar informação genérica
+                    if status_label is not None:
+                        status_label.config(text="Declaração gerada com sucesso.")
+                    messagebox.showinfo("Concluído", f"Declaração gerada: {resultado}")
+            except Exception:
+                # Evitar que exceções aqui quebrem a UI
+                pass
+
+        def _on_error(exc):
+            messagebox.showerror("Erro", f"Falha ao gerar declaração: {exc}")
+            if status_label is not None:
+                status_label.config(text="")
+
+        # Fechar diálogo antes de submeter a tarefa de background
         dialog.destroy()
+
+        try:
+            from utils.executor import submit_background
+            submit_background(_worker, on_done=_on_done, on_error=_on_error, janela=janela)
+        except Exception:
+            # Fallback seguro: executar em Thread e agendar callbacks via janela.after
+            def _thread_worker():
+                try:
+                    res = _worker()
+                    try:
+                        janela.after(0, lambda: _on_done(res))
+                    except Exception:
+                        pass
+                except Exception as e:
+                    try:
+                        janela.after(0, lambda: _on_error(e))
+                    except Exception:
+                        pass
+
+            from threading import Thread
+            Thread(target=_thread_worker, daemon=True).start()
     
     Button(dialog, text="Confirmar", command=confirmar, bg=co2, fg=co0).pack(pady=10)
 
@@ -2534,11 +2572,19 @@ def criar_acoes():
     listas_menu = Menu(menu_bar, tearoff=0)
 
     # Aplicando a fonte às opções do menu
-    listas_menu.add_command(label="Lista Atualizada", command=lambda: Lista_atualizada.lista_atualizada(), font=menu_font)
-    listas_menu.add_command(label="Lista Atualizada SEMED", command=lambda: Lista_atualizada_semed.lista_atualizada(), font=menu_font)
+    listas_menu.add_command(label="Lista Atualizada", command=lambda: lista_atualizada_wrapper(), font=menu_font)
+    listas_menu.add_command(label="Lista Atualizada SEMED", command=lambda: lista_atualizada_semed_wrapper(), font=menu_font)
     listas_menu.add_command(label="Lista de Reunião", command=lambda: lista_reuniao(), font=menu_font)
     listas_menu.add_command(label="Lista de Notas", command=lambda: lista_notas(), font=menu_font)
     listas_menu.add_command(label="Lista de Frequências", command=lambda: lista_frequencia(), font=menu_font)
+    listas_menu.add_separator()
+    listas_menu.add_command(label="Contatos de Responsáveis", command=lambda: relatorio_contatos_responsaveis(), font=menu_font)
+    listas_menu.add_command(label="Levantamento de Necessidades", command=lambda: relatorio_levantamento_necessidades(), font=menu_font)
+    listas_menu.add_command(label="Lista Alfabética", command=lambda: relatorio_lista_alfabetica(), font=menu_font)
+    listas_menu.add_command(label="Alunos com Transtornos", command=lambda: relatorio_alunos_transtornos(), font=menu_font)
+    listas_menu.add_separator()
+    listas_menu.add_command(label="Termo de Responsabilidade", command=lambda: relatorio_termo_responsabilidade(), font=menu_font)
+    listas_menu.add_command(label="Tabela de Docentes", command=lambda: relatorio_tabela_docentes(), font=menu_font)
     
     # (Movimento Mensal transferido para o menu 'Serviços')
 
@@ -3103,8 +3149,12 @@ def criar_acoes():
 
             janela.after(0, _on_done)
 
-        from threading import Thread
-        Thread(target=_worker, daemon=True).start()
+        try:
+            from utils.executor import submit_background
+            submit_background(_worker, janela=janela)
+        except Exception:
+            from threading import Thread
+            Thread(target=_worker, daemon=True).start()
 
     servicos_menu.add_command(
         label="Crachás Alunos/Responsáveis",
@@ -3233,11 +3283,16 @@ def criar_acoes():
                 saida = os.path.join(pasta_var.get(), f"Folhas_de_Ponto_{nome_mes}_{ano}.pdf")
                 if status_label is not None:
                     status_label.config(text=f"Gerando folhas de ponto de {nome_mes}/{ano}…")
-                janela.update()
-                gerar_folhas_de_ponto(base_pdf, saida, mes_referencia=mes, ano_referencia=ano)
-                if status_label is not None:
-                    status_label.config(text="Folhas de ponto geradas com sucesso.")
-                messagebox.showinfo("Concluído", f"Arquivo gerado em:\n{saida}")
+
+                def _worker():
+                    # Executa a geração em background e retorna o caminho de saída
+                    gerar_folhas_de_ponto(base_pdf, saida, mes_referencia=mes, ano_referencia=ano)
+                    return saida
+
+                try:
+                    _run_report_in_background(_worker, f"Folhas de Ponto {nome_mes}/{ano}")
+                except Exception as e:
+                    messagebox.showerror("Erro", f"Falha ao agendar geração das folhas de ponto: {e}")
             except Exception as e:
                 if status_label is not None:
                     status_label.config(text="")
@@ -3276,11 +3331,15 @@ def criar_acoes():
                 nome_mes = nome_mes_pt_resumo(mes)
                 if status_label is not None:
                     status_label.config(text=f"Gerando resumo de ponto de {nome_mes}/{ano}…")
-                janela.update()
-                gerar_resumo_ponto(mes, ano)
-                if status_label is not None:
-                    status_label.config(text="Resumo de ponto gerado com sucesso.")
-                messagebox.showinfo("Concluído", "Resumo gerado na pasta configurada no script.")
+
+                def _worker():
+                    gerar_resumo_ponto(mes, ano)
+                    return None
+
+                try:
+                    _run_report_in_background(_worker, f"Resumo de Ponto {nome_mes}/{ano}")
+                except Exception as e:
+                    messagebox.showerror("Erro", f"Falha ao agendar resumo de ponto: {e}")
             except Exception as e:
                 if status_label is not None:
                     status_label.config(text="")
@@ -3672,18 +3731,54 @@ def verificar_e_gerar_boletim(aluno_id, ano_letivo_id=None):
         ano_letivo = _safe_get(resultado, 2)
         
         # Decidir qual documento gerar baseado no status
-        if status_matricula == 'Transferido':
-            # Informar ao usuário antes de gerar o documento
-            messagebox.showinfo("Aluno Transferido", 
-                              f"O aluno {nome_aluno} está com status 'Transferido' no ano letivo {ano_letivo}.\n"
-                              f"Será gerado um documento de transferência com o desempenho acadêmico parcial.")
-            
-            # Importar e chamar a função de gerar documento de transferência
-            from transferencia import gerar_documento_transferencia
-            gerar_documento_transferencia(aluno_id, ano_letivo_id)
-        else:
-            # Chamar a função de boletim normal com o ano letivo especificado
-            boletim(aluno_id, ano_letivo_id)
+        # Gerar em background para não bloquear a UI
+        def _worker():
+            if status_matricula == 'Transferido':
+                from transferencia import gerar_documento_transferencia
+                gerar_documento_transferencia(aluno_id, ano_letivo_id)
+                return True
+            else:
+                return boletim(aluno_id, ano_letivo_id)
+
+        def _on_done(resultado):
+            if status_matricula == 'Transferido':
+                messagebox.showinfo("Aluno Transferido", 
+                                    f"O aluno {nome_aluno} está com status 'Transferido' no ano letivo {ano_letivo}.\n"
+                                    f"Documento de transferência gerado com sucesso.")
+            else:
+                if resultado:
+                    if status_label is not None:
+                        status_label.config(text="Boletim gerado com sucesso.")
+                    messagebox.showinfo("Concluído", "Boletim gerado com sucesso.")
+                else:
+                    if status_label is not None:
+                        status_label.config(text="")
+                    messagebox.showwarning("Aviso", "Nenhum dado gerado para o boletim.")
+
+        def _on_error(exc):
+            messagebox.showerror("Erro", f"Falha ao gerar documento: {exc}")
+            if status_label is not None:
+                status_label.config(text="")
+
+        try:
+            from utils.executor import submit_background
+            submit_background(_worker, on_done=_on_done, on_error=_on_error, janela=janela)
+        except Exception:
+            def _thread_worker():
+                try:
+                    res = _worker()
+                    try:
+                        janela.after(0, lambda: _on_done(res))
+                    except Exception:
+                        pass
+                except Exception as e:
+                    try:
+                        janela.after(0, lambda: _on_error(e))
+                    except Exception:
+                        pass
+
+            from threading import Thread
+            Thread(target=_thread_worker, daemon=True).start()
             
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao verificar status e gerar boletim: {str(e)}")
@@ -3847,6 +3942,17 @@ def obter_estatisticas_alunos():
         logger.error(f"Erro ao obter estatísticas: {str(e)}")
         return None
 
+
+# Instanciar o DashboardManager se possível (injeta dependências necessárias)
+try:
+    from ui.dashboard import DashboardManager
+    from services.db_service import DbService
+    frame_getter = lambda: globals().get('frame_tabela')
+    db_service = DbService(get_connection)
+    dashboard_manager = DashboardManager(janela, db_service, obter_estatisticas_alunos, frame_getter, _cache_estatisticas_dashboard, co_bg=co1, co_fg=co0, co_accent=co4)
+except Exception:
+    dashboard_manager = None
+
 def atualizar_tabela_principal(forcar_atualizacao=False):
     """
     Atualiza a tabela principal com os dados mais recentes do banco de dados.
@@ -3887,7 +3993,10 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
                 if 'query' not in globals() or not globals().get('query'):
                     logger.warning("Variável 'query' não definida; pulando atualização de tabela")
                     return False
-                cursor.execute(query)
+                # Usar a variável global `query` via globals() e assegurar ao verificador de tipos
+                # que se trata de uma string (cast) — já garantimos acima que 'query' existe e é truthy.
+                _q = globals().get('query')
+                cursor.execute(cast(str, _q))
 
                 # Atualizar a variável global de resultados
                 global resultados
@@ -4140,19 +4249,57 @@ def selecionar_ano_para_boletim(aluno_id):
             janela_selecao.destroy()
             
             # Decidir qual tipo de documento gerar com base no status
-            if status == 'Transferido':
-                # Informar ao usuário antes de gerar o documento
-                ano_letivo = selected.split(' - ')[0]
-                messagebox.showinfo("Aluno Transferido", 
-                                  f"O aluno {nome_aluno} teve status 'Transferido' no ano {ano_letivo}.\n"
-                                  f"Será gerado um documento de transferência.")
-                
-                # Importar e chamar a função de gerar documento de transferência
-                from transferencia import gerar_documento_transferencia
-                gerar_documento_transferencia(aluno_id, ano_letivo_id)
-            else:
-                # Chamar a função de boletim com o ano letivo específico
-                boletim(aluno_id, ano_letivo_id)
+            # Gerar em background para não bloquear a UI
+            def _worker():
+                if status == 'Transferido':
+                    ano_letivo = selected.split(' - ')[0]
+                    # Nota: comunicação ao usuário será feita no on_done
+                    from transferencia import gerar_documento_transferencia
+                    gerar_documento_transferencia(aluno_id, ano_letivo_id)
+                    return True
+                else:
+                    return boletim(aluno_id, ano_letivo_id)
+
+            def _on_done(resultado):
+                if status == 'Transferido':
+                    messagebox.showinfo("Aluno Transferido", 
+                                        f"O aluno {nome_aluno} teve status 'Transferido' no ano {selected.split(' - ')[0]}.\n"
+                                        f"Documento de transferência gerado com sucesso.")
+                else:
+                    if resultado:
+                        if status_label is not None:
+                            status_label.config(text="Boletim gerado com sucesso.")
+                        messagebox.showinfo("Concluído", "Boletim gerado com sucesso.")
+                    else:
+                        if status_label is not None:
+                            status_label.config(text="")
+                        messagebox.showwarning("Aviso", "Nenhum dado gerado para o boletim.")
+
+            def _on_error(exc):
+                messagebox.showerror("Erro", f"Falha ao gerar documento: {exc}")
+                if status_label is not None:
+                    status_label.config(text="")
+
+            try:
+                from utils.executor import submit_background
+                submit_background(_worker, on_done=_on_done, on_error=_on_error, janela=janela)
+            except Exception:
+                # Fallback: executar em Thread e agendar callbacks via `janela.after`
+                def _thread_worker():
+                    try:
+                        res = _worker()
+                        try:
+                            janela.after(0, lambda: _on_done(res))
+                        except Exception:
+                            pass
+                    except Exception as e:
+                        try:
+                            janela.after(0, lambda: _on_error(e))
+                        except Exception:
+                            pass
+
+                from threading import Thread
+                Thread(target=_thread_worker, daemon=True).start()
         
         # Botões
         Button(botoes_frame, text="Gerar Boletim", command=gerar_boletim_selecionado,
@@ -4260,19 +4407,54 @@ def criar_menu_boletim(parent_frame, aluno_id, tem_matricula_ativa):
         ano_letivo_id, status = anos_info[selected]
         
         # Decidir qual tipo de documento gerar com base no status
-        if status == 'Transferido':
-            # Informar ao usuário antes de gerar o documento
-            ano_letivo = selected.split(' - ')[0]
-            messagebox.showinfo("Aluno Transferido", 
-                              f"O aluno teve status 'Transferido' no ano {ano_letivo}.\n"
-                              f"Será gerado um documento de transferência.")
-            
-            # Importar e chamar a função de gerar documento de transferência
-            from transferencia import gerar_documento_transferencia
-            gerar_documento_transferencia(aluno_id, ano_letivo_id)
-        else:
-            # Chamar a função de boletim com o ano letivo específico
-            boletim(aluno_id, ano_letivo_id)
+        # Gerar em background para não bloquear a UI
+        def _worker():
+            if status == 'Transferido':
+                from transferencia import gerar_documento_transferencia
+                gerar_documento_transferencia(aluno_id, ano_letivo_id)
+                return True
+            else:
+                return boletim(aluno_id, ano_letivo_id)
+
+        def _on_done(resultado):
+            if status == 'Transferido':
+                messagebox.showinfo("Aluno Transferido", 
+                                    f"O aluno teve status 'Transferido' no ano {selected.split(' - ')[0]}.\n"
+                                    f"Documento de transferência gerado com sucesso.")
+            else:
+                if resultado:
+                    if status_label is not None:
+                        status_label.config(text="Boletim gerado com sucesso.")
+                    messagebox.showinfo("Concluído", "Boletim gerado com sucesso.")
+                else:
+                    if status_label is not None:
+                        status_label.config(text="")
+                    messagebox.showwarning("Aviso", "Nenhum dado gerado para o boletim.")
+
+        def _on_error(exc):
+            messagebox.showerror("Erro", f"Falha ao gerar documento: {exc}")
+            if status_label is not None:
+                status_label.config(text="")
+
+        try:
+            from utils.executor import submit_background
+            submit_background(_worker, on_done=_on_done, on_error=_on_error, janela=janela)
+        except Exception:
+            def _thread_worker():
+                try:
+                    res = _worker()
+                    try:
+                        janela.after(0, lambda: _on_done(res))
+                    except Exception:
+                        pass
+                except Exception as e:
+                    try:
+                        janela.after(0, lambda: _on_error(e))
+                    except Exception:
+                        pass
+
+            from threading import Thread
+            Thread(target=_thread_worker, daemon=True).start()
     
     # Vincular a função ao evento de seleção no combobox
     combo_anos.bind("<<ComboboxSelected>>", gerar_boletim_selecionado)
@@ -4963,8 +5145,12 @@ def abrir_relatorio_pendencias():
 
                 janela.after(0, _on_error)
 
-        from threading import Thread
-        Thread(target=_worker_pendencias, daemon=True).start()
+        try:
+            from utils.executor import submit_background
+            submit_background(_worker_pendencias, janela=janela)
+        except Exception:
+            from threading import Thread
+            Thread(target=_worker_pendencias, daemon=True).start()
     
     # Botões estilizados
     btn_gerar = Button(frame_botoes, text="📄 Gerar Relatório", command=gerar_relatorio, 
