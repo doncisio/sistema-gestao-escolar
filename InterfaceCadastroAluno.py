@@ -12,6 +12,7 @@ from PIL import ImageTk, Image
 import mysql.connector
 from mysql.connector import Error
 from conexao import conectar_bd
+from db.connection import get_connection, get_cursor
 from tkcalendar import DateEntry
 from typing import Any, cast
 
@@ -64,14 +65,9 @@ class InterfaceCadastroAluno:
         self.master.grid_rowconfigure(4, weight=1)  # Canvas com conteúdo (modificado)
         self.master.grid_columnconfigure(0, weight=1)
 
-        # Conectar ao banco de dados
-        try:
-            self.conn = conectar_bd()
-            self.cursor = cast(Any, self.conn).cursor(buffered=True)
-        except Exception as e:
-            messagebox.showerror("Erro de Conexão", f"Não foi possível conectar ao banco de dados: {str(e)}")
-            self.fechar_janela()
-            return
+        # Não manter conexão persistente na instância; usar context managers quando necessário
+        self.conn = None
+        self.cursor = None
 
         # Criar frames e componentes da interface
         self.criar_frames()
@@ -84,13 +80,7 @@ class InterfaceCadastroAluno:
         if not self.aluno_cadastrado and messagebox.askyesno("Confirmar", "Deseja realmente sair? Os dados não salvos serão perdidos.") is False:
             return
             
-        # Fechar a conexão com o banco de dados
-        if hasattr(self, 'conn') and self.conn:
-            try:
-                cast(Any, self.cursor).close()
-                cast(Any, self.conn).close()
-            except:
-                pass
+        # Não há conexão persistente para fechar aqui (usamos context managers)
         
         # Salvar o estado antes de destruir a janela
         aluno_foi_cadastrado = self.aluno_cadastrado
@@ -505,38 +495,47 @@ class InterfaceCadastroAluno:
                 messagebox.showerror("Erro", "Escola inválida. Por favor, selecione uma escola da lista.")
                 return
 
-            # Inserir o aluno no banco de dados
-            cast(Any, self.cursor).execute(
-                """
-                INSERT INTO alunos (
-                    nome, data_nascimento, local_nascimento, UF_nascimento,
-                    endereco, sus, sexo, cpf, nis, raca, escola_id, 
-                    descricao_transtorno
+            # Inserir o aluno no banco de dados dentro de uma transação
+            with get_connection() as conn:
+                cur = cast(Any, conn).cursor()
+                cur.execute(
+                    """
+                    INSERT INTO alunos (
+                        nome, data_nascimento, local_nascimento, UF_nascimento,
+                        endereco, sus, sexo, cpf, nis, raca, escola_id, 
+                        descricao_transtorno
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        nome, data_nascimento, local_nascimento, uf_nascimento,
+                        endereco, sus, sexo, cpf, nis, raca, escola_id, 
+                        descricao_transtorno
+                    )
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    nome, data_nascimento, local_nascimento, uf_nascimento,
-                    endereco, sus, sexo, cpf, nis, raca, escola_id, 
-                    descricao_transtorno
-                )
-            )
-            
-            # Obter o ID do aluno inserido
-            aluno_id = cast(Any, self.cursor).lastrowid
-            
-            # Salvar os responsáveis
-            self.salvar_responsaveis(aluno_id)
-            
-            # Confirmar a operação
-            if hasattr(self, 'conn') and self.conn:
-                cast(Any, self.conn).commit()
-            
+
+                # Obter o ID do aluno inserido
+                aluno_id = cast(Any, cur).lastrowid
+
+                # Salvar os responsáveis usando o mesmo cursor/transação
+                self.salvar_responsaveis(aluno_id, cur)
+
+                try:
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+                    raise
+
+                try:
+                    cur.close()
+                except Exception:
+                    pass
+
             messagebox.showinfo("Sucesso", "Aluno cadastrado com sucesso!")
-            
+
             # Marcar que um aluno foi cadastrado com sucesso
             self.aluno_cadastrado = True
-            
+
             # Fechar a janela após salvar com sucesso
             self.fechar_janela()
             
@@ -549,7 +548,7 @@ class InterfaceCadastroAluno:
             if hasattr(self, 'conn') and self.conn:
                 cast(Any, self.conn).rollback()
 
-    def salvar_responsaveis(self, aluno_id):
+    def salvar_responsaveis(self, aluno_id, cur):
         # Verificar se há pelo menos um responsável
         responsaveis_validos = [frame for frame in self.lista_frames_responsaveis if frame.winfo_exists() and frame.campos['nome'].get()]
         
@@ -573,9 +572,9 @@ class InterfaceCadastroAluno:
         
         # Processar cada responsável
         for frame in responsaveis_validos:
-            self.salvar_ou_atualizar_responsavel(frame, aluno_id)
+            self.salvar_ou_atualizar_responsavel(frame, aluno_id, cur)
     
-    def salvar_ou_atualizar_responsavel(self, frame, aluno_id):
+    def salvar_ou_atualizar_responsavel(self, frame, aluno_id, cur):
         campos = frame.campos
         nome = campos['nome'].get()
         telefone = campos['telefone'].get()
@@ -589,12 +588,12 @@ class InterfaceCadastroAluno:
 
         # Verificar se já existe um responsável com esse CPF (somente se for um novo responsável)
         if not responsavel_id and cpf:
-            cast(Any, self.cursor).execute("SELECT id FROM responsaveis WHERE cpf = %s", (cpf,))
-            resp_existente = cast(Any, self.cursor).fetchone()
+            cur.execute("SELECT id FROM responsaveis WHERE cpf = %s", (cpf,))
+            resp_existente = cur.fetchone()
             if resp_existente:
                 responsavel_id = resp_existente[0]
                 # Atualizar os dados do responsável existente
-                cast(Any, self.cursor).execute(
+                cur.execute(
                     """
                     UPDATE responsaveis 
                     SET nome = %s, grau_parentesco = %s, telefone = %s, rg = %s
@@ -604,7 +603,7 @@ class InterfaceCadastroAluno:
                 )
                 
                 # Associar o responsável ao aluno
-                cast(Any, self.cursor).execute(
+                cur.execute(
                     "INSERT INTO responsaveisalunos (responsavel_id, aluno_id) VALUES (%s, %s)",
                     (responsavel_id, aluno_id)
                 )
@@ -612,7 +611,7 @@ class InterfaceCadastroAluno:
                 return responsavel_id
 
         if responsavel_id:  # Responsável existente, atualizar
-            cast(Any, self.cursor).execute(
+            cur.execute(
                 """
                 UPDATE responsaveis 
                 SET nome = %s, grau_parentesco = %s, telefone = %s, rg = %s, cpf = %s
@@ -622,7 +621,7 @@ class InterfaceCadastroAluno:
             )
             
             # Associar o responsável ao aluno
-            cast(Any, self.cursor).execute(
+            cur.execute(
                 "INSERT INTO responsaveisalunos (responsavel_id, aluno_id) VALUES (%s, %s)",
                 (responsavel_id, aluno_id)
             )
@@ -630,17 +629,17 @@ class InterfaceCadastroAluno:
             return responsavel_id
         else:  # Novo responsável, inserir
             # Inserir novo responsável
-            cast(Any, self.cursor).execute(
+            cur.execute(
                 """
                 INSERT INTO responsaveis (nome, grau_parentesco, telefone, rg, cpf)
                 VALUES (%s, %s, %s, %s, %s)
                 """,
                 (nome, parentesco, telefone, rg, cpf)
             )
-            novo_responsavel_id = cast(Any, self.cursor).lastrowid
+            novo_responsavel_id = cast(Any, cur).lastrowid
             
             # Associar o novo responsável ao aluno
-            cast(Any, self.cursor).execute(
+            cur.execute(
                 "INSERT INTO responsaveisalunos (responsavel_id, aluno_id) VALUES (%s, %s)",
                 (novo_responsavel_id, aluno_id)
             )
@@ -650,8 +649,9 @@ class InterfaceCadastroAluno:
     def obter_escolas(self):
         """Obtém a lista de escolas do banco de dados"""
         try:
-            cast(Any, self.cursor).execute("SELECT id, nome FROM escolas ORDER BY nome, id")
-            escolas = cast(Any, self.cursor).fetchall()
+            with get_cursor() as cur:
+                cur.execute("SELECT id, nome FROM escolas ORDER BY nome, id")
+                escolas = cur.fetchall()
             
             # Criar mapeamento e valores para combobox
             self.escolas_map = {}

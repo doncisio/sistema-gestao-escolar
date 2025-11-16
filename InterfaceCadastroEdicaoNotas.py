@@ -2727,85 +2727,66 @@ class InterfaceCadastroEdicaoNotas:
                     break
             return nome.upper().strip()
         
-        conn = None
-        cursor = None
         try:
-            conn = conectar_bd()
-            if conn is None:
-                logger.error("Erro de conexão ao salvar notas no banco: conectar_bd() retornou None")
-                return 0, 0, []
-            cursor = conn.cursor()
-            
+            from db.connection import get_cursor
             inseridas = 0
             atualizadas = 0
             nao_encontrados = []
-            
+
             bimestre_texto = f"{bimestre_num}º bimestre"
-            
-            for aluno_geduc in alunos_geduc:
-                nome_geduc = aluno_geduc['nome']
-                nota_media = aluno_geduc.get('media')
-                
-                if nota_media is None or nota_media == '':
-                    continue
-                
-                # Normalizar nome
-                nome_norm = normalizar_nome(nome_geduc)
-                
-                # Buscar ID do aluno no banco local
-                aluno_id = alunos_local.get(nome_norm)
-                
-                if not aluno_id:
-                    nao_encontrados.append(nome_geduc)
-                    continue
-                
-                # Verificar se já existe nota
-                cursor.execute("""
-                    SELECT id, nota FROM notas 
-                    WHERE aluno_id = %s 
-                    AND disciplina_id = %s 
-                    AND bimestre = %s 
-                    AND ano_letivo_id = %s
-                """, self._norm_params((aluno_id, disciplina_id, bimestre_texto, ano_letivo_id)))
-                
-                resultado = cursor.fetchone()
-                
-                if resultado:
-                    # Atualizar
+
+            with get_cursor(commit=True) as cursor:
+                for aluno_geduc in alunos_geduc:
+                    nome_geduc = aluno_geduc['nome']
+                    nota_media = aluno_geduc.get('media')
+
+                    if nota_media is None or nota_media == '':
+                        continue
+
+                    # Normalizar nome
+                    nome_norm = normalizar_nome(nome_geduc)
+
+                    # Buscar ID do aluno no banco local
+                    aluno_id = alunos_local.get(nome_norm)
+
+                    if not aluno_id:
+                        nao_encontrados.append(nome_geduc)
+                        continue
+
+                    # Verificar se já existe nota
                     cursor.execute("""
-                        UPDATE notas 
-                        SET nota = %s 
-                        WHERE id = %s
-                    """, self._norm_params((nota_media, resultado[0])))
-                    atualizadas += 1
-                else:
-                    # Inserir
-                    cursor.execute("""
-                        INSERT INTO notas (aluno_id, disciplina_id, bimestre, nota, ano_letivo_id) 
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, self._norm_params((aluno_id, disciplina_id, bimestre_texto, nota_media, ano_letivo_id)))
-                    inseridas += 1
-            
-            conn.commit()
-            
+                        SELECT id, nota FROM notas 
+                        WHERE aluno_id = %s 
+                        AND disciplina_id = %s 
+                        AND bimestre = %s 
+                        AND ano_letivo_id = %s
+                    """, self._norm_params((aluno_id, disciplina_id, bimestre_texto, ano_letivo_id)))
+
+                    resultado = cursor.fetchone()
+
+                    if resultado:
+                        # Atualizar
+                        cursor.execute("""
+                            UPDATE notas 
+                            SET nota = %s 
+                            WHERE id = %s
+                        """, self._norm_params((nota_media, resultado[0])))
+                        atualizadas += 1
+                    else:
+                        # Inserir
+                        cursor.execute("""
+                            INSERT INTO notas (aluno_id, disciplina_id, bimestre, nota, ano_letivo_id) 
+                            VALUES (%s, %s, %s, %s, %s)
+                        """, self._norm_params((aluno_id, disciplina_id, bimestre_texto, nota_media, ano_letivo_id)))
+                        inseridas += 1
+
             return inseridas, atualizadas, nao_encontrados
-            
+
         except Exception as e:
             logger.error(f"Erro ao salvar notas: {e}")
             import traceback
             traceback.print_exc()
             return 0, 0, []
-        finally:
-            try:
-                if cursor is not None:
-                    cursor.close()
-            except Exception:
-                pass
-            try:
-                if conn is not None:
-                    conn.close()
-            except Exception:
-                pass
 
     def processar_recuperacao_bimestral(self):
         """
@@ -3098,23 +3079,19 @@ class InterfaceCadastroEdicaoNotas:
             return ' '.join(texto.upper().split())
         
         try:
-            conn = conectar_bd()
-            cursor = None
-            if conn is None:
-                logger.error("Erro de conexão ao buscar turma local: conectar_bd() retornou None")
-                return None
-            cursor = conn.cursor()
+            from db.connection import get_cursor
 
-            # Buscar todas as turmas da escola
-            cursor.execute("""
-                SELECT t.id, t.nome, s.nome as serie_nome, t.turno
-                FROM turmas t
-                JOIN serie s ON t.serie_id = s.id
-                WHERE t.escola_id = %s
-                AND t.ano_letivo_id = %s
-            """, self._norm_params((config.ESCOLA_ID, self.ano_letivo_atual)))
+            with get_cursor() as cursor:
+                # Buscar todas as turmas da escola
+                cursor.execute("""
+                    SELECT t.id, t.nome, s.nome as serie_nome, t.turno
+                    FROM turmas t
+                    JOIN serie s ON t.serie_id = s.id
+                    WHERE t.escola_id = %s
+                    AND t.ano_letivo_id = %s
+                """, self._norm_params((config.ESCOLA_ID, self.ano_letivo_atual)))
 
-            turmas = cursor.fetchall()
+                turmas = cursor.fetchall()
 
             # Normalizar nome do GEDUC
             nome_geduc_norm = normalizar(nome_turma_geduc)
@@ -3152,21 +3129,10 @@ class InterfaceCadastroEdicaoNotas:
                     return turma_id
             
             return None
-            
+
         except Exception as e:
             logger.error(f"Erro ao buscar turma local: {e}")
             return None
-        finally:
-            try:
-                if cursor is not None:
-                    cursor.close()
-            except Exception:
-                pass
-            try:
-                if conn is not None:
-                    conn.close()
-            except Exception:
-                pass
     
 
     def _processar_recuperacao_banco(self, dados_recuperacao, alunos_local, disciplina_id, bimestre_num, ano_letivo_id, log_debug=None):
@@ -3203,127 +3169,108 @@ class InterfaceCadastroEdicaoNotas:
             return nome.upper().strip()
         
         try:
-            conn = conectar_bd()
-            cursor = None
-            if conn is None:
-                if log_debug:
-                    log_debug("Erro de conexão: conectar_bd() retornou None")
-                logger.error("Erro de conexão ao processar recuperação: conectar_bd() retornou None")
-                return 0
-            cursor = conn.cursor()
-            
+            from db.connection import get_cursor
+
             atualizados = 0
             bimestre_texto = f"{bimestre_num}º bimestre"
-            
+
             # Debug: cabeçalho se log_debug está ativo
             if log_debug:
                 log_debug("\n    " + "="*70)
                 log_debug("    📊 ANÁLISE DETALHADA POR ALUNO")
                 log_debug("    " + "="*70)
-            
-            for aluno_rec in dados_recuperacao:
-                nome = aluno_rec['nome']
-                recuperacao = aluno_rec.get('recuperacao')
-                
-                # Debug: mostrar aluno processado
-                if log_debug:
-                    log_debug(f"\n    👤 Aluno: {nome}")
-                    log_debug(f"       Recuperação GEDUC: {recuperacao if recuperacao is not None else 'SEM NOTA'}")
-                
-                # Verificar se tem nota de recuperação
-                if recuperacao is None or recuperacao == '':
+
+            with get_cursor(commit=True) as cursor:
+                for aluno_rec in dados_recuperacao:
+                    nome = aluno_rec['nome']
+                    recuperacao = aluno_rec.get('recuperacao')
+
+                    # Debug: mostrar aluno processado
                     if log_debug:
-                        log_debug(f"       ⚠️ Sem nota de recuperação - IGNORADO")
-                    continue
-                
-                # Normalizar nome
-                nome_norm = normalizar_nome(nome)
-                
-                # Buscar ID do aluno
-                aluno_id = alunos_local.get(nome_norm)
-                if not aluno_id:
-                    if log_debug:
-                        log_debug(f"       ⚠️ Aluno não encontrado no banco local - IGNORADO")
-                    continue
-                
-                # Buscar nota atual no banco
-                cursor.execute("""
-                    SELECT id, nota FROM notas 
-                    WHERE aluno_id = %s 
-                    AND disciplina_id = %s 
-                    AND bimestre = %s 
-                    AND ano_letivo_id = %s
-                """, self._norm_params((aluno_id, disciplina_id, bimestre_texto, ano_letivo_id)))
-                
-                resultado = cursor.fetchone()
-                
-                if not resultado:
-                    if log_debug:
-                        log_debug(f"       ⚠️ Sem nota no banco - IGNORADO")
-                    continue
-                
-                nota_id, nota_atual = resultado
-                
-                # Converter nota_atual para escala 0-10
-                # Usar helper seguro para converter (trata NaN, strings, Decimal etc.)
-                v = to_safe_float(nota_atual)
-                nota_atual_decimal = (v / 10.0) if v is not None else 0
-                
-                # Debug: mostrar nota do banco
-                if log_debug:
-                    log_debug(f"       Nota Banco: {nota_atual} (escala 100) = {nota_atual_decimal:.1f} (escala 10)")
-                
-                # Aplicar regra: se (nota/10 < 6) e (Recuperação >= nota/10)
-                condicao1 = nota_atual_decimal < 6.0
-                condicao2 = recuperacao >= nota_atual_decimal
-                
-                if log_debug:
-                    log_debug(f"       Verificações:")
-                    log_debug(f"         • nota/10 < 6? {nota_atual_decimal:.1f} < 6.0 = {condicao1}")
-                    log_debug(f"         • Recup >= nota/10? {recuperacao:.1f} >= {nota_atual_decimal:.1f} = {condicao2}")
-                
-                if condicao1 and condicao2:
-                    # Atualizar nota = Recuperação * 10
-                    nova_nota = recuperacao * 10
-                    
-                    if log_debug:
-                        log_debug(f"       ✅ SERÁ ATUALIZADO: {nota_atual} → {nova_nota:.0f}")
-                    
+                        log_debug(f"\n    👤 Aluno: {nome}")
+                        log_debug(f"       Recuperação GEDUC: {recuperacao if recuperacao is not None else 'SEM NOTA'}")
+
+                    # Verificar se tem nota de recuperação
+                    if recuperacao is None or recuperacao == '':
+                        if log_debug:
+                            log_debug(f"       ⚠️ Sem nota de recuperação - IGNORADO")
+                        continue
+
+                    # Normalizar nome
+                    nome_norm = normalizar_nome(nome)
+
+                    # Buscar ID do aluno
+                    aluno_id = alunos_local.get(nome_norm)
+                    if not aluno_id:
+                        if log_debug:
+                            log_debug(f"       ⚠️ Aluno não encontrado no banco local - IGNORADO")
+                        continue
+
+                    # Buscar nota atual no banco
                     cursor.execute("""
-                        UPDATE notas 
-                        SET nota = %s 
-                        WHERE id = %s
-                    """, self._norm_params((nova_nota, nota_id)))
-                    
-                    atualizados += 1
-                else:
+                        SELECT id, nota FROM notas 
+                        WHERE aluno_id = %s 
+                        AND disciplina_id = %s 
+                        AND bimestre = %s 
+                        AND ano_letivo_id = %s
+                    """, self._norm_params((aluno_id, disciplina_id, bimestre_texto, ano_letivo_id)))
+
+                    resultado = cursor.fetchone()
+
+                    if not resultado:
+                        if log_debug:
+                            log_debug(f"       ⚠️ Sem nota no banco - IGNORADO")
+                        continue
+
+                    nota_id, nota_atual = resultado
+
+                    # Converter nota_atual para escala 0-10
+                    # Usar helper seguro para converter (trata NaN, strings, Decimal etc.)
+                    v = to_safe_float(nota_atual)
+                    nota_atual_decimal = (v / 10.0) if v is not None else 0
+
+                    # Debug: mostrar nota do banco
                     if log_debug:
-                        log_debug(f"       ❌ NÃO será atualizado (não atende critérios)")
-            
+                        log_debug(f"       Nota Banco: {nota_atual} (escala 100) = {nota_atual_decimal:.1f} (escala 10)")
+
+                    # Aplicar regra: se (nota/10 < 6) e (Recuperação >= nota/10)
+                    condicao1 = nota_atual_decimal < 6.0
+                    condicao2 = recuperacao >= nota_atual_decimal
+
+                    if log_debug:
+                        log_debug(f"       Verificações:")
+                        log_debug(f"         • nota/10 < 6? {nota_atual_decimal:.1f} < 6.0 = {condicao1}")
+                        log_debug(f"         • Recup >= nota/10? {recuperacao:.1f} >= {nota_atual_decimal:.1f} = {condicao2}")
+
+                    if condicao1 and condicao2:
+                        # Atualizar nota = Recuperação * 10
+                        nova_nota = recuperacao * 10
+
+                        if log_debug:
+                            log_debug(f"       ✅ SERÁ ATUALIZADO: {nota_atual} → {nova_nota:.0f}")
+
+                        cursor.execute("""
+                            UPDATE notas 
+                            SET nota = %s 
+                            WHERE id = %s
+                        """, self._norm_params((nova_nota, nota_id)))
+
+                        atualizados += 1
+                    else:
+                        if log_debug:
+                            log_debug(f"       ❌ NÃO será atualizado (não atende critérios)")
+
             # Debug: rodapé
             if log_debug:
                 log_debug("    " + "="*70)
-            
-            conn.commit()
-            
+
             return atualizados
-            
+
         except Exception as e:
             logger.error(f"Erro ao processar recuperação no banco: {e}")
             import traceback
             traceback.print_exc()
             return 0
-        finally:
-            try:
-                if cursor is not None:
-                    cursor.close()
-            except Exception:
-                pass
-            try:
-                if conn is not None:
-                    conn.close()
-            except Exception:
-                pass
 
     def ao_fechar_janela(self):
         """Método chamado quando a janela é fechada pelo usuário"""

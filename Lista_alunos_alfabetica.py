@@ -105,10 +105,10 @@ def fetch_student_data(ano_letivo):
     try:
         cursor.execute(query, (ano_letivo,))
         dados_aluno = cursor.fetchall()
-        logger.info("Total de alunos encontrados:", len(dados_aluno))
+        logger.info("Total de alunos encontrados: %s", len(dados_aluno))
         return dados_aluno
     except Exception as e:
-        logger.error("Erro ao executar a consulta:", str(e))
+        logger.error("Erro ao executar a consulta: %s", str(e))
         return None
     finally:
         try:
@@ -139,7 +139,7 @@ def data_ano_letivo(ano_letivo):
         data = cursor.fetchone()
         return data
     except Exception as e:
-        logger.error("Erro ao executar a consulta:", str(e))
+        logger.error("Erro ao executar a consulta: %s", str(e))
         return None
     finally:
         try:

@@ -1,0 +1,28 @@
+﻿Este PR faz uma refatoração incremental para modularizar partes da UI e desacoplar o acesso ao banco, com objetivo de reduzir responsabilidades de `main.py`, evitar bloqueios da UI e facilitar futuros testes e refactors.
+
+Principais mudanças
+- Novo módulo `ui/dashboard.py`:
+  - `ProgressWindow` (janela de progresso padrão).
+  - `run_report_in_background` e `run_report_module_returning_buffer` (helpers para executar relatórios em background com fallback).
+  - `DashboardManager` encapsulando a lógica de criação/atualização do dashboard.
+- Novo arquivo `ui/theme.py`:
+  - Constantes de cores/tema (`CO_BG`, `CO_FG`, `CO_ACCENT`, `CO_WARN`).
+- Novo serviço `services/db_service.py`:
+  - `DbService` (wrapper para injeção do provider de conexão; fornece `connection()` que retorna o context manager).
+- Alterações em `main.py`:
+  - Delegação de `_run_report_in_background`, `_run_report_module_returning_buffer`, `criar_dashboard` e `atualizar_dashboard` ao novo `ui.dashboard` / `DashboardManager`.
+  - Instanciação de `DbService(get_connection)` e injeção no `DashboardManager`.
+  - Preservação de fallbacks locais para compatibilidade.
+- Arquivos adicionados/modificados:
+  - `ui/dashboard.py` (novo)
+  - `ui/theme.py` (novo)
+  - `services/db_service.py` (novo)
+  - `main.py` (modificado)
+
+Validação / testes realizados localmente
+- `python -m py_compile` nos arquivos alterados (sem erros).
+- `python c:\gestao\smoke_test_gui.py`  smoke test executado; pool inicializado e interfaces instanciadas sem exceções.
+
+Checklist rápido para revisão:
+- Rodar `python -m py_compile` nos arquivos alterados.
+- Rodar `python c:\gestao\smoke_test_gui.py` e testar atualizar o dashboard.

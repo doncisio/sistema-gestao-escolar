@@ -77,7 +77,7 @@ def fetch_students_with_disorders(ano_letivo):
         logger.info(f"Total de alunos com transtornos encontrados: {len(dados_aluno)}")
         return dados_aluno
     except Exception as e:
-        logger.error("Erro ao executar a consulta:", str(e))
+        logger.error("Erro ao executar a consulta: %s", str(e))
         return None
     finally:
         try:

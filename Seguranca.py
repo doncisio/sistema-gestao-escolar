@@ -166,7 +166,7 @@ def atualizar_treeview(treeview, cursor, query):
         for row in rows:
             treeview.insert("", "end", values=row)
     except Exception as e:
-        logger.error("Erro ao atualizar o Treeview:", e)
+        logger.error("Erro ao atualizar o Treeview: %s", e)
 
 
 # ============================================================================

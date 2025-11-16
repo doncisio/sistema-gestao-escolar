@@ -11,6 +11,7 @@ from reportlab.lib.units import inch
 from reportlab.lib.colors import black, white
 import platform
 from conexao import conectar_bd
+from db.connection import get_cursor
 from decimal import Decimal, ROUND_HALF_UP
 import re
 from typing import Any, cast
@@ -164,49 +165,44 @@ def obter_professores_turma(turma_id, ano_letivo=2025):
         # Converter para int nativo do Python (caso seja numpy.int64)
         turma_id = int(turma_id)
         
-        conn: Any = conectar_bd()
-        cursor = cast(Any, conn).cursor(dictionary=True)
-        
-        # Verificar se existe a tabela funcionario_disciplinas
-        cursor.execute("SHOW TABLES LIKE 'funcionario_disciplinas'")
-        tem_tabela_disc = cursor.fetchone() is not None
-        
-        if tem_tabela_disc:
-            # Buscar professores pela tabela funcionario_disciplinas
-            query = """
-                SELECT 
-                    f.nome AS professor,
-                    GROUP_CONCAT(DISTINCT d.nome ORDER BY d.nome SEPARATOR ', ') AS disciplinas,
-                    COUNT(DISTINCT d.id) AS qtd_disciplinas
-                FROM Funcionarios f
-                LEFT JOIN funcionario_disciplinas fd ON f.id = fd.funcionario_id
-                LEFT JOIN Disciplinas d ON fd.disciplina_id = d.id
-                WHERE fd.turma_id = %s
-                    AND f.cargo = 'Professor@'
-                GROUP BY f.id, f.nome
-                HAVING qtd_disciplinas > 0
-                ORDER BY qtd_disciplinas DESC, f.nome ASC
-            """
-            cursor.execute(query, (turma_id,))
-        else:
-            # Fallback: buscar professores pela coluna turma
-            query = """
-                SELECT 
-                    f.nome AS professor,
-                    NULL AS disciplinas,
-                    0 AS qtd_disciplinas
-                FROM Funcionarios f
-                WHERE f.turma = %s
-                    AND f.cargo = 'Professor@'
-                ORDER BY f.nome ASC
-            """
-            cursor.execute(query, (turma_id,))
-        
-        professores = cursor.fetchall()
-        
-        cursor.close()
-        conn.close()
-        
+        with get_cursor() as cursor:
+            # Verificar se existe a tabela funcionario_disciplinas
+            cursor.execute("SHOW TABLES LIKE 'funcionario_disciplinas'")
+            tem_tabela_disc = cursor.fetchone() is not None
+
+            if tem_tabela_disc:
+                # Buscar professores pela tabela funcionario_disciplinas
+                query = """
+                    SELECT 
+                        f.nome AS professor,
+                        GROUP_CONCAT(DISTINCT d.nome ORDER BY d.nome SEPARATOR ', ') AS disciplinas,
+                        COUNT(DISTINCT d.id) AS qtd_disciplinas
+                    FROM Funcionarios f
+                    LEFT JOIN funcionario_disciplinas fd ON f.id = fd.funcionario_id
+                    LEFT JOIN Disciplinas d ON fd.disciplina_id = d.id
+                    WHERE fd.turma_id = %s
+                        AND f.cargo = 'Professor@'
+                    GROUP BY f.id, f.nome
+                    HAVING qtd_disciplinas > 0
+                    ORDER BY qtd_disciplinas DESC, f.nome ASC
+                """
+                cursor.execute(query, (turma_id,))
+            else:
+                # Fallback: buscar professores pela coluna turma
+                query = """
+                    SELECT 
+                        f.nome AS professor,
+                        NULL AS disciplinas,
+                        0 AS qtd_disciplinas
+                    FROM Funcionarios f
+                    WHERE f.turma = %s
+                        AND f.cargo = 'Professor@'
+                    ORDER BY f.nome ASC
+                """
+                cursor.execute(query, (turma_id,))
+
+            professores = cursor.fetchall()
+
         return professores
         
     except Exception as e:
@@ -982,39 +978,33 @@ def gerar_relatorio_notas(bimestre=None, nivel_ensino="iniciais", ano_letivo=Non
         if status_matricula and ('Transferido' in status_matricula if isinstance(status_matricula, (list, tuple)) else status_matricula == 'Transferido'):
             nome_arquivo = nome_arquivo.replace('.pdf', ' (com Transferidos).pdf')
         
-        # Conectar ao banco de dados
-        conn: Any = conectar_bd()
-        cursor = cast(Any, conn).cursor(dictionary=True)
-        
-        # Ajustar a consulta SQL para usar todos os parâmetros
-        query = construir_consulta_sql(
-            bimestre=bimestre, 
-            filtro_serie=filtro_serie, 
-            disciplinas=disciplinas, 
-            nivel_id=nivel_id, 
-            ano_letivo=ano_letivo,
-            escola_id=escola_id,
-            status_matricula=status_matricula
-        )
-        
-        cursor.execute(query)
-        dados_aluno = cursor.fetchall()
-        
+        # Conectar ao banco de dados e executar a consulta de leitura
+        with get_cursor() as cursor:
+            # Ajustar a consulta SQL para usar todos os parâmetros
+            query = construir_consulta_sql(
+                bimestre=bimestre, 
+                filtro_serie=filtro_serie, 
+                disciplinas=disciplinas, 
+                nivel_id=nivel_id, 
+                ano_letivo=ano_letivo,
+                escola_id=escola_id,
+                status_matricula=status_matricula
+            )
+
+            cursor.execute(query)
+            dados_aluno = cursor.fetchall()
+
         if not dados_aluno:
             logger.info(f"Nenhum dado encontrado para o bimestre {bimestre} e nível {nivel_ensino} no ano {ano_letivo}")
             return False
-        
+
         # Processar os dados e gerar o PDF
         df = processar_dados_alunos(dados_aluno, disciplinas, preencher_nulos)
         gerar_documento_pdf(df, bimestre, nome_arquivo, disciplinas, tipo_ensino, ano_letivo)
-        
-        # Fechar recursos
-        cursor.close()
-        conn.close()
-        
+
         # Abrir o PDF gerado
         abrir_pdf_com_programa_padrao(nome_arquivo)
-        
+
         return True
         
     except Exception as e:
@@ -1101,39 +1091,33 @@ def gerar_relatorio_notas_com_assinatura(bimestre=None, nivel_ensino="iniciais",
         if status_matricula and ('Transferido' in status_matricula if isinstance(status_matricula, (list, tuple)) else status_matricula == 'Transferido'):
             nome_arquivo = nome_arquivo.replace('.pdf', ' (com Transferidos).pdf')
         
-        # Conectar ao banco de dados
-        conn: Any = conectar_bd()
-        cursor = cast(Any, conn).cursor(dictionary=True)
-        
-        # Ajustar a consulta SQL para usar todos os parâmetros
-        query = construir_consulta_sql(
-            bimestre=bimestre, 
-            filtro_serie=filtro_serie, 
-            disciplinas=disciplinas, 
-            nivel_id=nivel_id, 
-            ano_letivo=ano_letivo,
-            escola_id=escola_id,
-            status_matricula=status_matricula
-        )
-        
-        cursor.execute(query)
-        dados_aluno = cursor.fetchall()
-        
+        # Conectar ao banco de dados e executar a consulta de leitura
+        with get_cursor() as cursor:
+            # Ajustar a consulta SQL para usar todos os parâmetros
+            query = construir_consulta_sql(
+                bimestre=bimestre, 
+                filtro_serie=filtro_serie, 
+                disciplinas=disciplinas, 
+                nivel_id=nivel_id, 
+                ano_letivo=ano_letivo,
+                escola_id=escola_id,
+                status_matricula=status_matricula
+            )
+
+            cursor.execute(query)
+            dados_aluno = cursor.fetchall()
+
         if not dados_aluno:
             logger.info(f"Nenhum dado encontrado para o bimestre {bimestre} e nível {nivel_ensino} no ano {ano_letivo}")
             return False
-        
+
         # Processar os dados e gerar o PDF
         df = processar_dados_alunos(dados_aluno, disciplinas, preencher_nulos)
         gerar_documento_pdf_com_assinatura(df, bimestre, nome_arquivo, disciplinas, tipo_ensino, ano_letivo)
-        
-        # Fechar recursos
-        cursor.close()
-        conn.close()
-        
+
         # Abrir o PDF gerado
         abrir_pdf_com_programa_padrao(nome_arquivo)
-        
+
         return True
         
     except Exception as e:

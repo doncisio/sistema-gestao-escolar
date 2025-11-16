@@ -10,6 +10,10 @@ from reportlab.lib.colors import black, white, grey
 from gerarPDF import salvar_e_abrir_pdf, create_pdf_buffer_letter
 from Lista_atualizada import fetch_student_data
 from typing import Any
+from services.report_service import _find_image_in_repo
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 def lista_reuniao():
     ano_letivo = 2025
@@ -32,16 +36,28 @@ def lista_reuniao():
     doc, buffer = create_pdf_buffer_letter()
     elements = []
 
-    # Caminhos das figuras
-    figura_superior = os.path.join(os.path.dirname(__file__), 'logosemed.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.jpg')
+    # Caminhos das figuras (tentar localizar via helper, se não encontrar usa caminho relativo)
+    figura_superior_path = _find_image_in_repo('logosemed.png') or os.path.join(os.path.dirname(__file__), 'logosemed.png')
+    figura_inferior_path = _find_image_in_repo('logopaco.jpg') or os.path.join(os.path.dirname(__file__), 'logopaco.jpg')
+
+    # Debug: logar caminhos resolvidos para as imagens
+    logger.info("DEBUG imagens - figura_superior_path=%s figura_inferior_path=%s", figura_superior_path, figura_inferior_path)
+
+    def maybe_image(path, w, h):
+        try:
+            if path and os.path.exists(path):
+                return Image(path, width=w, height=h)
+        except Exception as e:
+            logger.warning("Não foi possível carregar imagem '%s': %s", path, e)
+        # retornar Spacer com tamanho aproximado para manter layout quando imagem ausente
+        return Spacer(w, h)
 
 
     # Adicionar a capa
     data = [
-        [Image(figura_superior, width=1 * inch, height=1 * inch),
+        [maybe_image(figura_superior_path, 1 * inch, 1 * inch),
          Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1)),
-         Image(figura_inferior, width=1.5 * inch, height=1 * inch)]
+         maybe_image(figura_inferior_path, 1.5 * inch, 1 * inch)]
     ]
     table = Table(data, colWidths=[1.32 * inch, 4 * inch, 1.32 * inch])
     table_style = TableStyle([
@@ -79,9 +95,9 @@ def lista_reuniao():
 
         # Adicionar o cabeçalho antes de cada tabela
         data = [
-            [Image(figura_superior, width=1 * inch, height=1 * inch),
+            [maybe_image(figura_superior_path, 1 * inch, 1 * inch),
              Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=11, alignment=1)),
-             Image(figura_inferior, width=1.5 * inch, height=1 * inch)]
+             maybe_image(figura_inferior_path, 1.5 * inch, 1 * inch)]
         ]
         table = Table(data, colWidths=[1.32 * inch, 4 * inch, 1.32 * inch])
         table_style = TableStyle([

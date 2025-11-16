@@ -11,6 +11,10 @@ from reportlab.lib.units import inch
 from reportlab.lib.colors import black, white, grey
 from Lista_atualizada import fetch_student_data
 from scripts_nao_utilizados.gerar_documentos import PASTAS_TURMAS, criar_pastas_se_nao_existirem, salvar_pdf, adicionar_cabecalho
+try:
+    from services.report_service import _find_image_in_repo
+except Exception:
+    _find_image_in_repo = None
 
 def gerar_lista_reuniao():
     """Gera um PDF com a lista de reunião dos alunos, agrupados por turma."""
@@ -24,10 +28,13 @@ def gerar_lista_reuniao():
     df = pd.DataFrame(dados_aluno)
     criar_pastas_se_nao_existirem()
     
-    # Definir caminhos das imagens no diretório principal
-    diretorio_principal = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    figura_superior = os.path.join(diretorio_principal, "logosemed.png")
-    figura_inferior = os.path.join(diretorio_principal, "logopaco.jpg")
+    # Definir caminhos das imagens tentando localizar via helper; fallback para caminhos relativos
+    if _find_image_in_repo:
+        figura_superior = _find_image_in_repo('logosemed.png') or os.path.join(os.path.dirname(__file__), 'logosemed.png')
+        figura_inferior = _find_image_in_repo('logopaco.jpg') or os.path.join(os.path.dirname(__file__), 'logopaco.jpg')
+    else:
+        figura_superior = os.path.join(os.path.dirname(__file__), 'logosemed.png')
+        figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.jpg')
     
     cabecalho = [
         "PREFEITURA MUNICIPAL DE PAÇO DO LUMIAR",
