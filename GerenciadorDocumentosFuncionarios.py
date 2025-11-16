@@ -272,14 +272,14 @@ class GerenciadorDocumentosFuncionarios:
                 nomes.append(nome)
             
             self.funcionario_combo['values'] = nomes
-            
-                if nomes:
-                    self.funcionario_combo.set(nomes[0])
-                    logger.info("Carregados %d funcionários", len(nomes))
-                    self.carregar_documentos()  # Carrega documentos automaticamente
-                else:
-                    logger.info("Nenhum funcionário encontrado na base de dados")
-                    messagebox.showinfo("Info", "Nenhum funcionário cadastrado no sistema.")
+
+            if nomes:
+                self.funcionario_combo.set(nomes[0])
+                logger.info("Carregados %d funcionários", len(nomes))
+                self.carregar_documentos()  # Carrega documentos automaticamente
+            else:
+                logger.info("Nenhum funcionário encontrado na base de dados")
+                messagebox.showinfo("Info", "Nenhum funcionário cadastrado no sistema.")
                 
         except mysql.connector.Error as e:
             messagebox.showerror("Erro", f"Erro ao carregar funcionários: {e}")

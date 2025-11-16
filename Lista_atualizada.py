@@ -113,11 +113,11 @@ def fetch_student_data(ano_letivo):
     try:
         cursor.execute(query, (ano_letivo, data_inicio, data_inicio))
         dados_aluno = cursor.fetchall()
-        logger.info("Total de alunos encontrados:", len(dados_aluno))
-        logger.info("Total de alunos matriculados:", len([aluno for aluno in dados_aluno if aluno['SITUAÇÃO'] == 'Ativo']))
+        logger.info("Total de alunos encontrados: %d", len(dados_aluno))
+        logger.info("Total de alunos matriculados: %d", len([aluno for aluno in dados_aluno if aluno['SITUAÇÃO'] == 'Ativo']))
         return dados_aluno
     except Exception as e:
-        logger.error("Erro ao executar a consulta:", str(e))
+        logger.error("Erro ao executar a consulta: %s", str(e))
         return None
     finally:
         try:
