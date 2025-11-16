@@ -289,10 +289,14 @@ def _impl_lista_frequencia() -> bool:
         raise
 
     try:
-        from gerarPDF import salvar_e_abrir_pdf, create_pdf_buffer
+        from services.utils.pdf import salvar_e_abrir_pdf, create_pdf_buffer
     except Exception:
-        logger.exception('Não foi possível importar helpers de PDF para lista_frequencia')
-        raise
+        # Fallback: tentar importar do módulo legado `gerarPDF` para compatibilidade
+        try:
+            from gerarPDF import salvar_e_abrir_pdf, create_pdf_buffer
+        except Exception:
+            logger.exception('Não foi possível importar helpers de PDF para lista_frequencia')
+            raise
 
     ano_letivo = datetime.datetime.now().year
     dados_aluno = fetch_student_data(ano_letivo)
