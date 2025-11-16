@@ -1,4 +1,7 @@
 from utilitarios.conversoes import to_safe_int
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 
 def test_to_safe_int():
@@ -13,4 +16,4 @@ def test_to_safe_int():
 
 if __name__ == '__main__':
     test_to_safe_int()
-    print('test_conversoes: OK')
+    logger.info('test_conversoes: OK')

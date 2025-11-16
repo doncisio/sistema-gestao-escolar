@@ -97,16 +97,16 @@ def main():
     rendered = render_block(status)
 
     if args.render_only:
-        print(rendered)
+        logger.info(rendered)
         return
 
     if args.show:
-        print(rendered)
+        logger.info(rendered)
         return
 
     # atualizar o arquivo ANALISE_main_py.md
     new_text = update_analise_file(rendered)
-    print('ANALISE_main_py.md atualizado com o bloco de status.')
+    logger.info('ANALISE_main_py.md atualizado com o bloco de status.')
 
 
 if __name__ == '__main__':

@@ -4,6 +4,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 # Configurar o WebDriver
 driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
@@ -21,7 +24,7 @@ password = os.getenv('nadir123')
 
 # Verificar se as variáveis não são None antes de enviar
 if username is None or password is None:
-    print("Erro: As variáveis de ambiente não estão definidas.")
+    logger.error("Erro: As variáveis de ambiente não estão definidas.")
 else:
     username_input.send_keys(username)
     password_input.send_keys(password)

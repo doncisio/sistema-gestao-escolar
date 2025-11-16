@@ -6,6 +6,9 @@ from mysql.connector import Error
 from conexao import conectar_bd
 from tkcalendar import DateEntry
 from Seguranca import atualizar_treeview
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 # Cores
 co0 = "#2e2d2b"  # preta
@@ -399,7 +402,7 @@ class EditorAluno:
                 GROUP BY s.id, s.nome
             """, (2025,))
             series = self.cursor.fetchall()
-            print("Séries obtidas:", series)
+            logger.debug("Séries obtidas: %s", series)
             return series
         except mysql.connector.Error as err:
             messagebox.showerror("Erro", f"Erro ao obter séries: {err}")
@@ -433,7 +436,7 @@ class EditorAluno:
                 WHERE t.serie_id = %s AND a.ano_letivo = %s
             """, (serie_id, 2025))
             turmas = self.cursor.fetchall()
-            print(f"Turmas obtidas para a série {serie_id}:", turmas)
+            logger.debug("Turmas obtidas para a série %s: %s", serie_id, turmas)
             return turmas
         except mysql.connector.Error as err:
             messagebox.showerror("Erro", f"Erro ao obter turmas: {err}")
