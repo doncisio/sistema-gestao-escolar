@@ -689,6 +689,99 @@ def gerar_folhas_de_ponto(*args, **kwargs) -> bool:
         return True
 
 
+def _impl_gerar_folhas_de_ponto(*args, **kwargs) -> bool:
+    """Implementação migrada (in-process) para `preencher_folha_ponto.gerar_folhas_de_ponto`.
+
+    Aceita parâmetros injetáveis para facilitar testes:
+    - `profissionais`: lista de dicts com pelo menos campo `nome` (se fornecido, evita acesso ao DB)
+    - `mes` e `ano`: quando relevante para o nome do arquivo/título
+    - `out_dir`: diretório para fallback de escrita de arquivo
+
+    Se `profissionais` não for fornecido, esta implementação levanta
+    `NotImplementedError` para forçar o fallback ao módulo legado.
+    """
+    # parâmetros básicos
+    import datetime
+    import io
+    import os
+
+    if len(args) >= 2:
+        mes = args[0]
+        ano = args[1]
+    else:
+        mes = kwargs.get('mes', datetime.datetime.now().month)
+        ano = kwargs.get('ano', datetime.datetime.now().year)
+
+    profissionais = kwargs.get('profissionais')
+    out_dir = kwargs.get('out_dir')
+
+    if profissionais is None:
+        # Não temos como buscar dados sem acionar o código legado — sinalizamos
+        # para que o wrapper faça o fallback para o módulo original.
+        raise NotImplementedError("_impl_gerar_folhas_de_ponto requer 'profissionais' injetados")
+
+    # helpers de PDF (tentar helpers centralizados, fallback legado)
+    try:
+        from services.utils.pdf import create_pdf_buffer, salvar_e_abrir_pdf
+    except Exception:
+        try:
+            from gerarPDF import create_pdf_buffer, salvar_e_abrir_pdf
+        except Exception:
+            logger.exception('Não foi possível importar helpers de PDF para gerar_folhas_de_ponto')
+            raise
+
+    # imports de desenho locais
+    from reportlab.platypus import Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+
+    # montar documento em memória
+    doc, buffer = create_pdf_buffer()
+    elements = []
+    elements.append(Paragraph(f"FOLHAS DE PONTO - {mes}/{ano}", ParagraphStyle(name='Title', fontSize=16, alignment=1)))
+    elements.append(Spacer(1, 0.2 * inch))
+
+    # tabela básica
+    table_data = [['Nº', 'Nome', 'Função']]
+    for i, p in enumerate(profissionais, start=1):
+        if isinstance(p, dict):
+            nome = p.get('nome') or p.get('nome_profissional') or p.get('Nome') or ''
+            func = p.get('funcao') or p.get('cargo') or ''
+        else:
+            nome = str(p)
+            func = ''
+        table_data.append([str(i), str(nome), str(func)])
+
+    table = Table(table_data, colWidths=[0.5 * inch, 4 * inch, 2 * inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+    ]))
+    elements.append(table)
+
+    # gerar e salvar
+    doc.build(elements)
+    try:
+        salvar_e_abrir_pdf(buffer)
+    except Exception:
+        # fallback para escrita em disco se for fornecido out_dir
+        try:
+            if out_dir:
+                filename = os.path.join(out_dir, f"folhas_ponto_{mes}_{ano}_{int(datetime.datetime.now().timestamp())}.pdf")
+                buffer.seek(0)
+                with open(filename, 'wb') as f:
+                    f.write(buffer.getvalue())
+                logger.info(f"PDF salvo em (fallback): {filename}")
+            else:
+                logger.exception('Falha ao salvar PDF e sem out_dir para fallback')
+        except Exception:
+            logger.exception('Falha final ao salvar PDF em fallback')
+
+    return True
+
+
 def gerar_relatorio_series_faltantes() -> bool:
     """Wrapper testável para `gerar_relatorio_series_faltantes`.
 
