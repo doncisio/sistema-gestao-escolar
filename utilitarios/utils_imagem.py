@@ -46,17 +46,17 @@ def carregar_imagem_segura(caminho, tamanho=None, usar_cache=True, chave=None):
             if tamanho:
                 img = img.resize(tamanho)
             photo = ImageTk.PhotoImage(img)
-            
+
             # Armazena no cache se solicitado
             if usar_cache:
                 _imagens_cache[chave] = photo
-                
+
             return photo
-            else:
-                logger.warning(f"Arquivo não encontrado: {caminho}")
-                return None
+        else:
+            logger.warning(f"Arquivo não encontrado: {caminho}")
+            return None
     except Exception as e:
-        print(f"Erro ao carregar imagem '{caminho}': {str(e)}")
+        logger.exception("Erro ao carregar imagem '%s': %s", caminho, str(e))
         return None
 
 class GerenciadorImagens:
