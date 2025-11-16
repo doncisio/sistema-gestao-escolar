@@ -109,3 +109,20 @@ def get_connection():
 Arquivo criado: `ANALISE_main_py.md` (raiz do projeto).
 
 Se quiser, começo pelo PR: "db: add connection context manager + refactor verificar_matricula_ativa" — confirma que faço isso agora?
+
+**Status das Propostas (controle rápido)**
+
+<!-- REFSTATUS:START -->
+- [x] Criar db/connection.py (get_connection)  
+- [ ] Extrair utilitários em utils/ (dates.py, safe.py)
+- [ ] Adicionar logging básico e substituir print() por logger
+- [ ] Implementar threading/executor para operações que bloqueiam a UI
+- [ ] Externalizar constantes em config.py (ESCOLA_ID, ANO_PADRAO)
+- [ ] Refatorar main.py em ui/, services/, db/, models/
+- [x] Centralização _ensure_legacy_module e refactor report_service.py  
+- [x] Suíte local de testes passou (26 passed)  
+
+Observações:
+- Marquei apenas as ações que já foram realizadas no repositório e validadas localmente.
+- Posso manter esse bloco atualizado conforme formos concluindo outras propostas.
+<!-- REFSTATUS:END -->

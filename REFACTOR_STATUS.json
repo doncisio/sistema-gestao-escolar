@@ -1,0 +1,10 @@
+{
+  "db/connection.py": { "title": "Criar db/connection.py (get_connection)", "done": true, "when": "2025-11-16T00:00:00Z" },
+  "utils.extract": { "title": "Extrair utilitários em utils/ (dates.py, safe.py)", "done": false },
+  "logging": { "title": "Adicionar logging básico e substituir print() por logger", "done": false },
+  "threading": { "title": "Implementar threading/executor para operações que bloqueiam a UI", "done": false },
+  "config": { "title": "Externalizar constantes em config.py (ESCOLA_ID, ANO_PADRAO)", "done": false },
+  "main_refactor": { "title": "Refatorar main.py em ui/, services/, db/, models/", "done": false },
+  "report_service_refactor": { "title": "Centralização _ensure_legacy_module e refactor report_service.py", "done": true, "when": "2025-11-16T00:00:00Z" },
+  "tests_local_green": { "title": "Suíte local de testes passou (26 passed)", "done": true, "when": "2025-11-16T00:00:00Z" }
+}
