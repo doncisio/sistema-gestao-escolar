@@ -187,38 +187,6 @@ def gerar_boletim_interno(aluno_id: int, ano_letivo_id: int) -> bool:
     return gerar_boletim(aluno_id, ano_letivo_id)
 
 
-def gerar_lista_reuniao() -> bool:
-    """Encapsula a chamada ao gerador de lista de reunião (`gerar_lista_reuniao`).
-
-    Em ambientes de teste, pode existir um mock em `sys.modules` — preferimos
-    reutilizá-lo. Recarregamos o módulo apenas quando o import for feito agora
-    (evita executar código legado durante testes que injetam mocks).
-    """
-    _mod = sys.modules.get('gerar_lista_reuniao')
-    imported_now = False
-    if _mod is None:
-        try:
-            import gerar_lista_reuniao as _mod  # type: ignore
-            imported_now = True
-        except ImportError:
-            logger.exception("Módulo 'gerar_lista_reuniao' não disponível para gerar lista de reunião")
-            raise
-
-    if imported_now:
-        try:
-            _m = sys.modules.get('gerar_lista_reuniao')
-            if _m is not None:
-                importlib.reload(_m)
-        except Exception:
-            pass
-
-    if not hasattr(_mod, 'gerar_lista_reuniao'):
-        raise AttributeError("Módulo 'gerar_lista_reuniao' não possui 'gerar_lista_reuniao'")
-
-    # Chama o gerador legado (ou o mock injetado em test)
-    _mod.gerar_lista_reuniao()
-    return True
-
 
 def gerar_lista_frequencia() -> bool:
     """Encapsula a chamada ao gerador de lista de frequência (`lista_frequencia`).
@@ -817,6 +785,16 @@ def _impl_gerar_relatorio_series_faltantes(alunos_ativos=None, historico_lookup=
                 except Exception:
                     conn = None
 
+        # Helper local para acessar campos de objetos retornados pelo DB
+        def _get_field(obj, key):
+            if isinstance(obj, dict):
+                return obj.get(key)
+            try:
+                # tratar tuplas/listas/dicts com __getitem__
+                return obj[key]
+            except Exception:
+                return None
+
             if conn is not None:
                 cursor = conn.cursor(dictionary=True)
                 try:
@@ -844,7 +822,7 @@ def _impl_gerar_relatorio_series_faltantes(alunos_ativos=None, historico_lookup=
                         h.aluno_id, h.serie_id, a.ano_letivo, e.nome, e.municipio;
                     """
                     for aluno in alunos_ativos:
-                        aluno_id = aluno.get('aluno_id')
+                        aluno_id = _get_field(aluno, 'aluno_id')
                         cursor.execute(query_historico, (aluno_id,))
                         historico_lookup[aluno_id] = cursor.fetchall()
                 finally:
@@ -872,7 +850,7 @@ def _impl_gerar_relatorio_series_faltantes(alunos_ativos=None, historico_lookup=
                 for serie_faltante in series_faltantes:
                     alunos_incompletos.append({
                         'aluno_id': aluno_id,
-                        'nome_aluno': aluno.get('nome_aluno'),
+                        'nome_aluno': _get_field(aluno, 'nome_aluno'),
                         'serie_atual': serie_atual,
                         'serie_faltante': serie_faltante
                     })
@@ -880,7 +858,7 @@ def _impl_gerar_relatorio_series_faltantes(alunos_ativos=None, historico_lookup=
                 situacao_final = historico[-1]['situacao_final'] if historico else 'Sem histórico'
                 alunos_completos.append({
                     'aluno_id': aluno_id,
-                    'nome_aluno': aluno.get('nome_aluno'),
+                    'nome_aluno': _get_field(aluno, 'nome_aluno'),
                     'serie_atual': serie_atual,
                     'situacao_final': situacao_final
                 })
@@ -1005,7 +983,7 @@ def gerar_lista_reuniao() -> bool:
         return True
 
 
-def _impl_gerar_lista_reuniao(dados_aluno=None, ano_letivo: int = None, out_dir: str = None, pastas_turmas=None, criar_pastas_func=None, adicionar_cabecalho_func=None) -> bool:
+def _impl_gerar_lista_reuniao(dados_aluno=None, ano_letivo: Optional[int] = None, out_dir: Optional[str] = None, pastas_turmas=None, criar_pastas_func=None, adicionar_cabecalho_func=None) -> bool:
     """Implementação migrada do gerador `gerar_lista_reuniao`.
 
     Parâmetros injetáveis (úteis em testes):
@@ -1184,7 +1162,8 @@ def _impl_gerar_lista_reuniao(dados_aluno=None, ano_letivo: int = None, out_dir:
             filename = None
 
         try:
-            salvar_e_abrir_pdf(buffer, filename=filename)
+            # chamar helper centralizado sem passar filename (algumas versões não aceitam o argumento)
+            salvar_e_abrir_pdf(buffer)
         except Exception:
             # tentar fallback para escrita direta como último recurso
             try:
