@@ -114,7 +114,7 @@ Se quiser, começo pelo PR: "db: add connection context manager + refactor verif
 
 <!-- REFSTATUS:START -->
 - [x] Criar db/connection.py (get_connection)  
-- [ ] Extrair utilitários em utils/ (dates.py, safe.py)
+- [x] Extrair utilitários em utils/ (dates.py, safe.py)  
 - [ ] Adicionar logging básico e substituir print() por logger
 - [ ] Implementar threading/executor para operações que bloqueiam a UI
 - [ ] Externalizar constantes em config.py (ESCOLA_ID, ANO_PADRAO)
