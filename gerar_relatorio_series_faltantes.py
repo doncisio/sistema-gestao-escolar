@@ -7,17 +7,12 @@ from conexao import conectar_bd
 from typing import Any, Dict, List, cast
 import datetime
 import os
-import logging
 import stat
 import time
 
-# Configurar logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-logger = logging.getLogger(__name__)
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 def criar_diretorio_com_permissao(diretorio):
     """Cria um diretório com as permissões adequadas se ele não existir."""

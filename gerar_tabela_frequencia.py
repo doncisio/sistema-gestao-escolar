@@ -18,7 +18,9 @@ def lista_frequencia():
     ano_letivo = 2025
     dados_aluno = fetch_student_data(ano_letivo)
     if not dados_aluno:
-        print("Nenhum dado de aluno encontrado.")
+        from config_logs import get_logger
+        logger = get_logger(__name__)
+        logger.warning("Nenhum dado de aluno encontrado.")
         return
 
     df = pd.DataFrame(dados_aluno)
@@ -38,7 +40,9 @@ def lista_frequencia():
         nome_turma_completo = f"{nome_serie} {nome_turma}" if nome_turma else nome_serie
 
         if nome_turma_completo not in PASTAS_TURMAS:
-            print(f"Aviso: Turma '{nome_turma_completo}' não está mapeada para uma pasta. Pulando...")
+            from config_logs import get_logger
+            logger = get_logger(__name__)
+            logger.warning(f"Aviso: Turma '{nome_turma_completo}' não está mapeada para uma pasta. Pulando...")
             continue
 
         buffer = io.BytesIO()
