@@ -965,6 +965,242 @@ def _impl_gerar_relatorio_series_faltantes(alunos_ativos=None, historico_lookup=
                 pass
 
 
+def gerar_lista_reuniao() -> bool:
+    """Wrapper testável para `gerar_lista_reuniao`.
+
+    Prefere um mock em `sys.modules` quando presente; tenta `_impl_gerar_lista_reuniao` e
+    por fim recorre ao módulo legado.
+    """
+    _mod = sys.modules.get('gerar_lista_reuniao')
+    if _mod is not None:
+        if hasattr(_mod, 'gerar_lista_reuniao'):
+            cast(Any, _mod).gerar_lista_reuniao()
+            return True
+        raise AttributeError("Módulo 'gerar_lista_reuniao' injetado não possui 'gerar_lista_reuniao'")
+
+    try:
+        return _impl_gerar_lista_reuniao()
+    except Exception:
+        # fallback para módulo legado
+        imported_now = False
+        try:
+            import gerar_lista_reuniao as _mod  # type: ignore
+            imported_now = True
+        except ImportError:
+            logger.exception("Módulo 'gerar_lista_reuniao' não disponível para gerar lista de reunião")
+            raise
+
+        if imported_now:
+            try:
+                _m = sys.modules.get('gerar_lista_reuniao')
+                if _m is not None:
+                    importlib.reload(_m)
+            except Exception:
+                pass
+
+        if not hasattr(_mod, 'gerar_lista_reuniao'):
+            raise AttributeError("Módulo 'gerar_lista_reuniao' não possui 'gerar_lista_reuniao'")
+
+        cast(Any, _mod).gerar_lista_reuniao()
+        return True
+
+
+def _impl_gerar_lista_reuniao(dados_aluno=None, ano_letivo: int = None, out_dir: str = None, pastas_turmas=None, criar_pastas_func=None, adicionar_cabecalho_func=None) -> bool:
+    """Implementação migrada do gerador `gerar_lista_reuniao`.
+
+    Parâmetros injetáveis (úteis em testes):
+    - `dados_aluno`: lista de dicts com os campos esperados pelo gerador (evita DB).
+    - `ano_letivo`: ano a ser passado para `fetch_student_data` quando `dados_aluno` não for fornecido.
+    - `out_dir`: diretório de saída (quando necessário para compatibilidade).
+    - `pastas_turmas`: coleção de nomes de turmas válidas; se fornecida, turmas não mapeadas serão puladas.
+    - `criar_pastas_func`: função opcional para criar pastas (se a lógica externa precisar).
+    - `adicionar_cabecalho_func`: função que adiciona cabeçalho aos `elements` (fallback para legado se não fornecida).
+
+    Retorna True em sucesso.
+    """
+    import pandas as pd
+    import io
+    import datetime
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+
+    # helpers de PDF
+    try:
+        from services.utils.pdf import salvar_e_abrir_pdf
+    except Exception:
+        try:
+            from gerarPDF import salvar_e_abrir_pdf
+        except Exception:
+            logger.exception('Não foi possível importar helpers de PDF para gerar_lista_reuniao')
+            raise
+
+    # carregar dados ou usar o fornecido
+    if dados_aluno is None:
+        if ano_letivo is None:
+            ano_letivo = 2025
+        try:
+            from Lista_atualizada import fetch_student_data
+            dados_aluno = fetch_student_data(ano_letivo)
+        except Exception:
+            logger.exception('Não foi possível obter dados dos alunos para gerar_lista_reuniao')
+            raise
+
+    if not dados_aluno:
+        logger.info('Nenhum dado de aluno encontrado para gerar_lista_reuniao')
+        return False
+
+    df = pd.DataFrame(dados_aluno)
+
+    # permissões/estrutura de pastas (opcional)
+    if criar_pastas_func:
+        try:
+            criar_pastas_func()
+        except Exception:
+            logger.exception('Falha ao criar pastas via criar_pastas_func')
+
+    # localizar imagens
+    diretorio_principal = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    figura_superior = os.path.join(diretorio_principal, "logosemed.png")
+    figura_inferior = os.path.join(diretorio_principal, "logopaco.jpg")
+
+    cabecalho = [
+        "PREFEITURA MUNICIPAL DE PAÇO DO LUMIAR",
+        "SECRETARIA MUNICIPAL DE EDUCAÇÃO",
+        "<b>EM PROFª. NADIR NASCIMENTO MORAES</b>",
+        "<b>INEP: 21008485</b>",
+        "<b>CNPJ: 06.003.636/0001-73</b>"
+    ]
+
+    pauta_items = [
+        "Acolhida",
+        "Oração: leitura deleite",
+        "Fardamento",
+        "Livros",
+        "Horário de entrada e saída",
+        "Comportamento",
+        "Uso do celular",
+        "Data de recuperação",
+        "Não cumprimento das atividades"
+    ]
+
+    # pastas_turmas: se não fornecido, aceitamos todas
+    accept_all = pastas_turmas is None
+
+    for (nome_serie, nome_turma, turno), turma_df in df.groupby(['NOME_SERIE', 'NOME_TURMA', 'TURNO']):
+        nome_turma_completo = f"{nome_serie} {nome_turma}" if nome_turma else nome_serie
+
+        if (not accept_all) and (nome_turma_completo not in pastas_turmas):
+            logger.info(f"Turma '{nome_turma_completo}' não mapeada em pastas_turmas — pulando")
+            continue
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(letter),
+            leftMargin=36,
+            rightMargin=18,
+            topMargin=18,
+            bottomMargin=18
+        )
+        elements = []
+
+        # cabeçalho
+        if adicionar_cabecalho_func:
+            try:
+                adicionar_cabecalho_func(elements, cabecalho, figura_superior, figura_inferior)
+            except Exception:
+                logger.exception('Falha ao executar adicionar_cabecalho_func')
+        else:
+            # tentar reaproveitar função do legado quando disponível
+            try:
+                import gerar_lista_reuniao as legacy  # type: ignore
+                if hasattr(legacy, 'adicionar_cabecalho'):
+                    legacy.adicionar_cabecalho(elements, cabecalho, figura_superior, figura_inferior)
+            except Exception:
+                # sem cabeçalho, prosseguir
+                pass
+
+        elements.append(Spacer(1, 2 * inch))
+        elements.append(Paragraph("<b>LISTA PARA REUNIÃO</b>", ParagraphStyle(name='Capa', fontSize=24, alignment=1)))
+        elements.append(Spacer(1, 2.5 * inch))
+        elements.append(Paragraph(f"<b>{datetime.datetime.now().year}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
+        elements.append(PageBreak())
+
+        nome_professor = turma_df['NOME_PROFESSOR'].iloc[0] if not turma_df['NOME_PROFESSOR'].isnull().all() else 'Sem Professor'
+        turma_df = turma_df[turma_df['SITUAÇÃO'] == 'Ativo']
+
+        # cabeçalho da página
+        if adicionar_cabecalho_func:
+            try:
+                adicionar_cabecalho_func(elements, cabecalho, figura_superior, figura_inferior, 11)
+            except Exception:
+                logger.exception('Falha ao executar adicionar_cabecalho_func (pagina)')
+
+        elements.append(Spacer(1, 0.125 * inch))
+        elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno} - {datetime.datetime.now().year}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=12, alignment=1)))
+        elements.append(Spacer(1, 0.1 * inch))
+
+        elements.append(Paragraph("<b>PAUTA DA REUNIÃO</b>", ParagraphStyle(name='PautaTitulo', fontSize=14, alignment=1)))
+        elements.append(Spacer(1, 0.2 * inch))
+        for item in pauta_items:
+            elements.append(Paragraph(f"• {item}", ParagraphStyle(name='PautaItem', fontSize=11, leftIndent=20)))
+            elements.append(Spacer(1, 0.1 * inch))
+
+        elements.append(Spacer(1, 0.2 * inch))
+
+        data = [['Nº', 'Nome', 'Telefone', 'Assinatura do Responsável', 'Parentesco']]
+        for row_num, (index, row) in enumerate(turma_df.iterrows(), start=1):
+            nome = row.get('NOME DO ALUNO') if isinstance(row, dict) else row['NOME DO ALUNO']
+            nome_str = str(nome) if pd.notnull(nome) else ""
+            telefones_str = ''
+            assinatura = ''
+            parentesco = ''
+            data.append([str(row_num), nome_str, telefones_str, assinatura, parentesco])
+
+        table = Table(data, colWidths=[0.4 * inch, 3 * inch, 1.5 * inch, 3 * inch, 1.5 * inch])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 14),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        elements.append(table)
+        elements.append(PageBreak())
+
+        doc.build(elements)
+
+        # salvar: use helper centralizado; informe filename quando out_dir fornecido
+        if out_dir:
+            filename = os.path.join(out_dir, f"{nome_turma_completo}_Reuniao.pdf")
+        else:
+            filename = None
+
+        try:
+            salvar_e_abrir_pdf(buffer, filename=filename)
+        except Exception:
+            # tentar fallback para escrita direta como último recurso
+            try:
+                if filename:
+                    buffer.seek(0)
+                    with open(filename, 'wb') as f:
+                        f.write(buffer.getvalue())
+                    logger.info(f"PDF salvo em (fallback): {filename}")
+                else:
+                    logger.exception('Falha ao salvar PDF e sem filename para fallback')
+            except Exception:
+                logger.exception('Falha final ao salvar PDF')
+
+    return True
+
+
 def _impl_gerar_resumo_ponto(*args, **kwargs) -> bool:
     """Implementação migrada do gerador `gerar_resumo_ponto`.
 
