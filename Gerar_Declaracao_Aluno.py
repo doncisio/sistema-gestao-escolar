@@ -111,9 +111,7 @@ def obter_responsaveis(cursor, aluno_id):
     cursor.execute(query_responsaveis, (aluno_id,))
     return cursor.fetchall()
 
-def formatar_data(data):
-    meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-    return f"{data.day} de {meses[data.month - 1]} de {data.year}"
+from utils.dates import formatar_data_extenso as formatar_data
 
 def criar_cabecalho(dados_escola):
     nome_escola, inep_escola, cnpj_escola, endereco_escola, municipio_escola = dados_escola[1], dados_escola[3], dados_escola[4], dados_escola[2], dados_escola[5]
