@@ -175,10 +175,9 @@ def gerar_declaracao_comparecimento_responsavel(aluno_id, data_comparecimento=No
         if data_comparecimento is None:
             data_comparecimento = datetime.datetime.now()
         
-        # Formatar data por extenso
-        meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
-                 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-        data_extenso = f"{data_comparecimento.day} de {meses[data_comparecimento.month - 1]} de {data_comparecimento.year}"
+        # Formatar data por extenso usando util consolidado
+        from utils.dates import formatar_data_extenso
+        data_extenso = formatar_data_extenso(data_comparecimento)
         
         # Criar nome do arquivo
         data_arquivo = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
