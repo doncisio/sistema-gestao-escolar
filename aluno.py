@@ -9,6 +9,9 @@ from db.connection import get_connection
 import mysql.connector
 from Seguranca import atualizar_treeview
 from typing import Any, cast
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 # Cores
 co0 = "#2e2d2b"  # preta
@@ -161,7 +164,7 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
 
                 return series
         except Exception as err:
-            print("Erro ao obter séries:", err)
+            logger.exception("Erro ao obter séries: %s", err)
             return []
     
     # Obter turmas com base na série selecionada
@@ -189,7 +192,7 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
 
                 return turmas
         except Exception as err:
-            print("Erro ao obter turmas:", err)
+            logger.exception("Erro ao obter turmas: %s", err)
             return []
     
     # Evento de atualização das turmas quando a série é alterada
@@ -577,7 +580,7 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
 
         except mysql.connector.Error as err:
             messagebox.showerror("Erro", f"Erro ao salvar no banco de dados: {err}")
-            print(f"Erro MySQL: {err}")
+            logger.exception("Erro MySQL: %s", err)
             try:
                 if conn:
                     conn.rollback()
@@ -585,7 +588,7 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
                 pass
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao salvar: {e}")
-            print(f"Erro geral: {e}")
+            logger.exception("Erro geral: %s", e)
             try:
                 if conn:
                     conn.rollback()
@@ -654,7 +657,7 @@ def excluir_aluno(aluno_id, treeview, query):
         return True
     except mysql.connector.Error as err:
         messagebox.showerror("Erro", f"Erro ao excluir aluno: {err}")
-        print(f"Erro MySQL ao excluir aluno: {err}")
+        logger.exception("Erro MySQL ao excluir aluno: %s", err)
         try:
             if conn:
                 conn.rollback()
@@ -663,7 +666,7 @@ def excluir_aluno(aluno_id, treeview, query):
         return False
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao excluir aluno: {e}")
-        print(f"Erro geral ao excluir aluno: {e}")
+        logger.exception("Erro geral ao excluir aluno: %s", e)
         try:
             if conn:
                 conn.rollback()

@@ -11,6 +11,9 @@ from Ata_1a5ano import ata_geral as ata_1a5
 from Ata_6a9ano import ata_geral_6a9ano as ata_6a9
 from Ata_1a9ano import ata_geral_1a9ano as ata_1a9
 import traceback
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 def gerar_ata_por_nivel(nivel="Séries Iniciais", ano_letivo=2025):
     """
@@ -28,21 +31,20 @@ def gerar_ata_por_nivel(nivel="Séries Iniciais", ano_letivo=2025):
         # Como isso exigiria modificações nas funções originais, por enquanto apenas notificamos sobre o parâmetro
         if nivel == "Séries Iniciais":
             # Idealmente: ata_1a5(ano_letivo=ano_letivo)
-            print(f"Gerando ata para Séries Iniciais, ano letivo: {ano_letivo}")
+            logger.info("Gerando ata para Séries Iniciais, ano letivo: %s", ano_letivo)
             ata_1a5()
         elif nivel == "Séries Finais":
             # Idealmente: ata_6a9(ano_letivo=ano_letivo)
-            print(f"Gerando ata para Séries Finais, ano letivo: {ano_letivo}")
+            logger.info("Gerando ata para Séries Finais, ano letivo: %s", ano_letivo)
             ata_6a9()
         elif nivel == "Ensino Fundamental Completo":
-            print(f"Gerando ata para Ensino Fundamental Completo, ano letivo: {ano_letivo}")
+            logger.info("Gerando ata para Ensino Fundamental Completo, ano letivo: %s", ano_letivo)
             ata_1a9()
         else:
             raise ValueError(f"Nível de ensino não reconhecido: {nivel}")
         return True
     except Exception as e:
-        print(f"Erro ao gerar ata para {nivel}: {str(e)}")
-        traceback.print_exc()
+        logger.exception("Erro ao gerar ata para %s: %s", nivel, e)
         return False
 
 def abrir_interface_ata(janela_pai=None, status_label=None):

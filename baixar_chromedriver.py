@@ -160,12 +160,12 @@ def main():
     """
     Função principal
     """
-    print("╔═══════════════════════════════════════════════════════╗")
-    print("║                                                        ║")
-    print("║        BAIXAR CHROMEDRIVER AUTOMATICAMENTE            ║")
-    print("║                                                        ║")
-    print("╚═══════════════════════════════════════════════════════╝")
-    print()
+    logger.info("╔═══════════════════════════════════════════════════════╗")
+    logger.info("║                                                        ║")
+    logger.info("║        BAIXAR CHROMEDRIVER AUTOMATICAMENTE            ║")
+    logger.info("║                                                        ║")
+    logger.info("╚═══════════════════════════════════════════════════════╝")
+    logger.info("")
     
     # Verificar se requests está instalado
     try:
@@ -177,7 +177,7 @@ def main():
         import requests
     
     # Obter versão do Chrome
-    print("→ Detectando versão do Google Chrome...")
+    logger.info("→ Detectando versão do Google Chrome...")
     versao_chrome = obter_versao_chrome()
     
     if not versao_chrome:
@@ -197,12 +197,12 @@ def main():
     versao_driver, url_download = obter_versao_chromedriver_compativel(versao_chrome)
     
     if not versao_driver:
-        print("✗ Não foi possível encontrar ChromeDriver compatível")
-        print("\n📝 ALTERNATIVA:")
-        print("   Baixe manualmente em: https://googlechromelabs.github.io/chrome-for-testing/")
+        logger.error("✗ Não foi possível encontrar ChromeDriver compatível")
+        logger.info("\n📝 ALTERNATIVA:")
+        logger.info("   Baixe manualmente em: https://googlechromelabs.github.io/chrome-for-testing/")
         return
     
-    print(f"✓ ChromeDriver compatível encontrado: {versao_driver}")
+    logger.info("✓ ChromeDriver compatível encontrado: %s", versao_driver)
     
     # Definir destino
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -210,7 +210,7 @@ def main():
     
     # Verificar se já existe
     if os.path.exists(destino):
-        print(f"\n⚠ ChromeDriver já existe em: {destino}")
+        logger.warning("\n⚠ ChromeDriver já existe em: %s", destino)
         resposta = input("→ Deseja substituir? (s/n): ").strip().lower()
         
         if resposta != 's':
@@ -224,38 +224,38 @@ def main():
     sucesso = baixar_chromedriver(url_download, destino)
     
     if sucesso:
-        print()
-        print("╔═══════════════════════════════════════════════════════╗")
-        print("║                                                        ║")
-        print("║              ✅ CHROMEDRIVER INSTALADO!               ║")
-        print("║                                                        ║")
-        print("╚═══════════════════════════════════════════════════════╝")
-        print()
-        print(f"📁 Local: {destino}")
-        print()
-        print("✅ Agora você pode usar o sistema de automação normalmente!")
-        print()
+        logger.info("")
+        logger.info("╔═══════════════════════════════════════════════════════╗")
+        logger.info("║                                                        ║")
+        logger.info("║              ✅ CHROMEDRIVER INSTALADO!               ║")
+        logger.info("║                                                        ║")
+        logger.info("╚═══════════════════════════════════════════════════════╝")
+        logger.info("")
+        logger.info("📁 Local: %s", destino)
+        logger.info("")
+        logger.info("✅ Agora você pode usar o sistema de automação normalmente!")
+        logger.info("")
     else:
-        print()
-        print("╔═══════════════════════════════════════════════════════╗")
-        print("║                                                        ║")
-        print("║              ✗ FALHA NO DOWNLOAD                      ║")
-        print("║                                                        ║")
-        print("╚═══════════════════════════════════════════════════════╝")
-        print()
-        print("📝 SOLUÇÃO MANUAL:")
-        print(f"   1. Acesse: {url_download}")
-        print(f"   2. Extraia o arquivo ZIP")
-        print(f"   3. Copie chromedriver.exe para: {destino}")
-        print()
+        logger.info("")
+        logger.info("╔═══════════════════════════════════════════════════════╗")
+        logger.info("║                                                        ║")
+        logger.info("║              ✗ FALHA NO DOWNLOAD                      ║")
+        logger.info("║                                                        ║")
+        logger.info("╚═══════════════════════════════════════════════════════╝")
+        logger.info("")
+        logger.info("📝 SOLUÇÃO MANUAL:")
+        logger.info("   1. Acesse: %s", url_download)
+        logger.info("   2. Extraia o arquivo ZIP")
+        logger.info("   3. Copie chromedriver.exe para: %s", destino)
+        logger.info("")
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\n→ Operação cancelada pelo usuário")
+        logger.info("\n\n→ Operação cancelada pelo usuário")
     except Exception as e:
-        print(f"\n\n✗ Erro inesperado: {e}")
+        logger.exception("\n\n✗ Erro inesperado: %s", e)
     
     input("\nPressione ENTER para sair...")
