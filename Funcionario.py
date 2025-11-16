@@ -9,6 +9,9 @@ from PIL import ImageTk, Image
 from tkcalendar import DateEntry
 from tkinter import filedialog as fd
 from typing import Any, cast
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 # Cores
 co0 = "#2e2d2b"  # preta
@@ -94,13 +97,14 @@ def salvar_funcionario(treeview, query):
     try:
         data_nascimento = datetime.strptime(data_nascimento_str, '%d/%m/%Y').strftime('%Y-%m-%d')
     except ValueError:
-        print("Formato de data inválido. Use DD/MM/YYYY.")
+        messagebox.showerror("Erro", "Formato de data inválido. Use DD/MM/YYYY.")
         return
 
     # Conectando ao banco de dados
     conn = conectar_bd()
     if not conn:
-        print("Não foi possível conectar ao banco de dados.")
+        messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+        logger.error("Não foi possível conectar ao banco de dados.")
         return
 
     try:
@@ -116,10 +120,12 @@ def salvar_funcionario(treeview, query):
         conn.commit()
         # Atualizar a Treeview
         atualizar_treeview(treeview, cursor, query)
-        print("Funcionário inserido com sucesso.")
+        messagebox.showinfo("Sucesso", "Funcionário inserido com sucesso.")
+        logger.info("Funcionário inserido com sucesso.")
 
     except mysql.connector.Error as e:
-        print(f"Erro ao salvar funcionário: {e}")
+        logger.exception("Erro ao salvar funcionário: %s", e)
+        messagebox.showerror("Erro", f"Erro ao salvar funcionário: {e}")
         conn.rollback()
 
 def gerar_declaracao_funcionario(id_funcionario):
