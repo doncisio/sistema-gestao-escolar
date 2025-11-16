@@ -98,7 +98,7 @@ class AutomacaoGEDUC:
                     # Se erro foi de conexão, tentar cache offline
                     if "Could not reach host" in str(e2) or "offline" in str(e2).lower():
                         try:
-                            print("→ Tentando usar cache offline do webdriver-manager...")
+                            logger.info("→ Tentando usar cache offline do webdriver-manager...")
                             # Forçar uso de cache existente
                             import webdriver_manager.chrome as wm_chrome
                             cache_path = os.path.join(os.path.expanduser("~"), ".wdm", "drivers", "chromedriver")
@@ -270,7 +270,7 @@ class AutomacaoGEDUC:
             return True
             
         except Exception as e:
-            print(f"✗ Erro ao acessar registro de notas: {e}")
+            logger.exception("✗ Erro ao acessar registro de notas: %s", e)
             return False
     
     def acessar_recuperacao_bimestral(self):
@@ -362,7 +362,7 @@ class AutomacaoGEDUC:
                 except:
                     continue
             
-            print(f"✗ Bimestre {numero_bimestre}º não encontrado")
+            logger.warning("✗ Bimestre %sº não encontrado", numero_bimestre)
             return False
             
         except Exception as e:
@@ -920,7 +920,7 @@ class AutomacaoGEDUC:
         DEPRECATED: Use extrair_todas_notas() que já salva automaticamente
         Mantido para compatibilidade com código antigo
         """
-        print("⚠️ Aviso: Os arquivos já foram salvos automaticamente durante a extração")
+        logger.warning("⚠️ Aviso: Os arquivos já foram salvos automaticamente durante a extração")
         return []
     
 
@@ -931,7 +931,7 @@ class AutomacaoGEDUC:
         """
         if self.driver:
             self.driver.quit()
-            print("✓ Navegador fechado")
+            logger.info("✓ Navegador fechado")
 
 
 def interface_automacao():

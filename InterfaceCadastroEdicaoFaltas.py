@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
@@ -353,7 +355,7 @@ class InterfaceCadastroEdicaoFaltas:
             entrada_p.config(state="readonly")
             
         except Exception as e:
-            print(f"Erro ao calcular presença: {e}")
+            logger.error(f"Erro ao calcular presença: {e}")
 
     def salvar(self):
         try:
@@ -491,5 +493,4 @@ def abrir_interface_faltas(janela_principal=None):
             janela_principal.deiconify()
         messagebox.showerror("Erro", f"Erro ao abrir interface de faltas: {e}")
         return None
-
 

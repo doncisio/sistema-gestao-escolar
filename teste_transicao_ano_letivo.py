@@ -212,14 +212,14 @@ def simular_transicao():
 
 def verificar_proximos_anos():
     """Verifica se o próximo ano já existe no banco"""
-    print("\n" + "="*60)
-    print("VERIFICAÇÃO DE ANOS LETIVOS")
+    logger.info("\n" + "="*60)
+    logger.info("VERIFICAÇÃO DE ANOS LETIVOS")
     logger.info("\n" + "="*60)
     logger.info("VERIFICAÇÃO DE ANOS LETIVOS")
     logger.info("="*60)
         conn = conectar_bd()
         if not conn:
-            print("❌ Erro: Não foi possível conectar ao banco de dados.")
+            logger.error("❌ Erro: Não foi possível conectar ao banco de dados.")
             return
             logger.error("❌ Erro: Não foi possível conectar ao banco de dados.")
         cursor = cast(Any, conn).cursor(dictionary=True)
@@ -230,17 +230,17 @@ def verificar_proximos_anos():
             ORDER BY ano_letivo
         """)
         
-        print("\n📋 Anos Letivos Cadastrados:")
+        logger.info("\n📋 Anos Letivos Cadastrados:")
         for row in cast(Any, cursor.fetchall()):
         logger.info("\n📋 Anos Letivos Cadastrados:")
         
             logger.info(f"   {row['ano_letivo']} (ID: {row['id']})")
         conn.close()
         
-        print("\n" + "="*60 + "\n")
+        logger.info("\n" + "="*60 + "\n")
         
         logger.info("\n" + "="*60 + "\n")
-        print(f"\n❌ Erro: {str(e)}")
+        logger.error(f"\n❌ Erro: {str(e)}")
         import traceback
         logger.exception(f"\n❌ Erro: {str(e)}")
 
@@ -248,7 +248,7 @@ def verificar_proximos_anos():
 def menu_principal():
     """Menu principal do teste"""
     while True:
-        print("\n" + "="*60)
+        logger.info("\n" + "="*60)
         logger.info("\n" + "="*60)
         logger.info("TESTE - TRANSIÇÃO DE ANO LETIVO")
         logger.info("="*60)
@@ -266,7 +266,7 @@ def menu_principal():
         elif opcao == "3":
             verificar_proximos_anos()
         elif opcao == "4":
-            print("\n👋 Encerrando...\n")
+            logger.info("\n👋 Encerrando...\n")
             logger.info("\n👋 Encerrando...\n")
         else:
             print("\n❌ Opção inválida! Tente novamente.")

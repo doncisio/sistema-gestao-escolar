@@ -1,6 +1,9 @@
 import sys
 import os
 import importlib.util
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 def importar_modulo(nome_arquivo):
     """Importa um módulo pelo nome do arquivo."""
@@ -10,18 +13,18 @@ def importar_modulo(nome_arquivo):
         spec.loader.exec_module(modulo)
         return modulo
     except Exception as e:
-        print(f"Erro ao importar {nome_arquivo}: {e}")
+        logger.exception("Erro ao importar %s: %s", nome_arquivo, e)
         return None
 
 # Função principal
 def main():
-    print("Iniciando o Sistema de Gerenciamento Escolar...")
+    logger.info("Iniciando o Sistema de Gerenciamento Escolar...")
     
     # Verificar e configurar o MySQL
     verificar_mysql = importar_modulo("verificar_mysql.py")
     
     if verificar_mysql and verificar_mysql.main():
-        print("MySQL configurado com sucesso. Iniciando o sistema...")
+        logger.info("MySQL configurado com sucesso. Iniciando o sistema...")
         
         # Importar e executar o aplicativo principal
         app_principal = importar_modulo("main.py")
@@ -30,10 +33,10 @@ def main():
             # O main.py já executa o aplicativo
             pass
         else:
-            print("Erro ao iniciar o aplicativo principal.")
+            logger.error("Erro ao iniciar o aplicativo principal.")
             return False
     else:
-        print("Configuração do MySQL falhou. O aplicativo não pode ser iniciado.")
+        logger.error("Configuração do MySQL falhou. O aplicativo não pode ser iniciado.")
         return False
     
     return True

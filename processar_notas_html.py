@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 """
 Script simplificado para processar um arquivo HTML específico do GEDUC
 e gerar automaticamente o arquivo Excel com as notas.
@@ -14,33 +16,33 @@ def main():
     if len(sys.argv) < 2:
         # Se não foi fornecido, usar o arquivo padrão
         html_path = r"c:\gestao\AMBIENTE SEMED - GEDUC GESTÃO EDUCACIONAL.html"
-        print(f"Nenhum arquivo especificado. Usando arquivo padrão:")
-        print(f"  {html_path}")
+        logger.info(f"Nenhum arquivo especificado. Usando arquivo padrão:")
+        logger.info(f"  {html_path}")
     else:
         html_path = sys.argv[1]
     
     # Verificar se o arquivo existe
     if not os.path.exists(html_path):
-        print(f"ERRO: Arquivo não encontrado: {html_path}")
+        logger.error(f"ERRO: Arquivo não encontrado: {html_path}")
         sys.exit(1)
     
-    print(f"\n{'='*60}")
-    print("PROCESSANDO NOTAS DO GEDUC")
-    print(f"{'='*60}\n")
+    logger.info(f"\n{'='*60}")
+    logger.info("PROCESSANDO NOTAS DO GEDUC")
+    logger.info(f"{'='*60}\n")
     
     # Extrair dados do HTML
-    print("Extraindo dados do arquivo HTML...")
+    logger.info("Extraindo dados do arquivo HTML...")
     dados = extrair_informacoes_html(html_path)
     
     if not dados or not dados['alunos']:
-        print("ERRO: Não foi possível extrair dados do HTML ou nenhum aluno encontrado!")
+        logger.error("ERRO: Não foi possível extrair dados do HTML ou nenhum aluno encontrado!")
         sys.exit(1)
     
     # Exibir informações extraídas
-    print(f"\n  ✓ Turma: {dados['turma']}")
-    print(f"  ✓ Disciplina: {dados['disciplina']}")
-    print(f"  ✓ Bimestre: {dados['bimestre']}")
-    print(f"  ✓ Total de alunos: {len(dados['alunos'])}\n")
+    logger.info(f"\n  ✓ Turma: {dados['turma']}")
+    logger.info(f"  ✓ Disciplina: {dados['disciplina']}")
+    logger.info(f"  ✓ Bimestre: {dados['bimestre']}")
+    logger.info(f"  ✓ Total de alunos: {len(dados['alunos'])}\n")
     
     # Gerar nome do arquivo de saída
     disciplina_safe = dados['disciplina'].replace(' ', '_').replace('/', '_')
@@ -51,29 +53,29 @@ def main():
     output_path = os.path.join(output_dir, output_filename)
     
     # Criar arquivo Excel
-    print(f"Gerando arquivo Excel: {output_filename}")
+    logger.info(f"Gerando arquivo Excel: {output_filename}")
     sucesso = criar_excel_com_notas(dados, output_path)
     
     if sucesso:
-        print(f"\n{'='*60}")
-        print("✓ SUCESSO!")
-        print(f"{'='*60}\n")
-        print(f"Arquivo Excel criado com sucesso!\n")
-        print(f"Localização: {output_path}\n")
+        logger.info(f"\n{'='*60}")
+        logger.info("✓ SUCESSO!")
+        logger.info(f"{'='*60}\n")
+        logger.info(f"Arquivo Excel criado com sucesso!\n")
+        logger.info(f"Localização: {output_path}\n")
         
         # Listar alguns alunos como amostra
-        print("Amostra de alunos processados:")
+        logger.info("Amostra de alunos processados:")
         for i, aluno in enumerate(dados['alunos'][:5]):
             nota_str = f"{aluno['nota']:.2f}" if aluno['nota'] != '' else '-'
-            print(f"  {aluno['ordem']}. {aluno['nome']}")
-            print(f"     Nota Final: {nota_str}")
+            logger.info(f"  {aluno['ordem']}. {aluno['nome']}")
+            logger.info(f"     Nota Final: {nota_str}")
         
         if len(dados['alunos']) > 5:
-            print(f"  ... e mais {len(dados['alunos']) - 5} alunos")
+            logger.info(f"  ... e mais {len(dados['alunos']) - 5} alunos")
         
-        print(f"\n{'='*60}\n")
+        logger.info(f"\n{'='*60}\n")
     else:
-        print("\nERRO: Falha ao criar arquivo Excel!")
+        logger.error("\nERRO: Falha ao criar arquivo Excel!")
         sys.exit(1)
 
 if __name__ == "__main__":

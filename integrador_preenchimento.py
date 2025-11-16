@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 """
 Módulo para integrar o preenchimento automático na interface de notas
 Adiciona botão para acionar preenchimento a partir do GEDUC
@@ -43,7 +45,7 @@ class IntegradorPreenchimentoAutomatico:
             )
             btn_preencher_auto.pack(side="left", padx=5)
             
-            print("✓ Botão de preenchimento automático adicionado")
+            logger.info("✓ Botão de preenchimento automático adicionado")
     
     def validar_selecoes_interface(self):
         """
@@ -79,8 +81,8 @@ class IntegradorPreenchimentoAutomatico:
         turma_completa = self.interface.cb_turma.get()
         
         # Debug: verificar o que está vindo
-        print(f"\n[DEBUG] Série: '{serie_nome}'")
-        print(f"[DEBUG] Turma completa da interface: '{turma_completa}'")
+        logger.info(f"\n[DEBUG] Série: '{serie_nome}'")
+        logger.info(f"[DEBUG] Turma completa da interface: '{turma_completa}'")
         
         # Dividir por " - " para separar nome da turma e turno
         if ' - ' in turma_completa:
@@ -91,8 +93,8 @@ class IntegradorPreenchimentoAutomatico:
             turma_nome = turma_completa.strip()
             turma_turno = ""
         
-        print(f"[DEBUG] Turma nome (letra/identificador): '{turma_nome}'")
-        print(f"[DEBUG] Turno: '{turma_turno}'")
+        logger.info(f"[DEBUG] Turma nome (letra/identificador): '{turma_nome}'")
+        logger.info(f"[DEBUG] Turno: '{turma_turno}'")
         
         # Construir nome completo para busca no GEDUC
         # Formato CORRETO: {SÉRIE} + {TURNO} + {TURMA}
@@ -106,8 +108,8 @@ class IntegradorPreenchimentoAutomatico:
             # Ex: "7º Ano" + "VESP" = "7º Ano VESP"
             nome_busca_geduc = f"{serie_nome} {turma_turno}" if turma_turno else serie_nome
         
-        print(f"[DEBUG] Nome para busca no GEDUC: '{nome_busca_geduc}'")
-        print(f"[DEBUG] Ordem: {{SÉRIE}} + {{TURNO}} + {{TURMA}}")
+        logger.info(f"[DEBUG] Nome para busca no GEDUC: '{nome_busca_geduc}'")
+        logger.info(f"[DEBUG] Ordem: {{SÉRIE}} + {{TURNO}} + {{TURMA}}")
         
         return {
             'serie': serie_nome,
@@ -268,7 +270,7 @@ class IntegradorPreenchimentoAutomatico:
             self.automacao = AutomacaoGEDUC(headless=False)
             
             # Iniciar navegador
-            print("\n→ Iniciando navegador...")
+            logger.info("\n→ Iniciando navegador...")
             if not self.automacao.iniciar_navegador():
                 self.interface.janela.after(0, lambda: messagebox.showerror(
                     "Erro", "Falha ao iniciar navegador!"
@@ -276,7 +278,7 @@ class IntegradorPreenchimentoAutomatico:
                 return
             
             # Fazer login
-            print("→ Fazendo login no GEDUC...")
+            logger.info("→ Fazendo login no GEDUC...")
             if not self.automacao.fazer_login(
                 credenciais['usuario'],
                 credenciais['senha'],
@@ -288,7 +290,7 @@ class IntegradorPreenchimentoAutomatico:
                 return
             
             # Acessar registro de notas
-            print("→ Acessando registro de notas...")
+            logger.info("→ Acessando registro de notas...")
             if not self.automacao.acessar_registro_notas():
                 self.interface.janela.after(0, lambda: messagebox.showerror(
                     "Erro", "Falha ao acessar página de registro de notas!"
@@ -296,7 +298,7 @@ class IntegradorPreenchimentoAutomatico:
                 return
             
             # Navegar até turma/disciplina/bimestre
-            print(f"→ Selecionando turma, disciplina e bimestre...")
+            logger.info(f"→ Selecionando turma, disciplina e bimestre...")
             sucesso = self._navegar_geduc(selecoes)
             
             if not sucesso:
@@ -312,14 +314,14 @@ class IntegradorPreenchimentoAutomatico:
             )
             
             # Processar página (detectar período fechado e preencher)
-            print("→ Processando página de notas...")
+            logger.info("→ Processando página de notas...")
             sucesso = preenchedor.processar_pagina_notas()
             
             if sucesso:
-                print("✓ Preenchimento concluído com sucesso!")
+                logger.info("✓ Preenchimento concluído com sucesso!")
             
         except Exception as e:
-            print(f"✗ Erro: {e}")
+            logger.error(f"✗ Erro: {e}")
             import traceback
             traceback.print_exc()
             self.interface.janela.after(0, lambda: messagebox.showerror(
@@ -329,7 +331,7 @@ class IntegradorPreenchimentoAutomatico:
         finally:
             # Fechar navegador após 5 segundos
             if self.automacao:
-                print("\n→ Fechando navegador em 5 segundos...")
+                logger.info("\n→ Fechando navegador em 5 segundos...")
                 import time
                 time.sleep(5)
                 self.automacao.fechar()
@@ -346,7 +348,7 @@ class IntegradorPreenchimentoAutomatico:
             
             # Verificar automação
             if self.automacao is None:
-                print("✗ Automação do GEDUC não inicializada")
+                logger.info("✗ Automação do GEDUC não inicializada")
                 return False
 
             # Usar variável local tipada para acalmar o analisador estático
@@ -355,18 +357,18 @@ class IntegradorPreenchimentoAutomatico:
             # Obter turmas disponíveis
             turmas = automacao.obter_opcoes_select('IDTURMA')
             
-            print(f"\n→ Procurando turma no GEDUC:")
-            print(f"  Série: {selecoes['serie']}")
-            print(f"  Turno: {selecoes['turno']}")
-            print(f"  Turma: {selecoes['turma']}")
-            print(f"  Nome completo para busca: {selecoes['nome_completo_geduc']}")
-            print(f"  Ordem: {{SÉRIE}} + {{TURNO}} + {{TURMA}}")
+            logger.info(f"\n→ Procurando turma no GEDUC:")
+            logger.info(f"  Série: {selecoes['serie']}")
+            logger.info(f"  Turno: {selecoes['turno']}")
+            logger.info(f"  Turma: {selecoes['turma']}")
+            logger.info(f"  Nome completo para busca: {selecoes['nome_completo_geduc']}")
+            logger.info(f"  Ordem: {{SÉRIE}} + {{TURNO}} + {{TURMA}}")
             
-            print(f"\n  Turmas disponíveis no GEDUC:")
+            logger.info(f"\n  Turmas disponíveis no GEDUC:")
             for t in turmas[:10]:  # Mostrar primeiras 10
-                print(f"    • {t['text']}")
+                logger.info(f"    • {t['text']}")
             if len(turmas) > 10:
-                print(f"    ... e mais {len(turmas) - 10} turmas")
+                logger.info(f"    ... e mais {len(turmas) - 10} turmas")
             
             # Normalizar busca
             def normalizar_para_busca(texto):
@@ -389,26 +391,26 @@ class IntegradorPreenchimentoAutomatico:
             # Preparar busca usando nome completo (série + turno + turma)
             nome_completo_norm = normalizar_para_busca(selecoes['nome_completo_geduc'])
             
-            print(f"\n  Valor normalizado para busca: '{nome_completo_norm}'")
+            logger.info(f"\n  Valor normalizado para busca: '{nome_completo_norm}'")
             
             # Procurar turma correspondente
             turma_id = None
             turma_encontrada = None
             
-            print(f"\n  Comparando com cada turma:")
+            logger.info(f"\n  Comparando com cada turma:")
             
             for turma in turmas:
                 turma_text = turma['text'].strip()
                 turma_text_norm = normalizar_para_busca(turma_text)
                 
                 # Debug: mostrar cada comparação
-                print(f"    • '{turma_text}' → normalizado: '{turma_text_norm}'")
+                logger.info(f"    • '{turma_text}' → normalizado: '{turma_text_norm}'")
                 
                 # MÉTODO 1: Comparação EXATA
                 if turma_text_norm == nome_completo_norm:
                     turma_id = turma['value']
                     turma_encontrada = turma_text
-                    print(f"      ✓✓ MATCH EXATO!")
+                    logger.info(f"      ✓✓ MATCH EXATO!")
                     break
                 
                 # MÉTODO 2: Tentar diferentes formatos com hífen
@@ -436,7 +438,7 @@ class IntegradorPreenchimentoAutomatico:
                         if turma_text_norm == formato:
                             turma_id = turma['value']
                             turma_encontrada = turma_text
-                            print(f"      ✓✓ MATCH com formato '{formato}'!")
+                            logger.info(f"      ✓✓ MATCH com formato '{formato}'!")
                             break
                 
                 if turma_id:
@@ -446,22 +448,22 @@ class IntegradorPreenchimentoAutomatico:
                 if turma_text_norm.startswith(nome_completo_norm):
                     turma_id = turma['value']
                     turma_encontrada = turma_text
-                    print(f"      ✓ MATCH: começa com '{nome_completo_norm}'")
+                    logger.info(f"      ✓ MATCH: começa com '{nome_completo_norm}'")
                     break
             
             if not turma_id:
-                print(f"\n✗ Turma não encontrada no GEDUC")
-                print(f"  Série: '{selecoes['serie']}'")
-                print(f"  Turno: '{selecoes['turno']}'")
-                print(f"  Turma: '{selecoes['turma']}'")
-                print(f"  Nome completo buscado: '{selecoes['nome_completo_geduc']}' (normalizado: '{nome_completo_norm}')")
-                print(f"  Turma completa da interface: {selecoes.get('turma_completa', 'N/A')}")
-                print(f"\n  💡 DICA: Compare com as turmas disponíveis acima")
-                print(f"  Ordem GEDUC: {{SÉRIE}} + {{TURNO}} + {{TURMA}}")
+                logger.info(f"\n✗ Turma não encontrada no GEDUC")
+                logger.info(f"  Série: '{selecoes['serie']}'")
+                logger.info(f"  Turno: '{selecoes['turno']}'")
+                logger.info(f"  Turma: '{selecoes['turma']}'")
+                logger.info(f"  Nome completo buscado: '{selecoes['nome_completo_geduc']}' (normalizado: '{nome_completo_norm}')")
+                logger.info(f"  Turma completa da interface: {selecoes.get('turma_completa', 'N/A')}")
+                logger.info(f"\n  💡 DICA: Compare com as turmas disponíveis acima")
+                logger.info(f"  Ordem GEDUC: {{SÉRIE}} + {{TURNO}} + {{TURMA}}")
                 return False
             
             # Selecionar turma
-            print(f"\n✓ Turma encontrada: {turma_encontrada}")
+            logger.info(f"\n✓ Turma encontrada: {turma_encontrada}")
             automacao.selecionar_opcao('IDTURMA', turma_id)
             time.sleep(1)
             
@@ -476,29 +478,29 @@ class IntegradorPreenchimentoAutomatico:
                     break
             
             if not disciplina_id:
-                print(f"✗ Disciplina não encontrada no GEDUC: {selecoes['disciplina']}")
+                logger.info(f"✗ Disciplina não encontrada no GEDUC: {selecoes['disciplina']}")
                 return False
             
             # Selecionar disciplina
-            print(f"  → Selecionando disciplina: {selecoes['disciplina']}")
+            logger.info(f"  → Selecionando disciplina: {selecoes['disciplina']}")
             automacao.selecionar_opcao('IDTURMASDISP', disciplina_id)
             time.sleep(1)
             
             # Selecionar bimestre
-            print(f"  → Selecionando bimestre: {selecoes['bimestre']}º")
+            logger.info(f"  → Selecionando bimestre: {selecoes['bimestre']}º")
             automacao.selecionar_bimestre(int(selecoes['bimestre']))
             time.sleep(1)
             
             # Clicar em exibir alunos
-            print("  → Carregando alunos...")
+            logger.info("  → Carregando alunos...")
             automacao.clicar_exibir_alunos()
             time.sleep(2)
             
-            print("✓ Navegação concluída")
+            logger.info("✓ Navegação concluída")
             return True
             
         except Exception as e:
-            print(f"✗ Erro ao navegar no GEDUC: {e}")
+            logger.error(f"✗ Erro ao navegar no GEDUC: {e}")
             import traceback
             traceback.print_exc()
             return False

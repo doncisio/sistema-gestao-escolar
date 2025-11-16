@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 from datetime import datetime
 from tkinter import (
     Label, Frame, Button, Entry, Toplevel, Canvas, Scrollbar,
@@ -119,7 +121,7 @@ class InterfaceEdicaoFuncionario:
         try:
             # Verificar se a janela principal está visível
             if not self.janela_principal or not self.janela_principal.winfo_viewable():
-                print("Janela principal não está visível, pulando atualização")
+                logger.info("Janela principal não está visível, pulando atualização")
                 return
                 
             # Usar importação local para evitar problemas de importação circular
@@ -128,13 +130,13 @@ class InterfaceEdicaoFuncionario:
             # Tentar atualizar - se falhar, apenas registrar o erro
             try:
                 main.atualizar_tabela_principal()
-                print("Tabela principal atualizada com sucesso")
+                logger.info("Tabela principal atualizada com sucesso")
             except Exception as update_error:
-                print(f"Não foi possível atualizar a tabela principal: {str(update_error)}")
-                print("A tabela será atualizada na próxima vez que você navegar pelos registros")
+                logger.info(f"Não foi possível atualizar a tabela principal: {str(update_error)}")
+                logger.info("A tabela será atualizada na próxima vez que você navegar pelos registros")
                 
         except Exception as e:
-            print(f"Erro ao atualizar tabela principal: {str(e)}")
+            logger.error(f"Erro ao atualizar tabela principal: {str(e)}")
 
     def criar_frames(self):
         # Frame Logo
@@ -619,10 +621,10 @@ class InterfaceEdicaoFuncionario:
                 self.add_disciplina()
 
     def add_disciplina(self):
-        print(f"\n>>> ADD_DISCIPLINA chamado!")
-        print(f">>> frame_disciplinas existe: {hasattr(self, 'frame_disciplinas')}")
+        logger.info(f"\n>>> ADD_DISCIPLINA chamado!")
+        logger.info(f">>> frame_disciplinas existe: {hasattr(self, 'frame_disciplinas')}")
         if hasattr(self, 'frame_disciplinas'):
-            print(f">>> frame_disciplinas winfo_exists: {self.frame_disciplinas.winfo_exists()}")
+            logger.info(f">>> frame_disciplinas winfo_exists: {self.frame_disciplinas.winfo_exists()}")
         
         self.contador_disciplinas += 1
         
@@ -630,7 +632,7 @@ class InterfaceEdicaoFuncionario:
         frame_disc = Frame(self.frame_disciplinas, bg=self.co2, bd=2, relief="groove")
         frame_disc.pack(fill=X, expand=True, padx=5, pady=8)
         
-        print(f">>> Frame disciplina #{self.contador_disciplinas} criado com sucesso!")
+        logger.info(f">>> Frame disciplina #{self.contador_disciplinas} criado com sucesso!")
         
         # Adicionando o frame à lista para controle
         self.lista_frames_disciplinas.append(frame_disc)
@@ -841,7 +843,7 @@ class InterfaceEdicaoFuncionario:
                     cast(Any, frame_disc).c_disciplina.set(disciplina_atual)
                     
         except Exception as e:
-            print(f"Erro ao atualizar disciplinas por turmas: {str(e)}")
+            logger.error(f"Erro ao atualizar disciplinas por turmas: {str(e)}")
             # Em caso de erro, carregar todas as disciplinas
             self.carregar_disciplinas(cast(Any, frame_disc).c_disciplina)
 
@@ -939,7 +941,7 @@ class InterfaceEdicaoFuncionario:
 
     def carregar_disciplinas_funcionario(self):
         try:
-            print(f"\n=== CARREGANDO DISCIPLINAS DO FUNCIONÁRIO {self.funcionario_id} ===")
+            logger.info(f"\n=== CARREGANDO DISCIPLINAS DO FUNCIONÁRIO {self.funcionario_id} ===")
             
             # Consulta para obter as disciplinas e turmas do professor
             self.cursor.execute("""
@@ -950,7 +952,7 @@ class InterfaceEdicaoFuncionario:
             """, (self.funcionario_id,))
             
             registros = self.cursor.fetchall()
-            print(f"Registros encontrados: {len(registros)}")
+            logger.info(f"Registros encontrados: {len(registros)}")
             
             if registros:
                 # Agrupar disciplinas e suas turmas
@@ -959,7 +961,7 @@ class InterfaceEdicaoFuncionario:
                     disciplina_nome = registro[0]
                     disciplina_id = registro[1]
                     turma_id = registro[2]
-                    print(f"  - Disciplina: {disciplina_nome} (ID: {disciplina_id}), Turma ID: {turma_id}")
+                    logger.info(f"  - Disciplina: {disciplina_nome} (ID: {disciplina_id}), Turma ID: {turma_id}")
                     
                     if disciplina_id not in disciplinas_map:
                         disciplinas_map[disciplina_id] = {
@@ -969,21 +971,21 @@ class InterfaceEdicaoFuncionario:
                     elif turma_id:  # Adicionar turma à disciplina existente
                         disciplinas_map[disciplina_id]['turmas'].append(turma_id)
                 
-                print(f"\nDisciplinas agrupadas: {len(disciplinas_map)}")
+                logger.info(f"\nDisciplinas agrupadas: {len(disciplinas_map)}")
                 
                 # Para cada disciplina, criar um frame
                 for disciplina_id, info in disciplinas_map.items():
-                    print(f"\nCriando frame para disciplina: {info['nome']}")
+                    logger.info(f"\nCriando frame para disciplina: {info['nome']}")
                     frame_disc = self.add_disciplina()
                     cast(Any, frame_disc).c_disciplina.set(info['nome'])
-                    print(f"  Disciplina definida: {cast(Any, frame_disc).c_disciplina.get()}")
+                    logger.info(f"  Disciplina definida: {cast(Any, frame_disc).c_disciplina.get()}")
                     
                     # Selecionar as turmas
                     if info['turmas']:
                         # Obter nomes das turmas para os IDs
                         turmas_ids = info['turmas']
-                        print(f"  Turmas IDs para selecionar: {turmas_ids}")
-                        print(f"  Mapa de turmas disponível: {self.turmas_disciplina_map}")
+                        logger.info(f"  Turmas IDs para selecionar: {turmas_ids}")
+                        logger.info(f"  Mapa de turmas disponível: {self.turmas_disciplina_map}")
                         
                         # Verificar se alguma turma tem ID definido
                         if any(turma_id is not None for turma_id in turmas_ids):
@@ -994,22 +996,22 @@ class InterfaceEdicaoFuncionario:
                                 turma_id = self.turmas_disciplina_map.get(turma_nome)
                                 if turma_id in turmas_ids:
                                     turmas_nomes.append(i)
-                                    print(f"    ✓ Turma encontrada: {turma_nome} (índice {i})")
+                                    logger.info(f"    ✓ Turma encontrada: {turma_nome} (índice {i})")
                             
-                            print(f"  Índices para selecionar: {turmas_nomes}")
+                            logger.info(f"  Índices para selecionar: {turmas_nomes}")
                             
                             # Selecionar as turmas na lista
                             for idx in turmas_nomes:
                                 cast(Any, frame_disc).lista_turmas.selection_set(idx)
-                                print(f"    Selecionado índice {idx}")
+                                logger.info(f"    Selecionado índice {idx}")
             else:
-                print("Nenhum registro encontrado para este funcionário")
+                logger.info("Nenhum registro encontrado para este funcionário")
                 
-            print("=== FIM DO CARREGAMENTO ===\n")
+            logger.info("=== FIM DO CARREGAMENTO ===\n")
                 
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar disciplinas do professor: {str(e)}")
-            print(f"Exceção completa ao carregar disciplinas: {str(e)}")
+            logger.info(f"Exceção completa ao carregar disciplinas: {str(e)}")
             import traceback
             traceback.print_exc()
 
@@ -1079,7 +1081,7 @@ class InterfaceEdicaoFuncionario:
                     vinculado = True
             except Exception as e:
                 # Falhou ao usar o cursor (ex: cursor desconectado) — usar fallback local
-                print(f"Erro ao atualizar botões de vínculo: {e}")
+                logger.error(f"Erro ao atualizar botões de vínculo: {e}")
 
         # Fallback: usar estado carregado local ou variável do checkbox
         if not vinculado:
@@ -1113,7 +1115,7 @@ class InterfaceEdicaoFuncionario:
                 except Exception:
                     pass
         except Exception as e:
-            print(f"Erro ao ajustar visibilidade dos botões de vínculo: {e}")
+            logger.error(f"Erro ao ajustar visibilidade dos botões de vínculo: {e}")
 
     def atualizar_funcionario(self):
         try:
@@ -1275,7 +1277,7 @@ class InterfaceEdicaoFuncionario:
                     params_extras.append(self.funcionario_id)
                     self.cursor.execute(sql_extra, params_extras)
                 except Exception as e:
-                    print(f"Erro ao aplicar desvinculação adicional: {e}")
+                    logger.error(f"Erro ao aplicar desvinculação adicional: {e}")
             
             # Para todos os professores, atualizar as disciplinas se houver
             if cargo == "Professor@" and self.lista_frames_disciplinas:
@@ -1340,7 +1342,7 @@ class InterfaceEdicaoFuncionario:
                 pass
             
         except Exception as e:
-            print(f"Erro ao atualizar funcionário: {e}")
+            logger.error(f"Erro ao atualizar funcionário: {e}")
             self.conn.rollback()
             messagebox.showerror("Erro", f"Ocorreu um erro ao atualizar o funcionário: {str(e)}")
 
@@ -1434,7 +1436,7 @@ class InterfaceEdicaoFuncionario:
                 pass
 
         except Exception as e:
-            print(f"Erro ao desvincular funcionário: {e}")
+            logger.error(f"Erro ao desvincular funcionário: {e}")
             try:
                 self.conn.rollback()
             except Exception:
@@ -1538,7 +1540,7 @@ class InterfaceEdicaoFuncionario:
                 pass
 
         except Exception as e:
-            print(f"Erro ao vincular funcionário: {e}")
+            logger.error(f"Erro ao vincular funcionário: {e}")
             try:
                 self.conn.rollback()
             except Exception:
@@ -1568,7 +1570,7 @@ class InterfaceEdicaoFuncionario:
                 return resultado
             return None
         except Exception as e:
-            print(f"Erro ao verificar professores em licença: {e}")
+            logger.error(f"Erro ao verificar professores em licença: {e}")
             return None
 
     def obter_cargos(self):

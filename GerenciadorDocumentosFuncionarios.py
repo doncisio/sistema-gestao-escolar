@@ -13,6 +13,9 @@ import webbrowser
 from datetime import datetime
 from typing import Any, cast
 from dotenv import load_dotenv
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 class GerenciadorDocumentosFuncionarios:
     def __init__(self, root):
@@ -79,7 +82,7 @@ class GerenciadorDocumentosFuncionarios:
                 pickle.dump(creds, token)
         
         self.service = build('drive', 'v3', credentials=creds)
-        print("Google Drive configurado com sucesso!")
+        logger.info("Google Drive configurado com sucesso!")
     
     def conectar_bd(self):
         """Conecta ao banco de dados usando variáveis de ambiente"""
@@ -92,7 +95,7 @@ class GerenciadorDocumentosFuncionarios:
                 auth_plugin='mysql_native_password'
             )
             if conn.is_connected():
-                print("Conexão com o banco estabelecida com sucesso!")
+                logger.info("Conexão com o banco estabelecida com sucesso!")
                 return conn
         except Error as e:
             messagebox.showerror(
@@ -270,17 +273,17 @@ class GerenciadorDocumentosFuncionarios:
             
             self.funcionario_combo['values'] = nomes
             
-            if nomes:
-                self.funcionario_combo.set(nomes[0])
-                print(f"Carregados {len(nomes)} funcionários")
-                self.carregar_documentos()  # Carrega documentos automaticamente
-            else:
-                print("Nenhum funcionário encontrado na base de dados")
-                messagebox.showinfo("Info", "Nenhum funcionário cadastrado no sistema.")
+                if nomes:
+                    self.funcionario_combo.set(nomes[0])
+                    logger.info("Carregados %d funcionários", len(nomes))
+                    self.carregar_documentos()  # Carrega documentos automaticamente
+                else:
+                    logger.info("Nenhum funcionário encontrado na base de dados")
+                    messagebox.showinfo("Info", "Nenhum funcionário cadastrado no sistema.")
                 
         except mysql.connector.Error as e:
             messagebox.showerror("Erro", f"Erro ao carregar funcionários: {e}")
-            print(f"Erro detalhado: {e}")
+            logger.exception("Erro ao carregar funcionários: %s", e)
     
     def selecionar_arquivo(self):
         """Seleciona um arquivo para upload"""
@@ -327,7 +330,7 @@ class GerenciadorDocumentosFuncionarios:
                     file_metadata['parents'] = [parent_id]
                 
                 file = self.service.files().create(body=file_metadata, fields='id').execute()
-                print(f"Pasta criada no Drive: {folder_name} (ID: {file.get('id')})")
+                logger.info("Pasta criada no Drive: %s (ID: %s)", folder_name, file.get('id'))
                 return file.get('id')
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao acessar/criar pasta no Drive: {e}")
@@ -368,7 +371,7 @@ class GerenciadorDocumentosFuncionarios:
                 fields='id, webViewLink'
             ).execute()
 
-            print(f"Upload realizado: {file_name} (ID: {file.get('id')})")
+            logger.info("Upload realizado: %s (ID: %s)", file_name, file.get('id'))
             return file.get('id'), file.get('webViewLink')
 
         except Exception as e:
@@ -379,13 +382,13 @@ class GerenciadorDocumentosFuncionarios:
         """Exclui um arquivo do Google Drive pelo ID"""
         try:
             if not drive_file_id:
-                print("Arquivo sem ID do Drive. Ignorando exclusão.")
+                logger.warning("Arquivo sem ID do Drive. Ignorando exclusão.")
                 return
             if not self.service:
                 messagebox.showerror("Erro", "Serviço do Google Drive não configurado.")
                 return
             self.service.files().delete(fileId=drive_file_id).execute()
-            print(f"Arquivo do Drive {drive_file_id} excluído com sucesso.")
+            logger.info("Arquivo do Drive %s excluído com sucesso.", drive_file_id)
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao excluir arquivo do Drive: {e}")
 
@@ -509,7 +512,7 @@ class GerenciadorDocumentosFuncionarios:
                     doc[0], doc[1], doc[2] or '', data_formatada, doc[4] or ''
                 ))
             
-            print(f"Carregados {len(documentos)} documentos")
+            logger.info("Carregados %d documentos", len(documentos))
                 
         except mysql.connector.Error as e:
             messagebox.showerror("Erro", f"Erro ao carregar documentos: {e}")
@@ -590,12 +593,12 @@ class GerenciadorDocumentosFuncionarios:
                 if file_id:
                     try:
                         if not self.service:
-                            print(f"⚠️ Serviço do Drive não configurado; não foi possível excluir {file_id}")
+                            logger.info(f"⚠️ Serviço do Drive não configurado; não foi possível excluir {file_id}")
                         else:
                             self.service.files().update(fileId=file_id, body={"trashed": True}).execute()
-                            print(f"✅ Documento excluído do Drive: {file_id}")
+                            logger.info(f"✅ Documento excluído do Drive: {file_id}")
                     except Exception as e:
-                        print(f"⚠️ Aviso: não foi possível excluir do Drive: {e}")
+                        logger.info(f"⚠️ Aviso: não foi possível excluir do Drive: {e}")
 
             # Excluir do banco de dados
             sql_delete = "DELETE FROM documentos_funcionarios WHERE id = %s"
@@ -627,7 +630,7 @@ def main():
         app = GerenciadorDocumentosFuncionarios(root)
         root.mainloop()
     except Exception as e:
-        print(f"Erro ao iniciar aplicação: {e}")
+        logger.exception("Erro ao iniciar aplicação: %s", e)
         messagebox.showerror("Erro", f"Erro ao iniciar aplicação: {e}")
 
 if __name__ == "__main__":

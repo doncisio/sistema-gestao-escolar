@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 import io
 import os
 import pandas as pd
@@ -18,14 +20,14 @@ from reportlab.lib.styles import getSampleStyleSheet
 def fetch_student_data(ano_letivo):
     conn: Any = conectar_bd()
     if not conn:
-        print("Não foi possível conectar ao banco de dados.")
+        logger.info("Não foi possível conectar ao banco de dados.")
         return None
     cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
     # Busca as datas de início e fim do ano letivo
     data_ano = data_ano_letivo(ano_letivo)
     if not data_ano:
-        print("Ano letivo não encontrado.")
+        logger.info("Ano letivo não encontrado.")
         try:
             cast(Any, cursor).close()
         except Exception:
@@ -113,10 +115,10 @@ def fetch_student_data(ano_letivo):
     try:
         cursor.execute(query, (ano_letivo, data_inicio, data_inicio))
         dados_aluno = cursor.fetchall()
-        print("Total de alunos encontrados:", len(dados_aluno))
+        logger.info("Total de alunos encontrados:", len(dados_aluno))
         return dados_aluno
     except Exception as e:
-        print("Erro ao executar a consulta:", str(e))
+        logger.error("Erro ao executar a consulta:", str(e))
         return None
     finally:
         try:
@@ -131,7 +133,7 @@ def fetch_student_data(ano_letivo):
 def data_funcionario(escola_id):
     conn: Any = conectar_bd()
     if not conn:
-        print("Não foi possível conectar ao banco de dados.")
+        logger.info("Não foi possível conectar ao banco de dados.")
         return None
     cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
@@ -229,13 +231,13 @@ def data_funcionario(escola_id):
         data = cursor.fetchall()
 
         # Debug: Imprimir todos os funcionários retornados
-        print("\nTodos os funcionários retornados:")
+        logger.info("\nTodos os funcionários retornados:")
         for funcionario in data:
-            print(f"ID: {funcionario['id']}, Nome: {funcionario['Funcionario']}, Cargo: {funcionario['Cargo']}, Disciplina: {funcionario['Disciplina']}, Turmas: {funcionario['Turmas']}")
+            logger.info(f"ID: {funcionario['id']}, Nome: {funcionario['Funcionario']}, Cargo: {funcionario['Cargo']}, Disciplina: {funcionario['Disciplina']}, Turmas: {funcionario['Turmas']}")
 
         return data
     except Exception as e:
-        print("Erro ao executar a consulta:", str(e))
+        logger.error("Erro ao executar a consulta:", str(e))
         return None
     finally:
         try:
@@ -250,7 +252,7 @@ def data_funcionario(escola_id):
 def data_ano_letivo(ano_letivo):
     conn: Any = conectar_bd()
     if not conn:
-        print("Não foi possível conectar ao banco de dados.")
+        logger.info("Não foi possível conectar ao banco de dados.")
         return None
     cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
@@ -267,7 +269,7 @@ def data_ano_letivo(ano_letivo):
         data = cursor.fetchone()
         return data
     except Exception as e:
-        print("Erro ao executar a consulta:", str(e))
+        logger.error("Erro ao executar a consulta:", str(e))
         return None
     finally:
         try:
@@ -936,10 +938,10 @@ def lista_atualizada():
     # Adiciona as tabelas de alunos
     primeira_tabela = True
     for (nome_serie, nome_turma, turno), turma_df in turmas_ordenadas:
-        print(f"{nome_serie}, {nome_turma}, {turno} - {turma_df.shape[0]}")
+        logger.info(f"{nome_serie}, {nome_turma}, {turno} - {turma_df.shape[0]}")
         nome_professor = turma_df['NOME_PROFESSOR'].iloc[0] if not turma_df['NOME_PROFESSOR'].isnull().all() else ' '
         if turma_df.empty:
-            print(f"Nenhum aluno encontrado para a turma: {nome_serie}, {nome_turma}, {turno}")
+            logger.info(f"Nenhum aluno encontrado para a turma: {nome_serie}, {nome_turma}, {turno}")
             continue
         add_class_table(elements, turma_df, nome_serie, nome_turma, turno, nome_professor, figura_inferior, cabecalho, adicionar_cabecalho=not primeira_tabela)
         primeira_tabela = False

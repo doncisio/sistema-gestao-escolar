@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 """
 Script para modificar o trigger verificar_disciplina_funcionario
 Permite que TODOS os professores (polivalentes ou não) possam ter disciplinas
@@ -9,25 +11,25 @@ from typing import Any, cast
 def main():
     conn: Any = conectar_bd()
     if not conn:
-        print("Não foi possível conectar ao banco de dados.")
+        logger.info("Não foi possível conectar ao banco de dados.")
         return False
     cursor: Any = cast(Any, conn).cursor()
 
     try:
-        print("="*80)
-        print("MODIFICANDO TRIGGER DO BANCO DE DADOS")
-        print("="*80)
+        logger.info("="*80)
+        logger.info("MODIFICANDO TRIGGER DO BANCO DE DADOS")
+        logger.info("="*80)
         
         # Passo 1: Remover trigger antigo
-        print("\n1. Removendo trigger antigo...")
+        logger.info("\n1. Removendo trigger antigo...")
         try:
             cursor.execute("DROP TRIGGER IF EXISTS verificar_disciplina_funcionario")
-            print("   ✓ Trigger antigo removido")
+            logger.info("   ✓ Trigger antigo removido")
         except Exception as e:
-            print(f"   ⚠ Erro ao remover: {e}")
+            logger.error(f"   ⚠ Erro ao remover: {e}")
         
         # Passo 2: Criar novo trigger
-        print("\n2. Criando novo trigger...")
+        logger.info("\n2. Criando novo trigger...")
         trigger_sql = """
 CREATE TRIGGER verificar_disciplina_funcionario 
 BEFORE INSERT ON funcionario_disciplinas 
@@ -51,27 +53,27 @@ END
     
         try:
             cursor.execute(trigger_sql)
-            print("   ✓ Novo trigger criado com sucesso!")
+            logger.info("   ✓ Novo trigger criado com sucesso!")
         except Exception as e:
-            print(f"   ✗ Erro ao criar trigger: {e}")
+            logger.error(f"   ✗ Erro ao criar trigger: {e}")
             return False
 
         conn.commit()
 
-        print("\n" + "="*80)
-        print("ALTERAÇÃO CONCLUÍDA COM SUCESSO!")
-        print("="*80)
-        print("\nResumo das mudanças:")
-        print("  ANTES: Apenas professores NÃO polivalentes podiam ter disciplinas")
-        print("  AGORA: TODOS os professores (polivalentes ou não) podem ter disciplinas")
-        print("\nValidação mantida:")
-        print("  - Apenas funcionários com cargo 'Professor@' podem ter disciplinas")
-        print("  - Turmas volantes (sem disciplina específica) podem ser de qualquer professor")
-        print("="*80)
+        logger.info("\n" + "="*80)
+        logger.info("ALTERAÇÃO CONCLUÍDA COM SUCESSO!")
+        logger.info("="*80)
+        logger.info("\nResumo das mudanças:")
+        logger.info("  ANTES: Apenas professores NÃO polivalentes podiam ter disciplinas")
+        logger.info("  AGORA: TODOS os professores (polivalentes ou não) podem ter disciplinas")
+        logger.info("\nValidação mantida:")
+        logger.info("  - Apenas funcionários com cargo 'Professor@' podem ter disciplinas")
+        logger.info("  - Turmas volantes (sem disciplina específica) podem ser de qualquer professor")
+        logger.info("="*80)
 
         # Passo 3: Testar o novo trigger
-        print("\n3. Testando o novo trigger...")
-        print("   Inserindo disciplina para funcionário 117 (polivalente)...")
+        logger.info("\n3. Testando o novo trigger...")
+        logger.info("   Inserindo disciplina para funcionário 117 (polivalente)...")
 
         funcionario_id = 117
         disciplina_id = 1  # PORTUGUÊS
@@ -84,7 +86,7 @@ END
             """, (funcionario_id, disciplina_id, turma_id))
 
             conn.commit()
-            print("   ✓ SUCESSO! Disciplina inserida sem erros!")
+            logger.info("   ✓ SUCESSO! Disciplina inserida sem erros!")
 
             # Verificar
             cursor.execute("""
@@ -97,15 +99,15 @@ END
             """, (funcionario_id,))
 
             registros = cursor.fetchall()
-            print(f"\n   Disciplinas do funcionário {funcionario_id}: {len(registros)}")
+            logger.info(f"\n   Disciplinas do funcionário {funcionario_id}: {len(registros)}")
             for reg in registros:
-                print(f"     - {reg[1]} em {reg[3]} Turma {reg[2]}")
+                logger.info(f"     - {reg[1]} em {reg[3]} Turma {reg[2]}")
 
         except Exception as e:
-            print(f"   ✗ Erro ao testar: {e}")
+            logger.error(f"   ✗ Erro ao testar: {e}")
             conn.rollback()
 
-        print("\n✓ Processo concluído!")
+        logger.info("\n✓ Processo concluído!")
         return True
     finally:
         try:

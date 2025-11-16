@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 import os
 import pandas as pd
 import datetime
@@ -208,7 +210,7 @@ def obter_professores_turma(turma_id, ano_letivo=2025):
         return professores
         
     except Exception as e:
-        print(f"Erro ao buscar professores da turma: {e}")
+        logger.error(f"Erro ao buscar professores da turma: {e}")
         return []
 
 
@@ -307,7 +309,7 @@ def construir_consulta_sql(bimestre, filtro_serie, disciplinas, nivel_id, ano_le
             bimestre_validado = validar_bimestre(bimestre)
             nivel_id_validado = validar_nivel_id(nivel_id)
         except ValueError as e:
-            print(f"ERRO DE VALIDAÇÃO: {e}")
+            logger.error(f"ERRO DE VALIDAÇÃO: {e}")
             continue  # Pula disciplina inválida
         
         query += f"""
@@ -361,7 +363,7 @@ def processar_dados_alunos(dados_aluno, disciplinas, preencher_nulos=False):
     """
     # Verificar se existem dados para processar
     if not dados_aluno:
-        print("Aviso: Nenhum dado de aluno fornecido para processamento")
+        logger.info("Aviso: Nenhum dado de aluno fornecido para processamento")
         return pd.DataFrame()  # Retorna DataFrame vazio
     
     # Convertendo os dados para um DataFrame
@@ -387,7 +389,7 @@ def processar_dados_alunos(dados_aluno, disciplinas, preencher_nulos=False):
                             if preencher_nulos:
                                 df.at[idx, coluna] = 0.0
             except Exception as e:
-                print(f"Erro ao processar coluna {coluna}: {e}")
+                logger.error(f"Erro ao processar coluna {coluna}: {e}")
     
     # Função auxiliar para converter string para data de forma segura
     def converter_para_data(valor):
@@ -434,7 +436,7 @@ def processar_dados_alunos(dados_aluno, disciplinas, preencher_nulos=False):
                         nome_atual = df.at[cast(Any, index), 'NOME DO ALUNO']
                         df.at[cast(Any, index), 'NOME DO ALUNO'] = str(cast(Any, nome_atual)) + ' (Transf.)'
     except Exception as e:
-        print(f"Erro ao processar datas de matrícula: {e}")
+        logger.error(f"Erro ao processar datas de matrícula: {e}")
     
     return df
 
@@ -486,14 +488,14 @@ def gerar_documento_pdf(df, bimestre, nome_arquivo, disciplinas, nivel_ensino, a
     try:
         figura_superior = Image(figura_superior_path, width=1 * inch, height=1 * inch)
     except Exception as e:
-        print(f"Aviso: Não foi possível carregar a imagem superior: {e}")
+        logger.info(f"Aviso: Não foi possível carregar a imagem superior: {e}")
         # Criar um espaço em branco no lugar da imagem
         figura_superior = Spacer(1 * inch, 1 * inch)
     
     try:
         figura_inferior = Image(figura_inferior_path, width=1.5 * inch, height=1 * inch)
     except Exception as e:
-        print(f"Aviso: Não foi possível carregar a imagem inferior: {e}")
+        logger.info(f"Aviso: Não foi possível carregar a imagem inferior: {e}")
         # Criar um espaço em branco no lugar da imagem
         figura_inferior = Spacer(1.5 * inch, 1 * inch)
     
@@ -723,14 +725,14 @@ def gerar_documento_pdf_com_assinatura(df, bimestre, nome_arquivo, disciplinas, 
     try:
         figura_superior = Image(figura_superior_path, width=1 * inch, height=1 * inch)
     except Exception as e:
-        print(f"Aviso: Não foi possível carregar a imagem superior: {e}")
+        logger.info(f"Aviso: Não foi possível carregar a imagem superior: {e}")
         # Criar um espaço em branco no lugar da imagem
         figura_superior = Spacer(1 * inch, 1 * inch)
     
     try:
         figura_inferior = Image(figura_inferior_path, width=1.5 * inch, height=1 * inch)
     except Exception as e:
-        print(f"Aviso: Não foi possível carregar a imagem inferior: {e}")
+        logger.info(f"Aviso: Não foi possível carregar a imagem inferior: {e}")
         # Criar um espaço em branco no lugar da imagem
         figura_inferior = Spacer(1.5 * inch, 1 * inch)
     
@@ -999,7 +1001,7 @@ def gerar_relatorio_notas(bimestre=None, nivel_ensino="iniciais", ano_letivo=Non
         dados_aluno = cursor.fetchall()
         
         if not dados_aluno:
-            print(f"Nenhum dado encontrado para o bimestre {bimestre} e nível {nivel_ensino} no ano {ano_letivo}")
+            logger.info(f"Nenhum dado encontrado para o bimestre {bimestre} e nível {nivel_ensino} no ano {ano_letivo}")
             return False
         
         # Processar os dados e gerar o PDF
@@ -1017,7 +1019,7 @@ def gerar_relatorio_notas(bimestre=None, nivel_ensino="iniciais", ano_letivo=Non
         
     except Exception as e:
         import traceback
-        print(f"Erro ao gerar relatório de notas: {str(e)}")
+        logger.error(f"Erro ao gerar relatório de notas: {str(e)}")
         traceback.print_exc()
         
         # Garantir que as conexões sejam fechadas em caso de erro
@@ -1118,7 +1120,7 @@ def gerar_relatorio_notas_com_assinatura(bimestre=None, nivel_ensino="iniciais",
         dados_aluno = cursor.fetchall()
         
         if not dados_aluno:
-            print(f"Nenhum dado encontrado para o bimestre {bimestre} e nível {nivel_ensino} no ano {ano_letivo}")
+            logger.info(f"Nenhum dado encontrado para o bimestre {bimestre} e nível {nivel_ensino} no ano {ano_letivo}")
             return False
         
         # Processar os dados e gerar o PDF
@@ -1136,7 +1138,7 @@ def gerar_relatorio_notas_com_assinatura(bimestre=None, nivel_ensino="iniciais",
         
     except Exception as e:
         import traceback
-        print(f"Erro ao gerar relatório de notas com assinatura: {str(e)}")
+        logger.error(f"Erro ao gerar relatório de notas com assinatura: {str(e)}")
         traceback.print_exc()
         
         # Garantir que as conexões sejam fechadas em caso de erro

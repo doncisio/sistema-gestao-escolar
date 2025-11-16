@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 #!/usr/bin/env python3
 """Script para desvincular funcionários da `escola_id = 60` mantendo o registro.
 
@@ -17,7 +19,7 @@ from datetime import date
 try:
     from conexao import conectar_bd
 except Exception as e:
-    print(f"Erro ao importar conectar_bd: {e}")
+    logger.error(f"Erro ao importar conectar_bd: {e}")
     sys.exit(1)
 
 
@@ -84,32 +86,32 @@ def main():
 
     conn = conectar_bd()
     if not conn:
-        print('Não foi possível conectar ao banco de dados. Verifique as credenciais em `conexao.py`.')
+        logger.info('Não foi possível conectar ao banco de dados. Verifique as credenciais em `conexao.py`.')
         sys.exit(1)
 
     try:
         rows = listar_funcionarios(conn)
         if not rows:
-            print('Nenhum funcionário encontrado com escola_id = 60.')
+            logger.info('Nenhum funcionário encontrado com escola_id = 60.')
             return
 
-        print(f"Foram encontrados {len(rows)} funcionários com escola_id = 60:\n")
+        logger.info(f"Foram encontrados {len(rows)} funcionários com escola_id = 60:\n")
         for r in rows:
-            print(f"ID: {r['id']:>5} | Nome: {r['nome'][:60]:60} | Cargo: {r.get('cargo')} | Vinculo: {r.get('vinculo')}")
+            logger.info(f"ID: {r['id']:>5} | Nome: {r['nome'][:60]:60} | Cargo: {r.get('cargo')} | Vinculo: {r.get('vinculo')}")
 
         if not args.apply:
-            print('\nMODO DRY-RUN: nenhuma alteração foi feita.')
-            print('Rode com `--apply` para realmente alterar os registros (faça backup antes).')
+            logger.info('\nMODO DRY-RUN: nenhuma alteração foi feita.')
+            logger.info('Rode com `--apply` para realmente alterar os registros (faça backup antes).')
             return
 
         confirma = input('\nDeseja realmente desvincular estes funcionários (escola_id => NULL)? (sim/nao): ').strip().lower()
         if confirma not in ('sim', 's', 'yes', 'y'):
-            print('Operação cancelada pelo usuário.')
+            logger.info('Operação cancelada pelo usuário.')
             return
 
         ids = [r['id'] for r in rows]
         aplicar_desvinculo(conn, ids)
-        print(f'Operação concluída. {len(ids)} registros atualizados.')
+        logger.info(f'Operação concluída. {len(ids)} registros atualizados.')
 
     finally:
         try:

@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 from datetime import datetime
 from tkinter import (
     Label, Frame, Button, Entry, Toplevel, Canvas, Scrollbar,
@@ -112,10 +114,10 @@ class InterfaceCadastroAluno:
             
             # Atualizar a tabela principal de forma simples
             main.atualizar_tabela_principal()
-            print("Tabela principal atualizada com sucesso")
+            logger.info("Tabela principal atualizada com sucesso")
             
         except Exception as e:
-            print(f"Erro ao atualizar tabela principal: {str(e)}")
+            logger.error(f"Erro ao atualizar tabela principal: {str(e)}")
             # Não tentar recriar a interface, apenas registrar o erro
 
     def criar_frames(self):

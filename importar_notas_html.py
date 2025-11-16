@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 """
 Script para extrair notas do HTML exportado do GEDUC e preencher template Excel
 """
@@ -322,7 +324,7 @@ def interface_importacao(janela_pai=None):
         )
         if filename:
             html_path_var.set(filename)
-            print(f"Arquivo selecionado: {filename}")
+            logger.info(f"Arquivo selecionado: {filename}")
     
     btn_html = tk.Button(
         frame_html_input,
@@ -373,7 +375,7 @@ def interface_importacao(janela_pai=None):
         )
         if filename:
             template_path_var.set(filename)
-            print(f"Template selecionado: {filename}")
+            logger.info(f"Template selecionado: {filename}")
     
     btn_template = tk.Button(
         frame_template_input,

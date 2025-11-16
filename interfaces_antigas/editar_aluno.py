@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 from datetime import datetime
 from tkinter import messagebox, ttk
 from tkinter import *
@@ -115,7 +117,7 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
             cursor.close()
             conn.close()
         except mysql.connector.Error as err:
-            print("Erro ao carregar dados do aluno:", err)
+            logger.error("Erro ao carregar dados do aluno:", err)
     
     # Função para criar a interface de responsáveis
     def criar_interface_responsaveis():
@@ -305,10 +307,10 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
 
             messagebox.showinfo("Sucesso", "Dados do aluno salvos com sucesso.")
         except mysql.connector.Error as err:
-            print("Erro ao salvar dados do aluno:", err)
+            logger.error("Erro ao salvar dados do aluno:", err)
             messagebox.showerror("Erro", f"Não foi possível salvar os dados do aluno: {err}")
         except Exception as err:
-            print("Erro geral ao salvar dados do aluno:", err)
+            logger.error("Erro geral ao salvar dados do aluno:", err)
             messagebox.showerror("Erro", f"Erro inesperado: {err}")
 
     # Função para salvar as alterações dos responsáveis
@@ -390,7 +392,7 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
             conn.close()
             messagebox.showinfo("Sucesso", "Dados dos responsáveis salvos com sucesso!")
         except mysql.connector.Error as err:
-            print("Erro ao salvar dados dos responsáveis:", err)
+            logger.error("Erro ao salvar dados dos responsáveis:", err)
             messagebox.showerror("Erro", f"Não foi possível salvar os dados dos responsáveis: {err}")
             
     # Função para salvar tudo (aluno e responsáveis)
@@ -404,7 +406,7 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
 
             messagebox.showinfo("Sucesso", "Dados do aluno e dos responsáveis salvos com sucesso!")
         except Exception as err:
-            print("Erro ao salvar dados:", err)
+            logger.error("Erro ao salvar dados:", err)
             messagebox.showerror("Erro", "Não foi possível salvar os dados.")
 
     # Configura o gerenciador de layout do frame_dados
@@ -482,10 +484,10 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
             series = cursor.fetchall()
             cursor.close()
             conn.close()
-            print("Séries obtidas:", series)
+            logger.info("Séries obtidas:", series)
             return series
         except mysql.connector.Error as err:
-            print("Erro ao obter séries:", err)
+            logger.error("Erro ao obter séries:", err)
             return []
 
     def obter_turmas(serie_id):
@@ -505,10 +507,10 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
             turmas = cursor.fetchall()
             cursor.close()
             conn.close()
-            print(f"Turmas obtidas para a série {serie_id}:", turmas)
+            logger.info(f"Turmas obtidas para a série {serie_id}:", turmas)
             return turmas
         except mysql.connector.Error as err:
-            print("Erro ao obter turmas:", err)
+            logger.error("Erro ao obter turmas:", err)
             return []
 
     def obter_turno(turma_nome, serie_id):
@@ -536,20 +538,20 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
             turnos = cursor.fetchall()
             cursor.close()
             conn.close()
-            print(f"Turnos obtidos para a turma {turma_nome if turma_nome else 'vazia'}:", [turno[0] for turno in turnos])
+            logger.info(f"Turnos obtidos para a turma {turma_nome if turma_nome else 'vazia'}:", [turno[0] for turno in turnos])
             return [turno[0] for turno in turnos]
         except mysql.connector.Error as err:
-            print("Erro ao obter turno:", err)
+            logger.error("Erro ao obter turno:", err)
             return []
 
     def atualizar_turmas(event):
         serie_selecionada = c_serie.get()
-        print("Série selecionada:", serie_selecionada)
+        logger.info("Série selecionada:", serie_selecionada)
 
         # Obter o ID da série selecionada
         serie_id = next((serie[0] for serie in series if serie[1] == serie_selecionada), None)
         if serie_id is None:
-            print("Série não encontrada.")
+            logger.info("Série não encontrada.")
             return
 
         # Obter turmas para a série selecionada
@@ -560,7 +562,7 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
         c_turma['values'] = nomes_turmas
         c_turma.set('')
         c_turno.set('')
-        print("Turmas atualizadas.")
+        logger.info("Turmas atualizadas.")
 
         if not nomes_turmas:
             atualizar_turno(None)
@@ -570,12 +572,12 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
 
         serie_selecionada = c_serie.get()
         turma_selecionada = c_turma.get()
-        print("Turma selecionada:", turma_selecionada)
+        logger.info("Turma selecionada:", turma_selecionada)
 
         # Obter o ID da série selecionada
         serie_id = next((serie[0] for serie in series if serie[1] == serie_selecionada), None)
         if serie_id is None:
-            print("Série não encontrada.")
+            logger.info("Série não encontrada.")
             return
 
         try:
@@ -593,7 +595,7 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
             """, (turma_selecionada, serie_id, 2025))
             result = cursor.fetchone()
             selected_turma_id = result[0] if result else None
-            print("Turma ID:", selected_turma_id)
+            logger.info("Turma ID:", selected_turma_id)
 
             cursor.close()
             conn.close()
@@ -606,9 +608,9 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
             else:
                 c_turno['values'] = []
                 c_turno.set('')
-            print("Turno atualizado.")
+            logger.info("Turno atualizado.")
         except mysql.connector.Error as err:
-            print("Erro ao atualizar turno:", err)
+            logger.error("Erro ao atualizar turno:", err)
 
     def obter_racas():
         try:
@@ -623,10 +625,10 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
             racas = result.strip("enum()").replace("'", "").split(",")
             cursor.close()
             conn.close()
-            print("Raças obtidas do banco de dados:", racas)
+            logger.info("Raças obtidas do banco de dados:", racas)
             return racas
         except mysql.connector.Error as err:
-            print("Erro ao obter raças:", err)
+            logger.error("Erro ao obter raças:", err)
             return []
 
     # Pegando as séries
@@ -655,7 +657,7 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
 
     # Adicionando Raças
     racas = obter_racas()
-    print("Raças obtidas para o combobox:", racas)
+    logger.info("Raças obtidas para o combobox:", racas)
 
     l_raca = Label(frame_detalhes, text="Cor/Raça".upper(), height=1, anchor=NW, font=('Ivy 10'), bg=co1, fg=co4)
     l_raca.grid(row=3, column=0, sticky=W, padx=10, pady=5)
@@ -684,5 +686,5 @@ def atualizar_matricula(aluno_id, nova_turma_id):
 
         messagebox.showinfo("Sucesso", "Turma atualizada com sucesso na matrícula do aluno!")
     except mysql.connector.Error as err:
-        print("Erro ao atualizar a matrícula do aluno:", err)
+        logger.error("Erro ao atualizar a matrícula do aluno:", err)
         messagebox.showerror("Erro", "Não foi possível atualizar a matrícula do aluno.")

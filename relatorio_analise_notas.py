@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 """
 Relatório Estatístico de Análise de Notas
 Gera análises detalhadas com gráficos, pendências e estatísticas
@@ -76,7 +78,7 @@ class RelatorioAnaliseNotas:
             return resultado[0] if resultado else None
             
         except Exception as e:
-            print(f"Erro ao obter ano letivo: {e}")
+            logger.error(f"Erro ao obter ano letivo: {e}")
             return None
     
     def criar_interface(self):

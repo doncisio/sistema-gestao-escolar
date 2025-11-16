@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 from conexao import conectar_bd
 import os
 from datetime import datetime
@@ -44,7 +46,7 @@ def diploma(aluno_id):
     }
     # Verificar se existem alunos na lista
     if not aluno:
-        print("O aluno não cursou o 9º Ano na escola.")
+        logger.info("O aluno não cursou o 9º Ano na escola.")
         cursor.close()
         conn.close()
         return
@@ -177,7 +179,7 @@ def diploma(aluno_id):
             with open(nome_arquivo, "wb") as output_pdf:
                 writer.write(output_pdf)
 
-            print(f"Diploma criado para {aluno['nome_aluno']} em {nome_arquivo}.")
+            logger.info(f"Diploma criado para {aluno['nome_aluno']} em {nome_arquivo}.")
             cursor.close()
             conn.close()
     

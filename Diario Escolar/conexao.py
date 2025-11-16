@@ -4,6 +4,9 @@ import mysql.connector
 from mysql.connector import Error
 
 load_dotenv()  # Carrega as variáveis do arquivo .env
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 def conectar_bd():
     try:
@@ -17,6 +20,6 @@ def conectar_bd():
         if conn.is_connected():
             return conn
     except Error as e:
-        print(f"Erro ao conectar ao banco de dados: {e}")
+        logger.exception("Erro ao conectar ao banco de dados: %s", e)
         return None
 

@@ -5,6 +5,9 @@ import schedule
 import threading
 import time
 from datetime import datetime
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 # Carregar variáveis de ambiente do arquivo .env
 load_dotenv()
@@ -31,7 +34,7 @@ def fazer_backup():
         database = os.getenv("DB_NAME")
 
         if not all([usuario, senha, host, database]):
-            print("Erro: Credenciais incompletas no arquivo .env.")
+            logger.error("Erro: Credenciais incompletas no arquivo .env.")
             return False
 
         # Comando para fazer o backup usando mysqldump
@@ -48,42 +51,41 @@ def fazer_backup():
         # Executar o comando (resultado será salvo diretamente no arquivo)
         resultado = subprocess.run(comando_backup, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
         
-        print(f"✓ Backup local salvo em: {caminho_backup_local}")
+        logger.info("✓ Backup local salvo em: %s", caminho_backup_local)
 
         # Copiar backup para o Google Drive (se o diretório existir)
         backup_drive_ok = False
         try:
             # Verificar se o diretório do Google Drive existe
             diretorio_drive = os.path.dirname(caminho_backup_drive)
-            if os.path.exists(diretorio_drive):
+                if os.path.exists(diretorio_drive):
                 # Ler o arquivo local e salvar no Drive
                 with open(caminho_backup_local, "r", encoding="utf-8") as arquivo_origem:
                     backup_content = arquivo_origem.read()
                 with open(caminho_backup_drive, "w", encoding="utf-8") as arquivo_destino:
                     arquivo_destino.write(backup_content)
-                print(f"✓ Backup no Google Drive salvo em: {caminho_backup_drive}")
+                logger.info("✓ Backup no Google Drive salvo em: %s", caminho_backup_drive)
                 backup_drive_ok = True
             else:
-                print(f"⚠ Diretório do Google Drive não encontrado: {diretorio_drive}")
-                print("  Backup salvo apenas localmente.")
-                print("  DICA: Certifique-se de que o Google Drive Desktop está instalado e sincronizando.")
+                logger.warning("⚠ Diretório do Google Drive não encontrado: %s", diretorio_drive)
+                logger.info("  Backup salvo apenas localmente.")
+                logger.info("  DICA: Certifique-se de que o Google Drive Desktop está instalado e sincronizando.")
         except PermissionError as e:
-            print(f"⚠ Sem permissão para escrever no Google Drive: {e}")
-            print("  Backup salvo apenas localmente.")
-            print("  DICA: Verifique se você está logado no Google Drive Desktop.")
+            logger.warning("⚠ Sem permissão para escrever no Google Drive: %s", e)
+            logger.info("  Backup salvo apenas localmente.")
+            logger.info("  DICA: Verifique se você está logado no Google Drive Desktop.")
         except Exception as e:
-            print(f"⚠ Erro ao salvar no Google Drive: {e}")
-            print("  Backup salvo apenas localmente.")
-            print("  DICA: Reinstale o Google Drive Desktop se o problema persistir.")
-
-        print("✓ Backup realizado com sucesso!")
+            logger.exception("⚠ Erro ao salvar no Google Drive: %s", e)
+            logger.info("  Backup salvo apenas localmente.")
+            logger.info("  DICA: Reinstale o Google Drive Desktop se o problema persistir.")
+        logger.info("✓ Backup realizado com sucesso!")
         return True
 
     except subprocess.CalledProcessError as e:
-        print(f"Erro ao realizar o backup: {e}")
+        logger.exception("Erro ao realizar o backup: %s", e)
         return False
     except Exception as e:
-        print(f"Erro inesperado: {e}")
+        logger.exception("Erro inesperado: %s", e)
         return False
 
 
@@ -100,14 +102,14 @@ def restaurar_backup():
         # Determinar qual arquivo de backup usar (prioridade: Drive > Local)
         if os.path.exists(caminho_backup_drive):
             caminho_backup = caminho_backup_drive
-            print(f"Usando backup do Google Drive: {caminho_backup}")
+            logger.info("Usando backup do Google Drive: %s", caminho_backup)
         elif os.path.exists(caminho_backup_local):
             caminho_backup = caminho_backup_local
-            print(f"Usando backup local: {caminho_backup}")
+            logger.info("Usando backup local: %s", caminho_backup)
         else:
-            print("Erro: Nenhum arquivo de backup encontrado!")
-            print(f"  - Local: {caminho_backup_local}")
-            print(f"  - Drive: {caminho_backup_drive}")
+            logger.error("Erro: Nenhum arquivo de backup encontrado!")
+            logger.info("  - Local: %s", caminho_backup_local)
+            logger.info("  - Drive: %s", caminho_backup_drive)
             return False
 
         # Obter credenciais do arquivo .env
@@ -117,7 +119,7 @@ def restaurar_backup():
         database = os.getenv("DB_NAME")
 
         if not all([usuario, senha, host, database]):
-            print("Erro: Credenciais incompletas no arquivo .env.")
+            logger.error("Erro: Credenciais incompletas no arquivo .env.")
             return False
 
         # Comando para restaurar o backup usando mysql
@@ -136,14 +138,14 @@ def restaurar_backup():
                          capture_output=True, text=True, encoding='utf-8', 
                          errors='replace', check=True)
 
-        print(f"Restauração realizada com sucesso a partir do arquivo: {caminho_backup}")
+        logger.info("Restauração realizada com sucesso a partir do arquivo: %s", caminho_backup)
         return True
 
     except subprocess.CalledProcessError as e:
-        print(f"Erro ao restaurar o backup: {e}")
+        logger.exception("Erro ao restaurar o backup: %s", e)
         return False
     except Exception as e:
-        print(f"Erro inesperado: {e}")
+        logger.exception("Erro inesperado: %s", e)
         return False
 
 # Função para atualizar o Treeview
@@ -151,7 +153,7 @@ def atualizar_treeview(treeview, cursor, query):
     try:
         # Verificar se o Treeview ainda existe
         if not treeview or not treeview.winfo_exists():
-            print("Erro: O Treeview não está mais ativo.")
+            logger.error("Erro: O Treeview não está mais ativo.")
             return
 
         # Limpar os itens existentes no Treeview
@@ -164,7 +166,7 @@ def atualizar_treeview(treeview, cursor, query):
         for row in rows:
             treeview.insert("", "end", values=row)
     except Exception as e:
-        print("Erro ao atualizar o Treeview:", e)
+        logger.error("Erro ao atualizar o Treeview:", e)
 
 
 # ============================================================================
@@ -180,14 +182,14 @@ def executar_backup_automatico():
     
     # Verificar se está dentro do horário permitido (14h às 19h)
     if 14 <= hora_atual < 19:
-        print(f"\n[{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}] Iniciando backup automático...")
+        logger.info("\n[%s] Iniciando backup automático...", datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
         resultado = fazer_backup()
         if resultado:
-            print(f"[{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}] Backup automático concluído com sucesso!")
+            logger.info("[%s] Backup automático concluído com sucesso!", datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
         else:
-            print(f"[{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}] Falha no backup automático.")
+            logger.warning("[%s] Falha no backup automático.", datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
     else:
-        print(f"[{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}] Fora do horário de backup (14h-19h). Backup não executado.")
+        logger.info("[%s] Fora do horário de backup (14h-19h). Backup não executado.", datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
 
 
 def agendar_backup_diario():
@@ -199,14 +201,14 @@ def agendar_backup_diario():
     schedule.every().day.at("14:05").do(executar_backup_automatico)
     schedule.every().day.at("17:00").do(executar_backup_automatico)
     
-    print("\n" + "="*70)
-    print("Sistema de Backup Automático Ativado")
-    print("="*70)
-    print(f"• Horários de execução: 14:05 e 17:00 (todos os dias)")
-    print(f"• Janela de execução permitida: 14:00 - 19:00")
-    print(f"• Backup final: Ao fechar o programa")
-    print(f"• Status: Aguardando próximo horário de backup...")
-    print("="*70 + "\n")
+    logger.info("\n" + "="*70)
+    logger.info("Sistema de Backup Automático Ativado")
+    logger.info("="*70)
+    logger.info("• Horários de execução: 14:05 e 17:00 (todos os dias)")
+    logger.info("• Janela de execução permitida: 14:00 - 19:00")
+    logger.info("• Backup final: Ao fechar o programa")
+    logger.info("• Status: Aguardando próximo horário de backup...")
+    logger.info("="*70 + "\n")
 
 
 def executar_agendador():
@@ -230,7 +232,7 @@ def iniciar_backup_automatico():
     global _backup_thread, _backup_running
     
     if _backup_thread is not None and _backup_thread.is_alive():
-        print("Sistema de backup automático já está em execução.")
+        logger.warning("Sistema de backup automático já está em execução.")
         return
     
     # Configurar o agendamento
@@ -250,19 +252,19 @@ def parar_backup_automatico(executar_backup_final=True):
     global _backup_running
     
     if executar_backup_final and _backup_running:
-        print("\n" + "="*70)
-        print("Executando backup final antes de encerrar o sistema...")
-        print("="*70)
+        logger.info("\n" + "="*70)
+        logger.info("Executando backup final antes de encerrar o sistema...")
+        logger.info("="*70)
         resultado = fazer_backup()
         if resultado:
-            print(f"[{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}] Backup final concluído com sucesso!")
+            logger.info("[%s] Backup final concluído com sucesso!", datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
         else:
-            print(f"[{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}] Falha no backup final.")
-        print("="*70 + "\n")
+            logger.warning("[%s] Falha no backup final.", datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
+        logger.info("="*70 + "\n")
     
     _backup_running = False
     schedule.clear()
-    print("\nSistema de backup automático encerrado.")
+    logger.info("\nSistema de backup automático encerrado.")
 
 
 def status_backup_automatico():
@@ -274,17 +276,17 @@ def status_backup_automatico():
     if _backup_thread is not None and _backup_thread.is_alive():
         proximos_jobs = schedule.get_jobs()
         if proximos_jobs:
-            print("\nStatus do Backup Automático:")
-            print("="*70)
-            print(f"• Sistema: ATIVO")
-            print(f"• Thread: Em execução")
-            print(f"• Próximos backups agendados: 14:05 e 17:00")
-            print(f"• Backup final: Ao fechar o programa")
-            print("="*70)
+            logger.info("\nStatus do Backup Automático:")
+            logger.info("="*70)
+            logger.info("• Sistema: ATIVO")
+            logger.info("• Thread: Em execução")
+            logger.info("• Próximos backups agendados: 14:05 e 17:00")
+            logger.info("• Backup final: Ao fechar o programa")
+            logger.info("="*70)
             return True
         else:
-            print("\nSistema de backup automático está rodando, mas sem agendamentos.")
+            logger.info("\nSistema de backup automático está rodando, mas sem agendamentos.")
             return False
     else:
-        print("\nSistema de backup automático NÃO está ativo.")
+        logger.info("\nSistema de backup automático NÃO está ativo.")
         return False

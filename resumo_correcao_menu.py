@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 """
 Resumo das correções realizadas
 ================================
@@ -40,4 +42,4 @@ TESTES REALIZADOS:
 STATUS: ✅ RESOLVIDO
 """
 
-print(__doc__)
+logger.info(__doc__)

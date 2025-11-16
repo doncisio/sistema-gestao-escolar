@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from conexao import conectar_bd
@@ -439,7 +441,7 @@ class InterfaceCadastroEdicaoNotas:
                 self.cb_disciplina['values'] = []
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar turmas: {e}")
-            print(f"Erro detalhado ao carregar turmas: {str(e)}")
+            logger.error(f"Erro detalhado ao carregar turmas: {str(e)}")
         finally:
             try:
                 if cursor is not None:
@@ -507,7 +509,7 @@ class InterfaceCadastroEdicaoNotas:
             self.janela.after(100, self.carregar_notas_alunos)
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar disciplinas: {e}")
-            print(f"Erro detalhado: {str(e)}")
+            logger.error(f"Erro detalhado: {str(e)}")
         finally:
             try:
                 if cursor is not None:
@@ -523,15 +525,15 @@ class InterfaceCadastroEdicaoNotas:
     def carregar_notas_alunos(self, event=None):
         # Verificações iniciais
         if not self.cb_turma.get():
-            print("Nenhuma turma selecionada. Não é possível carregar notas.")
+            logger.info("Nenhuma turma selecionada. Não é possível carregar notas.")
             return
             
         if not self.cb_disciplina.get():
-            print("Nenhuma disciplina selecionada. Não é possível carregar notas.")
+            logger.info("Nenhuma disciplina selecionada. Não é possível carregar notas.")
             return
             
         if not self.cb_bimestre.get():
-            print("Nenhum bimestre selecionado. Não é possível carregar notas.")
+            logger.info("Nenhum bimestre selecionado. Não é possível carregar notas.")
             return
         
         # Limpar frame de notas
@@ -541,12 +543,12 @@ class InterfaceCadastroEdicaoNotas:
         # Verificar se os dicionários de mapeamento foram criados corretamente
         if not hasattr(self, 'turmas_map') or not self.turmas_map:
             messagebox.showerror("Erro", "O mapeamento de turmas não foi criado corretamente.")
-            print("Erro: turmas_map não existe ou está vazio")
+            logger.error("Erro: turmas_map não existe ou está vazio")
             return
             
         if not hasattr(self, 'disciplinas_map') or not self.disciplinas_map:
             messagebox.showerror("Erro", "O mapeamento de disciplinas não foi criado corretamente.")
-            print("Erro: disciplinas_map não existe ou está vazio")
+            logger.error("Erro: disciplinas_map não existe ou está vazio")
             return
         
         # Validar seleções
@@ -565,12 +567,12 @@ class InterfaceCadastroEdicaoNotas:
         # Verificar se os IDs foram obtidos corretamente
         if turma_id is None:
             messagebox.showerror("Erro", f"Não foi possível obter o ID da turma: '{turma}'")
-            print(f"Turmas disponíveis: {self.turmas_map}")
+            logger.info(f"Turmas disponíveis: {self.turmas_map}")
             return
             
         if disciplina_id is None:
             messagebox.showerror("Erro", f"Não foi possível obter o ID da disciplina: '{disciplina}'")
-            print(f"Disciplinas disponíveis: {self.disciplinas_map}")
+            logger.info(f"Disciplinas disponíveis: {self.disciplinas_map}")
             return
         
         # Guardar IDs para uso em outras funções
@@ -604,7 +606,7 @@ class InterfaceCadastroEdicaoNotas:
             
             # fechará em finally
             
-            print(f"Alunos encontrados: {len(alunos)}")
+            logger.info(f"Alunos encontrados: {len(alunos)}")
             
             if not alunos:
                 messagebox.showinfo("Informação", "Não há alunos matriculados nesta turma.")
@@ -619,11 +621,11 @@ class InterfaceCadastroEdicaoNotas:
             # Criar tabela de notas
             self.criar_tabela_notas(alunos)
             
-            print("Atualizando estatísticas...")
+            logger.info("Atualizando estatísticas...")
             # Atualizar estatísticas
             self.criar_estatisticas()
             self.atualizar_estatisticas()
-            print("Notas carregadas com sucesso!")
+            logger.info("Notas carregadas com sucesso!")
             
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar dados: {e}")
@@ -782,11 +784,11 @@ class InterfaceCadastroEdicaoNotas:
             
             # Verificar se os dicionários necessários estão presentes
             if not hasattr(self, 'entradas_notas') or not self.entradas_notas:
-                print("Não há entradas de notas para redesenhar")
+                logger.info("Não há entradas de notas para redesenhar")
                 return
                 
             if not hasattr(self, 'id_para_num') or not self.id_para_num:
-                print("Mapeamento de ID para número não existe")
+                logger.info("Mapeamento de ID para número não existe")
                 return
             
             # Se estamos usando editor único, não há múltiplas entradas para redesenhar
@@ -801,13 +803,13 @@ class InterfaceCadastroEdicaoNotas:
                             continue
                         entrada.place_forget()
                     except Exception as e:
-                        print(f"Erro ao esconder entrada do aluno {aluno_id}: {e}")
+                        logger.error(f"Erro ao esconder entrada do aluno {aluno_id}: {e}")
 
             # Aplicar ajuste de entradas que irá reposicionar tudo corretamente
             self._realizar_ajuste_entradas()
             
         except Exception as e:
-            print(f"Erro ao redesenhar entradas: {e}")
+            logger.error(f"Erro ao redesenhar entradas: {e}")
             import traceback
             traceback.print_exc()
     
@@ -1306,7 +1308,7 @@ class InterfaceCadastroEdicaoNotas:
 
             self._ajuste_agendado = self.janela.after(10, self._realizar_ajuste_entradas)
         except Exception as e:
-            print(f"Erro ao agendar ajuste: {e}")
+            logger.error(f"Erro ao agendar ajuste: {e}")
     
     def _realizar_ajuste_entradas(self):
         # Realiza o ajuste efetivo das entradas
@@ -1356,12 +1358,12 @@ class InterfaceCadastroEdicaoNotas:
                                 entrada.place_forget()  # Esconder entradas de itens não visíveis
                             break
                 except Exception as e:
-                    print(f"Erro ao ajustar entrada para aluno ID {aluno_id}: {e}")
+                    logger.error(f"Erro ao ajustar entrada para aluno ID {aluno_id}: {e}")
             
             # Forçar a atualização da interface
             self.janela.update_idletasks()
         except Exception as e:
-            print(f"Erro geral ao ajustar entradas: {e}")
+            logger.error(f"Erro geral ao ajustar entradas: {e}")
     
     def buscar_nota_existente(self, aluno_id, disciplina_id, bimestre):
         conn = None
@@ -1369,7 +1371,7 @@ class InterfaceCadastroEdicaoNotas:
         try:
             conn = conectar_bd()
             if conn is None:
-                print("Erro de conexão ao buscar nota: conectar_bd() retornou None")
+                logger.error("Erro de conexão ao buscar nota: conectar_bd() retornou None")
                 return None
             cursor = conn.cursor()
             cursor.execute("""
@@ -1383,7 +1385,7 @@ class InterfaceCadastroEdicaoNotas:
                 return resultado[0]
             return None
         except Exception as e:
-            print(f"Erro ao buscar nota: {e}")
+            logger.error(f"Erro ao buscar nota: {e}")
             return None
         finally:
             try:
@@ -1834,7 +1836,7 @@ class InterfaceCadastroEdicaoNotas:
                                                     t.item(item_id, tags=tuple(tags))
                                                 break
                                 except Exception:
-                                    print(f"Valor de nota inválido para aluno ID {aluno_id}: {nota_texto}")
+                                    logger.info(f"Valor de nota inválido para aluno ID {aluno_id}: {nota_texto}")
                 else:
                     if aluno_id in self.entradas_notas:
                         alunos_encontrados += 1
@@ -1860,7 +1862,7 @@ class InterfaceCadastroEdicaoNotas:
                                                     t.item(item_id, tags=tuple(tags))
                                                 break
                                 except Exception:
-                                    print(f"Valor de nota inválido para aluno ID {aluno_id}: {nota_texto}")
+                                    logger.info(f"Valor de nota inválido para aluno ID {aluno_id}: {nota_texto}")
             
             # Atualizar estatísticas
             self.atualizar_estatisticas()
@@ -2193,7 +2195,7 @@ class InterfaceCadastroEdicaoNotas:
         def log(msg):
             """Adiciona mensagem ao log"""
             # Sempre imprimir no console
-            print(msg)
+            logger.info(msg)
             # Atualizar o widget de log somente no thread principal (thread-safe)
             try:
                 self.janela.after(0, lambda m=msg: (
@@ -2506,7 +2508,7 @@ class InterfaceCadastroEdicaoNotas:
         try:
             conn = conectar_bd()
             if conn is None:
-                print("Erro de conexão ao obter nível da turma: conectar_bd() retornou None")
+                logger.error("Erro de conexão ao obter nível da turma: conectar_bd() retornou None")
                 return None
             cursor = conn.cursor()
             
@@ -2523,7 +2525,7 @@ class InterfaceCadastroEdicaoNotas:
             return resultado[0] if resultado else None
             
         except Exception as e:
-            print(f"Erro ao obter nível da turma: {e}")
+            logger.error(f"Erro ao obter nível da turma: {e}")
             return None
         finally:
             try:
@@ -2546,7 +2548,7 @@ class InterfaceCadastroEdicaoNotas:
         try:
             conn = conectar_bd()
             if conn is None:
-                print("Erro de conexão ao buscar alunos locais: conectar_bd() retornou None")
+                logger.error("Erro de conexão ao buscar alunos locais: conectar_bd() retornou None")
                 return {}
             cursor = conn.cursor()
             
@@ -2596,7 +2598,7 @@ class InterfaceCadastroEdicaoNotas:
             return alunos_dict
             
         except Exception as e:
-            print(f"Erro ao buscar alunos locais: {e}")
+            logger.error(f"Erro ao buscar alunos locais: {e}")
             return {}
         finally:
             try:
@@ -2623,7 +2625,7 @@ class InterfaceCadastroEdicaoNotas:
         try:
             conn = conectar_bd()
             if conn is None:
-                print("Erro de conexão ao buscar disciplina: conectar_bd() retornou None")
+                logger.error("Erro de conexão ao buscar disciplina: conectar_bd() retornou None")
                 return None
             cursor = conn.cursor()
             
@@ -2679,7 +2681,7 @@ class InterfaceCadastroEdicaoNotas:
             return resultado[0] if resultado else None
             
         except Exception as e:
-            print(f"Erro ao buscar disciplina: {e}")
+            logger.error(f"Erro ao buscar disciplina: {e}")
             return None
         finally:
             try:
@@ -2730,7 +2732,7 @@ class InterfaceCadastroEdicaoNotas:
         try:
             conn = conectar_bd()
             if conn is None:
-                print("Erro de conexão ao salvar notas no banco: conectar_bd() retornou None")
+                logger.error("Erro de conexão ao salvar notas no banco: conectar_bd() retornou None")
                 return 0, 0, []
             cursor = conn.cursor()
             
@@ -2789,7 +2791,7 @@ class InterfaceCadastroEdicaoNotas:
             return inseridas, atualizadas, nao_encontrados
             
         except Exception as e:
-            print(f"Erro ao salvar notas: {e}")
+            logger.error(f"Erro ao salvar notas: {e}")
             import traceback
             traceback.print_exc()
             return 0, 0, []
@@ -2875,7 +2877,7 @@ class InterfaceCadastroEdicaoNotas:
         def log(msg):
             """Adiciona mensagem ao log"""
             # Sempre imprimir no console
-            print(msg)
+            logger.info(msg)
             # Atualizar o widget de log somente no thread principal (thread-safe)
             try:
                 self.janela.after(0, lambda m=msg: (
@@ -3099,7 +3101,7 @@ class InterfaceCadastroEdicaoNotas:
             conn = conectar_bd()
             cursor = None
             if conn is None:
-                print("Erro de conexão ao buscar turma local: conectar_bd() retornou None")
+                logger.error("Erro de conexão ao buscar turma local: conectar_bd() retornou None")
                 return None
             cursor = conn.cursor()
 
@@ -3152,7 +3154,7 @@ class InterfaceCadastroEdicaoNotas:
             return None
             
         except Exception as e:
-            print(f"Erro ao buscar turma local: {e}")
+            logger.error(f"Erro ao buscar turma local: {e}")
             return None
         finally:
             try:
@@ -3206,7 +3208,7 @@ class InterfaceCadastroEdicaoNotas:
             if conn is None:
                 if log_debug:
                     log_debug("Erro de conexão: conectar_bd() retornou None")
-                print("Erro de conexão ao processar recuperação: conectar_bd() retornou None")
+                logger.error("Erro de conexão ao processar recuperação: conectar_bd() retornou None")
                 return 0
             cursor = conn.cursor()
             
@@ -3307,7 +3309,7 @@ class InterfaceCadastroEdicaoNotas:
             return atualizados
             
         except Exception as e:
-            print(f"Erro ao processar recuperação no banco: {e}")
+            logger.error(f"Erro ao processar recuperação no banco: {e}")
             import traceback
             traceback.print_exc()
             return 0
@@ -3333,7 +3335,7 @@ class InterfaceCadastroEdicaoNotas:
             # Destruir a janela atual
             self.janela.destroy()
         except Exception as e:
-            print(f"Erro ao fechar a janela: {e}")
+            logger.error(f"Erro ao fechar a janela: {e}")
 
     def focar_campo_seguro(self, campo):
         """Tenta definir o foco em um campo de forma segura, verificando se ele ainda existe"""
@@ -3342,7 +3344,7 @@ class InterfaceCadastroEdicaoNotas:
                 campo.focus_set()
                 campo.select_range(0, tk.END)  # Seleciona todo o texto para facilitar a edição
         except Exception as e:
-            print(f"Erro ao tentar definir foco no campo: {e}")
+            logger.error(f"Erro ao tentar definir foco no campo: {e}")
             # Não propaga o erro, apenas registra no console
 
 # Função para ser chamada a partir do sistema principal

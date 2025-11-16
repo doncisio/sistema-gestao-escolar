@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 """
 Módulo para gerar relatórios de pendências de notas
 Identifica alunos sem notas e disciplinas sem lançamento
@@ -150,11 +152,11 @@ def gerar_pdf_pendencias(bimestre, nivel_ensino="iniciais", ano_letivo=None, esc
         ano_letivo = datetime.datetime.now().year
     
     # Buscar pendências
-    print(f"Buscando pendências para {bimestre}, nível {nivel_ensino}...")
+    logger.info(f"Buscando pendências para {bimestre}, nível {nivel_ensino}...")
     pendencias = buscar_pendencias_notas(bimestre, nivel_ensino, ano_letivo, escola_id)
     
     if not pendencias:
-        print("Nenhuma pendência encontrada!")
+        logger.info("Nenhuma pendência encontrada!")
         return False
     
     # Nome do arquivo
@@ -259,13 +261,13 @@ def gerar_pdf_pendencias(bimestre, nivel_ensino="iniciais", ano_letivo=None, esc
     try:
         figura_superior = Image(figura_superior_path, width=1*inch, height=1*inch)
     except Exception as e:
-        print(f"Aviso: Não foi possível carregar a imagem superior: {e}")
+        logger.info(f"Aviso: Não foi possível carregar a imagem superior: {e}")
         figura_superior = Spacer(1*inch, 1*inch)
     
     try:
         figura_inferior = Image(figura_inferior_path, width=1.5*inch, height=1*inch)
     except Exception as e:
-        print(f"Aviso: Não foi possível carregar a imagem inferior: {e}")
+        logger.info(f"Aviso: Não foi possível carregar a imagem inferior: {e}")
         figura_inferior = Spacer(1.5*inch, 1*inch)
     
     # Criar tabela de cabeçalho com 3 colunas: [imagem esq | texto centro | imagem dir]
@@ -441,13 +443,13 @@ def gerar_pdf_pendencias(bimestre, nivel_ensino="iniciais", ano_letivo=None, esc
     # Gerar PDF
     try:
         doc.build(elements)
-        print(f"PDF gerado com sucesso: {nome_arquivo}")
+        logger.info(f"PDF gerado com sucesso: {nome_arquivo}")
         
         # Abrir PDF
         abrir_pdf_com_programa_padrao(nome_arquivo)
         return True
     except Exception as e:
-        print(f"Erro ao gerar PDF: {str(e)}")
+        logger.error(f"Erro ao gerar PDF: {str(e)}")
         import traceback
         traceback.print_exc()
         return False
@@ -455,5 +457,5 @@ def gerar_pdf_pendencias(bimestre, nivel_ensino="iniciais", ano_letivo=None, esc
 
 if __name__ == "__main__":
     # Teste
-    print("Testando geração de relatório de pendências...")
+    logger.info("Testando geração de relatório de pendências...")
     gerar_pdf_pendencias("3º bimestre", "iniciais", 2025, 60)
