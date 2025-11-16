@@ -227,9 +227,22 @@ def gerar_lista_frequencia() -> bool:
     - Reutiliza módulo presente em `sys.modules` quando disponível (testes podem injetar mock)
     - Recarrega apenas quando o import for feito agora (evita executar código legado em testes)
     """
+    # Primeiro, permita que testes injetem um mock em `sys.modules`.
     _mod = sys.modules.get('lista_frequencia')
-    imported_now = False
-    if _mod is None:
+    if _mod is not None:
+        # se houver mock, use-o diretamente (não recarregamos mocks)
+        if not hasattr(_mod, 'lista_frequencia'):
+            raise AttributeError("Módulo 'lista_frequencia' injetado não possui 'lista_frequencia'")
+        _mod.lista_frequencia()
+        return True
+
+    # Se não houver mock, tente usar a implementação migrada (serviço).
+    try:
+        # Implementação migrada em-processo (evita executar código legado por import)
+        return _impl_lista_frequencia()
+    except Exception:
+        # Se a implementação interna falhar, recorra ao módulo legado como último recurso.
+        imported_now = False
         try:
             import lista_frequencia as _mod  # type: ignore
             imported_now = True
@@ -237,18 +250,137 @@ def gerar_lista_frequencia() -> bool:
             logger.exception("Módulo 'lista_frequencia' não disponível para gerar lista de frequência")
             raise
 
-    if imported_now:
-        try:
-            _m = sys.modules.get('lista_frequencia')
-            if _m is not None:
-                importlib.reload(_m)
-        except Exception:
-            pass
+        if imported_now:
+            try:
+                _m = sys.modules.get('lista_frequencia')
+                if _m is not None:
+                    importlib.reload(_m)
+            except Exception:
+                pass
 
-    if not hasattr(_mod, 'lista_frequencia'):
-        raise AttributeError("Módulo 'lista_frequencia' não possui 'lista_frequencia'")
+        if not hasattr(_mod, 'lista_frequencia'):
+            raise AttributeError("Módulo 'lista_frequencia' não possui 'lista_frequencia'")
 
-    _mod.lista_frequencia()
+        _mod.lista_frequencia()
+        return True
+
+
+def _impl_lista_frequencia() -> bool:
+    """Implementação migrada de `lista_frequencia`.
+
+    Esta função contém a versão ported do gerador de lista de frequência.
+    Mantemos-a dentro do serviço para permitir testes e evitar executar
+    código legado no import time.
+    """
+    # Importações locais — mantidas aqui para reduzir impacto no import do módulo
+    import pandas as pd
+    from reportlab.platypus import Table, TableStyle, Paragraph, Spacer, Image, PageBreak
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+    import os
+    import datetime
+
+    try:
+        from Lista_atualizada import fetch_student_data
+    except Exception:
+        logger.exception('Não foi possível importar fetch_student_data para lista_frequencia')
+        raise
+
+    try:
+        from gerarPDF import salvar_e_abrir_pdf, create_pdf_buffer
+    except Exception:
+        logger.exception('Não foi possível importar helpers de PDF para lista_frequencia')
+        raise
+
+    ano_letivo = datetime.datetime.now().year
+    dados_aluno = fetch_student_data(ano_letivo)
+    if not dados_aluno:
+        logger.info('Nenhum dado de aluno encontrado para lista_frequencia')
+        return False
+
+    df = pd.DataFrame(dados_aluno)
+
+    # Informações do cabeçalho
+    cabecalho = [
+        "SECRETARIA MUNICIPAL DE EDUCAÇÃO",
+        "<b>ESCOLA MUNICIPAL PROFª. NADIR NASCIMENTO MORAES</b>",
+        "<b>INEP: 21008485</b>",
+        "<b>CNPJ: 01.394.462/0001-01</b>"
+    ]
+
+    figura_superior = os.path.join(os.path.dirname(__file__), '..', 'logopacobranco.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), '..', 'logopaco.jpg')
+
+    doc, buffer = create_pdf_buffer()
+    elements = []
+
+    style_total = ParagraphStyle(name='TotalStyle', parent=None, fontSize=10, alignment=1, wordWrap='CJK')
+    style_transferencia = ParagraphStyle(name='TransferenciaStyle', parent=None, fontSize=10, alignment=1, textColor=colors.red, wordWrap='CJK')
+
+    for (nome_serie, nome_turma, turno), turma_df in df.groupby(['NOME_SERIE', 'NOME_TURMA', 'TURNO']):
+        if turma_df.empty:
+            continue
+
+        nome_professor = turma_df['NOME_PROFESSOR'].iloc[0] if not turma_df['NOME_PROFESSOR'].isnull().all() else ''
+
+        data = [
+            [Image(figura_inferior, width=1.25 * inch, height=.75 * inch),
+             Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1)),
+             Image(figura_superior, width=1.5 * inch, height=1 * inch)]
+        ]
+        table = Table(data, colWidths=[1.32 * inch, 4 * inch, 1.32 * inch])
+        table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'MIDDLE')]))
+        elements.append(table)
+        elements.append(Spacer(1, 0.25 * inch))
+
+        elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno} - {datetime.datetime.now().year}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=14, alignment=1)))
+        elements.append(Spacer(1, 0.1 * inch))
+        elements.append(Paragraph(f"<b>PROFESSOR(A): {nome_professor} </b>", ParagraphStyle(name='ProfessoraTitulo', fontSize=14, alignment=0)))
+        elements.append(Spacer(1, 0.15 * inch))
+
+        total_masculino = turma_df[turma_df['SEXO'] == 'M'].shape[0]
+        total_feminino = turma_df[turma_df['SEXO'] == 'F'].shape[0]
+        total_transferidos = turma_df[turma_df['SITUAÇÃO'].isin(['Transferido', 'Transferida'])].shape[0]
+        elements.append(Paragraph(f"TOTAIS: MASCULINO ({total_masculino}) FEMININO ({total_feminino}) - TRANSFERIDOS: {total_transferidos}", ParagraphStyle(name='TotaisAlunos', fontSize=12, alignment=0)))
+        elements.append(Spacer(1, 0.15 * inch))
+
+        texto_total_vertical = '<br/>'.join(list("TOTAL"))
+        datas = pd.date_range(start=f'{ano_letivo}-01-01', periods=25).date
+        tabela_frequencia = [['Nº', 'Nome'] + ['' for _ in datas] + [Paragraph(texto_total_vertical, style_total)]]
+
+        table_style = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]
+
+        for i, (_, row) in enumerate(turma_df.iterrows(), start=1):
+            if row.get('SITUAÇÃO') in ['Transferido', 'Transferida']:
+                data_transferencia = row.get('DATA_TRANSFERENCIA')
+                data_transferencia = data_transferencia.strftime('%d/%m/%Y') if data_transferencia else "Data não disponível"
+                texto_transferencia = f"{row.get('SITUAÇÃO')} em {data_transferencia}"
+                linha = [i, row.get('NOME DO ALUNO')] + [''] * (len(datas) + 1)
+                linha[2] = Paragraph(texto_transferencia, style_transferencia)
+                table_style.append(('SPAN', (2, i), (-1, i)))
+            else:
+                linha = [i, row.get('NOME DO ALUNO')] + [''] * len(datas) + ['']
+            tabela_frequencia.append(linha)
+
+        row_heights = [1 * inch]
+        row_heights.extend([0.25 * inch] * (len(tabela_frequencia) - 1))
+        table = Table(tabela_frequencia, colWidths=[0.282 * inch, 3 * inch] + [0.25 * inch] * len(datas) + [0.35 * inch], rowHeights=row_heights)
+        table.setStyle(TableStyle(table_style))
+        elements.append(table)
+        elements.append(PageBreak())
+
+    doc.build(elements)
+    salvar_e_abrir_pdf(buffer)
     return True
 
 
