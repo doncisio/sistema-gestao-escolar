@@ -2,6 +2,7 @@ import PyPDF2
 import re
 import os
 from datetime import datetime
+from utils.dates import nome_mes_pt
 
 # Caminho do arquivo PDF
 pdf_path = "calendário.pdf"
@@ -27,9 +28,12 @@ try:
             page = pdf_reader.pages[page_num]
             full_text += page.extract_text()
         
-        # Lista de meses em português
-        meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", 
-                "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+        # Lista de meses em português (gerada a partir do utilitário centralizado)
+        try:
+            meses = [nome_mes_pt(i).lower() for i in range(1, 13)]
+        except Exception:
+            meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
+                     "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
         
         # Padrões para detectar eventos
         # Este padrão procura por dias seguido de um texto de evento
