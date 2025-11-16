@@ -558,16 +558,32 @@ def gerar_lista_notas() -> bool:
     módulo apenas quando importado agora, evitando executar código legado em
     testes que injetam mocks.
     """
-    # Nome do módulo legado é 'Lista_notas'
+    # Permitir injeção de mock em `sys.modules` para testes
     _mod = sys.modules.get('Lista_notas')
+    if _mod is not None:
+        if hasattr(_mod, 'lista_notas'):
+            cast(Any, _mod).lista_notas()
+            return True
+        raise AttributeError("Módulo 'Lista_notas' injetado não possui 'lista_notas'")
+
+    # Tentar a implementação migrada em-processo (teste-friendly)
+    try:
+        return _impl_lista_notas()
+    except NotImplementedError:
+        # Ainda não portado completamente — caímos para o fallback legado
+        pass
+    except Exception:
+        # Se a implementação interna falhar, recorrer ao módulo legado
+        pass
+
+    # Fallback: importar e delegar ao módulo legado
     imported_now = False
-    if _mod is None:
-        try:
-            import Lista_notas as _mod  # type: ignore
-            imported_now = True
-        except ImportError:
-            logger.exception("Módulo 'Lista_notas' não disponível para gerar lista de notas")
-            raise
+    try:
+        import Lista_notas as _mod  # type: ignore
+        imported_now = True
+    except ImportError:
+        logger.exception("Módulo 'Lista_notas' não disponível para gerar lista de notas")
+        raise
 
     if imported_now:
         try:
@@ -580,7 +596,7 @@ def gerar_lista_notas() -> bool:
     if not hasattr(_mod, 'lista_notas'):
         raise AttributeError("Módulo 'Lista_notas' não possui 'lista_notas'")
 
-    _mod.lista_notas()
+    cast(Any, _mod).lista_notas()
     return True
 
 
@@ -1387,4 +1403,98 @@ def _impl_gerar_resumo_ponto(*args, **kwargs) -> bool:
 
     # Salvar usando helper centralizado (escreve em arquivo temporário e retorna path)
     salvar_e_abrir_pdf(out_buf)
+    return True
+
+
+def _impl_lista_notas(dados_aluno=None, ano_letivo: Optional[int] = None, out_dir: Optional[str] = None) -> bool:
+    """Implementação migrada para `Lista_notas.lista_notas`.
+
+    Parâmetros injetáveis para testes:
+    - `dados_aluno`: lista de dicts com ao menos `aluno_id` e `NOME DO ALUNO`.
+    - `ano_letivo`: ano para busca quando `dados_aluno` não for fornecido.
+    - `out_dir`: diretório de saída (opcional, usado apenas no fallback de salvar).
+
+    A implementação é simples: monta um PDF com a lista de alunos fornecida.
+    Se `dados_aluno` não for fornecido e não for possível obter via `Lista_atualizada.fetch_student_data`,
+    a função levanta `NotImplementedError` para sinalizar que o fallback legado deve ser usado.
+    """
+    import io
+    import datetime
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+
+    # helpers de PDF
+    try:
+        from services.utils.pdf import create_pdf_buffer, salvar_e_abrir_pdf
+    except Exception:
+        try:
+            from gerarPDF import create_pdf_buffer, salvar_e_abrir_pdf
+        except Exception:
+            logger.exception('Não foi possível importar helpers de PDF para lista_notas')
+            raise
+
+    if dados_aluno is None:
+        if ano_letivo is None:
+            ano_letivo = datetime.datetime.now().year
+        try:
+            from Lista_atualizada import fetch_student_data
+            dados_aluno = fetch_student_data(ano_letivo)
+        except Exception:
+            # Não conseguimos obter os dados sem acionar o legacy — indicar que não foi implementado
+            raise NotImplementedError("_impl_lista_notas não conseguiu obter dados; usar fallback legado")
+
+    if not dados_aluno:
+        logger.info('Nenhum dado de aluno encontrado para lista_notas (impl)')
+        return False
+
+    # Construir PDF básico com nomes
+    doc, buffer = create_pdf_buffer()
+    elements = []
+    elements.append(Paragraph('<b>LISTA DE NOTAS</b>', ParagraphStyle(name='Title', fontSize=16, alignment=1)))
+    elements.append(Spacer(1, 0.2 * inch))
+
+    # Cabeçalho tabela
+    table_data = [['Nº', 'Nome do Aluno']]
+    for i, aluno in enumerate(dados_aluno, start=1):
+        nome = None
+        if isinstance(aluno, dict):
+            nome = aluno.get('NOME DO ALUNO') or aluno.get('nome_aluno')
+        else:
+            try:
+                nome = aluno['NOME DO ALUNO']
+            except Exception:
+                nome = str(aluno)
+        nome_str = str(nome) if nome is not None else ''
+        table_data.append([str(i), nome_str])
+
+    table = Table(table_data, colWidths=[0.5 * inch, 6 * inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+    ]))
+    elements.append(table)
+
+    doc.build(elements)
+
+    # salvar/abrir
+    try:
+        salvar_e_abrir_pdf(buffer)
+    except Exception:
+        # fallback para salvar em disco se out_dir fornecido
+        try:
+            if out_dir:
+                filename = os.path.join(out_dir, f"lista_notas_{int(datetime.datetime.now().timestamp())}.pdf")
+                buffer.seek(0)
+                with open(filename, 'wb') as f:
+                    f.write(buffer.getvalue())
+                logger.info(f"PDF salvo em (fallback): {filename}")
+            else:
+                logger.exception('Falha ao salvar PDF e sem out_dir para fallback')
+        except Exception:
+            logger.exception('Falha final ao salvar PDF em fallback')
+
     return True
