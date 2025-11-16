@@ -61,10 +61,7 @@ def gerar_declaracao_aluno(aluno_id, marcacoes):
 
     turma = f"{nome_serie} {nome_turma}"
 
-    def formatar_data(data):
-        meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro',
-                 'Novembro', 'Dezembro']
-        return f"{data.day} de {meses[data.month - 1]} de {data.year}"
+    from utils.dates import formatar_data
 
     # Formatar a data de nascimento
     data_nascimento = pd.to_datetime(nascimento).strftime("%d/%m/%Y") if pd.notnull(nascimento) else ""
