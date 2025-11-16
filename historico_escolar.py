@@ -33,9 +33,7 @@ mapeamento_disciplinas = {
     "FILOSOFIA": "FILOSOFIA"
 }
 
-def formatar_data(data):
-    meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-    return f"{data.day} de {meses[data.month - 1]} de {data.year}"
+from utils.dates import formatar_data_extenso as formatar_data
 
 def quebra_linha(texto):
     # Ajusta o tamanho da fonte para textos mais longos
