@@ -4,6 +4,9 @@ from reportlab.lib.pagesizes import letter
 from PyPDF2 import PdfReader, PdfWriter
 import io
 import os
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 # Conexão com o banco de dados
 conn = conectar_bd()
@@ -56,7 +59,7 @@ dados_alunos = cursor.fetchall()
 
 # Verificar se existem alunos na lista
 if not dados_alunos:
-    print("Nenhum aluno encontrado para o 9º Ano.")
+    logger.warning("Nenhum aluno encontrado para o 9º Ano.")
 else:
     # Caminho para salvar os diplomas e o diploma original
     caminho_diplomas = r"C:\Users\Usuário\Desktop\TARCISIO_2024\Alzilene\Diploma_internet"
@@ -113,7 +116,7 @@ else:
         with open(nome_arquivo, "wb") as output_pdf:
             writer.write(output_pdf)
 
-        print(f"Diploma criado para {aluno['nome_aluno']} em {nome_arquivo}.")
+        logger.info(f"Diploma criado para {aluno['nome_aluno']} em {nome_arquivo}.")
 
     # Criar diplomas para todos os alunos
     for aluno in dados_alunos:
