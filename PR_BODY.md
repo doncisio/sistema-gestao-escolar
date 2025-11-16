@@ -11,6 +11,10 @@ Descrição:
   - `gerar_lista_frequencia()` agora prefere mocks injetados em `sys.modules` e usa a implementação interna antes do fallback legado.
   - Adiciona teste `tests/test_report_service_lista_frequencia.py` que injeta mock com `__spec__` e valida delegação.
 
+- Adiciona shim de compatibilidade em `gerarPDF.py`:
+  - `gerarPDF.py` agora delega para `services.utils.pdf` quando disponível e mantém as implementações legadas como fallback.
+  - Isso permite migrar imports gradualmente sem quebrar módulos que ainda importam `gerarPDF`.
+
 Resultado: suíte de testes local: 12 passed in 2.3s.
 
 Notas de teste:
