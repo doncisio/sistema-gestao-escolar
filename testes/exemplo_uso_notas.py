@@ -12,27 +12,31 @@ from NotaAta import (
     nota_bimestre2,
     gerar_relatorio_notas
 )
+from config_logs import get_logger
+import traceback
+
+logger = get_logger(__name__)
 
 def mostrar_menu():
     """Exibe o menu de opções para o usuário."""
-    print("\n=== SISTEMA DE GERAÇÃO DE RELATÓRIOS DE NOTAS ===")
-    print("1. Gerar relatório 1º Bimestre (Séries Iniciais)")
-    print("2. Gerar relatório 2º Bimestre (Séries Iniciais)")
-    print("3. Gerar relatório 3º Bimestre (Séries Iniciais)")
-    print("4. Gerar relatório 4º Bimestre (Séries Iniciais)")
-    print("5. Gerar relatório 1º Bimestre (Séries Finais)")
-    print("6. Gerar relatório 2º Bimestre (Séries Finais)")
-    print("7. Gerar relatório 3º Bimestre (Séries Finais)")
-    print("8. Gerar relatório 4º Bimestre (Séries Finais)")
-    print("9. Gerar relatório personalizado")
-    print("0. Sair")
+    logger.info("\n=== SISTEMA DE GERAÇÃO DE RELATÓRIOS DE NOTAS ===")
+    logger.info("1. Gerar relatório 1º Bimestre (Séries Iniciais)")
+    logger.info("2. Gerar relatório 2º Bimestre (Séries Iniciais)")
+    logger.info("3. Gerar relatório 3º Bimestre (Séries Iniciais)")
+    logger.info("4. Gerar relatório 4º Bimestre (Séries Iniciais)")
+    logger.info("5. Gerar relatório 1º Bimestre (Séries Finais)")
+    logger.info("6. Gerar relatório 2º Bimestre (Séries Finais)")
+    logger.info("7. Gerar relatório 3º Bimestre (Séries Finais)")
+    logger.info("8. Gerar relatório 4º Bimestre (Séries Finais)")
+    logger.info("9. Gerar relatório personalizado")
+    logger.info("0. Sair")
     return input("\nEscolha uma opção: ")
 
 def gerar_relatorio_personalizado():
     """Permite ao usuário definir parâmetros para um relatório personalizado."""
     try:
         # Obter o bimestre
-        print("\n=== RELATÓRIO PERSONALIZADO ===")
+        logger.info("\n=== RELATÓRIO PERSONALIZADO ===")
         print("Escolha o bimestre:")
         print("1. 1º Bimestre")
         print("2. 2º Bimestre")
@@ -48,7 +52,7 @@ def gerar_relatorio_personalizado():
         }
         
         if opcao_bimestre not in bimestres:
-            print("Opção inválida!")
+            logger.warning("Opção inválida!")
             return
             
         bimestre = bimestres[opcao_bimestre]
@@ -67,7 +71,7 @@ def gerar_relatorio_personalizado():
             try:
                 ano_letivo = int(ano_letivo)
             except ValueError:
-                print("Ano letivo inválido! Usando 2025.")
+                    logger.warning("Ano letivo inválido! Usando 2025.")
                 ano_letivo = 2025
         else:
             ano_letivo = 2025
@@ -78,7 +82,7 @@ def gerar_relatorio_personalizado():
             try:
                 escola_id = int(escola_id)
             except ValueError:
-                print("ID de escola inválido! Usando o padrão 60.")
+                logger.warning("ID de escola inválido! Usando o padrão 60.")
                 escola_id = 60
         else:
             escola_id = 60
@@ -95,7 +99,7 @@ def gerar_relatorio_personalizado():
             status_matricula = None  # Usa o padrão (Ativo)
         
         # Gerar o relatório com os parâmetros especificados
-        print(f"\nGerando relatório para {bimestre}, nível {nivel_ensino}, ano {ano_letivo}, escola ID {escola_id}...")
+        logger.info(f"\nGerando relatório para {bimestre}, nível {nivel_ensino}, ano {ano_letivo}, escola ID {escola_id}...")
         
         resultado = gerar_relatorio_notas(
             bimestre=bimestre,
@@ -106,15 +110,14 @@ def gerar_relatorio_personalizado():
         )
         
         if resultado:
-            print("Relatório gerado com sucesso!")
+            logger.info("Relatório gerado com sucesso!")
         else:
-            print("Não foi possível gerar o relatório.")
+            logger.warning("Não foi possível gerar o relatório.")
     
     except KeyboardInterrupt:
-        print("\nOperação cancelada pelo usuário.")
+        logger.info("\nOperação cancelada pelo usuário.")
     except Exception as e:
-        print(f"Erro ao gerar relatório personalizado: {e}")
-        traceback.print_exc()
+        logger.exception(f"Erro ao gerar relatório personalizado: {e}")
 
 def executar_opcao(opcao):
     """Executa a ação correspondente à opção escolhida."""

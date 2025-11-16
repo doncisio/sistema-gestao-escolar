@@ -3,6 +3,9 @@ from PyPDF2 import PdfReader, PdfWriter
 from PyPDF2.generic import NameObject
 from datetime import datetime
 from conexao import conectar_bd
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 # Dicionário para mapear números dos meses para nomes em português
 meses = {
@@ -36,9 +39,9 @@ def preencher_pdf_template(pdf_entrada, pdf_saida, dados):
                     if field_name in dados:
                         # Atualizar o valor do campo
                         annot_obj.update({NameObject("/V"): NameObject(dados[field_name])})
-                        print(f"Preenchendo campo '{field_name}' com valor '{dados[field_name]}'")
+                        logger.debug(f"Preenchendo campo '{field_name}' com valor '{dados[field_name]}'")
                     else:
-                        print(f"Campo '{field_name}' não está nos dados fornecidos.")
+                        logger.debug(f"Campo '{field_name}' não está nos dados fornecidos.")
 
         writer.add_page(page)
 
@@ -135,4 +138,4 @@ os.makedirs(pasta_diplomas, exist_ok=True)
 for aluno in dados_alunos:
     nome_pdf_saida = os.path.join(pasta_diplomas, f"{aluno['Nome do aluno']}_certificado.pdf")
     preencher_pdf_template(pdf_template, nome_pdf_saida, aluno)
-    print(f"PDF gerado: {nome_pdf_saida}")
+    logger.info(f"PDF gerado: {nome_pdf_saida}")

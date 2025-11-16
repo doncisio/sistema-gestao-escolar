@@ -3,6 +3,9 @@ import sys
 import time
 import subprocess
 import platform
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 def cor_texto(texto, cor):
     """Aplica cor ao texto para console"""
@@ -17,8 +20,8 @@ def cor_texto(texto, cor):
 
 def executar_comando(comando, descricao):
     """Executa um comando e exibe feedback"""
-    print(cor_texto(f"\n=== {descricao} ===", "azul"))
-    print(cor_texto(f"Executando: {comando}", "amarelo"))
+    logger.info(cor_texto(f"\n=== {descricao} ===", "azul"))
+    logger.info(cor_texto(f"Executando: {comando}", "amarelo"))
     
     # Em Windows, usamos shell=True para comandos como 'cls'
     shell_param = True if platform.system() == "Windows" else False
@@ -27,10 +30,10 @@ def executar_comando(comando, descricao):
         resultado = subprocess.run(comando, shell=shell_param, check=True)
         return resultado.returncode == 0
     except subprocess.CalledProcessError as e:
-        print(cor_texto(f"Erro ao executar comando: {e}", "vermelho"))
+        logger.error(cor_texto(f"Erro ao executar comando: {e}", "vermelho"))
         return False
     except Exception as e:
-        print(cor_texto(f"Erro inesperado: {e}", "vermelho"))
+        logger.exception(cor_texto(f"Erro inesperado: {e}", "vermelho"))
         return False
 
 def limpar_tela():
@@ -43,15 +46,15 @@ def limpar_tela():
 def mostrar_menu():
     """Exibe o menu principal"""
     limpar_tela()
-    print("=" * 60)
-    print(cor_texto("SISTEMA DE CRIAÇÃO DE EXECUTÁVEL", "azul"))
-    print("=" * 60)
-    print("\nEscolha uma opção:")
-    print("1. Verificar imagens referenciadas")
-    print("2. Corrigir caminhos de imagens")
-    print("3. Compilar executável")
-    print("4. Processo completo (verificar, corrigir e compilar)")
-    print("5. Sair")
+    logger.info("=" * 60)
+    logger.info(cor_texto("SISTEMA DE CRIAÇÃO DE EXECUTÁVEL", "azul"))
+    logger.info("=" * 60)
+    logger.info("\nEscolha uma opção:")
+    logger.info("1. Verificar imagens referenciadas")
+    logger.info("2. Corrigir caminhos de imagens")
+    logger.info("3. Compilar executável")
+    logger.info("4. Processo completo (verificar, corrigir e compilar)")
+    logger.info("5. Sair")
     
     escolha = input("\nSua escolha (1-5): ").strip()
     return escolha
@@ -80,59 +83,59 @@ def main():
             
             if os.path.exists("dist/Sistema_Escolar.exe"):
                 tamanho = os.path.getsize("dist/Sistema_Escolar.exe") / (1024 * 1024)
-                print(cor_texto(f"\nExecutável criado com sucesso! Tamanho: {tamanho:.2f} MB", "verde"))
+                logger.info(cor_texto(f"\nExecutável criado com sucesso! Tamanho: {tamanho:.2f} MB", "verde"))
             else:
-                print(cor_texto("\nErro: Executável não foi criado.", "vermelho"))
+                logger.error(cor_texto("\nErro: Executável não foi criado.", "vermelho"))
             
             input("\nPressione Enter para voltar ao menu...")
             
         elif escolha == '4':
             # Processo completo
-            print(cor_texto("\n=== INICIANDO PROCESSO COMPLETO ===", "azul"))
+            logger.info(cor_texto("\n=== INICIANDO PROCESSO COMPLETO ===", "azul"))
             
             # Verificar imagens
-            print(cor_texto("\nPasso 1/3: Verificação de imagens", "azul"))
+            logger.info(cor_texto("\nPasso 1/3: Verificação de imagens", "azul"))
             if not executar_comando("python verificar_imagens.py", "Verificando imagens"):
-                print(cor_texto("\nDetectados problemas com imagens!", "amarelo"))
+                logger.warning(cor_texto("\nDetectados problemas com imagens!", "amarelo"))
                 
                 # Perguntar se deseja corrigir
                 if input("\nDeseja tentar corrigir os problemas? (s/n): ").lower() == 's':
                     executar_comando("python corrigir_caminhos.py", "Corrigindo caminhos de imagens")
                 else:
-                    print("Processo interrompido pelo usuário.")
+                    logger.info("Processo interrompido pelo usuário.")
                     input("\nPressione Enter para voltar ao menu...")
                     continue
             
             # Verificar novamente após correções
-            print(cor_texto("\nPasso 2/3: Verificando novamente após correções", "azul"))
+            logger.info(cor_texto("\nPasso 2/3: Verificando novamente após correções", "azul"))
             verificacao_ok = executar_comando("python verificar_imagens.py", "Verificando imagens")
             
             if not verificacao_ok:
                 continuar = input("\nAinda há problemas com imagens. Deseja continuar mesmo assim? (s/n): ").lower()
                 if continuar != 's':
-                    print("Processo interrompido pelo usuário.")
+                    logger.info("Processo interrompido pelo usuário.")
                     input("\nPressione Enter para voltar ao menu...")
                     continue
             
             # Compilar executável
-            print(cor_texto("\nPasso 3/3: Compilação do executável", "azul"))
+            logger.info(cor_texto("\nPasso 3/3: Compilação do executável", "azul"))
             executar_comando("python setup.py", "Compilando executável")
             
             if os.path.exists("dist/Sistema_Escolar.exe"):
                 tamanho = os.path.getsize("dist/Sistema_Escolar.exe") / (1024 * 1024)
-                print(cor_texto(f"\nExecutável criado com sucesso! Tamanho: {tamanho:.2f} MB", "verde"))
+                logger.info(cor_texto(f"\nExecutável criado com sucesso! Tamanho: {tamanho:.2f} MB", "verde"))
             else:
-                print(cor_texto("\nErro: Executável não foi criado.", "vermelho"))
+                logger.error(cor_texto("\nErro: Executável não foi criado.", "vermelho"))
             
             input("\nPressione Enter para voltar ao menu...")
             
         elif escolha == '5':
             # Sair
-            print(cor_texto("\nSaindo do sistema...", "amarelo"))
+            logger.info(cor_texto("\nSaindo do sistema...", "amarelo"))
             break
             
         else:
-            print(cor_texto("\nOpção inválida! Tente novamente.", "vermelho"))
+            logger.warning(cor_texto("\nOpção inválida! Tente novamente.", "vermelho"))
             time.sleep(1.5)
 
 if __name__ == "__main__":

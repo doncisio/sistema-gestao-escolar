@@ -8,6 +8,9 @@ from datetime import datetime
 
 # Conexão com o banco de dados
 conn = conectar_bd()
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 def formatar_telefone(telefone):
     """Formata um número de telefone para o formato (98) XXXXX-XXXX."""
@@ -63,7 +66,7 @@ def criar_cracha(aluno, responsavel, caminho, pdf_base):
         writer.add_page(page)
     with open(nome_arquivo, "wb") as output_pdf:
         writer.write(output_pdf)
-    print(f"Cracha criado para {aluno['NOME DO ALUNO']} - {responsavel['responsavel']} em {nome_arquivo}.")
+    logger.info(f"Cracha criado para {aluno['NOME DO ALUNO']} - {responsavel['responsavel']} em {nome_arquivo}.")
     return nome_arquivo
 
 def gerar_crachas_responsaveis(aluno):
@@ -85,7 +88,7 @@ def gerar_crachas_responsaveis(aluno):
         responsaveis = cursor.fetchall()
 
         if not responsaveis:
-            print(f"Nenhum responsável encontrado para o aluno {aluno['NOME DO ALUNO']}.")
+            logger.warning(f"Nenhum responsável encontrado para o aluno {aluno['NOME DO ALUNO']}.")
             return None  # Retorna None se nenhum responsável for encontrado
 
         diretorio_atual = os.getcwd()
@@ -153,7 +156,7 @@ def obter_todos_alunos():
 def gerar_crachas_para_todos_os_alunos():
     alunos = obter_todos_alunos()
     if not alunos:
-        print("Nenhum aluno encontrado.")
+        logger.warning("Nenhum aluno encontrado.")
         return
 
     # Agrupar alunos por série e turma
@@ -187,13 +190,13 @@ def gerar_crachas_para_todos_os_alunos():
             merger.write(nome_arquivo_mesclado)
             merger.close()
 
-            print(f"Crachás da {nome_serie} - Turma {nome_turma} mesclados em {nome_arquivo_mesclado}")
+            logger.info(f"Crachás da {nome_serie} - Turma {nome_turma} mesclados em {nome_arquivo_mesclado}")
 
             # Remover arquivos individuais (opcional)
             for arquivo in arquivos_crachas_grupo:
                 os.remove(arquivo)
         else:
-            print(f"Nenhum crachá gerado para {nome_serie} - Turma {nome_turma}.")
+            logger.info(f"Nenhum crachá gerado para {nome_serie} - Turma {nome_turma}.")
 
 # Exemplo de uso: Gerar crachás para todos os alunos e mesclar por série e turma
 gerar_crachas_para_todos_os_alunos()
