@@ -15,6 +15,9 @@ from biblio_editor import adicionar_quebra_linha, quebra_linha, arredondar_perso
 from utils.dates import formatar_data_extenso
 import datetime
 from typing import Any, Dict, Optional, cast, List
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 # `formatar_data_extenso` importado de `utils.dates`
 
@@ -97,7 +100,7 @@ def verificar_ano_letivo_terminado(cursor, ano_letivo=2025):
         # Se não houver data_fim definida, não considerar o ano letivo como terminado
         return False
     except Exception as e:
-        print(f"Erro ao verificar término do ano letivo: {e}")
+        logger.exception("Erro ao verificar término do ano letivo: %s", e)
         # Como houve erro, é mais seguro não exportar as notas
         return False
 
@@ -251,11 +254,11 @@ def ata_geral():
         cursor.execute("SELECT numero_dias_aula FROM anosletivos WHERE ano_letivo = 2025")
         resultado_ano_letivo = cast(Optional[Dict[str, Any]], cursor.fetchone())
         if resultado_ano_letivo is None:
-            print("Nenhum ano letivo encontrado para 2025.")
+            logger.error("Nenhum ano letivo encontrado para 2025.")
             return
         total_aulas = resultado_ano_letivo['numero_dias_aula']
     except Exception as e:
-        print(f"Erro ao executar a consulta: {e}")
+        logger.exception("Erro ao executar a consulta: %s", e)
         return
 
     limite_faltas = round(total_aulas * 0.25)
@@ -270,7 +273,7 @@ def ata_geral():
         faltas_bimestrais_resultado = cast(List[Dict[str, Any]], cursor.fetchall())
         faltas_dict = {f['aluno_id']: f['total_faltas'] for f in faltas_bimestrais_resultado}
     except Exception as e:
-        print(f"Erro ao executar a consulta de faltas: {e}")
+        logger.exception("Erro ao executar a consulta de faltas: %s", e)
         faltas_dict = {}
 
     cabecalho = [

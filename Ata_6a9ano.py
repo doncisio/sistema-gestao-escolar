@@ -16,6 +16,9 @@ from utilitarios.gerenciador_documentos import salvar_documento_sistema
 from utilitarios.tipos_documentos import TIPO_ATA
 from biblio_editor import adicionar_quebra_linha, quebra_linha, criar_cabecalho_pdf, arredondar_personalizado
 from utils.dates import formatar_data_extenso
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 def obter_dados_alunos(cursor):
     query = """
@@ -115,7 +118,7 @@ def verificar_ano_letivo_terminado(cursor, ano_letivo=2025):
         # Se não houver data_fim definida, não considerar o ano letivo como terminado
         return False
     except Exception as e:
-        print(f"Erro ao verificar término do ano letivo: {e}")
+        logger.exception("Erro ao verificar término do ano letivo: %s", e)
         # Como houve erro, é mais seguro não exportar as notas
         return False
 
@@ -266,7 +269,7 @@ def ata_geral_6a9ano():
 
     total_aulas = obter_total_aulas(cursor)
     if total_aulas is None:
-        print("Nenhum ano letivo encontrado para 2025.")
+        logger.error("Nenhum ano letivo encontrado para 2025.")
         return
 
     limite_faltas = round(total_aulas * 0.25)
