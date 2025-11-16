@@ -66,6 +66,12 @@ try:
 except Exception:
     _NotaAta = None
 
+# Serviço de relatórios centralizado (módulos legados delegados para services)
+try:
+    from services import report_service
+except Exception:
+    report_service = None
+
 # Import seguro para a interface de Ata Geral
 try:
     import AtaGeral as _AtaGeral
@@ -77,13 +83,24 @@ def lista_reuniao():
     Se o módulo estiver disponível, chama `gerar_lista_reuniao.gerar_lista_reuniao()`;
     caso contrário, mostra uma mensagem de erro amigável.
     """
+    # Primeira opção: delegar para o serviço centralizado, se disponível
+    if report_service is not None and hasattr(report_service, 'gerar_lista_reuniao'):
+        try:
+            return report_service.gerar_lista_reuniao()
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar lista de reunião: {e}")
+            return None
+
+    # Fallback: usar o módulo legado já importado de forma segura
     if _gerar_lista_reuniao and hasattr(_gerar_lista_reuniao, 'gerar_lista_reuniao'):
         try:
             _gerar_lista_reuniao.gerar_lista_reuniao()
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao gerar lista de reunião: {e}")
+            return None
     else:
         messagebox.showerror("Erro", "Função 'gerar_lista_reuniao' não disponível. Verifique o módulo 'gerar_lista_reuniao'.")
+        return None
 
 # Import seguro para lista de notas
 try:
@@ -95,13 +112,24 @@ def lista_notas():
     """Wrapper seguro para gerar a lista de notas.
     Chama `Lista_notas.lista_notas()` se disponível; caso contrário exibe erro.
     """
+    # Tenta delegar para o serviço centralizado quando disponível
+    if report_service is not None and hasattr(report_service, 'gerar_lista_notas'):
+        try:
+            return report_service.gerar_lista_notas()
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar lista de notas: {e}")
+            return None
+
+    # Fallback para módulo legado
     if _lista_notas and hasattr(_lista_notas, 'lista_notas'):
         try:
             _lista_notas.lista_notas()
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao gerar lista de notas: {e}")
+            return None
     else:
         messagebox.showerror("Erro", "Função 'lista_notas' não disponível. Verifique o módulo 'Lista_notas'.")
+        return None
 
 # Import seguro para lista de frequência
 try:
@@ -113,18 +141,42 @@ def lista_frequencia():
     """Wrapper seguro para gerar a lista de frequência.
     Chama `lista_frequencia.lista_frequencia()` se disponível; caso contrário exibe erro.
     """
+    # Tenta delegar para o serviço centralizado quando disponível
+    if report_service is not None and hasattr(report_service, 'gerar_lista_frequencia'):
+        try:
+            return report_service.gerar_lista_frequencia()
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar lista de frequência: {e}")
+            return None
+
+    # Fallback para módulo legado
     if _lista_frequencia and hasattr(_lista_frequencia, 'lista_frequencia'):
         try:
             _lista_frequencia.lista_frequencia()
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao gerar lista de frequência: {e}")
+            return None
     else:
         messagebox.showerror("Erro", "Função 'lista_frequencia' não disponível. Verifique o módulo 'lista_frequencia'.")
+        return None
 
 def gerar_relatorio_notas(*args, **kwargs):
     """Wrapper para `NotaAta.gerar_relatorio_notas`"""
+    # Primeira opção: delegar para o service centralizado quando disponível
+    if report_service is not None and hasattr(report_service, 'gerar_relatorio_notas'):
+        try:
+            return report_service.gerar_relatorio_notas(*args, **kwargs)
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar relatório de notas: {e}")
+            return None
+
+    # Fallback para o módulo legado
     if _NotaAta and hasattr(_NotaAta, 'gerar_relatorio_notas'):
-        return _NotaAta.gerar_relatorio_notas(*args, **kwargs)
+        try:
+            return _NotaAta.gerar_relatorio_notas(*args, **kwargs)
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar relatório de notas: {e}")
+            return None
     else:
         messagebox.showerror("Erro", "Função 'gerar_relatorio_notas' não disponível. Verifique o módulo 'NotaAta'.")
         return None
@@ -142,26 +194,45 @@ def gerar_relatorio_notas_com_assinatura(*args, **kwargs):
         return None
 
 def relatorio_movimentacao_mensal(numero_mes):
+    # Tenta delegar para o serviço centralizado quando disponível
+    if report_service is not None and hasattr(report_service, 'gerar_relatorio_movimentacao_mensal'):
+        try:
+            return report_service.gerar_relatorio_movimentacao_mensal(numero_mes)
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar relatório de movimentação: {e}")
+            return None
+
+    # Fallback para módulo legado
     if movimentomensal and hasattr(movimentomensal, 'relatorio_movimentacao_mensal'):
         try:
             return movimentomensal.relatorio_movimentacao_mensal(numero_mes)
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao gerar relatório de movimentação: {e}")
             return None
-    else:
-        messagebox.showerror("Erro", "Função 'relatorio_movimentacao_mensal' não disponível. Verifique o módulo 'movimentomensal'.")
-        return None
+
+    messagebox.showerror("Erro", "Função 'relatorio_movimentacao_mensal' não disponível. Verifique o módulo 'movimentomensal' ou o serviço de relatórios.")
+    return None
 
 def boletim(aluno_id, ano_letivo_id=None):
+    # Tenta delegar para o serviço centralizado quando disponível
+    if report_service is not None and hasattr(report_service, 'gerar_boletim'):
+        try:
+            report_service.gerar_boletim(aluno_id, ano_letivo_id)
+            return True
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar boletim: {e}")
+            return None
+
+    # Fallback para módulo legado quando o service não estiver disponível
     if _boletim_module and hasattr(_boletim_module, 'boletim'):
         try:
             return _boletim_module.boletim(aluno_id, ano_letivo_id)
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao gerar boletim: {e}")
             return None
-    else:
-        messagebox.showerror("Erro", "Função 'boletim' não disponível. Verifique o módulo 'boletim'.")
-        return None
+
+    messagebox.showerror("Erro", "Função 'boletim' não disponível. Verifique o módulo 'boletim' ou o serviço de relatórios.")
+    return None
 
 def nota_bimestre(bimestre=None, preencher_nulos=False):
     if _NotaAta and hasattr(_NotaAta, 'nota_bimestre'):
@@ -244,8 +315,75 @@ def obter_ano_letivo_atual() -> int:
         return 1
 from horarios_escolares import InterfaceHorariosEscolares
 from tkinter import filedialog
-from preencher_folha_ponto import gerar_folhas_de_ponto, nome_mes_pt as nome_mes_pt_folha
-from gerar_resumo_ponto import gerar_resumo_ponto, nome_mes_pt as nome_mes_pt_resumo
+try:
+    from preencher_folha_ponto import gerar_folhas_de_ponto as _gerar_folhas_de_ponto_legacy, nome_mes_pt as nome_mes_pt_folha
+except Exception:
+    _gerar_folhas_de_ponto_legacy = None
+    # Fallback: garantir que `nome_mes_pt_folha` sempre exista como função
+    # Usar o mesmo nome de parâmetro esperado pelo módulo legado para satisfazer o type checker
+    def nome_mes_pt_folha(mes_num):
+        return str(mes_num)
+# Import seguro para resumo de ponto — importamos o módulo como fallback
+try:
+    from gerar_resumo_ponto import nome_mes_pt as nome_mes_pt_resumo  # type: ignore
+    import gerar_resumo_ponto as _gerar_resumo_ponto  # type: ignore
+except Exception:
+    _gerar_resumo_ponto = None
+    # Fallback: garantir que `nome_mes_pt_resumo` é sempre uma função (evita erros de tipo)
+    def nome_mes_pt_resumo(m):
+        return str(m)
+
+
+def gerar_resumo_ponto(*args, **kwargs):
+    """Wrapper para `gerar_resumo_ponto.gerar_resumo_ponto`.
+
+    Primeiro tenta delegar ao `report_service` se disponível; caso contrário
+    usa o módulo legado `gerar_resumo_ponto` quando presente.
+    """
+    # Delegar para service quando disponível
+    if report_service is not None and hasattr(report_service, 'gerar_resumo_ponto'):
+        try:
+            return report_service.gerar_resumo_ponto(*args, **kwargs)
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar resumo de ponto: {e}")
+            return None
+
+    # Fallback para o módulo legado
+    if _gerar_resumo_ponto and hasattr(_gerar_resumo_ponto, 'gerar_resumo_ponto'):
+        try:
+            return _gerar_resumo_ponto.gerar_resumo_ponto(*args, **kwargs)
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar resumo de ponto: {e}")
+            return None
+
+    messagebox.showerror("Erro", "Função 'gerar_resumo_ponto' não disponível. Verifique o módulo 'gerar_resumo_ponto' ou o serviço de relatórios.")
+    return None
+
+
+def gerar_folhas_de_ponto(*args, **kwargs):
+    """Wrapper para `preencher_folha_ponto.gerar_folhas_de_ponto`.
+
+    Primeiro tenta delegar ao `report_service` se disponível; caso contrário
+    usa o módulo legado `preencher_folha_ponto` quando presente.
+    """
+    # Delegar para service quando disponível
+    if report_service is not None and hasattr(report_service, 'gerar_folhas_de_ponto'):
+        try:
+            return report_service.gerar_folhas_de_ponto(*args, **kwargs)
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar folhas de ponto: {e}")
+            return None
+
+    # Fallback para o módulo legado
+    if _gerar_folhas_de_ponto_legacy and hasattr(_gerar_folhas_de_ponto_legacy, 'gerar_folhas_de_ponto'):
+        try:
+            return _gerar_folhas_de_ponto_legacy(*args, **kwargs)
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao gerar folhas de ponto: {e}")
+            return None
+
+    messagebox.showerror("Erro", "Função 'gerar_folhas_de_ponto' não disponível. Verifique o módulo 'preencher_folha_ponto' ou o serviço de relatórios.")
+    return None
 from GerenciadorDocumentosFuncionarios import GerenciadorDocumentosFuncionarios
 from declaracao_comparecimento import gerar_declaracao_comparecimento_responsavel
 
