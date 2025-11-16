@@ -13,13 +13,17 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
+from config_logs import get_logger
+
+logger = get_logger(__name__)
+
 # Tentar importar webdriver-manager (facilita instalação do ChromeDriver)
 try:
     from webdriver_manager.chrome import ChromeDriverManager
     WEBDRIVER_MANAGER_DISPONIVEL = True
 except ImportError:
     WEBDRIVER_MANAGER_DISPONIVEL = False
-    print("⚠ webdriver-manager não instalado. Instale com: pip install webdriver-manager")
+    logger.warning("⚠ webdriver-manager não instalado. Instale com: pip install webdriver-manager")
 from bs4 import BeautifulSoup
 import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
@@ -73,23 +77,23 @@ class AutomacaoGEDUC:
             # MÉTODO 1: Tentar usar ChromeDriver do PATH (mais rápido)
             if not driver_iniciado:
                 try:
-                    print("→ Tentando usar ChromeDriver do sistema...")
+                    logger.info("→ Tentando usar ChromeDriver do sistema...")
                     self.driver = webdriver.Chrome(options=chrome_options)
                     driver_iniciado = True
                     metodo_usado = "ChromeDriver do sistema (PATH)"
                 except Exception as e1:
-                    print(f"  ✗ ChromeDriver do sistema não encontrado")
+                    logger.warning("  ✗ ChromeDriver do sistema não encontrado")
             
             # MÉTODO 2: Usar webdriver-manager com cache
             if not driver_iniciado and WEBDRIVER_MANAGER_DISPONIVEL:
                 try:
-                    print("→ Tentando usar webdriver-manager (cache)...")
+                    logger.info("→ Tentando usar webdriver-manager (cache)...")
                     service = Service(ChromeDriverManager().install())
                     self.driver = webdriver.Chrome(service=service, options=chrome_options)
                     driver_iniciado = True
                     metodo_usado = "webdriver-manager (cache)"
                 except Exception as e2:
-                    print(f"  ✗ Erro com webdriver-manager: {e2}")
+                    logger.exception("  ✗ Erro com webdriver-manager: %s", e2)
                     
                     # Se erro foi de conexão, tentar cache offline
                     if "Could not reach host" in str(e2) or "offline" in str(e2).lower():
@@ -105,7 +109,7 @@ class AutomacaoGEDUC:
                                     for file in files:
                                         if file == "chromedriver.exe" or file == "chromedriver":
                                             driver_path = os.path.join(root, file)
-                                            print(f"  → Encontrado no cache: {driver_path}")
+                                            logger.info("  → Encontrado no cache: %s", driver_path)
                                             service = Service(driver_path)
                                             self.driver = webdriver.Chrome(service=service, options=chrome_options)
                                             driver_iniciado = True
@@ -114,25 +118,25 @@ class AutomacaoGEDUC:
                                     if driver_iniciado:
                                         break
                         except Exception as e3:
-                            print(f"  ✗ Cache offline não disponível: {e3}")
+                            logger.exception("  ✗ Cache offline não disponível: %s", e3)
             
             # MÉTODO 3: Procurar chromedriver.exe na pasta do script
             if not driver_iniciado:
                 try:
-                    print("→ Procurando chromedriver.exe na pasta do script...")
+                    logger.info("→ Procurando chromedriver.exe na pasta do script...")
                     script_dir = os.path.dirname(os.path.abspath(__file__))
                     local_chromedriver = os.path.join(script_dir, "chromedriver.exe")
                     
                     if os.path.exists(local_chromedriver):
-                        print(f"  → Encontrado: {local_chromedriver}")
+                        logger.info("  → Encontrado: %s", local_chromedriver)
                         service = Service(local_chromedriver)
                         self.driver = webdriver.Chrome(service=service, options=chrome_options)
                         driver_iniciado = True
                         metodo_usado = "ChromeDriver local (pasta do script)"
                     else:
-                        print(f"  ✗ Não encontrado em: {local_chromedriver}")
+                        logger.warning("  ✗ Não encontrado em: %s", local_chromedriver)
                 except Exception as e4:
-                    print(f"  ✗ Erro ao usar ChromeDriver local: {e4}")
+                    logger.exception("  ✗ Erro ao usar ChromeDriver local: %s", e4)
             
             # Se nenhum método funcionou
             if not driver_iniciado:
@@ -141,11 +145,11 @@ class AutomacaoGEDUC:
             # Sucesso!
             assert self.driver is not None, "navegador não iniciado"
             self.driver.set_page_load_timeout(30)
-            print(f"✓ Navegador iniciado com sucesso usando: {metodo_usado}")
+            logger.info("✓ Navegador iniciado com sucesso usando: %s", metodo_usado)
             return True
             
         except Exception as e:
-            print(f"✗ Erro ao iniciar navegador: {e}")
+            logger.exception("✗ Erro ao iniciar navegador: %s", e)
             
             # Mensagem de erro personalizada
             mensagem_erro = "❌ Não foi possível iniciar o navegador Chrome.\n\n"
@@ -178,11 +182,11 @@ class AutomacaoGEDUC:
         """
         # Garantir que o navegador foi iniciado antes de usar o driver
         if self.driver is None:
-            print("✗ Erro: navegador não iniciado. Chame iniciar_navegador() antes de fazer login.")
+            logger.error("✗ Erro: navegador não iniciado. Chame iniciar_navegador() antes de fazer login.")
             return False
 
         try:
-            print("→ Acessando página de login...")
+            logger.info("→ Acessando página de login...")
             self.driver.get(f"{self.url_base}/index.php?class=LoginForm")
             
             # Aguardar carregamento da página
@@ -196,24 +200,24 @@ class AutomacaoGEDUC:
             # Preencher usuário
             campo_usuario.clear()
             campo_usuario.send_keys(usuario)
-            print(f"  ✓ Usuário preenchido: {usuario}")
+            logger.info("  ✓ Usuário preenchido: %s", usuario)
             
             # Preencher senha
             campo_senha = self.driver.find_element(By.NAME, "password")
             campo_senha.clear()
             campo_senha.send_keys(senha)
-            print("  ✓ Senha preenchida")
+            logger.info("  ✓ Senha preenchida")
             
             # Verificar se há reCAPTCHA na página
-            print("\n" + "="*60)
-            print("⚠️  ATENÇÃO: reCAPTCHA DETECTADO!")
-            print("="*60)
-            print("→ Por favor, resolva o reCAPTCHA manualmente no navegador")
-            print("→ Marque a caixa 'Não sou um robô'")
-            print(f"→ Você tem {timeout_recaptcha} segundos para resolver")
-            print("→ Após resolver o reCAPTCHA, clique no botão de LOGIN")
-            print("→ Aguardando...")
-            print("="*60 + "\n")
+            logger.info("\n%s", "="*60)
+            logger.info("⚠️  ATENÇÃO: reCAPTCHA DETECTADO!")
+            logger.info("%s", "="*60)
+            logger.info("→ Por favor, resolva o reCAPTCHA manualmente no navegador")
+            logger.info("→ Marque a caixa 'Não sou um robô'")
+            logger.info("→ Você tem %s segundos para resolver", timeout_recaptcha)
+            logger.info("→ Após resolver o reCAPTCHA, clique no botão de LOGIN")
+            logger.info("→ Aguardando...")
+            logger.info("%s\n", "="*60)
             
             # Aguardar usuário resolver o reCAPTCHA e fazer login manualmente
             # Monitora se a URL mudou (saiu da página de login)
@@ -225,26 +229,26 @@ class AutomacaoGEDUC:
                 
                 # Verificar se saiu da página de login (login bem-sucedido)
                 if "LoginForm" not in self.driver.current_url:
-                    print("✓ Login realizado com sucesso!")
+                    logger.info("✓ Login realizado com sucesso!")
                     return True
                 
                 # Verificar timeout
                 tempo_decorrido = time.time() - tempo_inicio
                 if tempo_decorrido > timeout_recaptcha:
-                    print(f"✗ Timeout de {timeout_recaptcha}s expirado")
-                    print("  O reCAPTCHA não foi resolvido a tempo")
+                    logger.error("✗ Timeout de %s s expirado", timeout_recaptcha)
+                    logger.error("  O reCAPTCHA não foi resolvido a tempo")
                     return False
                 
                 # Mostrar progresso
                 tempo_restante = int(timeout_recaptcha - tempo_decorrido)
                 if tempo_restante % 10 == 0:  # Mostrar a cada 10 segundos
-                    print(f"  ⏳ Aguardando... ({tempo_restante}s restantes)")
+                    logger.info("  ⏳ Aguardando... (%s s restantes)", tempo_restante)
             
         except TimeoutException:
-            print("✗ Timeout ao carregar página de login")
+            logger.error("✗ Timeout ao carregar página de login")
             return False
         except Exception as e:
-            print(f"✗ Erro durante login: {e}")
+            logger.exception("✗ Erro durante login: %s", e)
             return False
     
     def acessar_registro_notas(self):
@@ -253,7 +257,7 @@ class AutomacaoGEDUC:
         """
         try:
             assert self.driver is not None, "navegador não iniciado"
-            print("→ Navegando para registro de notas...")
+            logger.info("→ Navegando para registro de notas...")
             
             # URL da página de registro de notas
             self.driver.get(f"{self.url_base}/index.php?class=RegNotasForm")
@@ -262,7 +266,7 @@ class AutomacaoGEDUC:
             wait = WebDriverWait(self.driver, 15)
             wait.until(EC.presence_of_element_located((By.NAME, "IDTURMA")))
             
-            print("✓ Página de registro de notas carregada")
+            logger.info("✓ Página de registro de notas carregada")
             return True
             
         except Exception as e:
@@ -275,7 +279,7 @@ class AutomacaoGEDUC:
         """
         try:
             assert self.driver is not None, "navegador não iniciado"
-            print("→ Navegando para recuperação bimestral...")
+            logger.info("→ Navegando para recuperação bimestral...")
             
             # URL da página de recuperação bimestral
             self.driver.get(f"{self.url_base}/index.php?class=RegNotasbimForm")
@@ -284,11 +288,11 @@ class AutomacaoGEDUC:
             wait = WebDriverWait(self.driver, 15)
             wait.until(EC.presence_of_element_located((By.NAME, "IDTURMA")))
             
-            print("✓ Página de recuperação bimestral carregada")
+            logger.info("✓ Página de recuperação bimestral carregada")
             return True
             
         except Exception as e:
-            print(f"✗ Erro ao acessar recuperação bimestral: {e}")
+            logger.exception("✗ Erro ao acessar recuperação bimestral: %s", e)
             return False
     
     def obter_opcoes_select(self, select_name):
@@ -315,7 +319,7 @@ class AutomacaoGEDUC:
             return opcoes
             
         except Exception as e:
-            print(f"✗ Erro ao obter opções do select '{select_name}': {e}")
+            logger.exception("✗ Erro ao obter opções do select '%s': %s", select_name, e)
             return []
     
     def selecionar_opcao(self, select_name, valor):
@@ -329,7 +333,7 @@ class AutomacaoGEDUC:
             time.sleep(0.5)  # Aguardar processamento
             return True
         except Exception as e:
-            print(f"✗ Erro ao selecionar opção '{valor}' em '{select_name}': {e}")
+            logger.exception("✗ Erro ao selecionar opção '%s' em '%s': %s", valor, select_name, e)
             return False
     
     def selecionar_bimestre(self, numero_bimestre):
@@ -362,7 +366,7 @@ class AutomacaoGEDUC:
             return False
             
         except Exception as e:
-            print(f"✗ Erro ao selecionar bimestre: {e}")
+            logger.exception("✗ Erro ao selecionar bimestre: %s", e)
             return False
     
     def clicar_exibir_alunos(self):
@@ -390,11 +394,11 @@ class AutomacaoGEDUC:
                     time.sleep(2)
                     return True
             
-            print("✗ Botão 'Exibir Alunos' não encontrado")
+            logger.warning("✗ Botão 'Exibir Alunos' não encontrado")
             return False
             
         except Exception as e:
-            print(f"✗ Erro ao clicar em exibir alunos: {e}")
+            logger.exception("✗ Erro ao clicar em exibir alunos: %s", e)
             return False
     
     def extrair_notas_pagina_atual(self, turma_nome=None, disciplina_nome=None, bimestre_numero=None):
@@ -501,7 +505,7 @@ class AutomacaoGEDUC:
             }
             
         except Exception as e:
-            print(f"✗ Erro ao extrair notas: {e}")
+            logger.exception("✗ Erro ao extrair notas: %s", e)
             return None
     
     def extrair_recuperacao_pagina_atual(self):
@@ -598,13 +602,11 @@ class AutomacaoGEDUC:
                     # Erro em linha específica, continuar para próxima
                     continue
             
-            print(f"✓ Extraídos {len(dados)} registros de recuperação")
+            logger.info("✓ Extraídos %d registros de recuperação", len(dados))
             return dados
             
         except Exception as e:
-            print(f"✗ Erro ao extrair dados de recuperação: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.exception("✗ Erro ao extrair dados de recuperação: %s", e)
             return []
     
     def extrair_todas_notas(self, turmas_selecionadas=None, bimestres=[1, 2, 3, 4], diretorio_saida="notas_extraidas", callback_progresso=None):
@@ -620,28 +622,28 @@ class AutomacaoGEDUC:
         """
         try:
             assert self.driver is not None, "navegador não iniciado"
-            print("\n" + "="*60)
-            print("INICIANDO EXTRAÇÃO AUTOMÁTICA DE NOTAS")
-            print("="*60 + "\n")
+            logger.info("\n%s", "="*60)
+            logger.info("INICIANDO EXTRAÇÃO AUTOMÁTICA DE NOTAS")
+            logger.info("%s\n", "="*60)
             
             # Criar diretório de saída
             if not os.path.exists(diretorio_saida):
                 os.makedirs(diretorio_saida)
-                print(f"✓ Diretório criado: {diretorio_saida}")
+                logger.info("✓ Diretório criado: %s", diretorio_saida)
             
             # Acessar página de registro de notas
             if not self.acessar_registro_notas():
                 return False
             
             # Obter todas as turmas disponíveis
-            print("→ Obtendo lista de turmas...")
+            logger.info("→ Obtendo lista de turmas...")
             turmas = self.obter_opcoes_select('IDTURMA')
             
             if not turmas:
-                print("✗ Nenhuma turma encontrada")
+                logger.error("✗ Nenhuma turma encontrada")
                 return False
             
-            print(f"  ✓ {len(turmas)} turmas encontradas")
+            logger.info("  ✓ %d turmas encontradas", len(turmas))
             
             # Filtrar turmas se especificado
             if turmas_selecionadas:
@@ -652,8 +654,8 @@ class AutomacaoGEDUC:
             
             # Iterar por cada turma
             for idx_turma, turma in enumerate(turmas, 1):
-                print(f"\n[{idx_turma}/{len(turmas)}] TURMA: {turma['text']}")
-                print("-" * 60)
+                logger.info("\n[%d/%d] TURMA: %s", idx_turma, len(turmas), turma['text'])
+                logger.info("%s", "-" * 60)
                 
                 # Selecionar turma
                 if not self.selecionar_opcao('IDTURMA', turma['value']):
@@ -665,14 +667,14 @@ class AutomacaoGEDUC:
                 disciplinas = self.obter_opcoes_select('IDTURMASDISP')
                 
                 if not disciplinas:
-                    print("  ⚠ Nenhuma disciplina encontrada para esta turma")
+                    logger.warning("  ⚠ Nenhuma disciplina encontrada para esta turma")
                     continue
                 
-                print(f"  → {len(disciplinas)} disciplinas encontradas")
+                logger.info("  → %d disciplinas encontradas", len(disciplinas))
                 
                 # Processar cada bimestre para esta turma
                 for bimestre in bimestres:
-                    print(f"\n  → PROCESSANDO BIMESTRE {bimestre}º")
+                    logger.info("\n  → PROCESSANDO BIMESTRE %sº", bimestre)
                     
                     # Dicionário para armazenar dados de todas as disciplinas deste bimestre
                     dados_turma_bimestre = {
@@ -683,23 +685,23 @@ class AutomacaoGEDUC:
                     
                     # Iterar por cada disciplina
                     for idx_disc, disciplina in enumerate(disciplinas, 1):
-                        print(f"    [{idx_disc}/{len(disciplinas)}] {disciplina['text']}", end=" ")
+                        logger.info("    [%d/%d] %s", idx_disc, len(disciplinas), disciplina['text'])
                         
                         # Selecionar disciplina
                         if not self.selecionar_opcao('IDTURMASDISP', disciplina['value']):
-                            print("✗ Erro ao selecionar")
+                            logger.error("✗ Erro ao selecionar")
                             continue
                         
                         time.sleep(0.5)
                         
                         # Selecionar bimestre
                         if not self.selecionar_bimestre(bimestre):
-                            print("✗ Erro ao selecionar bimestre")
+                            logger.error("✗ Erro ao selecionar bimestre")
                             continue
                         
                         # Clicar em exibir alunos
                         if not self.clicar_exibir_alunos():
-                            print("✗ Erro ao carregar alunos")
+                            logger.error("✗ Erro ao carregar alunos")
                             continue
                         
                         # Extrair notas (passando nome da turma, disciplina e bimestre)
@@ -711,9 +713,9 @@ class AutomacaoGEDUC:
                         
                         if dados and dados['alunos']:
                             dados_turma_bimestre['disciplinas'].append(dados)
-                            print(f"✓ {len(dados['alunos'])} alunos")
+                            logger.info("✓ %d alunos", len(dados['alunos']))
                         else:
-                            print("⚠ Sem notas")
+                            logger.warning("⚠ Sem notas")
                         
                         # Atualizar callback de progresso
                         if callback_progresso:
@@ -725,24 +727,22 @@ class AutomacaoGEDUC:
                         if arquivo_criado:
                             total_arquivos_criados += 1
                             total_planilhas_criadas += len(dados_turma_bimestre['disciplinas'])
-                            print(f"\n  ✓ ARQUIVO SALVO: {os.path.basename(arquivo_criado)}")
-                            print(f"    → {len(dados_turma_bimestre['disciplinas'])} planilhas (disciplinas)")
+                            logger.info("\n  ✓ ARQUIVO SALVO: %s", os.path.basename(arquivo_criado))
+                            logger.info("    → %d planilhas (disciplinas)", len(dados_turma_bimestre['disciplinas']))
                     else:
-                        print(f"\n  ⚠ Nenhuma nota encontrada para o {bimestre}º bimestre")
+                        logger.warning("\n  ⚠ Nenhuma nota encontrada para o %sº bimestre", bimestre)
             
-            print("\n" + "="*60)
-            print(f"EXTRAÇÃO CONCLUÍDA!")
-            print(f"Total de arquivos Excel criados: {total_arquivos_criados}")
-            print(f"Total de planilhas (disciplinas): {total_planilhas_criadas}")
-            print(f"Localização: {os.path.abspath(diretorio_saida)}")
-            print("="*60 + "\n")
+            logger.info("\n%s", "="*60)
+            logger.info("EXTRAÇÃO CONCLUÍDA!")
+            logger.info("Total de arquivos Excel criados: %d", total_arquivos_criados)
+            logger.info("Total de planilhas (disciplinas): %d", total_planilhas_criadas)
+            logger.info("Localização: %s", os.path.abspath(diretorio_saida))
+            logger.info("%s\n", "="*60)
             
             return True
             
         except Exception as e:
-            print(f"✗ Erro durante extração: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.exception("✗ Erro durante extração: %s", e)
             return False
     
     def _salvar_turma_bimestre(self, dados_turma_bimestre, diretorio_saida):
@@ -798,9 +798,7 @@ class AutomacaoGEDUC:
             return caminho_arquivo
             
         except Exception as e:
-            print(f"\n  ✗ Erro ao salvar arquivo: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.exception("\n  ✗ Erro ao salvar arquivo: %s", e)
             return None
     
     def _preencher_planilha(self, ws, dados):
@@ -915,9 +913,7 @@ class AutomacaoGEDUC:
                 row += 1
             
         except Exception as e:
-            print(f"✗ Erro ao preencher planilha: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.exception("✗ Erro ao preencher planilha: %s", e)
     
     def salvar_dados_excel(self, diretorio_saida="notas_extraidas"):
         """
