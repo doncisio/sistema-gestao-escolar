@@ -14,6 +14,9 @@ from typing import Optional
 from gerarPDF import salvar_e_abrir_pdf
 from utilitarios.gerenciador_documentos import salvar_documento_sistema
 from utilitarios.tipos_documentos import TIPO_DECLARACAO
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 messagebox: Optional[ModuleType] = None
 try:
     import tkinter.messagebox as messagebox  # type: ignore
@@ -264,7 +267,7 @@ def gerar_declaracao_aluno(aluno_id, marcacoes, motivo_outros=""):
         if messagebox:
             messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados para gerar a declaração.")
         else:
-            print("Erro: Não foi possível conectar ao banco de dados para gerar a declaração.")
+            logger.error("Erro: Não foi possível conectar ao banco de dados para gerar a declaração.")
         return
     cursor = conn.cursor()
 
@@ -276,7 +279,7 @@ def gerar_declaracao_aluno(aluno_id, marcacoes, motivo_outros=""):
         if messagebox:
             messagebox.showerror("Erro", "Dados da escola não encontrados.")
         else:
-            print("Erro: Dados da escola não encontrados.")
+            logger.error("Erro: Dados da escola não encontrados.")
         return
     dados_aluno = obter_dados_aluno(cursor, aluno_id)
     responsaveis = obter_responsaveis(cursor, aluno_id)
@@ -342,7 +345,7 @@ def gerar_declaracao_aluno(aluno_id, marcacoes, motivo_outros=""):
         if messagebox:
             messagebox.showwarning("Aviso", "O documento foi gerado mas houve um erro ao salvá-lo no sistema:\n" + mensagem)
         else:
-            print("Aviso: O documento foi gerado mas houve um erro ao salvá-lo no sistema:\n" + mensagem)
+            logger.warning("Aviso: O documento foi gerado mas houve um erro ao salvá-lo no sistema:\n%s", mensagem)
     
     # Abrir o arquivo para visualização
     buffer.seek(0)
