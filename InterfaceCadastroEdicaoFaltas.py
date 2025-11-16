@@ -5,6 +5,7 @@ from tkinter import ttk, messagebox
 from datetime import datetime
 import calendar
 from conexao import conectar_bd
+from db.connection import get_connection, get_cursor
 from typing import Any, cast
 
 
@@ -117,23 +118,19 @@ class InterfaceCadastroEdicaoFaltas:
 
     def atualizar_dias_letivos(self):
         try:
-            conn = conectar_bd()
-            cur = cast(Any, conn).cursor()
-            cast(Any, cur).execute(
-                """
-                SELECT dias_letivos FROM dias_letivos_mensais
-                WHERE ano_letivo = %s AND mes = %s
-                """,
-                (int(self.ano.get()), int(self.mes.get())),
-            )
-            row = cast(Any, cur).fetchone()
-            valor = row[0] if row else None
-            texto = f"Dias letivos: {valor}" if valor is not None else "Dias letivos: --"
-            if hasattr(self, 'lbl_dias') and self.lbl_dias.winfo_exists():
-                self.lbl_dias.config(text=texto)
-            cast(Any, cur).close()
-            if conn:
-                cast(Any, conn).close()
+            with get_cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT dias_letivos FROM dias_letivos_mensais
+                    WHERE ano_letivo = %s AND mes = %s
+                    """,
+                    (int(self.ano.get()), int(self.mes.get())),
+                )
+                row = cur.fetchone()
+                valor = row[0] if row else None
+                texto = f"Dias letivos: {valor}" if valor is not None else "Dias letivos: --"
+                if hasattr(self, 'lbl_dias') and self.lbl_dias.winfo_exists():
+                    self.lbl_dias.config(text=texto)
         except Exception:
             if hasattr(self, 'lbl_dias') and self.lbl_dias.winfo_exists():
                 self.lbl_dias.config(text="Dias letivos: --")
@@ -164,44 +161,44 @@ class InterfaceCadastroEdicaoFaltas:
 
     def carregar_funcionarios(self):
         try:
-            conn = conectar_bd()
-            self.garantir_tabela(conn)
-            cur = cast(Any, conn).cursor(dictionary=True)
+            with get_connection() as conn:
+                self.garantir_tabela(conn)
+                cur = cast(Any, conn).cursor(dictionary=True)
 
-            cast(Any, cur).execute(
-                """
-                SELECT f.id, f.matricula, f.nome
-                FROM Funcionarios f
-                WHERE f.escola_id = %s
-                ORDER BY f.nome
-                """,
-                (self.escola_id,),
-            )
-            funcionarios = cast(Any, cur).fetchall()
+                cur.execute(
+                    """
+                    SELECT f.id, f.matricula, f.nome
+                    FROM Funcionarios f
+                    WHERE f.escola_id = %s
+                    ORDER BY f.nome
+                    """,
+                    (self.escola_id,),
+                )
+                funcionarios = cur.fetchall()
 
-            # Carregar faltas existentes do mês/ano selecionados
-            cast(Any, cur).execute(
-                """
-                SELECT funcionario_id, p, f, fj, observacao
-                FROM funcionario_faltas_mensal
-                WHERE ano = %s AND mes = %s
-                """,
-                (self.ano.get(), self.mes.get()),
-            )
-            regs = {r["funcionario_id"]: r for r in cast(Any, cur).fetchall()}
+                # Carregar faltas existentes do mês/ano selecionados
+                cur.execute(
+                    """
+                    SELECT funcionario_id, p, f, fj, observacao
+                    FROM funcionario_faltas_mensal
+                    WHERE ano = %s AND mes = %s
+                    """,
+                    (self.ano.get(), self.mes.get()),
+                )
+                regs = {r["funcionario_id"]: r for r in cur.fetchall()}
 
-            # Reset tabela
-            for item in self.tabela.get_children():
-                self.tabela.delete(item)
-            self.inputs_por_id.clear()
+                # Reset tabela
+                for item in self.tabela.get_children():
+                    self.tabela.delete(item)
+                self.inputs_por_id.clear()
 
-            # Inserir linhas e inputs
-            for idx, f in enumerate(funcionarios, start=1):
-                item_id = self.tabela.insert("", "end", values=(idx, f.get("matricula", ""), f["nome"], "", "", "", ""))
-                bbox_p = self.tabela.bbox(item_id, "p")
-                bbox_f = self.tabela.bbox(item_id, "f")
-                bbox_fj = self.tabela.bbox(item_id, "fj")
-                bbox_obs = self.tabela.bbox(item_id, "obs")
+                # Inserir linhas e inputs
+                for idx, f in enumerate(funcionarios, start=1):
+                    item_id = self.tabela.insert("", "end", values=(idx, f.get("matricula", ""), f["nome"], "", "", "", ""))
+                    bbox_p = self.tabela.bbox(item_id, "p")
+                    bbox_f = self.tabela.bbox(item_id, "f")
+                    bbox_fj = self.tabela.bbox(item_id, "fj")
+                    bbox_obs = self.tabela.bbox(item_id, "obs")
 
                 # Criar entradas editáveis (P é somente leitura)
                 entrada_p = tk.Entry(self.tabela, width=5, justify="center", state="readonly", 
@@ -248,9 +245,10 @@ class InterfaceCadastroEdicaoFaltas:
                 entrada_f.bind("<KeyRelease>", lambda e, fid=f["id"]: self._calcular_presenca(fid))
                 entrada_fj.bind("<KeyRelease>", lambda e, fid=f["id"]: self._calcular_presenca(fid))
 
-            cast(Any, cur).close()
-            if conn:
-                cast(Any, conn).close()
+                try:
+                    cur.close()
+                except Exception:
+                    pass
 
             # Ajustar on scroll/movimento/redimensionamento
             self.tabela.bind("<ButtonRelease-1>", self._ajustar_inputs)
@@ -359,95 +357,102 @@ class InterfaceCadastroEdicaoFaltas:
 
     def salvar(self):
         try:
-            conn = conectar_bd()
-            self.garantir_tabela(conn)
-            cur = cast(Any, conn).cursor()
-            ano = int(self.ano.get())
-            mes = int(self.mes.get())
+            with get_connection() as conn:
+                self.garantir_tabela(conn)
+                cur = cast(Any, conn).cursor()
+                ano = int(self.ano.get())
+                mes = int(self.mes.get())
 
-            # Total de dias do mês corrente (calendário)
-            total_dias_mes = calendar.monthrange(ano, mes)[1]
+                # Total de dias do mês corrente (calendário)
+                total_dias_mes = calendar.monthrange(ano, mes)[1]
 
-            # Obter observações já salvas para preservar quando não for informado
-            cur_exist = cast(Any, conn).cursor(dictionary=True)
-            cast(Any, cur_exist).execute(
-                """
-                SELECT funcionario_id, observacao
-                FROM funcionario_faltas_mensal
-                WHERE ano = %s AND mes = %s
-                """,
-                (ano, mes),
-            )
-            obs_existente_map = {r["funcionario_id"]: r.get("observacao") for r in cast(Any, cur_exist).fetchall()}
-            cast(Any, cur_exist).close()
-
-            inseridos = 0
-            atualizados = 0
-            erros = []
-            
-            for func_id, campos in self.inputs_por_id.items():
-                # Obter valores dos campos (não usar mais P do usuário, será calculado)
-                f_texto = campos["f"].get().strip()
-                fj_texto = campos["fj"].get().strip()
-                obs = campos["obs"].get().strip()
-
-                # Valores padrão: F = 0, FJ = 0
-                f = 0
-                fj = 0
-
-                # Converter F para número
-                if f_texto:
-                    try:
-                        f = int(f_texto)
-                        if f < 0:
-                            erros.append(f"Funcionário ID {func_id}: Faltas não podem ser negativas")
-                            continue
-                    except ValueError:
-                        erros.append(f"Funcionário ID {func_id}: Valor inválido para Faltas: '{f_texto}'")
-                        continue
-
-                # Converter FJ para número
-                if fj_texto:
-                    try:
-                        fj = int(fj_texto)
-                        if fj < 0:
-                            erros.append(f"Funcionário ID {func_id}: Faltas justificadas não podem ser negativas")
-                            continue
-                    except ValueError:
-                        erros.append(f"Funcionário ID {func_id}: Valor inválido para Faltas Justificadas: '{fj_texto}'")
-                        continue
-
-                # Validar: F + FJ não pode exceder total de dias do mês
-                total_faltas = f + fj
-                if total_faltas > total_dias_mes:
-                    erros.append(f"Funcionário ID {func_id}: Total de faltas ({total_faltas}) excede os dias do mês ({total_dias_mes})")
-                    continue
-
-                # CALCULAR P automaticamente: P = total_dias_mes - (F + FJ)
-                p = total_dias_mes - total_faltas
-
-                # Se observação estiver vazia, salvar como NULL (permitir apagar)
-                obs_final = obs if obs else None
-
-                # Upsert
-                cast(Any, cur).execute(
+                # Obter observações já salvas para preservar quando não for informado
+                cur_exist = cast(Any, conn).cursor(dictionary=True)
+                cur_exist.execute(
                     """
-                    INSERT INTO funcionario_faltas_mensal (funcionario_id, ano, mes, p, f, fj, observacao)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE p=VALUES(p), f=VALUES(f), fj=VALUES(fj), observacao=VALUES(observacao)
+                    SELECT funcionario_id, observacao
+                    FROM funcionario_faltas_mensal
+                    WHERE ano = %s AND mes = %s
                     """,
-                    (func_id, ano, mes, p, f, fj, obs_final),
+                    (ano, mes),
                 )
-                if cur.rowcount == 1:
-                    inseridos += 1
-                else:
-                    atualizados += 1
+                obs_existente_map = {r["funcionario_id"]: r.get("observacao") for r in cur_exist.fetchall()}
+                try:
+                    cur_exist.close()
+                except Exception:
+                    pass
 
-            if conn:
-                cast(Any, conn).commit()
-            cast(Any, cur).close()
-            if conn:
-                cast(Any, conn).close()
+                inseridos = 0
+                atualizados = 0
+                erros = []
+
+                for func_id, campos in self.inputs_por_id.items():
+                    # Obter valores dos campos (não usar mais P do usuário, será calculado)
+                    f_texto = campos["f"].get().strip()
+                    fj_texto = campos["fj"].get().strip()
+                    obs = campos["obs"].get().strip()
+
+                    # Valores padrão: F = 0, FJ = 0
+                    f = 0
+                    fj = 0
+
+                    # Converter F para número
+                    if f_texto:
+                        try:
+                            f = int(f_texto)
+                            if f < 0:
+                                erros.append(f"Funcionário ID {func_id}: Faltas não podem ser negativas")
+                                continue
+                        except ValueError:
+                            erros.append(f"Funcionário ID {func_id}: Valor inválido para Faltas: '{f_texto}'")
+                            continue
+
+                    # Converter FJ para número
+                    if fj_texto:
+                        try:
+                            fj = int(fj_texto)
+                            if fj < 0:
+                                erros.append(f"Funcionário ID {func_id}: Faltas justificadas não podem ser negativas")
+                                continue
+                        except ValueError:
+                            erros.append(f"Funcionário ID {func_id}: Valor inválido para Faltas Justificadas: '{fj_texto}'")
+                            continue
+
+                    # Validar: F + FJ não pode exceder total de dias do mês
+                    total_faltas = f + fj
+                    if total_faltas > total_dias_mes:
+                        erros.append(f"Funcionário ID {func_id}: Total de faltas ({total_faltas}) excede os dias do mês ({total_dias_mes})")
+                        continue
+
+                    # CALCULAR P automaticamente: P = total_dias_mes - (F + FJ)
+                    p = total_dias_mes - total_faltas
+
+                    # Se observação estiver vazia, salvar como NULL (permitir apagar)
+                    obs_final = obs if obs else None
+
+                    # Upsert
+                    cast(Any, cur).execute(
+                        """
+                        INSERT INTO funcionario_faltas_mensal (funcionario_id, ano, mes, p, f, fj, observacao)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        ON DUPLICATE KEY UPDATE p=VALUES(p), f=VALUES(f), fj=VALUES(fj), observacao=VALUES(observacao)
+                        """,
+                        (func_id, ano, mes, p, f, fj, obs_final),
+                    )
+                    if cur.rowcount == 1:
+                        inseridos += 1
+                    else:
+                        atualizados += 1
+
+                try:
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+                    raise
+                try:
+                    cur.close()
+                except Exception:
+                    pass
             
             # Exibir resultado
             mensagem = f"Faltas salvas com sucesso!\n\nInseridos: {inseridos}\nAtualizados: {atualizados}"

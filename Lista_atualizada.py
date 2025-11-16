@@ -161,7 +161,7 @@ def data_funcionario(escola_id):
         data = cursor.fetchall()  # Retorna todos os registros
         return data
     except Exception as e:
-        logger.error("Erro ao executar a consulta:", str(e))
+        logger.error("Erro ao executar a consulta: %s", str(e))
         return None
     finally:
         try:
@@ -193,7 +193,7 @@ def data_ano_letivo(ano_letivo):
         data = cursor.fetchone()
         return data
     except Exception as e:
-        logger.error("Erro ao executar a consulta:", str(e))
+        logger.error("Erro ao executar a consulta: %s", str(e))
         return None
     finally:
         try:

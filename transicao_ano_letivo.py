@@ -15,6 +15,7 @@ from tkinter import (Tk, Toplevel, Frame, Label, LabelFrame, Button,
                      BOTH, LEFT, X, W, E, RIDGE, DISABLED, NORMAL)
 from tkinter import ttk, messagebox
 from conexao import conectar_bd
+from db.connection import get_connection, get_cursor
 from typing import Any, cast
 from datetime import datetime
 import traceback
@@ -177,47 +178,42 @@ class InterfaceTransicaoAnoLetivo:
     def carregar_dados_iniciais(self):
         """Carrega os dados iniciais do banco"""
         try:
-            conn = conectar_bd()
-            if not conn:
-                messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                return
-            
-            cursor = conn.cursor(dictionary=True)
-            
-            # Buscar ano letivo atual
-            cursor.execute("""
-                SELECT id, ano_letivo 
-                FROM anosletivos 
-                WHERE ano_letivo = YEAR(CURDATE())
-            """)
-            resultado = cast(Any, cursor.fetchone())
-            
-            if not resultado:
-                # Buscar o ano mais recente
+            from db.connection import get_cursor
+
+            with get_cursor() as cursor:
+                # Buscar ano letivo atual
                 cursor.execute("""
                     SELECT id, ano_letivo 
                     FROM anosletivos 
-                    ORDER BY ano_letivo DESC 
-                    LIMIT 1
+                    WHERE ano_letivo = YEAR(CURDATE())
                 """)
                 resultado = cast(Any, cursor.fetchone())
-            
+
+                if not resultado:
+                    # Buscar o ano mais recente
+                    cursor.execute("""
+                        SELECT id, ano_letivo 
+                        FROM anosletivos 
+                        ORDER BY ano_letivo DESC 
+                        LIMIT 1
+                    """)
+                    resultado = cast(Any, cursor.fetchone())
+
             if resultado:
                 self.ano_atual = resultado
                 self.ano_novo = {
                     'ano_letivo': resultado['ano_letivo'] + 1
                 }
-                
+
                 self.label_ano_atual.config(text=f"{resultado['ano_letivo']}")
                 self.label_ano_novo.config(text=f"{self.ano_novo['ano_letivo']}")
-                
-                # Carregar estatísticas
-                self.carregar_estatisticas(cursor)
+
+                # Carregar estatísticas (reabre cursor dentro da função)
+                # carregar_estatisticas espera receber um cursor, então abrimos um temporário
+                with get_cursor() as cur_stats:
+                    self.carregar_estatisticas(cur_stats)
             else:
                 messagebox.showerror("Erro", "Nenhum ano letivo encontrado no sistema.")
-            
-            cursor.close()
-            conn.close()
             
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar dados: {str(e)}")
@@ -431,154 +427,144 @@ class InterfaceTransicaoAnoLetivo:
         self.progressbar['value'] = 0
         
         try:
-            conn = conectar_bd()
-            if not conn:
-                messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                return
-            
-            cursor = conn.cursor(dictionary=True)
-            
-            # Passo 1: Criar novo ano letivo
-            self.atualizar_status("Criando novo ano letivo...", 10)
-            cursor.execute("""
-                INSERT INTO anosletivos (ano_letivo)
-                VALUES (%s)
-                ON DUPLICATE KEY UPDATE ano_letivo = ano_letivo
-            """, (self.ano_novo['ano_letivo'],))
-            conn.commit()
-            
-            # Buscar ID do novo ano
-            cursor.execute("""
-                SELECT id FROM anosletivos WHERE ano_letivo = %s
-            """, (self.ano_novo['ano_letivo'],))
-            _tmp = cast(Any, cursor.fetchone())
-            novo_ano_id = _tmp['id']
-            
-            # Passo 2: Encerrar matrículas antigas
-            self.atualizar_status("Encerrando matrículas do ano anterior...", 30)
-            cursor.execute("""
-                UPDATE Matriculas
-                SET status = 'Concluído'
-                WHERE ano_letivo_id = %s
-                AND status = 'Ativo'
-            """, (self.ano_atual['id'],))
-            conn.commit()
-            
-            # Passo 3: Buscar alunos ativos para rematricular
-            self.atualizar_status("Buscando alunos para rematricular...", 50)
-            
-            # Buscar turmas do 9º ano
-            cursor.execute("""
-                SELECT t.id
-                FROM turmas t
-                JOIN serie s ON t.serie_id = s.id
-                WHERE s.nome LIKE '9%'
-                AND t.escola_id = 60
-            """)
-            _rows = cast(Any, cursor.fetchall())
-            turmas_9ano = [row['id'] for row in _rows]
-            
-            # Buscar alunos que NÃO são do 9º ano (esses vão para o próximo ano)
-            cursor.execute("""
-                SELECT DISTINCT 
-                    a.id as aluno_id,
-                    m.turma_id
-                FROM Alunos a
-                JOIN Matriculas m ON a.id = m.aluno_id
-                WHERE m.ano_letivo_id = %s
-                AND m.status = 'Concluído'
-                AND a.escola_id = 60
-                AND m.turma_id NOT IN ({})
-            """.format(','.join(['%s'] * len(turmas_9ano)) if turmas_9ano else "0"), 
-            (self.ano_atual['id'],) + tuple(turmas_9ano) if turmas_9ano else (self.ano_atual['id'],))
-            
-            alunos_normais = cast(Any, cursor.fetchall())
-            
-            # Buscar alunos do 9º ano REPROVADOS (média < 60)
-            if turmas_9ano:
+            # Usar get_connection para garantir fechamento e controle de transação
+            with get_connection() as conn:
+                cursor = conn.cursor(dictionary=True)
+
+                # Passo 1: Criar novo ano letivo
+                self.atualizar_status("Criando novo ano letivo...", 10)
+                cursor.execute("""
+                    INSERT INTO anosletivos (ano_letivo)
+                    VALUES (%s)
+                    ON DUPLICATE KEY UPDATE ano_letivo = ano_letivo
+                """, (self.ano_novo['ano_letivo'],))
+                conn.commit()
+
+                # Buscar ID do novo ano
+                cursor.execute("""
+                    SELECT id FROM anosletivos WHERE ano_letivo = %s
+                """, (self.ano_novo['ano_letivo'],))
+                _tmp = cast(Any, cursor.fetchone())
+                novo_ano_id = _tmp['id']
+
+                # Passo 2: Encerrar matrículas antigas
+                self.atualizar_status("Encerrando matrículas do ano anterior...", 30)
+                cursor.execute("""
+                    UPDATE Matriculas
+                    SET status = 'Concluído'
+                    WHERE ano_letivo_id = %s
+                    AND status = 'Ativo'
+                """, (self.ano_atual['id'],))
+                conn.commit()
+
+                # Passo 3: Buscar alunos ativos para rematricular
+                self.atualizar_status("Buscando alunos para rematricular...", 50)
+
+                # Buscar turmas do 9º ano
+                cursor.execute("""
+                    SELECT t.id
+                    FROM turmas t
+                    JOIN serie s ON t.serie_id = s.id
+                    WHERE s.nome LIKE '9%'
+                    AND t.escola_id = 60
+                """)
+                _rows = cast(Any, cursor.fetchall())
+                turmas_9ano = [row['id'] for row in _rows]
+
+                # Buscar alunos que NÃO são do 9º ano (esses vão para o próximo ano)
                 cursor.execute("""
                     SELECT DISTINCT 
                         a.id as aluno_id,
-                        m.turma_id,
-                        -- Calcular média final
-                        (
-                            COALESCE(AVG(CASE WHEN n.bimestre = '1º bimestre' THEN n.nota END), 0) +
-                            COALESCE(AVG(CASE WHEN n.bimestre = '2º bimestre' THEN n.nota END), 0) +
-                            COALESCE(AVG(CASE WHEN n.bimestre = '3º bimestre' THEN n.nota END), 0) +
-                            COALESCE(AVG(CASE WHEN n.bimestre = '4º bimestre' THEN n.nota END), 0)
-                        ) / 4 as media_final
+                        m.turma_id
                     FROM Alunos a
                     JOIN Matriculas m ON a.id = m.aluno_id
-                    LEFT JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = %s
                     WHERE m.ano_letivo_id = %s
                     AND m.status = 'Concluído'
                     AND a.escola_id = 60
-                    AND m.turma_id IN ({})
-                    GROUP BY a.id, m.turma_id
-                    HAVING media_final < 60 OR media_final IS NULL
-                """.format(','.join(['%s'] * len(turmas_9ano))),
-                (self.ano_atual['id'], self.ano_atual['id']) + tuple(turmas_9ano))
-                
-                alunos_9ano_reprovados = cast(Any, cursor.fetchall())
-            else:
-                alunos_9ano_reprovados = []
-            
-            # Combinar todos os alunos que serão rematriculados
-            alunos = alunos_normais + alunos_9ano_reprovados
-            total_alunos = len(alunos)
-            
-            # Passo 4: Criar novas matrículas
-            self.atualizar_status(f"Criando {total_alunos} novas matrículas...", 60)
-            
-            for i, aluno in enumerate(alunos):
-                cursor.execute("""
-                    INSERT INTO Matriculas (aluno_id, turma_id, ano_letivo_id, status)
-                    VALUES (%s, %s, %s, 'Ativo')
-                """, (aluno['aluno_id'], aluno['turma_id'], novo_ano_id))
-                
-                # Atualizar progresso
-                progresso = 60 + (i + 1) / total_alunos * 30
-                self.progressbar['value'] = progresso
-                self.janela.update()
-            
-            conn.commit()
-            
-            # Finalizar
-            self.atualizar_status("Transição concluída com sucesso!", 100)
-            
-            cursor.close()
-            conn.close()
-            
-            messagebox.showinfo(
-                "✅ Sucesso!",
-                f"Transição de ano letivo concluída com sucesso!\n\n"
-                f"✓ Ano letivo {self.ano_novo['ano_letivo']} criado\n"
-                f"✓ {self.estatisticas['total_matriculas']} matrículas encerradas\n"
-                f"✓ {total_alunos} novas matrículas criadas\n"
-                f"   • {self.estatisticas['alunos_continuar']} alunos (1º ao 8º ano)\n"
-                f"   • {self.estatisticas.get('alunos_9ano_reprovados', 0)} alunos do 9º ano reprovados\n\n"
-                f"ℹ️ Alunos do 9º ano aprovados não foram rematriculados\n"
-                f"   (concluíram o ensino fundamental)\n\n"
-                f"O sistema agora está configurado para o ano {self.ano_novo['ano_letivo']}."
-            )
-            
-            self.fechar()
-            
+                    AND m.turma_id NOT IN ({})
+                """.format(','.join(['%s'] * len(turmas_9ano)) if turmas_9ano else "0"), 
+                (self.ano_atual['id'],) + tuple(turmas_9ano) if turmas_9ano else (self.ano_atual['id'],))
+
+                alunos_normais = cast(Any, cursor.fetchall())
+
+                # Buscar alunos do 9º ano REPROVADOS (média < 60)
+                if turmas_9ano:
+                    cursor.execute("""
+                        SELECT DISTINCT 
+                            a.id as aluno_id,
+                            m.turma_id,
+                            -- Calcular média final
+                            (
+                                COALESCE(AVG(CASE WHEN n.bimestre = '1º bimestre' THEN n.nota END), 0) +
+                                COALESCE(AVG(CASE WHEN n.bimestre = '2º bimestre' THEN n.nota END), 0) +
+                                COALESCE(AVG(CASE WHEN n.bimestre = '3º bimestre' THEN n.nota END), 0) +
+                                COALESCE(AVG(CASE WHEN n.bimestre = '4º bimestre' THEN n.nota END), 0)
+                            ) / 4 as media_final
+                        FROM Alunos a
+                        JOIN Matriculas m ON a.id = m.aluno_id
+                        LEFT JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = %s
+                        WHERE m.ano_letivo_id = %s
+                        AND m.status = 'Concluído'
+                        AND a.escola_id = 60
+                        AND m.turma_id IN ({})
+                        GROUP BY a.id, m.turma_id
+                        HAVING media_final < 60 OR media_final IS NULL
+                    """.format(','.join(['%s'] * len(turmas_9ano))),
+                    (self.ano_atual['id'], self.ano_atual['id']) + tuple(turmas_9ano))
+
+                    alunos_9ano_reprovados = cast(Any, cursor.fetchall())
+                else:
+                    alunos_9ano_reprovados = []
+
+                # Combinar todos os alunos que serão rematriculados
+                alunos = alunos_normais + alunos_9ano_reprovados
+                total_alunos = len(alunos)
+
+                # Passo 4: Criar novas matrículas
+                self.atualizar_status(f"Criando {total_alunos} novas matrículas...", 60)
+
+                for i, aluno in enumerate(alunos):
+                    cursor.execute("""
+                        INSERT INTO Matriculas (aluno_id, turma_id, ano_letivo_id, status)
+                        VALUES (%s, %s, %s, 'Ativo')
+                    """, (aluno['aluno_id'], aluno['turma_id'], novo_ano_id))
+
+                    # Atualizar progresso
+                    progresso = 60 + (i + 1) / total_alunos * 30
+                    self.progressbar['value'] = progresso
+                    self.janela.update()
+
+                conn.commit()
+
+                # Finalizar
+                self.atualizar_status("Transição concluída com sucesso!", 100)
+
+                cursor.close()
+
+                messagebox.showinfo(
+                    "✅ Sucesso!",
+                    f"Transição de ano letivo concluída com sucesso!\n\n"
+                    f"✓ Ano letivo {self.ano_novo['ano_letivo']} criado\n"
+                    f"✓ {self.estatisticas['total_matriculas']} matrículas encerradas\n"
+                    f"✓ {total_alunos} novas matrículas criadas\n"
+                    f"   • {self.estatisticas['alunos_continuar']} alunos (1º ao 8º ano)\n"
+                    f"   • {self.estatisticas.get('alunos_9ano_reprovados', 0)} alunos do 9º ano reprovados\n\n"
+                    f"ℹ️ Alunos do 9º ano aprovados não foram rematriculados\n"
+                    f"   (concluíram o ensino fundamental)\n\n"
+                    f"O sistema agora está configurado para o ano {self.ano_novo['ano_letivo']}.")
+
+                self.fechar()
+
         except Exception as e:
-            if 'conn' in locals() and conn:
-                try:
+            try:
+                if 'conn' in locals() and conn:
                     conn.rollback()
-                except Exception:
-                    pass
+            except Exception:
+                pass
             messagebox.showerror("Erro", f"Erro ao executar transição:\n{str(e)}")
             traceback.print_exc()
             self.btn_simular.config(state=NORMAL)
             self.btn_executar.config(state=NORMAL)
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
-            if 'conn' in locals() and conn:
-                conn.close()
     
     def atualizar_status(self, mensagem, valor):
         """Atualiza o status e a barra de progresso"""

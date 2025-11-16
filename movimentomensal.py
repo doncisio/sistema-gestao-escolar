@@ -11,6 +11,7 @@ from biblio_editor import create_pdf_buffer, quebra_linha, get_nome_mes
 from Lista_atualizada import fetch_student_data
 from gerarPDF import salvar_e_abrir_pdf
 from conexao import conectar_bd
+from db.connection import get_connection, get_cursor
 import pymysql
 import re
 from reportlab.lib.pagesizes import landscape
@@ -812,19 +813,21 @@ def relatorio_movimentacao_mensal(mes=None):
     figura_superior = os.path.join(os.path.dirname(__file__), 'logosemed.png')
     figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
     
-    # Estabelecer conexão com o banco de dados
-    conn: Any = conectar_bd()
-    cursor = cast(Any, conn).cursor(dictionary=True)
-    
-    # Buscar dados dos professores e tutores
-    professores_1_5 = buscar_corpo_docente_1_5(cursor, escola_id=60)
-    professores_6_9 = buscar_corpo_docente_6_9(cursor, escola_id=60)
-    tutores = buscar_tutores(cursor, escola_id=60)
-    funcionarios_admin = buscar_funcionarios_administrativos(cursor, escola_id=60)
-    
-    # Fechar conexão
-    cursor.close()
-    conn.close()
+    # Estabelecer conexão com o banco de dados e buscar dados necessários
+    with get_connection() as conn:
+        cursor = cast(Any, conn).cursor(dictionary=True)
+
+        # Buscar dados dos professores e tutores
+        professores_1_5 = buscar_corpo_docente_1_5(cursor, escola_id=60)
+        professores_6_9 = buscar_corpo_docente_6_9(cursor, escola_id=60)
+        tutores = buscar_tutores(cursor, escola_id=60)
+        funcionarios_admin = buscar_funcionarios_administrativos(cursor, escola_id=60)
+
+        # fechar cursor explicitamente (get_connection garante fechamento da conexão)
+        try:
+            cursor.close()
+        except Exception:
+            pass
     
     # Criar buffers separados para cada parte do relatório
     # 1. Capa (retrato)
@@ -941,17 +944,16 @@ def gerar_relatorio_1_5(elements, cabecalho, figura_inferior, mes):
     ano_letivo = 2025
     
     # Conectar ao banco para obter as datas do ano letivo
-    conn: Any = conectar_bd()
-    cursor = cast(Any, conn).cursor(dictionary=True)
-    
-    # Buscar datas do ano letivo
-    cursor.execute("SELECT id, data_inicio, data_fim FROM anosletivos WHERE ano_letivo = %s", (ano_letivo,))
-    datas_ano_letivo = cursor.fetchone()
-    
+    from db.connection import get_cursor
+    with get_cursor() as cursor:
+        # Buscar datas do ano letivo
+        cursor.execute("SELECT id, data_inicio, data_fim FROM anosletivos WHERE ano_letivo = %s", (ano_letivo,))
+        datas_ano_letivo = cursor.fetchone()
+
     if not datas_ano_letivo:
         logger.info("Ano letivo não encontrado")
         return
-        
+
     data_inicio = datas_ano_letivo['data_inicio']
     data_fim = datas_ano_letivo['data_fim']
     ano_letivo_id = datas_ano_letivo['id']
@@ -1283,17 +1285,16 @@ def gerar_relatorio_6_9(elements, cabecalho, figura_inferior, mes):
     ano_letivo = 2025
     
     # Conectar ao banco para obter as datas do ano letivo
-    conn: Any = conectar_bd()
-    cursor = cast(Any, conn).cursor(dictionary=True)
-    
-    # Buscar datas do ano letivo
-    cursor.execute("SELECT id, data_inicio, data_fim FROM anosletivos WHERE ano_letivo = %s", (ano_letivo,))
-    datas_ano_letivo = cursor.fetchone()
-    
+    from db.connection import get_cursor
+    with get_cursor() as cursor:
+        # Buscar datas do ano letivo
+        cursor.execute("SELECT id, data_inicio, data_fim FROM anosletivos WHERE ano_letivo = %s", (ano_letivo,))
+        datas_ano_letivo = cursor.fetchone()
+
     if not datas_ano_letivo:
         logger.info("Ano letivo não encontrado")
         return
-        
+
     data_inicio = datas_ano_letivo['data_inicio']
     data_fim = datas_ano_letivo['data_fim']
     ano_letivo_id = datas_ano_letivo['id']

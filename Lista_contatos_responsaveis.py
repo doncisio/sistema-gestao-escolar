@@ -45,7 +45,7 @@ def buscar_contatos_alunos(ano_letivo: int):
         registros = cursor.fetchall()
         return registros
     except Exception as e:
-        logger.error("Erro ao executar a consulta:", str(e))
+        logger.error("Erro ao executar a consulta: %s", str(e))
         return []
     finally:
         try:

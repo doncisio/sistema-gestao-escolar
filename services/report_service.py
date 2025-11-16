@@ -15,8 +15,24 @@ def _find_image_in_repo(filename: str) -> Optional[str]:
     """
     import os as _os
 
-    repo_root = _os.path.abspath(_os.getcwd())
+    # Tentativa 1: localizar raiz do repositório subindo a partir do diretório do módulo
     mod_dir = _os.path.dirname(__file__)
+    repo_root = None
+    cur = mod_dir
+    for _ in range(6):  # subir até 6 níveis para tentar achar o root do projeto
+        if not cur:
+            break
+        if _os.path.exists(_os.path.join(cur, 'main.py')) or _os.path.exists(_os.path.join(cur, '.git')):
+            repo_root = cur
+            break
+        parent = _os.path.dirname(cur)
+        if parent == cur:
+            break
+        cur = parent
+
+    # Fallback: usar cwd se não encontramos um root evidente
+    if repo_root is None:
+        repo_root = _os.path.abspath(_os.getcwd())
 
     candidates = [
         _os.path.join(mod_dir, filename),
@@ -39,7 +55,28 @@ def _find_image_in_repo(filename: str) -> Optional[str]:
         if _os.path.exists(c_abs):
             return c_abs
 
-    logger.warning("Imagem '%s' não encontrada nos locais procurados; locais: %s", filename, ','.join(candidates))
+    # Última tentativa: busca rasa (limitada a 3 níveis) a partir de repo_root
+    try:
+        repo_root_abs = _os.path.abspath(repo_root)
+        for dirpath, dirnames, files in _os.walk(repo_root_abs):
+            # limitar profundidade relativa para evitar varredura massiva
+            rel = _os.path.relpath(dirpath, repo_root_abs)
+            depth = 0 if rel == '.' else rel.count(_os.path.sep) + 1
+            if depth > 3:
+                # não descer mais neste ramo
+                dirnames.clear()
+                continue
+            if filename in files:
+                return _os.path.join(dirpath, filename)
+            # também checar variações de extensão
+            for e in other_exts:
+                alt = base + e
+                if alt in files:
+                    return _os.path.join(dirpath, alt)
+    except Exception:
+        pass
+
+    logger.warning("Imagem '%s' não encontrada nos locais procurados; exemplos: %s", filename, ','.join(candidates))
     return None
 
 

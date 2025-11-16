@@ -117,7 +117,7 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
             cursor.close()
             conn.close()
         except mysql.connector.Error as err:
-            logger.error("Erro ao carregar dados do aluno:", err)
+            logger.error("Erro ao carregar dados do aluno: %s", err)
     
     # Função para criar a interface de responsáveis
     def criar_interface_responsaveis():
@@ -307,10 +307,10 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
 
             messagebox.showinfo("Sucesso", "Dados do aluno salvos com sucesso.")
         except mysql.connector.Error as err:
-            logger.error("Erro ao salvar dados do aluno:", err)
+            logger.error("Erro ao salvar dados do aluno: %s", err)
             messagebox.showerror("Erro", f"Não foi possível salvar os dados do aluno: {err}")
         except Exception as err:
-            logger.error("Erro geral ao salvar dados do aluno:", err)
+            logger.error("Erro geral ao salvar dados do aluno: %s", err)
             messagebox.showerror("Erro", f"Erro inesperado: {err}")
 
     # Função para salvar as alterações dos responsáveis
@@ -392,7 +392,7 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
             conn.close()
             messagebox.showinfo("Sucesso", "Dados dos responsáveis salvos com sucesso!")
         except mysql.connector.Error as err:
-            logger.error("Erro ao salvar dados dos responsáveis:", err)
+            logger.error("Erro ao salvar dados dos responsáveis: %s", err)
             messagebox.showerror("Erro", f"Não foi possível salvar os dados dos responsáveis: {err}")
             
     # Função para salvar tudo (aluno e responsáveis)
@@ -406,7 +406,7 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
 
             messagebox.showinfo("Sucesso", "Dados do aluno e dos responsáveis salvos com sucesso!")
         except Exception as err:
-            logger.error("Erro ao salvar dados:", err)
+            logger.error("Erro ao salvar dados: %s", err)
             messagebox.showerror("Erro", "Não foi possível salvar os dados.")
 
     # Configura o gerenciador de layout do frame_dados
@@ -484,10 +484,10 @@ def editar_aluno(frame_detalhes, frame_dados, frame_tabela, treeview, query, alu
             series = cursor.fetchall()
             cursor.close()
             conn.close()
-            logger.info("Séries obtidas:", series)
+            logger.info("Séries obtidas: %s", series)
             return series
         except mysql.connector.Error as err:
-            logger.error("Erro ao obter séries:", err)
+            logger.error("Erro ao obter séries: %s", err)
             return []
 
     def obter_turmas(serie_id):
