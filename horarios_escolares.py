@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import pandas as pd
@@ -97,16 +99,16 @@ class InterfaceHorariosEscolares:
                 # Primeiro vamos listar todos os níveis de ensino disponíveis para debugar
                 cursor.execute("SELECT id, nome FROM niveisensino")
                 niveis = cursor.fetchall()
-                print("Níveis de ensino disponíveis:")
+                logger.info("Níveis de ensino disponíveis:")
                 for nivel in niveis:
-                    print(f"  ID: {nivel['id']}, Nome: {nivel['nome']}")
+                    logger.info(f"  ID: {nivel['id']}, Nome: {nivel['nome']}")
                 
                 # Agora vamos listar todas as séries
                 cursor.execute("SELECT id, nome, nivel_id FROM serie")
                 todas_series = cursor.fetchall()
-                print("\nTodas as séries disponíveis:")
+                logger.info("\nTodas as séries disponíveis:")
                 for serie in todas_series:
-                    print(f"  ID: {serie['id']}, Nome: {serie['nome']}, Nível ID: {serie['nivel_id']}")
+                    logger.info(f"  ID: {serie['id']}, Nome: {serie['nome']}, Nível ID: {serie['nivel_id']}")
                 
                 # Buscar apenas as séries de interesse
                 cursor.execute("""
@@ -117,21 +119,21 @@ class InterfaceHorariosEscolares:
                     ORDER BY nome
                 """)
                 self.series_dados = cursor.fetchall()
-                print(f"\nSéries específicas carregadas: {len(self.series_dados)}")
+                logger.info(f"\nSéries específicas carregadas: {len(self.series_dados)}")
                 for serie in self.series_dados:
-                    print(f"  ID: {serie['id']}, Nome: {serie['nome']}")
+                    logger.info(f"  ID: {serie['id']}, Nome: {serie['nome']}")
                     
                 # Se não encontrar nenhuma série, podemos procurar usando IDs específicos baseados na tabela turmas
                 if not self.series_dados:
                     # IDs das séries que aparecem na tabela turmas: 3, 4, 5, 6, 7, 8, 9, 10, 11
                     cursor.execute("SELECT id, nome FROM serie WHERE id IN (3, 4, 5, 6, 7, 8, 9, 10, 11) ORDER BY id")
                     self.series_dados = cursor.fetchall()
-                    print(f"\nSéries por ID específico: {len(self.series_dados)}")
+                    logger.info(f"\nSéries por ID específico: {len(self.series_dados)}")
                     for serie in self.series_dados:
-                        print(f"  ID: {serie['id']}, Nome: {serie['nome']}")
+                        logger.info(f"  ID: {serie['id']}, Nome: {serie['nome']}")
                 
             except Exception as e:
-                print(f"Erro ao carregar séries: {str(e)}")
+                logger.error(f"Erro ao carregar séries: {str(e)}")
                 # Criar séries padrão para fallback
                 self.series_dados = [
                     {'id': 3, 'nome': "1º Ano"},
@@ -154,9 +156,9 @@ class InterfaceHorariosEscolares:
                     ORDER BY nome
                 """)
                 self.professores = cursor.fetchall()
-                print(f"Professores carregados: {len(self.professores)}")
+                logger.info(f"Professores carregados: {len(self.professores)}")
             except Exception as e:
-                print(f"Erro ao carregar professores: {str(e)}")
+                logger.error(f"Erro ao carregar professores: {str(e)}")
                 # Criar professores padrão para fallback
                 self.professores = [
                     {'id': 1, 'nome': 'Ana Maria Silva', 'cargo': 'Professor@', 'polivalente': 'sim'},
@@ -174,9 +176,9 @@ class InterfaceHorariosEscolares:
                     ORDER BY nome
                 """)
                 self.disciplinas = cursor.fetchall()
-                print(f"Disciplinas carregadas: {len(self.disciplinas)}")
+                logger.info(f"Disciplinas carregadas: {len(self.disciplinas)}")
             except Exception as e:
-                print(f"Erro ao carregar disciplinas: {str(e)}")
+                logger.error(f"Erro ao carregar disciplinas: {str(e)}")
                 # Criar disciplinas padrão para fallback
                 self.disciplinas = [
                     {'id': 1, 'nome': 'LÍNGUA PORTUGUESA'},
@@ -192,7 +194,7 @@ class InterfaceHorariosEscolares:
             conn.close()
             
         except Exception as e:
-            print(f"Erro geral ao carregar dados: {str(e)}")
+            logger.error(f"Erro geral ao carregar dados: {str(e)}")
             messagebox.showwarning("Aviso", f"Ocorreu um erro ao carregar dados do banco. Usando dados padrão.")
             # Os dados padrão já foram inicializados
     
@@ -377,9 +379,9 @@ class InterfaceHorariosEscolares:
             turmas = cursor.fetchall()
             
             # Debug
-            print(f"Turmas encontradas para série {serie_id}, turno {turno_bd}:")
+            logger.info(f"Turmas encontradas para série {serie_id}, turno {turno_bd}:")
             for t in turmas:
-                print(f"  ID: {t['id']}, Nome: '{t['nome']}', Serie ID: {t['serie_id']}")
+                logger.info(f"  ID: {t['id']}, Nome: '{t['nome']}', Serie ID: {t['serie_id']}")
             
             if turmas:
                 self.turmas_dados = []
@@ -425,7 +427,7 @@ class InterfaceHorariosEscolares:
                 
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar turmas: {str(e)}")
-            print(f"Erro detalhado: {str(e)}")
+            logger.error(f"Erro detalhado: {str(e)}")
             
             # Fallback para dados fictícios em caso de erro
             turma_nomes = [f"Turma {serie_nome} {letra}" for letra in "ABC"]
@@ -926,9 +928,9 @@ class InterfaceHorariosEscolares:
         messagebox.showinfo("Sucesso", f"Horários da {self.turma_atual} salvos com sucesso!")
         
         # Para DEBUG: mostrar os dados que seriam salvos
-        print("Dados a salvar:")
+        logger.info("Dados a salvar:")
         for item in dados_horario:
-            print(f"  {item['dia']} {item['horario']}: {item['valor']}")
+            logger.info(f"  {item['dia']} {item['horario']}: {item['valor']}")
     
     def imprimir_horarios(self):
         # Verificar se uma turma está selecionada

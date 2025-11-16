@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 import io
 import os
 import pandas as pd
@@ -19,7 +21,7 @@ def lista_notas():
     dados_aluno = fetch_student_data(ano_letivo)
 
     if not dados_aluno:
-        print("Nenhum dado de aluno encontrado.")
+        logger.info("Nenhum dado de aluno encontrado.")
         return
 
     df = pd.DataFrame(dados_aluno)
@@ -71,7 +73,7 @@ def lista_notas():
 
     # 4. Loop Principal: Agrupar por Turma e Adicionar Tabelas
     for (nome_serie, nome_turma, turno), turma_df in df.groupby(['NOME_SERIE', 'NOME_TURMA', 'TURNO']):
-        print(f"Processando turma: {nome_serie} {nome_turma} {turno}")  # Debug
+        logger.info(f"Processando turma: {nome_serie} {nome_turma} {turno}")  # Debug
         
         if turma_df[turma_df['ID_SERIE'] > 7].empty:
             # Tabela regular para anos iniciais
@@ -79,13 +81,13 @@ def lista_notas():
             
             # Tabelas para professores volantes - apenas para suas turmas específicas
             for professor in professores_volantes:
-                print(f"Verificando professor {professor['nome']} para turma {nome_serie}")  # Debug
-                print(f"Turmas do professor: {professor['turmas']}")  # Debug
+                logger.info(f"Verificando professor {professor['nome']} para turma {nome_serie}")  # Debug
+                logger.info(f"Turmas do professor: {professor['turmas']}")  # Debug
                 
                 # Normaliza o nome da série para comparação
                 serie_normalizada = nome_serie.strip().upper()
                 if serie_normalizada in [t.strip().upper() for t in professor["turmas"]]:
-                    print(f"Gerando tabela para professor {professor['nome']} na turma {nome_serie}")  # Debug
+                    logger.info(f"Gerando tabela para professor {professor['nome']} na turma {nome_serie}")  # Debug
                     adicionar_tabela_professor_volante(
                         elements, 
                         cabecalho, 

@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 import io
 import os
 import pandas as pd
@@ -16,7 +18,7 @@ def gerar_lista_reuniao():
     dados_aluno = fetch_student_data(ano_letivo)
     
     if not dados_aluno:
-        print("Nenhum dado de aluno encontrado.")
+        logger.info("Nenhum dado de aluno encontrado.")
         return
         
     df = pd.DataFrame(dados_aluno)
@@ -52,7 +54,7 @@ def gerar_lista_reuniao():
         nome_turma_completo = f"{nome_serie} {nome_turma}" if nome_turma else nome_serie
         
         if nome_turma_completo not in PASTAS_TURMAS:
-            print(f"Aviso: Turma '{nome_turma_completo}' não está mapeada para uma pasta. Pulando...")
+            logger.info(f"Aviso: Turma '{nome_turma_completo}' não está mapeada para uma pasta. Pulando...")
             continue
             
         buffer = io.BytesIO()

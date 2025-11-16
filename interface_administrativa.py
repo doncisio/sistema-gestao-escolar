@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 from tkinter import (
     Label, Frame, Button, Entry, Toplevel, Canvas, Scrollbar,
     NW, LEFT, RIGHT, TOP, BOTTOM, W, E, N, S,
@@ -969,7 +971,7 @@ class InterfaceAdministrativa:
                             ))
                             
                     except Exception as e:
-                        print(f"Erro ao carregar cargas horárias: {str(e)}")
+                        logger.error(f"Erro ao carregar cargas horárias: {str(e)}")
                 
                 # Carregar cargas horárias iniciais
                 carregar_cargas_horarias()
@@ -1363,7 +1365,7 @@ class InterfaceAdministrativa:
                         except ValueError:
                             messagebox.showwarning("Aviso", "A carga horária total deve ser um número inteiro. Este campo não foi salvo.")
                         except Exception as e:
-                            print(f"Erro ao salvar carga horária total: {str(e)}")
+                            logger.error(f"Erro ao salvar carga horária total: {str(e)}")
                     
                     # Montar mensagem de sucesso
                     mensagem = "Operações realizadas com sucesso!\n\n"
@@ -1700,7 +1702,7 @@ class InterfaceAdministrativa:
                             ))
                             
                     except Exception as e:
-                        print(f"Erro ao carregar cargas horárias: {str(e)}")
+                        logger.error(f"Erro ao carregar cargas horárias: {str(e)}")
                 
                 # Carregar cargas horárias iniciais
                 carregar_cargas_horarias()
@@ -2094,7 +2096,7 @@ class InterfaceAdministrativa:
                         except ValueError:
                             messagebox.showwarning("Aviso", "A carga horária total deve ser um número inteiro. Este campo não foi salvo.")
                         except Exception as e:
-                            print(f"Erro ao salvar carga horária total: {str(e)}")
+                            logger.error(f"Erro ao salvar carga horária total: {str(e)}")
                     
                     # Montar mensagem de sucesso
                     mensagem = "Operações realizadas com sucesso!\n\n"
@@ -2354,7 +2356,7 @@ class InterfaceAdministrativa:
                 canvas.yview_scroll(-1, "units")
         except Exception as e:
             # Em caso de erro, apenas ignorar para não afetar a experiência do usuário
-            print(f"Erro ao processar rolagem do mouse: {str(e)}")
+            logger.error(f"Erro ao processar rolagem do mouse: {str(e)}")
 
     def __del__(self):
         # Método não é mais necessário pois a limpeza está em fechar_janela

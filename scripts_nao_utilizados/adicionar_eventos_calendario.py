@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 import sys
 import os
 import tkinter as tk
@@ -216,8 +218,8 @@ def adicionar_eventos():
     contador_erro = 0
     eventos_com_erro = []
     
-    print("Iniciando a adição de eventos ao calendário...")
-    print(f"Total de eventos a adicionar: {len(eventos)}")
+    logger.info("Iniciando a adição de eventos ao calendário...")
+    logger.info(f"Total de eventos a adicionar: {len(eventos)}")
     
     # Para cada evento, adiciona ao banco de dados
     for evento in eventos:
@@ -239,27 +241,27 @@ def adicionar_eventos():
             
             if resultado:
                 contador_sucesso += 1
-                print(f"Evento adicionado: {evento['data']} - {evento['nome']}")
+                logger.info(f"Evento adicionado: {evento['data']} - {evento['nome']}")
             else:
                 contador_erro += 1
                 eventos_com_erro.append(f"{evento['data']} - {evento['nome']}")
-                print(f"Erro ao adicionar evento: {evento['data']} - {evento['nome']}")
+                logger.error(f"Erro ao adicionar evento: {evento['data']} - {evento['nome']}")
                 
         except Exception as e:
             contador_erro += 1
             eventos_com_erro.append(f"{evento['data']} - {evento['nome']}: {str(e)}")
-            print(f"Exceção ao adicionar evento: {evento['data']} - {evento['nome']}: {e}")
+            logger.info(f"Exceção ao adicionar evento: {evento['data']} - {evento['nome']}: {e}")
     
     # Exibe o resultado final
-    print("\n=== RESUMO DA OPERAÇÃO ===")
-    print(f"Total de eventos processados: {len(eventos)}")
-    print(f"Eventos adicionados com sucesso: {contador_sucesso}")
-    print(f"Eventos com erro: {contador_erro}")
+    logger.info("\n=== RESUMO DA OPERAÇÃO ===")
+    logger.info(f"Total de eventos processados: {len(eventos)}")
+    logger.info(f"Eventos adicionados com sucesso: {contador_sucesso}")
+    logger.error(f"Eventos com erro: {contador_erro}")
     
     if eventos_com_erro:
-        print("\nLista de eventos com erro:")
+        logger.error("\nLista de eventos com erro:")
         for evento in eventos_com_erro:
-            print(f"- {evento}")
+            logger.info(f"- {evento}")
     
     return contador_sucesso > 0
 

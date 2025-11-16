@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 from interface_historico_escolar import InterfaceHistoricoEscolar
 import tkinter as tk
 from tkinter import ttk
@@ -82,7 +84,7 @@ def abrir_historico_aluno(aluno_id, janela_pai=None):
     from conexao import conectar_bd
     conn = conectar_bd()
     if conn is None:
-        print("✗ Falha ao conectar ao banco de dados")
+        logger.error("✗ Falha ao conectar ao banco de dados")
         janela.destroy()
         return
 
@@ -118,7 +120,7 @@ def abrir_historico_aluno(aluno_id, janela_pai=None):
         janela.mainloop()
     else:
         janela.destroy()
-        print(f"Aluno com ID {aluno_id} não encontrado.")
+        logger.info(f"Aluno com ID {aluno_id} não encontrado.")
 
 if __name__ == "__main__":
     # Teste da interface

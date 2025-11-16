@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 import io
 import os
 import pandas as pd
@@ -16,14 +18,14 @@ from typing import Any, cast
 def fetch_student_data(ano_letivo):
     conn: Any = conectar_bd()
     if not conn:
-        print("Não foi possível conectar ao banco de dados.")
+        logger.info("Não foi possível conectar ao banco de dados.")
         return None
     cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
     # Busca as datas de início e fim do ano letivo
     data_ano = data_ano_letivo(ano_letivo)
     if not data_ano:
-        print("Ano letivo não encontrado.")
+        logger.info("Ano letivo não encontrado.")
         try:
             cast(Any, cursor).close()
         except Exception:
@@ -103,10 +105,10 @@ def fetch_student_data(ano_letivo):
     try:
         cursor.execute(query, (ano_letivo,))
         dados_aluno = cursor.fetchall()
-        print("Total de alunos encontrados:", len(dados_aluno))
+        logger.info("Total de alunos encontrados:", len(dados_aluno))
         return dados_aluno
     except Exception as e:
-        print("Erro ao executar a consulta:", str(e))
+        logger.error("Erro ao executar a consulta:", str(e))
         return None
     finally:
         try:
@@ -137,7 +139,7 @@ def data_ano_letivo(ano_letivo):
         data = cursor.fetchone()
         return data
     except Exception as e:
-        print("Erro ao executar a consulta:", str(e))
+        logger.error("Erro ao executar a consulta:", str(e))
         return None
     finally:
         try:

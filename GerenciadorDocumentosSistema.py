@@ -14,6 +14,9 @@ import pickle
 import mimetypes
 from dotenv import load_dotenv
 import webbrowser
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 class GerenciadorDocumentosSistema:
     def __init__(self, root):
@@ -398,11 +401,11 @@ class GerenciadorDocumentosSistema:
                 if drive_id:
                     try:
                         if not self.service:
-                            print(f"Erro: serviço do Drive não configurado; não foi possível excluir {drive_id}")
+                            messagebox.showerror("Erro", f"Erro: serviço do Drive não configurado; não foi possível excluir {drive_id}")
                         else:
                             self.service.files().delete(fileId=drive_id).execute()
                     except Exception as e:
-                        print(f"Erro ao excluir do Drive: {e}")
+                        logger.exception("Erro ao excluir do Drive: %s", e)
             
             # Excluir do banco de dados
             self.cursor.execute(
@@ -697,7 +700,7 @@ def main():
         app = GerenciadorDocumentosSistema(root)
         root.mainloop()
     except Exception as e:
-        print(f"Erro ao iniciar aplicação: {e}")
+        logger.exception("Erro ao iniciar aplicação: %s", e)
         messagebox.showerror("Erro", f"Erro ao iniciar aplicação: {e}")
 
 if __name__ == "__main__":

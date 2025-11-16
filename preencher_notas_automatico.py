@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 """
 Módulo para preencher automaticamente as notas na interface
 quando o período estiver fechado no GEDUC
@@ -88,7 +90,7 @@ class PreenchimentoAutomaticoNotas:
                         # Aceitar o alerta para continuar
                         alert.accept()
                         
-                        print(f"✓ Detectado período fechado: {numero_periodo}º PERÍODO")
+                        logger.info(f"✓ Detectado período fechado: {numero_periodo}º PERÍODO")
                         
                         return {
                             'fechado': True,
@@ -114,7 +116,7 @@ class PreenchimentoAutomaticoNotas:
                         if match:
                             numero_periodo = match.group(1)
                             
-                            print(f"✓ Detectado período fechado (via HTML): {numero_periodo}º PERÍODO")
+                            logger.info(f"✓ Detectado período fechado (via HTML): {numero_periodo}º PERÍODO")
                             
                             # Tentar fechar modal se existir
                             try:
@@ -133,7 +135,7 @@ class PreenchimentoAutomaticoNotas:
                 return None
                 
         except Exception as e:
-            print(f"✗ Erro ao detectar alerta: {e}")
+            logger.error(f"✗ Erro ao detectar alerta: {e}")
             return None
     
     def extrair_notas_periodo_fechado(self):
@@ -224,7 +226,7 @@ class PreenchimentoAutomaticoNotas:
                                 'notas_individuais': notas_individuais  # Para debug
                             })
             
-            print(f"✓ Extraídos {len(alunos_notas)} alunos com notas")
+            logger.info(f"✓ Extraídos {len(alunos_notas)} alunos com notas")
             
             return {
                 'turma': turma_nome,
@@ -234,7 +236,7 @@ class PreenchimentoAutomaticoNotas:
             }
             
         except Exception as e:
-            print(f"✗ Erro ao extrair notas: {e}")
+            logger.error(f"✗ Erro ao extrair notas: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -251,12 +253,12 @@ class PreenchimentoAutomaticoNotas:
         """
         try:
             if not dados_geduc or not dados_geduc.get('alunos'):
-                print("✗ Nenhum dado para preencher")
+                logger.info("✗ Nenhum dado para preencher")
                 return None
             
             # Verificar se a interface tem as entradas de notas carregadas
             if not hasattr(self.interface, 'entradas_notas') or not self.interface.entradas_notas:
-                print("✗ Interface não tem entradas de notas carregadas")
+                logger.info("✗ Interface não tem entradas de notas carregadas")
                 return None
             
             # Mapear alunos da interface (ID -> nome normalizado)
@@ -309,9 +311,9 @@ class PreenchimentoAutomaticoNotas:
                         # Mostrar notas individuais para debug
                         if notas_individuais:
                             notas_str = ", ".join([str(n) for n in notas_individuais])
-                            print(f"  ✓ {info['nome_original']}: [{notas_str}] → média {nota:.2f} (GEDUC) → {nota_interface:.1f} (Interface)")
+                            logger.info(f"  ✓ {info['nome_original']}: [{notas_str}] → média {nota:.2f} (GEDUC) → {nota_interface:.1f} (Interface)")
                         else:
-                            print(f"  ✓ {info['nome_original']}: {nota} (GEDUC) → {nota_interface} (Interface)")
+                            logger.info(f"  ✓ {info['nome_original']}: {nota} (GEDUC) → {nota_interface} (Interface)")
                         break
                 
                 if not encontrado:
@@ -329,19 +331,19 @@ class PreenchimentoAutomaticoNotas:
                 'nao_encontrados': nao_encontrados
             }
             
-            print(f"\n✓ Preenchimento concluído:")
-            print(f"  - Total no GEDUC: {resultado['total_geduc']}")
-            print(f"  - Total na interface: {resultado['total_interface']}")
-            print(f"  - Preenchidos: {resultado['preenchidos']}")
+            logger.info(f"\n✓ Preenchimento concluído:")
+            logger.info(f"  - Total no GEDUC: {resultado['total_geduc']}")
+            logger.info(f"  - Total na interface: {resultado['total_interface']}")
+            logger.info(f"  - Preenchidos: {resultado['preenchidos']}")
             if nao_encontrados:
-                print(f"  - Não encontrados: {len(nao_encontrados)}")
+                logger.info(f"  - Não encontrados: {len(nao_encontrados)}")
                 for nome in nao_encontrados:
-                    print(f"    • {nome}")
+                    logger.info(f"    • {nome}")
             
             return resultado
             
         except Exception as e:
-            print(f"✗ Erro ao preencher interface: {e}")
+            logger.error(f"✗ Erro ao preencher interface: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -357,29 +359,29 @@ class PreenchimentoAutomaticoNotas:
             True se processou com sucesso, False caso contrário
         """
         try:
-            print("\n" + "="*60)
-            print("VERIFICANDO PERÍODO E EXTRAINDO NOTAS")
-            print("="*60)
+            logger.info("\n" + "="*60)
+            logger.info("VERIFICANDO PERÍODO E EXTRAINDO NOTAS")
+            logger.info("="*60)
             
             # Detectar alerta de período fechado
             alerta = self.detectar_alerta_periodo_fechado()
             
             if alerta and alerta['fechado']:
-                print(f"\n⚠️  PERÍODO FECHADO DETECTADO: {alerta['periodo']}º PERÍODO")
+                logger.info(f"\n⚠️  PERÍODO FECHADO DETECTADO: {alerta['periodo']}º PERÍODO")
             else:
-                print("→ Período não está fechado - extraindo notas normalmente")
+                logger.info("→ Período não está fechado - extraindo notas normalmente")
             
-            print("→ Extraindo notas da página...")
+            logger.info("→ Extraindo notas da página...")
             
             # Extrair notas da página (independente de alerta)
             dados_geduc = self.extrair_notas_periodo_fechado()
             
             if dados_geduc:
-                print(f"\n→ Dados extraídos:")
-                print(f"  - Turma: {dados_geduc['turma']}")
-                print(f"  - Disciplina: {dados_geduc['disciplina']}")
-                print(f"  - Bimestre: {dados_geduc['bimestre']}º")
-                print(f"  - Alunos: {len(dados_geduc['alunos'])}")
+                logger.info(f"\n→ Dados extraídos:")
+                logger.info(f"  - Turma: {dados_geduc['turma']}")
+                logger.info(f"  - Disciplina: {dados_geduc['disciplina']}")
+                logger.info(f"  - Bimestre: {dados_geduc['bimestre']}º")
+                logger.info(f"  - Alunos: {len(dados_geduc['alunos'])}")
                 
                 # Perguntar ao usuário se deseja preencher automaticamente
                 mensagem_titulo = "Período Fechado - Preenchimento Automático" if (alerta and alerta['fechado']) else "Preenchimento Automático"
@@ -398,35 +400,35 @@ class PreenchimentoAutomaticoNotas:
                 )
                 
                 if resposta:
-                    print("\n→ Preenchendo interface automaticamente...")
+                    logger.info("\n→ Preenchendo interface automaticamente...")
                     resultado = self.preencher_interface_automaticamente(dados_geduc)
                     
                     if resultado:
                         # Exibir resultado apenas no console (sem messagebox)
-                        print(f"\n✓ Preenchimento concluído!")
-                        print(f"  Total de notas preenchidas: {resultado['preenchidos']}")
-                        print(f"  Total de alunos na interface: {resultado['total_interface']}")
+                        logger.info(f"\n✓ Preenchimento concluído!")
+                        logger.info(f"  Total de notas preenchidas: {resultado['preenchidos']}")
+                        logger.info(f"  Total de alunos na interface: {resultado['total_interface']}")
                         
                         if resultado['nao_encontrados']:
-                            print(f"\n  ⚠️ Alunos não encontrados ({len(resultado['nao_encontrados'])}):")
+                            logger.info(f"\n  ⚠️ Alunos não encontrados ({len(resultado['nao_encontrados'])}):")
                             for nome in resultado['nao_encontrados'][:5]:  # Mostrar no máximo 5
-                                print(f"    • {nome}")
+                                logger.info(f"    • {nome}")
                             if len(resultado['nao_encontrados']) > 5:
-                                print(f"    ... e mais {len(resultado['nao_encontrados']) - 5}")
+                                logger.info(f"    ... e mais {len(resultado['nao_encontrados']) - 5}")
                         
                         return True
                     else:
                         messagebox.showerror("Erro", "Não foi possível preencher a interface.")
                         return False
                 else:
-                    print("→ Preenchimento automático cancelado pelo usuário")
+                    logger.info("→ Preenchimento automático cancelado pelo usuário")
                     return False
             else:
                 messagebox.showerror("Erro", "Não foi possível extrair os dados do GEDUC.")
                 return False
                 
         except Exception as e:
-            print(f"✗ Erro ao processar página: {e}")
+            logger.error(f"✗ Erro ao processar página: {e}")
             import traceback
             traceback.print_exc()
             messagebox.showerror("Erro", f"Erro ao processar página de notas:\n{str(e)}")

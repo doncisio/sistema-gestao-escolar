@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 """
 Script para limpeza de documentos duplicados no banco de dados e Google Drive.
 
@@ -55,15 +57,15 @@ def conectar_bd():
             auth_plugin='mysql_native_password'
         )
         if conn.is_connected():
-            print("✓ Conectado ao banco de dados com sucesso!")
+            logger.info("✓ Conectado ao banco de dados com sucesso!")
             return conn
     except Error as e:
-        print(f"✗ Erro ao conectar ao banco de dados: {e}")
+        logger.error(f"✗ Erro ao conectar ao banco de dados: {e}")
         return None
 
 def identificar_duplicados(cursor):
     """Identifica documentos duplicados no banco de dados"""
-    print("\n🔍 Identificando documentos duplicados...\n")
+    logger.info("\n🔍 Identificando documentos duplicados...\n")
     
     query = """
         SELECT 
@@ -90,18 +92,18 @@ def identificar_duplicados(cursor):
 def mostrar_relatorio(duplicados):
     """Mostra relatório de duplicados encontrados"""
     if not duplicados:
-        print("✓ Nenhum documento duplicado encontrado!")
+        logger.info("✓ Nenhum documento duplicado encontrado!")
         return False
     
     total_grupos = len(duplicados)
     total_docs_remover = sum(dup[4] - 1 for dup in duplicados)
     
-    print(f"{'='*80}")
-    print(f"RELATÓRIO DE DOCUMENTOS DUPLICADOS")
-    print(f"{'='*80}\n")
-    print(f"Total de grupos duplicados: {total_grupos}")
-    print(f"Total de documentos a remover: {total_docs_remover}\n")
-    print(f"{'='*80}\n")
+    logger.info(f"{'='*80}")
+    logger.info(f"RELATÓRIO DE DOCUMENTOS DUPLICADOS")
+    logger.info(f"{'='*80}\n")
+    logger.info(f"Total de grupos duplicados: {total_grupos}")
+    logger.info(f"Total de documentos a remover: {total_docs_remover}\n")
+    logger.info(f"{'='*80}\n")
     
     for idx, dup in enumerate(duplicados, 1):
         tipo, aluno_id, func_id, finalidade, total, ids_str, datas_str = dup
@@ -109,15 +111,15 @@ def mostrar_relatorio(duplicados):
         pessoa = f"Aluno ID: {aluno_id}" if aluno_id else f"Funcionário ID: {func_id}" if func_id else "Sem vínculo"
         final = finalidade if finalidade else "N/A"
         
-        print(f"[{idx:3d}] {tipo}")
-        print(f"      Pessoa: {pessoa}")
-        print(f"      Finalidade: {final}")
-        print(f"      Total de versões: {total}")
-        print(f"      IDs: {ids_str}")
-        print(f"      Datas: {datas_str}")
-        print()
+        logger.info(f"[{idx:3d}] {tipo}")
+        logger.info(f"      Pessoa: {pessoa}")
+        logger.info(f"      Finalidade: {final}")
+        logger.info(f"      Total de versões: {total}")
+        logger.info(f"      IDs: {ids_str}")
+        logger.info(f"      Datas: {datas_str}")
+        logger.info()
     
-    print(f"{'='*80}\n")
+    logger.info(f"{'='*80}\n")
     return True
 
 def limpar_duplicados(conn, cursor, service, duplicados, modo='simulacao'):
@@ -132,11 +134,11 @@ def limpar_duplicados(conn, cursor, service, duplicados, modo='simulacao'):
     total_grupos = len(duplicados)
     
     if modo == 'simulacao':
-        print("\n🔄 MODO SIMULAÇÃO - Nenhum arquivo será realmente removido\n")
+        logger.info("\n🔄 MODO SIMULAÇÃO - Nenhum arquivo será realmente removido\n")
     else:
-        print("\n⚠️  MODO EXECUÇÃO - Os arquivos serão PERMANENTEMENTE removidos\n")
+        logger.info("\n⚠️  MODO EXECUÇÃO - Os arquivos serão PERMANENTEMENTE removidos\n")
     
-    print(f"{'='*80}\n")
+    logger.info(f"{'='*80}\n")
     
     for idx, dup in enumerate(duplicados, 1):
         tipo, aluno_id, func_id, finalidade, total, ids_str, datas_str = dup
@@ -148,9 +150,9 @@ def limpar_duplicados(conn, cursor, service, duplicados, modo='simulacao'):
         
         pessoa = f"Aluno ID: {aluno_id}" if aluno_id else f"Funcionário ID: {func_id}" if func_id else "Sem vínculo"
         
-        print(f"[{idx}/{total_grupos}] Processando: {tipo} - {pessoa}")
-        print(f"  ✓ Mantendo versão mais recente (ID: {id_manter})")
-        print(f"  ⚠ Removendo {len(ids_remover)} versão(ões) antiga(s):")
+        logger.info(f"[{idx}/{total_grupos}] Processando: {tipo} - {pessoa}")
+        logger.info(f"  ✓ Mantendo versão mais recente (ID: {id_manter})")
+        logger.info(f"  ⚠ Removendo {len(ids_remover)} versão(ões) antiga(s):")
         
         for doc_id in ids_remover:
             try:
@@ -163,7 +165,7 @@ def limpar_duplicados(conn, cursor, service, duplicados, modo='simulacao'):
                 
                 if resultado:
                     link, nome = resultado
-                    print(f"    - ID {doc_id}: {nome}")
+                    logger.info(f"    - ID {doc_id}: {nome}")
                     
                     if modo == 'executar':
                         # Excluir do Google Drive
@@ -177,60 +179,60 @@ def limpar_duplicados(conn, cursor, service, duplicados, modo='simulacao'):
                                     drive_id = link.split('/')[-2]
                                 
                                 service.files().delete(fileId=drive_id).execute()
-                                print(f"      ✓ Removido do Google Drive")
+                                logger.info(f"      ✓ Removido do Google Drive")
                             except Exception as e:
-                                print(f"      ⚠ Erro ao remover do Drive: {str(e)[:60]}")
+                                logger.error(f"      ⚠ Erro ao remover do Drive: {str(e)[:60]}")
                         
                         # Excluir do banco de dados
                         cursor.execute("DELETE FROM documentos_emitidos WHERE id = %s", (doc_id,))
-                        print(f"      ✓ Removido do banco de dados")
+                        logger.info(f"      ✓ Removido do banco de dados")
                     else:
-                        print(f"      [SIMULAÇÃO] Seria removido do Drive e banco")
+                        logger.info(f"      [SIMULAÇÃO] Seria removido do Drive e banco")
                     
                     total_removidos += 1
                 
             except Exception as e:
-                print(f"    ✗ Erro ao processar ID {doc_id}: {str(e)[:60]}")
+                logger.error(f"    ✗ Erro ao processar ID {doc_id}: {str(e)[:60]}")
                 total_erros += 1
         
         if modo == 'executar':
             conn.commit()
         
-        print()
+        logger.info()
     
-    print(f"{'='*80}")
-    print(f"\nRESUMO DA LIMPEZA:")
-    print(f"  Grupos processados: {total_grupos}")
-    print(f"  Documentos removidos: {total_removidos}")
-    print(f"  Erros encontrados: {total_erros}")
+    logger.info(f"{'='*80}")
+    logger.info(f"\nRESUMO DA LIMPEZA:")
+    logger.info(f"  Grupos processados: {total_grupos}")
+    logger.info(f"  Documentos removidos: {total_removidos}")
+    logger.info(f"  Erros encontrados: {total_erros}")
     
     if modo == 'simulacao':
-        print(f"\n⚠️  Esta foi uma SIMULAÇÃO. Nenhum arquivo foi removido.")
+        logger.info(f"\n⚠️  Esta foi uma SIMULAÇÃO. Nenhum arquivo foi removido.")
     else:
-        print(f"\n✓ Limpeza executada com sucesso!")
+        logger.info(f"\n✓ Limpeza executada com sucesso!")
     
-    print(f"{'='*80}\n")
+    logger.info(f"{'='*80}\n")
 
 def main():
-    print("\n" + "="*80)
-    print(" LIMPEZA DE DOCUMENTOS DUPLICADOS - SISTEMA DE GESTÃO ESCOLAR")
-    print("="*80 + "\n")
+    logger.info("\n" + "="*80)
+    logger.info(" LIMPEZA DE DOCUMENTOS DUPLICADOS - SISTEMA DE GESTÃO ESCOLAR")
+    logger.info("="*80 + "\n")
     
     # Conectar ao banco
     conn = conectar_bd()
     if not conn:
-        print("✗ Não foi possível conectar ao banco de dados. Abortando.")
+        logger.info("✗ Não foi possível conectar ao banco de dados. Abortando.")
         return
     
     cursor = conn.cursor()
     
     # Conectar ao Google Drive
-    print("🔄 Conectando ao Google Drive...")
+    logger.info("🔄 Conectando ao Google Drive...")
     try:
         service = setup_google_drive()
-        print("✓ Conectado ao Google Drive com sucesso!\n")
+        logger.info("✓ Conectado ao Google Drive com sucesso!\n")
     except Exception as e:
-        print(f"✗ Erro ao conectar ao Google Drive: {e}")
+        logger.error(f"✗ Erro ao conectar ao Google Drive: {e}")
         cursor.close()
         conn.close()
         return
@@ -247,10 +249,10 @@ def main():
         return
     
     # Perguntar o que fazer
-    print("O que deseja fazer?")
-    print("1 - Executar SIMULAÇÃO (apenas mostra o que seria removido)")
-    print("2 - EXECUTAR LIMPEZA (remove permanentemente os duplicados)")
-    print("3 - Cancelar")
+    logger.info("O que deseja fazer?")
+    logger.info("1 - Executar SIMULAÇÃO (apenas mostra o que seria removido)")
+    logger.info("2 - EXECUTAR LIMPEZA (remove permanentemente os duplicados)")
+    logger.info("3 - Cancelar")
     
     escolha = input("\nDigite sua escolha (1, 2 ou 3): ").strip()
     
@@ -261,19 +263,19 @@ def main():
         if confirmacao == 'CONFIRMAR':
             limpar_duplicados(conn, cursor, service, duplicados, modo='executar')
         else:
-            print("\n✗ Operação cancelada.")
+            logger.info("\n✗ Operação cancelada.")
     else:
-        print("\n✗ Operação cancelada.")
+        logger.info("\n✗ Operação cancelada.")
     
     # Fechar conexões
     cursor.close()
     conn.close()
-    print("\n✓ Conexões fechadas. Script finalizado.\n")
+    logger.info("\n✓ Conexões fechadas. Script finalizado.\n")
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\n✗ Script interrompido pelo usuário.")
+        logger.info("\n\n✗ Script interrompido pelo usuário.")
     except Exception as e:
-        print(f"\n✗ Erro inesperado: {e}")
+        logger.error(f"\n✗ Erro inesperado: {e}")

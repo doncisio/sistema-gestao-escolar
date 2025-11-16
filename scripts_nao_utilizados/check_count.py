@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 from utils.db_config import get_db_config
 import mysql.connector
 
@@ -8,8 +10,8 @@ def count_students():
     
     # Verificar turmas mencionadas pelo usuário
     turmas_usuario = [28, 29, 30, 33, 35]
-    print("Turmas específicas mencionadas pelo usuário:")
-    print("-------------------------------------------")
+    logger.info("Turmas específicas mencionadas pelo usuário:")
+    logger.info("-------------------------------------------")
     total_alunos_mencionadas = 0
     
     for turma_id in turmas_usuario:
@@ -23,13 +25,13 @@ def count_students():
         turma = cursor.fetchone()
         if turma:
             total_alunos_mencionadas += turma['total']
-            print(f"Turma ID={turma['id']}, Série={turma['serie_nome']}, Nome={turma['turma_nome'] or '-'}, Turno={turma['turno']}, Total Alunos={turma['total']}")
+            logger.info(f"Turma ID={turma['id']}, Série={turma['serie_nome']}, Nome={turma['turma_nome'] or '-'}, Turno={turma['turno']}, Total Alunos={turma['total']}")
     
-    print(f"\nTotal de alunos nas turmas mencionadas: {total_alunos_mencionadas}")
+    logger.info(f"\nTotal de alunos nas turmas mencionadas: {total_alunos_mencionadas}")
 
     # Buscar todas as turmas com alunos
-    print("\nTodas as turmas com alunos ativos:")
-    print("----------------------------------")
+    logger.info("\nTodas as turmas com alunos ativos:")
+    logger.info("----------------------------------")
     
     cursor.execute('''
         SELECT t.id, s.nome as serie_nome, t.nome as turma_nome, t.turno,
@@ -46,14 +48,14 @@ def count_students():
     for turma in turmas:
         total_alunos = turma['total']
         total_geral += total_alunos
-        print(f"Turma ID={turma['id']}, Série={turma['serie_nome']}, Nome={turma['turma_nome'] or '-'}, Turno={turma['turno']}, Total Alunos={total_alunos}")
+        logger.info(f"Turma ID={turma['id']}, Série={turma['serie_nome']}, Nome={turma['turma_nome'] or '-'}, Turno={turma['turno']}, Total Alunos={total_alunos}")
     
-    print(f"\nTotal de alunos em todas as turmas com matrícula ativa: {total_geral}")
+    logger.info(f"\nTotal de alunos em todas as turmas com matrícula ativa: {total_geral}")
     
     # Verificar total geral de alunos ativos
     cursor.execute("SELECT COUNT(*) as total FROM matriculas WHERE status = 'Ativo'")
     result = cursor.fetchone()
-    print(f"Total geral de alunos ativos de acordo com a tabela de matrículas: {result['total']}")
+    logger.info(f"Total geral de alunos ativos de acordo com a tabela de matrículas: {result['total']}")
     
     cursor.close()
     conn.close()

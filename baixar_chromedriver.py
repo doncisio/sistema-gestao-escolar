@@ -171,8 +171,8 @@ def main():
     try:
         import requests
     except ImportError:
-        print("✗ Módulo 'requests' não encontrado!")
-        print("→ Instalando...")
+        logger.warning("✗ Módulo 'requests' não encontrado!")
+        logger.info("→ Instalando...")
         subprocess.run([sys.executable, "-m", "pip", "install", "requests"])
         import requests
     
@@ -181,16 +181,16 @@ def main():
     versao_chrome = obter_versao_chrome()
     
     if not versao_chrome:
-        print("✗ Não foi possível detectar a versão do Chrome")
-        print("→ Certifique-se de que o Google Chrome está instalado")
+        logger.error("✗ Não foi possível detectar a versão do Chrome")
+        logger.info("→ Certifique-se de que o Google Chrome está instalado")
         
-        # Perguntar versão manualmente
+        # Perguntar versão manualmente (instrução visível ao usuário)
         print("\n📝 Digite a versão do seu Chrome (ex: 131.0.6778.109):")
-        print("   Abra o Chrome e vá em: chrome://settings/help")
+        logger.info("   Abra o Chrome e vá em: chrome://settings/help")
         versao_chrome = input("→ Versão: ").strip()
         
         if not versao_chrome:
-            print("✗ Versão inválida")
+            logger.info("✗ Versão inválida")
             return
     
     # Obter versão compatível do ChromeDriver
@@ -214,13 +214,13 @@ def main():
         resposta = input("→ Deseja substituir? (s/n): ").strip().lower()
         
         if resposta != 's':
-            print("→ Operação cancelada")
+            logger.info("→ Operação cancelada")
             return
         
         os.remove(destino)
     
     # Baixar
-    print()
+    logger.info()
     sucesso = baixar_chromedriver(url_download, destino)
     
     if sucesso:

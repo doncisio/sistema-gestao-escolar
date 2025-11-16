@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 import io
 import os
 import pandas as pd
@@ -16,7 +18,7 @@ def fetch_students_with_disorders(ano_letivo):
     """Busca alunos que possuem algum tipo de transtorno registrado"""
     conn: Any = conectar_bd()
     if not conn:
-        print("Não foi possível conectar ao banco de dados.")
+        logger.info("Não foi possível conectar ao banco de dados.")
         return None
     cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
@@ -72,10 +74,10 @@ def fetch_students_with_disorders(ano_letivo):
     try:
         cursor.execute(query, (ano_letivo,))
         dados_aluno = cursor.fetchall()
-        print(f"Total de alunos com transtornos encontrados: {len(dados_aluno)}")
+        logger.info(f"Total de alunos com transtornos encontrados: {len(dados_aluno)}")
         return dados_aluno
     except Exception as e:
-        print("Erro ao executar a consulta:", str(e))
+        logger.error("Erro ao executar a consulta:", str(e))
         return None
     finally:
         try:
@@ -271,13 +273,13 @@ def lista_alunos_transtornos():
     dados_aluno = fetch_students_with_disorders(ano_letivo)
     
     if not dados_aluno:
-        print("Nenhum aluno com transtorno encontrado.")
+        logger.info("Nenhum aluno com transtorno encontrado.")
         return
 
     df = pd.DataFrame(dados_aluno)
     
     if df.empty:
-        print("Nenhum aluno com transtorno encontrado.")
+        logger.info("Nenhum aluno com transtorno encontrado.")
         return
 
     cabecalho = [
@@ -336,7 +338,7 @@ def lista_alunos_transtornos():
 
     # Adiciona as tabelas de alunos por turma
     for (nome_serie, nome_turma, turno), turma_df in turmas_ordenadas:
-        print(f"Processando: {nome_serie} {nome_turma} {turno} - {len(turma_df)} alunos com transtorno")
+        logger.info(f"Processando: {nome_serie} {nome_turma} {turno} - {len(turma_df)} alunos com transtorno")
         nome_professor = turma_df['NOME_PROFESSOR'].iloc[0] if not turma_df['NOME_PROFESSOR'].isnull().all() else 'Não informado'
         
         add_class_table_disorders(elements, turma_df, nome_serie, nome_turma, turno, 
@@ -348,7 +350,7 @@ def lista_alunos_transtornos():
     
     # Abre o PDF
     salvar_e_abrir_pdf(buffer)
-    print("Relatório gerado com sucesso!")
+    logger.info("Relatório gerado com sucesso!")
 
 # Executar a função
 if __name__ == "__main__":

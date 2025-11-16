@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 from conexao import conectar_bd
 from reportlab.pdfgen import canvas
 from PyPDF2 import PdfReader, PdfWriter
@@ -129,7 +131,7 @@ def gerar_folhas_de_ponto(template_pdf: str, saida_pdf: str, mes_referencia: int
     try:
         funcionarios = consultar_funcionarios(conn)
         if not funcionarios:
-            print("Nenhum funcionário encontrado para escola_id=60.")
+            logger.info("Nenhum funcionário encontrado para escola_id=60.")
             return
 
         hoje = datetime.today()
@@ -162,7 +164,7 @@ def gerar_folhas_de_ponto(template_pdf: str, saida_pdf: str, mes_referencia: int
         with open(saida_pdf, "wb") as f:
             writer.write(f)
 
-        print(f"Folhas de ponto geradas em: {saida_pdf}")
+        logger.info(f"Folhas de ponto geradas em: {saida_pdf}")
     finally:
         try:
             if conn:
@@ -213,5 +215,4 @@ if __name__ == "__main__":
         nome_mes = nome_mes_pt(mes)
         arquivo_saida = os.path.join(dir_saida, f"Folhas_de_Ponto_{nome_mes}_{ano_alvo}.pdf")
         gerar_folhas_de_ponto(base, arquivo_saida, mes_referencia=mes, ano_referencia=ano_alvo)
-
 

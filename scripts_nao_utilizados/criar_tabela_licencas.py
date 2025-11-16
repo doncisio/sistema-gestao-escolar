@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 import mysql.connector
 from conexao import conectar_bd
 
@@ -6,7 +8,7 @@ def criar_tabela_licencas():
         # Conectar ao banco de dados
         conn = conectar_bd()
         if not conn:
-            print("Não foi possível conectar ao banco de dados")
+            logger.info("Não foi possível conectar ao banco de dados")
             return False
         
         cursor = conn.cursor()
@@ -22,14 +24,14 @@ def criar_tabela_licencas():
         
         # Confirmar as alterações
         conn.commit()
-        print("Tabela 'licencas' criada com sucesso!")
+        logger.info("Tabela 'licencas' criada com sucesso!")
         return True
         
     except mysql.connector.Error as err:
-        print(f"Erro ao criar tabela: {err}")
+        logger.error(f"Erro ao criar tabela: {err}")
         return False
     except Exception as e:
-        print(f"Erro inesperado: {e}")
+        logger.error(f"Erro inesperado: {e}")
         return False
     finally:
         if 'cursor' in locals():

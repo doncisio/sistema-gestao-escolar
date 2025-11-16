@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 from datetime import datetime
 from tkinter import *
 from tkinter import messagebox, ttk
@@ -690,7 +692,7 @@ class InterfaceEditarAluno:
             racas = ["Branca", "Preta", "Parda", "Amarela", "Indígena", "Não declarada"]
             self.c_raca['values'] = racas
         except Exception as e:
-            print(f"Erro ao obter raças: {e}")
+            logger.error(f"Erro ao obter raças: {e}")
 
     def obter_series(self):
         try:

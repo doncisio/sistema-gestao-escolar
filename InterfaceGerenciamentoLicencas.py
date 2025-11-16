@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime, timedelta
@@ -587,7 +589,7 @@ class InterfaceGerenciamentoLicencas:
                             WHERE id = %s
                         """, (cast(Any, subst)['id'],))
         except Exception as e:
-            print(f"Erro ao verificar substituições: {e}")
+            logger.error(f"Erro ao verificar substituições: {e}")
         
         # Confirmar exclusão
         resposta = messagebox.askyesno("Confirmar Exclusão", "Tem certeza que deseja excluir esta licença?")

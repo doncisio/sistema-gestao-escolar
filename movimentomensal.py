@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 from reportlab.platypus import Image, Paragraph, Table, TableStyle, Spacer, PageBreak
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
@@ -163,17 +165,17 @@ def contar_aprovacoes_reprovacoes(cursor, ano_letivo_id, serie):
     return cursor.fetchall()
 
 def contar_transferencias_recebidas(cursor, ano_letivo_id, data_inicio_ano_letivo, series):
-    print("\nDEBUG - Iniciando contar_transferencias_recebidas")
-    print("Parâmetros recebidos:")
-    print(f"ano_letivo_id: {ano_letivo_id}")
-    print(f"data_inicio_ano_letivo: {data_inicio_ano_letivo}")
-    print(f"series: {series}")
+    logger.info("\nDEBUG - Iniciando contar_transferencias_recebidas")
+    logger.info("Parâmetros recebidos:")
+    logger.info(f"ano_letivo_id: {ano_letivo_id}")
+    logger.info(f"data_inicio_ano_letivo: {data_inicio_ano_letivo}")
+    logger.info(f"series: {series}")
     
     # Determina o turno com base nas séries
     turno = 'VESP' if any('6º Ano' in serie or '7º Ano' in serie or '8º Ano' in serie or '9º Ano' in serie for serie in series) else 'MAT'
-    print(f"\nDEBUG - Turno determinado: {turno}")
+    logger.info(f"\nDEBUG - Turno determinado: {turno}")
     
-    print("\nDEBUG - Verificando dados antes da query principal:")
+    logger.info("\nDEBUG - Verificando dados antes da query principal:")
     
     # Verifica turmas disponíveis
     cursor.execute("""
@@ -183,9 +185,9 @@ def contar_transferencias_recebidas(cursor, ano_letivo_id, data_inicio_ano_letiv
         WHERE t.ano_letivo_id = %s
     """, (ano_letivo_id,))
     turmas = cursor.fetchall()
-    print("\nTurmas disponíveis:")
+    logger.info("\nTurmas disponíveis:")
     for turma in turmas:
-        print(f"ID: {turma['id']}, Nome: {turma['nome']}, Série: {turma['serie']}, Turno: {turma['turno']}")
+        logger.info(f"ID: {turma['id']}, Nome: {turma['nome']}, Série: {turma['serie']}, Turno: {turma['turno']}")
     
     # Verifica primeiras matrículas
     cursor.execute("""
@@ -200,9 +202,9 @@ def contar_transferencias_recebidas(cursor, ano_letivo_id, data_inicio_ano_letiv
         LIMIT 5
     """, (ano_letivo_id, data_inicio_ano_letivo))
     matriculas = cursor.fetchall()
-    print("\nPrimeiras 5 matrículas após a data de início:")
+    logger.info("\nPrimeiras 5 matrículas após a data de início:")
     for mat in matriculas:
-        print(f"ID: {mat['id']}, Data: {mat['data_matricula']}, Status: {mat['status']}, Turno: {mat['turno']}, Série: {mat['serie']}, Sexo: {mat['sexo']}")
+        logger.info(f"ID: {mat['id']}, Data: {mat['data_matricula']}, Status: {mat['status']}, Turno: {mat['turno']}, Série: {mat['serie']}, Sexo: {mat['sexo']}")
     
     # Prepara a lista de séries para a query
     series_placeholders = ','.join(['%s'] * len(series))
@@ -242,29 +244,29 @@ def contar_transferencias_recebidas(cursor, ano_letivo_id, data_inicio_ano_letiv
             a.sexo
     """
     
-    print("\nDEBUG - Query SQL:")
-    print(query)
+    logger.info("\nDEBUG - Query SQL:")
+    logger.info(query)
     
     # Prepara os parâmetros da query
     params = [ano_letivo_id, data_inicio_ano_letivo, data_inicio_ano_letivo, turno] + series
     
-    print("\nDEBUG - Parâmetros da query:")
-    print(f"ano_letivo_id: {ano_letivo_id}")
-    print(f"data_inicio_ano_letivo: {data_inicio_ano_letivo}")
-    print(f"turno: {turno}")
-    print(f"series: {series}")
+    logger.info("\nDEBUG - Parâmetros da query:")
+    logger.info(f"ano_letivo_id: {ano_letivo_id}")
+    logger.info(f"data_inicio_ano_letivo: {data_inicio_ano_letivo}")
+    logger.info(f"turno: {turno}")
+    logger.info(f"series: {series}")
     
     cursor.execute(query, params)
     resultados = cursor.fetchall()
     
-    print("\nDEBUG - Resultados da query:")
-    print(f"Total de registros encontrados: {len(resultados)}")
+    logger.info("\nDEBUG - Resultados da query:")
+    logger.info(f"Total de registros encontrados: {len(resultados)}")
     
     if resultados:
-        print("\nDetalhes dos resultados:")
+        logger.info("\nDetalhes dos resultados:")
         for row in resultados:
-            print(f"Série: {row['serie']}, Sexo: {row['sexo']}, Total: {row['total']}")
-            print(f"Alunos: {row['nomes_alunos']}")
+            logger.info(f"Série: {row['serie']}, Sexo: {row['sexo']}, Total: {row['total']}")
+            logger.info(f"Alunos: {row['nomes_alunos']}")
     
     # Inicializa o dicionário de contagem
     contagem = {serie: {'M': 0, 'F': 0} for serie in series}
@@ -276,9 +278,9 @@ def contar_transferencias_recebidas(cursor, ano_letivo_id, data_inicio_ano_letiv
         total = row['total']
         contagem[serie][sexo] = total
     
-    print("\nDEBUG - Contagem final por série e sexo:")
+    logger.info("\nDEBUG - Contagem final por série e sexo:")
     for serie in series:
-        print(f"{serie}: M={contagem[serie]['M']}, F={contagem[serie]['F']}")
+        logger.info(f"{serie}: M={contagem[serie]['M']}, F={contagem[serie]['F']}")
     
     return contagem
 
@@ -947,17 +949,17 @@ def gerar_relatorio_1_5(elements, cabecalho, figura_inferior, mes):
     datas_ano_letivo = cursor.fetchone()
     
     if not datas_ano_letivo:
-        print("Ano letivo não encontrado")
+        logger.info("Ano letivo não encontrado")
         return
         
     data_inicio = datas_ano_letivo['data_inicio']
     data_fim = datas_ano_letivo['data_fim']
     ano_letivo_id = datas_ano_letivo['id']
     
-    print(f"\nDEBUG - Datas do ano letivo:")
-    print(f"data_inicio: {data_inicio}")
-    print(f"data_fim: {data_fim}")
-    print(f"ano_letivo_id: {ano_letivo_id}")
+    logger.info(f"\nDEBUG - Datas do ano letivo:")
+    logger.info(f"data_inicio: {data_inicio}")
+    logger.info(f"data_fim: {data_fim}")
+    logger.info(f"ano_letivo_id: {ano_letivo_id}")
     
     dados_aluno = fetch_student_data(ano_letivo)
     if not dados_aluno:
@@ -1068,10 +1070,10 @@ def gerar_relatorio_1_5(elements, cabecalho, figura_inferior, mes):
     dados_movimentacao = {serie: contar_movimentacao_mensal(cursor, ano_letivo_id, mes, serie) for serie in series}
     
     # Contar transferências recebidas
-    print(f"\nDEBUG - Chamando contar_transferencias_recebidas com:")
-    print(f"ano_letivo_id: {ano_letivo_id}")
-    print(f"data_inicio: {data_inicio}")
-    print(f"series: {series}")
+    logger.info(f"\nDEBUG - Chamando contar_transferencias_recebidas com:")
+    logger.info(f"ano_letivo_id: {ano_letivo_id}")
+    logger.info(f"data_inicio: {data_inicio}")
+    logger.info(f"series: {series}")
     transferencias_recebidas = contar_transferencias_recebidas(cursor, ano_letivo_id, data_inicio, series)
     
     # Se o ano letivo terminou, buscar aprovações/reprovações
@@ -1289,7 +1291,7 @@ def gerar_relatorio_6_9(elements, cabecalho, figura_inferior, mes):
     datas_ano_letivo = cursor.fetchone()
     
     if not datas_ano_letivo:
-        print("Ano letivo não encontrado")
+        logger.info("Ano letivo não encontrado")
         return
         
     data_inicio = datas_ano_letivo['data_inicio']
@@ -1635,9 +1637,9 @@ def parse_turma_nome(turma_nome):
     return (None, None)
 
 def contar_transferencias_por_serie_sexo(df, series_range, series):
-    print("\n=== Iniciando contagem de transferências por série e sexo ===")
-    print(f"Series range: {series_range}")
-    print(f"Series: {series}")
+    logger.info("\n=== Iniciando contagem de transferências por série e sexo ===")
+    logger.info(f"Series range: {series_range}")
+    logger.info(f"Series: {series}")
     
     # Inicializa o dicionário de contagem
     contagem = {}
@@ -1648,12 +1650,12 @@ def contar_transferencias_por_serie_sexo(df, series_range, series):
         (df['DATA_TRANSFERENCIA'].notna())
     ]
     
-    print(f"\nTotal de alunos no DataFrame: {len(df)}")
-    print(f"Total de alunos transferidos encontrados: {len(df_transferidos)}")
+    logger.info(f"\nTotal de alunos no DataFrame: {len(df)}")
+    logger.info(f"Total de alunos transferidos encontrados: {len(df_transferidos)}")
     
     if len(df_transferidos) > 0:
-        print("\nExemplo de dados dos alunos transferidos:")
-        print(df_transferidos[['NOME DO ALUNO', 'SEXO', 'NOME_SERIE', 'SITUAÇÃO', 'DATA_TRANSFERENCIA', 'HISTORICO_TRANSFERENCIA']].head())
+        logger.info("\nExemplo de dados dos alunos transferidos:")
+        logger.info(df_transferidos[['NOME DO ALUNO', 'SEXO', 'NOME_SERIE', 'SITUAÇÃO', 'DATA_TRANSFERENCIA', 'HISTORICO_TRANSFERENCIA']].head())
     
     # Processa cada série
     for serie in series:
@@ -1672,17 +1674,17 @@ def contar_transferencias_por_serie_sexo(df, series_range, series):
         masculino = len(df_serie[df_serie['SEXO'] == 'M'])
         feminino = len(df_serie[df_serie['SEXO'] == 'F'])
         
-        print(f"\nSérie {serie}:")
-        print(f"Total de transferidos: {len(df_serie)}")
-        print(f"Masculino: {masculino}")
-        print(f"Feminino: {feminino}")
+        logger.info(f"\nSérie {serie}:")
+        logger.info(f"Total de transferidos: {len(df_serie)}")
+        logger.info(f"Masculino: {masculino}")
+        logger.info(f"Feminino: {feminino}")
         
         # Armazena a contagem
         contagem[serie] = {'M': masculino, 'F': feminino}
     
-    print("\nContagem final de transferências por série e sexo:")
+    logger.info("\nContagem final de transferências por série e sexo:")
     for serie, counts in contagem.items():
-        print(f"{serie}: M={counts['M']}, F={counts['F']}")
+        logger.info(f"{serie}: M={counts['M']}, F={counts['F']}")
     
     return contagem
 

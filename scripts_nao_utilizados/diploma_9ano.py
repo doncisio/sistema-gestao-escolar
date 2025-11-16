@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 from conexao import conectar_bd
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -81,7 +83,7 @@ meses = {
 }
 # Verificar se existem alunos na lista
 if not dados_alunos:
-    print("Nenhum aluno encontrado para o 9º Ano.")
+    logger.info("Nenhum aluno encontrado para o 9º Ano.")
 else:
     # Obter o diretório atual do script
     diretorio_atual = os.getcwd()
@@ -211,7 +213,7 @@ else:
         with open(nome_arquivo, "wb") as output_pdf:
             writer.write(output_pdf)
 
-        print(f"Diploma criado para {aluno['nome_aluno']} em {nome_arquivo}.")
+        logger.info(f"Diploma criado para {aluno['nome_aluno']} em {nome_arquivo}.")
 
     # Criar diplomas para todos os alunos
     for aluno in dados_alunos:

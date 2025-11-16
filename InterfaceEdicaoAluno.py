@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 from datetime import datetime
 from tkinter import (
     Label, Frame, Button, Entry, Toplevel, Canvas, Scrollbar,
@@ -1002,7 +1004,7 @@ class InterfaceEdicaoAluno:
                     )
                 except Exception as hist_err:
                     # Não interromper o fluxo principal, mas informar o usuário
-                    print(f"Falha ao registrar histórico da matrícula: {hist_err}")
+                    logger.error(f"Falha ao registrar histórico da matrícula: {hist_err}")
                 
                 # Confirmar a operação
                 if hasattr(self, 'conn') and self.conn:

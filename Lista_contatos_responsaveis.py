@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 import os
 import pandas as pd
 from reportlab.lib.colors import black, white, grey
@@ -14,7 +16,7 @@ from typing import Any, cast
 def buscar_contatos_alunos(ano_letivo: int):
     conn: Any = conectar_bd()
     if not conn:
-        print("Não foi possível conectar ao banco de dados.")
+        logger.info("Não foi possível conectar ao banco de dados.")
         return []
     cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
@@ -43,7 +45,7 @@ def buscar_contatos_alunos(ano_letivo: int):
         registros = cursor.fetchall()
         return registros
     except Exception as e:
-        print("Erro ao executar a consulta:", str(e))
+        logger.error("Erro ao executar a consulta:", str(e))
         return []
     finally:
         try:
@@ -117,7 +119,7 @@ def add_contacts_table(elements, turma_df, nome_serie, nome_turma, turno, figura
 def gerar_pdf_contatos(ano_letivo: int):
     registros = buscar_contatos_alunos(ano_letivo)
     if not registros:
-        print('Nenhum dado encontrado.')
+        logger.info('Nenhum dado encontrado.')
         return None
 
     df = pd.DataFrame(registros)
@@ -151,5 +153,4 @@ def gerar_pdf_contatos(ano_letivo: int):
 if __name__ == '__main__':
     ano = 2025
     gerar_pdf_contatos(ano)
-
 

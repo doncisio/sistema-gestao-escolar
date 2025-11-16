@@ -1,3 +1,5 @@
+from config_logs import get_logger
+logger = get_logger(__name__)
 from datetime import datetime
 from tkinter import (
     Label, Frame, Button, Entry, Toplevel, Canvas, Scrollbar,
@@ -114,7 +116,7 @@ class InterfaceCadastroFuncionario:
         try:
             # Verificar se a janela principal está visível
             if not self.janela_principal or not self.janela_principal.winfo_viewable():
-                print("Janela principal não está visível, pulando atualização")
+                logger.info("Janela principal não está visível, pulando atualização")
                 return
                 
             # Usar importação local para evitar problemas de importação circular
@@ -123,13 +125,13 @@ class InterfaceCadastroFuncionario:
             # Tentar atualizar - se falhar, apenas registrar o erro
             try:
                 main.atualizar_tabela_principal()
-                print("Tabela principal atualizada com sucesso")
+                logger.info("Tabela principal atualizada com sucesso")
             except Exception as update_error:
-                print(f"Não foi possível atualizar a tabela principal: {str(update_error)}")
-                print("A tabela será atualizada na próxima vez que você navegar pelos registros")
+                logger.info(f"Não foi possível atualizar a tabela principal: {str(update_error)}")
+                logger.info("A tabela será atualizada na próxima vez que você navegar pelos registros")
                 
         except Exception as e:
-            print(f"Erro ao atualizar tabela principal: {str(e)}")
+            logger.error(f"Erro ao atualizar tabela principal: {str(e)}")
             # Não tentar recriar a interface, apenas registrar o erro
 
     def criar_frames(self):
@@ -779,7 +781,7 @@ class InterfaceCadastroFuncionario:
                     frame_disc.c_disciplina.set(disciplina_atual)
                     
         except Exception as e:
-            print(f"Erro ao atualizar disciplinas por turmas: {str(e)}")
+            logger.error(f"Erro ao atualizar disciplinas por turmas: {str(e)}")
             # Em caso de erro, carregar todas as disciplinas
             self.carregar_disciplinas(frame_disc.c_disciplina)
 
@@ -954,7 +956,7 @@ class InterfaceCadastroFuncionario:
             self.fechar_janela()
             
         except Exception as e:
-            print(f"Erro ao salvar funcionário: {e}")
+            logger.error(f"Erro ao salvar funcionário: {e}")
             if hasattr(self, 'conn') and self.conn:
                 cast(Any, self.conn).rollback()
             messagebox.showerror("Erro", f"Ocorreu um erro ao salvar o funcionário: {str(e)}")
@@ -1047,5 +1049,5 @@ class InterfaceCadastroFuncionario:
                 return resultado
             return None
         except Exception as e:
-            print(f"Erro ao verificar professores em licença: {e}")
+            logger.error(f"Erro ao verificar professores em licença: {e}")
             return None 
