@@ -15,19 +15,7 @@ from inserir_no_historico_escolar import inserir_no_historico_escolar
 from utilitarios.gerenciador_documentos import salvar_documento_sistema
 from utilitarios.tipos_documentos import TIPO_ATA
 from biblio_editor import adicionar_quebra_linha, quebra_linha, criar_cabecalho_pdf, arredondar_personalizado
-
-def formatar_data_extenso(data=None):
-    """Formata a data em extenso em português do Brasil"""
-    if data is None:
-        data = datetime.datetime.now().date()
-    
-    meses = {
-        1: 'janeiro', 2: 'fevereiro', 3: 'março', 4: 'abril', 
-        5: 'maio', 6: 'junho', 7: 'julho', 8: 'agosto', 
-        9: 'setembro', 10: 'outubro', 11: 'novembro', 12: 'dezembro'
-    }
-    
-    return f"{data.day} de {meses[data.month]} de {data.year}"
+from utils.dates import formatar_data_extenso
 
 def obter_dados_alunos(cursor):
     query = """
