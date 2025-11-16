@@ -116,7 +116,9 @@ def relatorio_contatos_responsaveis():
 
     if _cont and hasattr(_cont, 'gerar_pdf_contatos'):
         try:
-            _run_report_module_returning_buffer(_cont.gerar_pdf_contatos, "Contatos de Responsáveis")
+            # A função `gerar_pdf_contatos` requer o parâmetro `ano_letivo`.
+            # Usar o ano letivo atual como padrão ao agendar a geração em background.
+            _run_report_module_returning_buffer(lambda: _cont.gerar_pdf_contatos(obter_ano_letivo_atual()), "Contatos de Responsáveis")
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao agendar relatório de contatos: {e}")
     else:
