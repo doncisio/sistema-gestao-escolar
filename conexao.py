@@ -2,8 +2,11 @@ import os
 from dotenv import load_dotenv
 import mysql.connector
 from mysql.connector import Error, pooling
+from config_logs import get_logger
 
 load_dotenv()  # Carrega as variáveis do arquivo .env
+
+logger = get_logger(__name__)
 
 # ============================================================================
 # MELHORIA 4: Connection Pool para Múltiplos Usuários
@@ -40,10 +43,10 @@ def inicializar_pool():
                 auth_plugin='mysql_native_password'
             )
             
-            print(f"[OK] Connection Pool inicializado: {pool_name} (size={pool_size})")
+            logger.info(f"[OK] Connection Pool inicializado: {pool_name} (size={pool_size})")
             
         except Error as e:
-            print(f"✗ Erro ao criar connection pool: {e}")
+            logger.exception(f"✗ Erro ao criar connection pool: {e}")
             _connection_pool = None
     
     return _connection_pool
@@ -72,16 +75,16 @@ def conectar_bd():
             if conn.is_connected():
                 return conn
             else:
-                print("⚠ Conexão do pool não está ativa, tentando reconectar...")
+                logger.warning("⚠ Conexão do pool não está ativa, tentando reconectar...")
                 conn.reconnect(attempts=3, delay=1)
                 return conn if conn.is_connected() else None
         else:
             # Fallback: criar conexão direta se pool falhou
-            print("⚠ Pool não disponível, usando conexão direta (fallback)")
+            logger.warning("⚠ Pool não disponível, usando conexão direta (fallback)")
             return _conectar_direto()
             
     except Error as e:
-        print(f"✗ Erro ao obter conexão do pool: {e}")
+        logger.exception(f"✗ Erro ao obter conexão do pool: {e}")
         # Fallback: tentar conexão direta
         return _conectar_direto()
 
@@ -105,7 +108,7 @@ def _conectar_direto():
         if conn.is_connected():
             return conn
     except Error as e:
-        print(f"✗ Erro ao conectar diretamente ao banco de dados: {e}")
+        logger.exception(f"✗ Erro ao conectar diretamente ao banco de dados: {e}")
         return None
 
 
@@ -121,9 +124,9 @@ def fechar_pool():
             # MySQL Connector não tem método close() no pool
             # As conexões são fechadas automaticamente quando o pool é destruído
             _connection_pool = None
-            print("[OK] Connection Pool encerrado")
+            logger.info("[OK] Connection Pool encerrado")
         except Exception as e:
-            print(f"⚠ Erro ao fechar pool: {e}")
+            logger.exception(f"⚠ Erro ao fechar pool: {e}")
 
 
 def obter_info_pool():
@@ -151,7 +154,7 @@ def obter_info_pool():
             'user': pool_config.get('user', 'N/A')
         }
     except Exception as e:
-        print(f"⚠ Erro ao obter informações do pool: {e}")
+        logger.exception(f"⚠ Erro ao obter informações do pool: {e}")
         return None
 
 
