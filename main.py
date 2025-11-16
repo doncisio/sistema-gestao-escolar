@@ -116,9 +116,36 @@ def relatorio_contatos_responsaveis():
 
     if _cont and hasattr(_cont, 'gerar_pdf_contatos'):
         try:
-            # A função `gerar_pdf_contatos` requer o parâmetro `ano_letivo`.
-            # Usar o ano letivo atual como padrão ao agendar a geração em background.
-            _run_report_module_returning_buffer(lambda: _cont.gerar_pdf_contatos(obter_ano_letivo_atual()), "Contatos de Responsáveis")
+            # A função `gerar_pdf_contatos` requer o parâmetro `ano_letivo` (ex.: 2025).
+            # `obter_ano_letivo_atual()` retorna o ID do registro em AnosLetivos,
+            # então precisamos converter esse ID para o valor do ano (coluna `ano_letivo`)
+            # que o gerador espera receber.
+            ano_param = None
+            try:
+                ano_id = obter_ano_letivo_atual()
+                with get_connection() as _conn:
+                    if _conn is not None:
+                        _cur = _conn.cursor()
+                        _cur.execute("SELECT ano_letivo FROM AnosLetivos WHERE id = %s", (int(str(ano_id)),))
+                        _res = _cur.fetchone()
+                        try:
+                            _cur.close()
+                        except Exception:
+                            pass
+                        if _res and _res[0] is not None:
+                            try:
+                                ano_param = int(str(_res[0]))
+                            except Exception:
+                                ano_param = None
+            except Exception:
+                ano_param = None
+
+            # Fallback: usar o ano corrente se não conseguimos determinar o ano
+            if not ano_param:
+                from datetime import datetime as _dt
+                ano_param = _dt.now().year
+
+            _run_report_module_returning_buffer(lambda: _cont.gerar_pdf_contatos(ano_param), "Contatos de Responsáveis")
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao agendar relatório de contatos: {e}")
     else:
