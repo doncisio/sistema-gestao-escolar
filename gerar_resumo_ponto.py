@@ -10,6 +10,9 @@ import re
 import unicodedata
 from typing import List
 from utils.dates import nome_mes_pt
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 
 def listar_colunas_funcionarios(conn):
@@ -467,7 +470,7 @@ def gerar_resumo_ponto(mes: int, ano: int):
 
     conn = conectar_bd()
     if conn is None:
-        print("Erro: não foi possível conectar ao banco de dados.")
+        logger.error("Erro: não foi possível conectar ao banco de dados.")
         return
     try:
         profissionais = consultar_profissionais(conn, mes, ano)
@@ -607,7 +610,7 @@ def gerar_resumo_ponto(mes: int, ano: int):
     with open(final_out, "wb") as ff:
         wfinal.write(ff)
 
-    print(f"Resumo de ponto gerado: {final_out}")
+    logger.info(f"Resumo de ponto gerado: {final_out}")
 
     # Abrir automaticamente no visualizador padrão de PDF
     try:

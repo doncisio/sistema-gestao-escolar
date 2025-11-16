@@ -9,13 +9,13 @@ logger.error('Teste de log ERROR')
 
 import pathlib
 p = pathlib.Path('logs/app.log')
-print('log exists:', p.exists())
+logger.info('log exists: %s', p.exists())
 if p.exists():
     text = p.read_text(encoding='utf-8')
     lines = text.splitlines()
     tail = '\n'.join(lines[-20:]) if len(lines) > 0 else ''
-    print('---- log tail (últimas linhas) ----')
-    print(tail)
-    print('---- end log ----')
+    logger.info('---- log tail (últimas linhas) ----')
+    logger.info(tail)
+    logger.info('---- end log ----')
 else:
-    print('Arquivo de log não encontrado')
+    logger.warning('Arquivo de log não encontrado')

@@ -56,7 +56,9 @@ def obter_dados_aluno(cursor, aluno_id):
 
         return dados_aluno
     except Exception as e:
-        print(f"Erro ao obter dados do aluno: {e}")
+        from config_logs import get_logger
+        logger = get_logger(__name__)
+        logger.exception(f"Erro ao obter dados do aluno: {e}")
         return None
 
 def obter_dados_responsaveis(cursor, aluno_id):
@@ -93,7 +95,9 @@ def obter_dados_responsaveis(cursor, aluno_id):
 
         return responsaveis
     except Exception as e:
-        print(f"Erro ao obter dados dos responsáveis: {e}")
+        from config_logs import get_logger
+        logger = get_logger(__name__)
+        logger.exception(f"Erro ao obter dados dos responsáveis: {e}")
         return []
 
 def obter_dados_escola(cursor, escola_id):
@@ -136,5 +140,7 @@ def obter_dados_escola(cursor, escola_id):
         else:
             return None
     except Exception as e:
-        print(f"Erro ao obter dados da escola: {e}")
+        from config_logs import get_logger
+        logger = get_logger(__name__)
+        logger.exception(f"Erro ao obter dados da escola: {e}")
         return None

@@ -16,6 +16,10 @@ from utilitarios.extrairdados import obter_dados_aluno, obter_dados_responsaveis
 from gerarPDF import salvar_e_abrir_pdf
 from utilitarios.gerenciador_documentos import salvar_documento_sistema
 from utilitarios.tipos_documentos import TIPO_TRANSFERENCIA
+from utils.dates import formatar_data
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 def gerar_documento_transferencia(aluno_id, ano_letivo_id):
     # Conectar ao banco de dados
@@ -57,7 +61,7 @@ def gerar_documento_transferencia(aluno_id, ano_letivo_id):
         resultado = cursor.fetchone()
         
         if not resultado:
-            print("Aluno não encontrado.")
+            logger.warning("Aluno não encontrado.")
             conn.rollback()
             return
 
@@ -74,7 +78,7 @@ def gerar_documento_transferencia(aluno_id, ano_letivo_id):
             "turma_id": resultado[8]
         }
 
-        print(f"Dados do aluno: {dados_aluno}")  # Debug
+        logger.debug(f"Dados do aluno: {dados_aluno}")  # Debug
 
         # Obter dados dos responsáveis
         query_responsaveis = """
@@ -95,11 +99,6 @@ def gerar_documento_transferencia(aluno_id, ano_letivo_id):
         
         # Mesclar dados nome serie e turma
         turma = f"{dados_aluno['nome_serie']} {dados_aluno['nome_turma']}"
-
-        def formatar_data(data):
-            meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro',
-                     'Novembro', 'Dezembro']
-            return f"{data.day} de {meses[data.month - 1]} de {data.year}"
 
         # Formatar a data de nascimento
         data_nascimento = pd.to_datetime(dados_aluno['nascimento']).strftime("%d/%m/%Y") if pd.notnull(dados_aluno['nascimento']) else ""
@@ -302,11 +301,11 @@ def gerar_documento_transferencia(aluno_id, ano_letivo_id):
                     from tkinter import messagebox
                     messagebox.showwarning("Aviso", "O documento foi gerado, mas houve um erro ao salvá-lo no sistema:\n" + mensagem)
                 except Exception:
-                    print("Aviso: O documento foi gerado, mas houve um erro ao salvá-lo no sistema:\n", mensagem)
+                    logger.warning("Aviso: O documento foi gerado, mas houve um erro ao salvá-lo no sistema: %s", mensagem)
 
         except Exception as e:
             # Se não existir o tipo de documento ou falhar, registrar e prosseguir
-            print(f"Erro ao salvar documento no sistema: {e}")
+            logger.exception(f"Erro ao salvar documento no sistema: {e}")
 
         # Abrir/mostrar o PDF gerado
         salvar_e_abrir_pdf(buffer)
@@ -315,7 +314,7 @@ def gerar_documento_transferencia(aluno_id, ano_letivo_id):
         conn.commit()
 
     except Exception as e:
-        print(f"Erro ao gerar documento de transferência: {e}")
+        logger.exception(f"Erro ao gerar documento de transferência: {e}")
         if conn:
             conn.rollback()
         return
@@ -324,11 +323,11 @@ def gerar_documento_transferencia(aluno_id, ano_letivo_id):
             try:
                 cursor.close()
             except Exception as e:
-                print(f"Erro ao fechar cursor: {e}")
+                logger.error(f"Erro ao fechar cursor: {e}")
         if conn:
             try:
                 conn.close()
             except Exception as e:
-                print(f"Erro ao fechar conexão: {e}")
+                logger.error(f"Erro ao fechar conexão: {e}")
 
 # gerar_documento_transferencia(575)

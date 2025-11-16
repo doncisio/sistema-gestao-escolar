@@ -829,24 +829,10 @@ def create_oficio_header(elements, cabecalho, figura_inferior, numero_oficio, an
     elements.append(Paragraph(f"Ofício nº {numero_oficio}/{ano}", ParagraphStyle(name='OficioNumero', fontSize=14, alignment=1)))
     elements.append(Spacer(1, 0.3 * inch))
     
-    # Adiciona a data em português
-    meses = {
-        'January': 'Janeiro',
-        'February': 'Fevereiro',
-        'March': 'Março',
-        'April': 'Abril',
-        'May': 'Maio',
-        'June': 'Junho',
-        'July': 'Julho',
-        'August': 'Agosto',
-        'September': 'Setembro',
-        'October': 'Outubro',
-        'November': 'Novembro',
-        'December': 'Dezembro'
-    }
+    # Adiciona a data em português usando util consolidado
+    from utils.dates import formatar_data_extenso
     data_atual = datetime.datetime.now()
-    mes_portugues = meses[data_atual.strftime("%B")]
-    data_formatada = f"{data_atual.day} de {mes_portugues} de {data_atual.year}"
+    data_formatada = formatar_data_extenso(data_atual)
     elements.append(Paragraph(f"Paço do Lumiar - MA, {data_formatada}", ParagraphStyle(name='Data', fontSize=12, alignment=2)))
     elements.append(Spacer(1, 0.3 * inch))
     
