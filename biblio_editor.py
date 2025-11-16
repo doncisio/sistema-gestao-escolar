@@ -147,22 +147,12 @@ def create_pdf_buffer(pagesize=letter):
         bottomMargin=bottom_margin
     )
     return doc, buffer
+from utils.dates import get_nome_mes
+
+
 def get_nome_mes(numero_mes):
-    meses = {
-        1: 'JANEIRO',
-        2: 'FEVEREIRO',
-        3: 'MARÇO',
-        4: 'ABRIL',
-        5: 'MAIO',
-        6: 'JUNHO',
-        7: 'JULHO',
-        8: 'AGOSTO',
-        9: 'SETEMBRO',
-        10: 'OUTUBRO',
-        11: 'NOVEMBRO',
-        12: 'DEZEMBRO'
-    }
-    return meses.get(numero_mes, '')
+    # Compatibilidade: devolve o mês em MAIÚSCULAS, mesmo comportamento anterior
+    return get_nome_mes(numero_mes, uppercase=True)
 
 def formatar_cpf(cpf):
     """Formata um CPF para o formato 000.000.000-00."""

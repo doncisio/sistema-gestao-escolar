@@ -71,3 +71,12 @@ def periodo_mes_referencia(mes: int, ano: int) -> str:
     """Retorna período do mês no formato '1 a <ultimo> de <Mês> de <ano>'."""
     ultimo = calendar.monthrange(ano, mes)[1]
     return f"1 a {ultimo} de {nome_mes_pt(mes)} de {ano}"
+
+
+def get_nome_mes(numero_mes: int, uppercase: bool = True) -> str:
+    """Retorna o nome do mês para usos que esperam MAIÚSCULAS (compatibilidade).
+
+    Ex.: get_nome_mes(1) -> 'JANEIRO'
+    """
+    nome = nome_mes_pt(numero_mes, capitalize=True)
+    return nome.upper() if uppercase else nome

@@ -12,21 +12,11 @@ from conexao import conectar_bd
 from gerarPDF import salvar_e_abrir_pdf, criar_pdf
 from inserir_no_historico_escolar import inserir_no_historico_escolar
 from biblio_editor import adicionar_quebra_linha, quebra_linha, arredondar_personalizado, criar_cabecalho_pdf
+from utils.dates import formatar_data_extenso
 import datetime
 from typing import Any, Dict, Optional, cast, List
 
-def formatar_data_extenso(data=None):
-    """Formata a data em extenso em português do Brasil"""
-    if data is None:
-        data = datetime.datetime.now().date()
-    
-    meses = {
-        1: 'janeiro', 2: 'fevereiro', 3: 'março', 4: 'abril', 
-        5: 'maio', 6: 'junho', 7: 'julho', 8: 'agosto', 
-        9: 'setembro', 10: 'outubro', 11: 'novembro', 12: 'dezembro'
-    }
-    
-    return f"{data.day} de {meses[data.month]} de {data.year}"
+# `formatar_data_extenso` importado de `utils.dates`
 
 def obter_dados_alunos(cursor):
     query = """
