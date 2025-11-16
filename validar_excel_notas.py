@@ -47,7 +47,7 @@ def validar_excel_notas(excel_path):
         for col in range(1, 8):
             valor = ws.cell(linha_header, col).value
             if valor:
-            logger.info(f"   Col {col}: {valor}")
+                logger.info(f"   Col {col}: {valor}")
         
         # Contar alunos
         num_alunos = ws.max_row - linha_header
