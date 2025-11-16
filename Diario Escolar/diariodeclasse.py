@@ -13,6 +13,9 @@ from conexao import conectar_bd
 from diariodeclasse_capa import create_custom_pdf
 from GerenciadorDocumentosSistema import GerenciadorDocumentosSistema
 from typing import Optional, Any, cast
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 # Constante para o tipo de documento
 TIPO_DIARIO_CLASSE = "Diário de Classe"
@@ -293,7 +296,7 @@ def main(nome_aluno: Optional[str] = None):
                 os.system(f'open "{arquivo_temp}"' if sys.platform == 'darwin' else f'xdg-open "{arquivo_temp}"')
 
     except Exception as e:
-        print(f"Erro ao gerar o diário de classe: {str(e)}")
+        logger.exception("Erro ao gerar o diário de classe: %s", e)
         raise
 
 # Chama a função principal para executar o script.

@@ -10,6 +10,9 @@ import platform
 from reportlab.lib.colors import HexColor
 from GerenciadorDocumentosSistema import GerenciadorDocumentosSistema
 import datetime
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 # Constante para o tipo de documento
 TIPO_DIARIO_CLASSE_CAPA = "Capa do Diário de Classe"
@@ -59,7 +62,7 @@ def create_custom_pdf():
             open_pdf(arquivo_temp)
 
     except Exception as e:
-        print(f"Erro ao gerar a capa do diário de classe: {str(e)}")
+        logger.exception("Erro ao gerar a capa do diário de classe: %s", e)
         raise
 
 def draw_background_image(c, image_path, width, height):

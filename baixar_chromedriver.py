@@ -9,6 +9,9 @@ import zipfile
 import shutil
 import requests
 from pathlib import Path
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 
 def obter_versao_chrome():
@@ -49,7 +52,7 @@ def obter_versao_chrome():
         return None
         
     except Exception as e:
-        print(f"⚠ Erro ao obter versão do Chrome: {e}")
+        logger.exception("⚠ Erro ao obter versão do Chrome: %s", e)
         return None
 
 
@@ -61,12 +64,12 @@ def obter_versao_chromedriver_compativel(versao_chrome):
         # Pegar apenas versão major (ex: 131 de 131.0.6778.109)
         versao_major = versao_chrome.split('.')[0]
         
-        print(f"→ Chrome versão: {versao_chrome} (major: {versao_major})")
+        logger.info("→ Chrome versão: %s (major: %s)", versao_chrome, versao_major)
         
         # URL da API do Chrome for Testing
         url = f"https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json"
         
-        print(f"→ Buscando versão compatível do ChromeDriver...")
+        logger.info("→ Buscando versão compatível do ChromeDriver...")
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         
@@ -84,7 +87,7 @@ def obter_versao_chromedriver_compativel(versao_chrome):
         return None, None
         
     except Exception as e:
-        print(f"⚠ Erro ao buscar versão compatível: {e}")
+        logger.exception("⚠ Erro ao buscar versão compatível: %s", e)
         return None, None
 
 
@@ -93,7 +96,7 @@ def baixar_chromedriver(url, destino):
     Baixa e extrai o ChromeDriver
     """
     try:
-        print(f"→ Baixando ChromeDriver de: {url}")
+        logger.info("→ Baixando ChromeDriver de: %s", url)
         
         # Baixar arquivo
         response = requests.get(url, stream=True, timeout=30)
@@ -113,12 +116,13 @@ def baixar_chromedriver(url, destino):
                     
                     if total_size > 0:
                         percent = (downloaded / total_size) * 100
+                        # manter a saída de progresso no terminal para UX
                         print(f"  → Progresso: {percent:.1f}%", end='\r')
         
-        print(f"\n✓ Download concluído: {zip_path}")
+        logger.info("✓ Download concluído: %s", zip_path)
         
         # Extrair ZIP
-        print(f"→ Extraindo arquivo...")
+        logger.info("→ Extraindo arquivo...")
         
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             # Procurar chromedriver.exe no ZIP
@@ -144,11 +148,11 @@ def baixar_chromedriver(url, destino):
         # Remover ZIP
         os.remove(zip_path)
         
-        print(f"✓ ChromeDriver extraído para: {destino}")
+        logger.info("✓ ChromeDriver extraído para: %s", destino)
         return True
         
     except Exception as e:
-        print(f"✗ Erro ao baixar ChromeDriver: {e}")
+        logger.exception("✗ Erro ao baixar ChromeDriver: %s", e)
         return False
 
 
