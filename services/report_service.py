@@ -1510,7 +1510,17 @@ def _impl_gerar_resumo_ponto(*args, **kwargs) -> bool:
     # Preparar periodos e ordenar / dividir profissionais conforme legacy
     import calendar
     ultimo_dia = calendar.monthrange(ano, mes)[1]
-    periodo = f"1 a {ultimo_dia} de {legacy.nome_mes_pt(mes)} de {ano}"
+    # Preferir o utilitário centralizado de datas; fallback para o legacy quando necessário
+    try:
+        from utils.dates import nome_mes_pt as _nome_mes_pt
+        nome_mes = _nome_mes_pt(mes)
+    except Exception:
+        try:
+            nome_mes = legacy.nome_mes_pt(mes)
+        except Exception:
+            nome_mes = str(mes)
+
+    periodo = f"1 a {ultimo_dia} de {nome_mes} de {ano}"
 
     # prioridade e ordenação (reúso do legacy)
     import unicodedata as _ud
