@@ -690,6 +690,8 @@ class InterfaceSolicitacaoProfessores:
         elementos.append(tabela)
         elementos.append(Spacer(1, 0.15 * inch))
         # Data da solicitação (direita) no formato "Paço do Lumiar - MA, {dia} de {mês} de {ano}"
+        from utils.dates import formatar_data_extenso
+
         def formatar_data_pt(data_str: str) -> str:
             try:
                 dt = datetime.strptime(data_str, "%d/%m/%Y")
@@ -698,11 +700,7 @@ class InterfaceSolicitacaoProfessores:
                     dt = datetime.strptime(data_str, "%d-%m-%Y")
                 except Exception:
                     dt = datetime.today()
-            meses = [
-                "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-                "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
-            ]
-            return f"Paço do Lumiar - MA, {dt.day} de {meses[dt.month-1]} de {dt.year}"
+            return f"Paço do Lumiar - MA, {formatar_data_extenso(dt)}"
 
         data_formatada = formatar_data_pt(self.data_solicitacao.get())
         elementos.append(Paragraph(data_formatada, ParagraphStyle('DataRight', parent=estilos['Normal'], alignment=2)))
