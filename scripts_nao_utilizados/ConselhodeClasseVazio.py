@@ -7,6 +7,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import black, white, grey
+from utils.dates import nome_mes_pt
 from conexao import conectar_bd
 from gerarPDF import salvar_e_abrir_pdf
 
@@ -118,10 +119,14 @@ def a_preencher_conselho():
         "trinta", "trinta e um"
     ]
 
-    meses_extenso = [
-        "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-        "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
-    ]
+    # Lista de meses em português (usando utilitário centralizado com fallback)
+    try:
+        meses_extenso = [nome_mes_pt(i).lower() for i in range(1, 13)]
+    except Exception:
+        meses_extenso = [
+            "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+            "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
+        ]
 
     # Passo 5: Formatar a string final
     data_formatada = f"Aos {dias_extenso[dia]} dias do mês de {meses_extenso[mes - 1]} do presente ano"
