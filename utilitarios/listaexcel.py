@@ -1,5 +1,8 @@
 import pandas as pd
 from conexao import conectar_bd
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 def fetch_student_data_with_responsibles(ano_letivo):
     """
@@ -43,7 +46,7 @@ def fetch_student_data_with_responsibles(ano_letivo):
         dados_aluno = cursor.fetchall()
         return dados_aluno
     except Exception as e:
-        print("Erro ao executar a consulta:", str(e))
+        logger.exception("Erro ao executar a consulta: %s", str(e))
         return None
 
 def create_excel_with_sheets(ano_letivo):
@@ -54,7 +57,7 @@ def create_excel_with_sheets(ano_letivo):
     # Busca os dados dos alunos e responsáveis
     dados_aluno = fetch_student_data_with_responsibles(ano_letivo)
     if not dados_aluno:
-        print("Nenhum dado encontrado.")
+        logger.warning("Nenhum dado encontrado.")
         return
     
     # Converte os dados em um DataFrame
@@ -62,7 +65,7 @@ def create_excel_with_sheets(ano_letivo):
     
     # Verifica se há dados no DataFrame
     if df.empty:
-        print("O DataFrame está vazio.")
+        logger.warning("O DataFrame está vazio.")
         return
     
     # Agrupa os dados por série e turma
@@ -81,7 +84,7 @@ def create_excel_with_sheets(ano_letivo):
             # Salva a planilha no Excel
             sheet_df.to_excel(writer, sheet_name=sheet_name, index=False)
     
-    print("Arquivo Excel criado com sucesso!")
+    logger.info("Arquivo Excel criado com sucesso!")
 
 # Executa a função principal
 create_excel_with_sheets(2025)

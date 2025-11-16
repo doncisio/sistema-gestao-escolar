@@ -6,6 +6,9 @@ import os
 from tkinter import *
 from PIL import Image, ImageTk
 import weakref
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 # Dicionário global para armazenar referências a todas as imagens carregadas
 # Isso evita que o coletor de lixo do Python as destrua prematuramente
@@ -49,9 +52,9 @@ def carregar_imagem_segura(caminho, tamanho=None, usar_cache=True, chave=None):
                 _imagens_cache[chave] = photo
                 
             return photo
-        else:
-            print(f"Arquivo não encontrado: {caminho}")
-            return None
+            else:
+                logger.warning(f"Arquivo não encontrado: {caminho}")
+                return None
     except Exception as e:
         print(f"Erro ao carregar imagem '{caminho}': {str(e)}")
         return None
@@ -73,7 +76,7 @@ class GerenciadorImagens:
             img_vazia = Image.new('RGB', (45, 45), color=(3, 140, 252))  # Cor azul
             self.imagem_backup = ImageTk.PhotoImage(img_vazia)
         except Exception as e:
-            print(f"Erro ao criar imagem de backup: {e}")
+            logger.exception(f"Erro ao criar imagem de backup: {e}")
             self.imagem_backup = None
     
     def carregar_imagem(self, categoria, caminho, tamanho=None, chave=None):
@@ -100,7 +103,7 @@ class GerenciadorImagens:
         try:
             # Verifica se o arquivo existe
             if not os.path.exists(caminho):
-                print(f"Arquivo não encontrado: {caminho}")
+                logger.warning(f"Arquivo não encontrado: {caminho}")
                 return self.imagem_backup
             
             # Carrega e processa a imagem
@@ -114,7 +117,7 @@ class GerenciadorImagens:
             
             return photo
         except Exception as e:
-            print(f"Erro ao carregar imagem '{caminho}': {str(e)}")
+            logger.exception(f"Erro ao carregar imagem '{caminho}': {str(e)}")
             return self.imagem_backup
     
     def obter_imagem(self, categoria, chave, widget=None):
@@ -132,7 +135,7 @@ class GerenciadorImagens:
         try:
             # Verificar se a categoria e a chave existem
             if categoria not in self.imagens or chave not in self.imagens.get(categoria, {}):
-                print(f"Imagem não encontrada: categoria='{categoria}', chave='{chave}'")
+                logger.warning(f"Imagem não encontrada: categoria='{categoria}', chave='{chave}'")
                 # Tentar carregar a imagem novamente
                 if categoria == 'interface_editar' and chave == 'header_logo':
                     # Caminho específico para o ícone de edição
@@ -159,7 +162,7 @@ class GerenciadorImagens:
             
             return imagem
         except Exception as e:
-            print(f"Erro ao obter imagem: categoria='{categoria}', chave='{chave}', erro={str(e)}")
+            logger.exception(f"Erro ao obter imagem: categoria='{categoria}', chave='{chave}', erro={str(e)}")
             return self.imagem_backup
     
     def verificar_imagem_valida(self, categoria, chave):
@@ -240,25 +243,25 @@ def exibir_status_imagens():
     """
     status = verificar_imagens_necessarias()
     
-    print("\n===== STATUS DAS IMAGENS DO SISTEMA =====")
+    logger.info("\n===== STATUS DAS IMAGENS DO SISTEMA =====")
     todas_ok = True
     
     for caminho, existe in status.items():
         if existe:
-            print(f"✓ {caminho}")
+            logger.info(f"✓ {caminho}")
         else:
             todas_ok = False
-            print(f"✗ {caminho} (NÃO ENCONTRADA)")
+            logger.warning(f"✗ {caminho} (NÃO ENCONTRADA)")
     
     if todas_ok:
-        print("\nTodas as imagens necessárias foram encontradas!")
+        logger.info("\nTodas as imagens necessárias foram encontradas!")
     else:
-        print("\nALGUMAS IMAGENS ESTÃO FALTANDO!")
-        print("Isso pode causar erros como 'pyimage doesn't exist'.")
-        print("\nSoluções possíveis:")
-        print("1. Certifique-se de que a pasta 'icon' existe na raiz do projeto")
-        print("2. Baixe as imagens faltantes")
-        print("3. Modifique o código para usar imagens alternativas")
+        logger.warning("\nALGUMAS IMAGENS ESTÃO FALTANDO!")
+        logger.warning("Isso pode causar erros como 'pyimage doesn't exist'.")
+        logger.info("\nSoluções possíveis:")
+        logger.info("1. Certifique-se de que a pasta 'icon' existe na raiz do projeto")
+        logger.info("2. Baixe as imagens faltantes")
+        logger.info("3. Modifique o código para usar imagens alternativas")
     
     return todas_ok
 

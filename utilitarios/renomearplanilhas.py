@@ -1,5 +1,8 @@
 import openpyxl
 import os
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 def process_excel_file(file_path):
     # Abrir o arquivo Excel
@@ -11,7 +14,7 @@ def process_excel_file(file_path):
     
     # Verificar se todas as planilhas já estão no formato correto
     if set(wb.sheetnames) == set(expected_sheets):
-        print(f"O arquivo '{file_path}' já está no formato correto. Nenhuma modificação necessária.")
+        logger.info(f"O arquivo '{file_path}' já está no formato correto. Nenhuma modificação necessária.")
         return
     
     # Excluir todas as planilhas do tipo "nº ano" (de "1º ano" a "9º ano")
@@ -27,7 +30,7 @@ def process_excel_file(file_path):
     
     # Salvar o arquivo modificado
     wb.save(file_path)
-    print(f"O arquivo '{file_path}' foi processado e atualizado.")
+    logger.info(f"O arquivo '{file_path}' foi processado e atualizado.")
 
 # Caminho da pasta com os arquivos Excel
 folder_path = "H:/Meu Drive/NADIR_2024/ATAS DIGITALIZADAS/dados historico escolar/FINALIZADAS - Copia"
@@ -38,4 +41,4 @@ for file_name in os.listdir(folder_path):
         file_path = os.path.join(folder_path, file_name)
         process_excel_file(file_path)
 
-print("Processamento concluído!")
+logger.info("Processamento concluído!")

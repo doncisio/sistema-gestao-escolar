@@ -7,20 +7,24 @@ def teste_tipos_interface():
     """Testa a interface otimizada com verificação de tipos"""
     try:
         from interface_historico_otimizada import InterfaceHistoricoOtimizada
-        
-        print("✅ Import da interface otimizada - OK")
+        from config_logs import get_logger
+        logger = get_logger(__name__)
+
+        logger.info("✅ Import da interface otimizada - OK")
         
         # Testar se a classe pode ser instanciada sem erros de tipo
         # (não vamos executar a interface, só verificar se não há erros)
         
-        print("✅ Verificação de tipos da interface - OK")
+        logger.info("✅ Verificação de tipos da interface - OK")
         return True
         
     except ImportError as e:
-        print(f"❌ Erro de importação: {e}")
+        logger = get_logger(__name__)
+        logger.exception(f"❌ Erro de importação: {e}")
         return False
     except Exception as e:
-        print(f"❌ Erro inesperado: {e}")
+        logger = get_logger(__name__)
+        logger.exception(f"❌ Erro inesperado: {e}")
         return False
 
 def teste_tipos_manager():
@@ -28,7 +32,10 @@ def teste_tipos_manager():
     try:
         from historico_manager_otimizado import HistoricoManagerOtimizado, historico_manager
         
-        print("✅ Import do manager otimizado - OK")
+        from config_logs import get_logger
+        logger = get_logger(__name__)
+
+        logger.info("✅ Import do manager otimizado - OK")
         
         # Verificar se o validador funciona
         validador = historico_manager.validador
@@ -37,32 +44,34 @@ def teste_tipos_manager():
         try:
             aluno_id = validador.validar_aluno_id(123)
             assert aluno_id == 123
-            print("✅ Validação de aluno_id - OK")
+            logger.info("✅ Validação de aluno_id - OK")
         except Exception as e:
-            print(f"❌ Erro na validação de aluno_id: {e}")
+            logger.exception(f"❌ Erro na validação de aluno_id: {e}")
             
         try:
             media = validador.validar_media("8.5")
             assert media == 8.5
-            print("✅ Validação de média - OK")
+            logger.info("✅ Validação de média - OK")
         except Exception as e:
-            print(f"❌ Erro na validação de média: {e}")
+            logger.exception(f"❌ Erro na validação de média: {e}")
             
         try:
             conceito = validador.validar_conceito("AD")
             assert conceito == "AD"
-            print("✅ Validação de conceito - OK")
+            logger.info("✅ Validação de conceito - OK")
         except Exception as e:
-            print(f"❌ Erro na validação de conceito: {e}")
+            logger.exception(f"❌ Erro na validação de conceito: {e}")
         
-        print("✅ Verificação de tipos do manager - OK")
+        logger.info("✅ Verificação de tipos do manager - OK")
         return True
         
     except ImportError as e:
-        print(f"❌ Erro de importação do manager: {e}")
+        logger = get_logger(__name__)
+        logger.exception(f"❌ Erro de importação do manager: {e}")
         return False
     except Exception as e:
-        print(f"❌ Erro inesperado no manager: {e}")
+        logger = get_logger(__name__)
+        logger.exception(f"❌ Erro inesperado no manager: {e}")
         return False
 
 def teste_cache():
@@ -76,53 +85,60 @@ def teste_cache():
         cache.set("teste", "valor")
         valor = cache.get("teste")
         assert valor == "valor"
-        print("✅ Operações básicas de cache - OK")
+        from config_logs import get_logger
+        logger = get_logger(__name__)
+
+        logger.info("✅ Operações básicas de cache - OK")
         
         # Testar invalidação
         cache.invalidar("teste")
         valor = cache.get("teste")
         assert valor is None
-        print("✅ Invalidação de cache - OK")
+        logger.info("✅ Invalidação de cache - OK")
         
         return True
         
     except Exception as e:
-        print(f"❌ Erro no teste de cache: {e}")
+        logger = get_logger(__name__)
+        logger.exception(f"❌ Erro no teste de cache: {e}")
         return False
 
 def executar_todos_os_testes():
     """Executa todos os testes"""
-    print("🚀 Iniciando testes do sistema otimizado...")
-    print("=" * 50)
+    from config_logs import get_logger
+    logger = get_logger(__name__)
+
+    logger.info("🚀 Iniciando testes do sistema otimizado...")
+    logger.info("=" * 50)
     
     sucessos = 0
     total = 3
     
-    print("\n📦 Testando tipos da interface...")
+    logger.info("\n📦 Testando tipos da interface...")
     if teste_tipos_interface():
         sucessos += 1
     
-    print("\n⚙️ Testando tipos do manager...")
+    logger.info("\n⚙️ Testando tipos do manager...")
     if teste_tipos_manager():
         sucessos += 1
     
-    print("\n💾 Testando sistema de cache...")
+    logger.info("\n💾 Testando sistema de cache...")
     if teste_cache():
         sucessos += 1
     
-    print("\n" + "=" * 50)
-    print(f"📊 Resultado: {sucessos}/{total} testes passou(ram)")
+    logger.info("\n" + "=" * 50)
+    logger.info(f"📊 Resultado: {sucessos}/{total} testes passou(ram)")
     
     if sucessos == total:
-        print("🎉 Todos os testes passaram! Sistema otimizado funcionando corretamente.")
-        print("\n📋 Correções aplicadas com sucesso:")
-        print("   ✅ Tipos de aluno_atual corrigidos")
-        print("   ✅ Validações de None implementadas")
-        print("   ✅ Anotações de tipo melhoradas")
-        print("   ✅ Thread safety preservado")
+        logger.info("🎉 Todos os testes passaram! Sistema otimizado funcionando corretamente.")
+        logger.info("\n📋 Correções aplicadas com sucesso:")
+        logger.info("   ✅ Tipos de aluno_atual corrigidos")
+        logger.info("   ✅ Validações de None implementadas")
+        logger.info("   ✅ Anotações de tipo melhoradas")
+        logger.info("   ✅ Thread safety preservado")
         return True
     else:
-        print("⚠️ Alguns testes falharam. Verifique os erros acima.")
+        logger.warning("⚠️ Alguns testes falharam. Verifique os erros acima.")
         return False
 
 if __name__ == "__main__":

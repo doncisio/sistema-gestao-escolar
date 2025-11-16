@@ -12,6 +12,9 @@ import argparse
 import json
 import os
 from datetime import datetime
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 STATUS_FILE = os.path.join(ROOT, 'REFACTOR_STATUS.json')
@@ -74,7 +77,7 @@ def main():
     if args.set_key:
         key = args.set_key
         if key not in status:
-            print(f'Chave {key} não encontrada em {STATUS_FILE}')
+            logger.error(f'Chave {key} não encontrada em {STATUS_FILE}')
             return
         status[key]['done'] = True
         status[key]['when'] = datetime.utcnow().isoformat() + 'Z'
@@ -82,7 +85,7 @@ def main():
     if args.unset_key:
         key = args.unset_key
         if key not in status:
-            print(f'Chave {key} não encontrada em {STATUS_FILE}')
+            logger.error(f'Chave {key} não encontrada em {STATUS_FILE}')
             return
         status[key]['done'] = False
         status[key].pop('when', None)

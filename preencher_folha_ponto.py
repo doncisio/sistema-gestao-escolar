@@ -2,6 +2,7 @@ from conexao import conectar_bd
 from reportlab.pdfgen import canvas
 from PyPDF2 import PdfReader, PdfWriter
 from datetime import datetime
+from utils.dates import formatar_data, nome_mes_pt
 import calendar
 import io
 import os
@@ -10,25 +11,6 @@ import unicodedata
 from typing import Any, cast
 
 
-def formatar_data(data_valor):
-    if not data_valor:
-        return ""
-    if isinstance(data_valor, str):
-        try:
-            # tenta formatos comuns vindos do banco
-            for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%d/%m/%Y"):
-                try:
-                    d = datetime.strptime(data_valor, fmt)
-                    return d.strftime("%d/%m/%Y")
-                except ValueError:
-                    continue
-            return data_valor
-        except Exception:
-            return data_valor
-    try:
-        return data_valor.strftime("%d/%m/%Y")
-    except Exception:
-        return str(data_valor)
 
 
 def formatar_telefone(telefone):
@@ -189,22 +171,7 @@ def gerar_folhas_de_ponto(template_pdf: str, saida_pdf: str, mes_referencia: int
             pass
 
 
-def nome_mes_pt(mes_num):
-    meses = {
-        1: "Janeiro",
-        2: "Fevereiro",
-        3: "Março",
-        4: "Abril",
-        5: "Maio",
-        6: "Junho",
-        7: "Julho",
-        8: "Agosto",
-        9: "Setembro",
-        10: "Outubro",
-        11: "Novembro",
-        12: "Dezembro",
-    }
-    return meses.get(mes_num, str(mes_num))
+# `formatar_data` e `nome_mes_pt` importados de `utils.dates`
 
 
 def localizar_template_folha() -> str:

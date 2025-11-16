@@ -11,6 +11,9 @@ from googleapiclient.http import MediaFileUpload
 import pickle
 import mimetypes
 from dotenv import load_dotenv
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 class GerenciadorDocumentos:
     def __init__(self):
@@ -35,7 +38,7 @@ class GerenciadorDocumentos:
                     creds.refresh(Request())
                 except Exception as e:
                     # Token expirado ou revogado, remover e refazer autenticação
-                    print(f"Erro ao renovar token: {e}")
+                    logger.exception(f"Erro ao renovar token: {e}")
                     if os.path.exists('token.pickle'):
                         os.remove('token.pickle')
                     flow = InstalledAppFlow.from_client_secrets_file('credentials.json', self.SCOPES)
@@ -212,7 +215,7 @@ class GerenciadorDocumentos:
             return False, None, None
             
         except mysql.connector.Error as e:
-            print(f"Erro ao verificar documento recente: {e}")
+            logger.exception(f"Erro ao verificar documento recente: {e}")
             return False, None, None
         finally:
             cursor.close()
@@ -256,9 +259,9 @@ class GerenciadorDocumentos:
                     
                     # Excluir arquivo antigo do Drive
                     self.service.files().delete(fileId=file_id_antigo).execute()
-                    print(f"Arquivo antigo removido do Drive: {file_id_antigo}")
+                    logger.info(f"Arquivo antigo removido do Drive: {file_id_antigo}")
                 except Exception as e:
-                    print(f"Aviso: Não foi possível excluir arquivo antigo do Drive: {e}")
+                    logger.warning(f"Aviso: Não foi possível excluir arquivo antigo do Drive: {e}")
             
             # Criar estrutura de pastas
             ano_atual = datetime.now().year
@@ -385,7 +388,7 @@ class GerenciadorDocumentos:
             except Exception as e:
                 if 'invalid_grant' in str(e) or 'Token has been expired' in str(e):
                     # Token expirado, tentar renovar
-                    print("Token do Google Drive expirou. Renovando...")
+                    logger.warning("Token do Google Drive expirou. Renovando...")
                     self.setup_google_drive()
                     # Tentar novamente após renovar
                     file = self.service.files().create(
@@ -433,6 +436,7 @@ class GerenciadorDocumentos:
                 
             except mysql.connector.Error as e:
                 conn.rollback()
+                logger.exception(f"Erro ao salvar no banco de dados: {str(e)}")
                 return False, f"Erro ao salvar no banco de dados: {str(e)}", None
                 
             finally:
