@@ -11,6 +11,9 @@ from dotenv import load_dotenv
 import mysql.connector
 from mysql.connector import Error
 from typing import Any, cast
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 # Carregar variáveis do .env
 load_dotenv()
@@ -26,24 +29,24 @@ def conectar_banco():
             'auth_plugin': 'mysql_native_password'
         }
         
-        print(f"🔗 Conectando ao banco: {config['host']} -> {config['database']}")
+        logger.info("🔗 Conectando ao banco: %s -> %s", config['host'], config['database'])
         
         conn = mysql.connector.connect(**config)
         
         if conn.is_connected():
             info = conn.get_server_info()
-            print(f"✅ Conectado ao MySQL Server versão {info}")
+            logger.info("✅ Conectado ao MySQL Server versão %s", info)
             return conn
         else:
-            print("❌ Falha na conexão")
+            logger.error("❌ Falha na conexão")
             return None
             
     except Error as e:
-        print(f"❌ Erro ao conectar ao banco: {e}")
-        print("\n🔍 Verifique se:")
-        print("   1. O MySQL está rodando")
-        print("   2. As credenciais no .env estão corretas")
-        print("   3. O banco de dados existe")
+        logger.exception("❌ Erro ao conectar ao banco: %s", e)
+        logger.error("\n🔍 Verifique se:")
+        logger.error("   1. O MySQL está rodando")
+        logger.error("   2. As credenciais no .env estão corretas")
+        logger.error("   3. O banco de dados existe")
         return None
 
 def verificar_indice_existe(cursor, tabela, nome_indice):
@@ -60,26 +63,26 @@ def verificar_indice_existe(cursor, tabela, nome_indice):
         resultado = cursor.fetchone()
         return resultado[0] > 0
     except Error as e:
-        print(f"⚠️  Erro ao verificar índice {nome_indice}: {e}")
+        logger.exception("⚠️  Erro ao verificar índice %s: %s", nome_indice, e)
         return False
 
 def executar_sql_seguro(cursor, sql, descricao):
     """Executa SQL com tratamento de erro"""
     try:
-        print(f"🔄 {descricao}...")
+        logger.info("🔄 %s...", descricao)
         cursor.execute(sql)
-        print(f"✅ {descricao} - SUCESSO")
+        logger.info("✅ %s - SUCESSO", descricao)
         return True
     except Error as e:
-        print(f"❌ {descricao} - ERRO: {e}")
+        logger.exception("❌ %s - ERRO: %s", descricao, e)
         return False
 
 def aplicar_otimizacoes_historico():
     """Aplica as otimizações específicas para histórico escolar"""
     
-    print("=" * 80)
-    print("🚀 APLICANDO OTIMIZAÇÕES DE HISTÓRICO ESCOLAR")
-    print("=" * 80)
+    logger.info("%s", "=" * 80)
+    logger.info("🚀 APLICANDO OTIMIZAÇÕES DE HISTÓRICO ESCOLAR")
+    logger.info("%s", "=" * 80)
     
     # Conectar ao banco
     conn = conectar_banco()
@@ -92,21 +95,21 @@ def aplicar_otimizacoes_historico():
         # ==================================================================
         # VERIFICAR TABELAS NECESSÁRIAS
         # ==================================================================
-        print("\n📋 Verificando estrutura do banco...")
+        logger.info("\n📋 Verificando estrutura do banco...")
         
         tabelas_necessarias = ['historico_escolar', 'alunos', 'disciplinas', 'serie', 'escolas', 'anosletivos']
         
         for tabela in tabelas_necessarias:
             cursor.execute("SHOW TABLES LIKE %s", (tabela,))
             if not cursor.fetchone():
-                print(f"⚠️  Tabela '{tabela}' não encontrada!")
+                logger.warning("⚠️  Tabela '%s' não encontrada!", tabela)
             else:
-                print(f"✅ Tabela '{tabela}' encontrada")
+                logger.info("✅ Tabela '%s' encontrada", tabela)
         
         # ==================================================================
         # ÍNDICES ESPECÍFICOS PARA HISTÓRICO ESCOLAR
         # ==================================================================
-        print("\n🔧 Aplicando índices específicos para histórico escolar...")
+        logger.info("\n🔧 Aplicando índices específicos para histórico escolar...")
         
         indices_historico = [
             {
@@ -140,7 +143,7 @@ def aplicar_otimizacoes_historico():
         
         for indice in indices_historico:
             if verificar_indice_existe(cursor, indice['tabela'], indice['nome']):
-                print(f"⏭️  Índice {indice['nome']} já existe - PULANDO")
+                logger.info("⏭️  Índice %s já existe - PULANDO", indice['nome'])
                 indices_existentes += 1
             else:
                 if executar_sql_seguro(cursor, indice['sql'], indice['descricao']):
@@ -149,7 +152,7 @@ def aplicar_otimizacoes_historico():
         # ==================================================================
         # ÍNDICES COMPLEMENTARES (se não existirem)
         # ==================================================================
-        print("\n🔧 Verificando índices complementares...")
+        logger.info("\n🔧 Verificando índices complementares...")
         
         indices_complementares = [
             {
@@ -186,7 +189,7 @@ def aplicar_otimizacoes_historico():
         
         for indice in indices_complementares:
             if verificar_indice_existe(cursor, indice['tabela'], indice['nome']):
-                print(f"⏭️  Índice {indice['nome']} já existe - PULANDO")
+                logger.info("⏭️  Índice %s já existe - PULANDO", indice['nome'])
                 indices_existentes += 1
             else:
                 if executar_sql_seguro(cursor, indice['sql'], indice['descricao']):
@@ -195,7 +198,7 @@ def aplicar_otimizacoes_historico():
         # ==================================================================
         # ANALISAR TABELAS PARA ATUALIZAR ESTATÍSTICAS
         # ==================================================================
-        print("\n📊 Atualizando estatísticas das tabelas...")
+        logger.info("\n📊 Atualizando estatísticas das tabelas...")
         
         tabelas_analisar = ['historico_escolar', 'alunos', 'disciplinas', 'serie', 'escolas', 'anosletivos']
         
@@ -208,44 +211,44 @@ def aplicar_otimizacoes_historico():
         # ==================================================================
         # RELATÓRIO FINAL
         # ==================================================================
-        print("\n" + "=" * 80)
-        print("📊 RELATÓRIO DE OTIMIZAÇÕES APLICADAS")
-        print("=" * 80)
-        print(f"✅ Índices criados: {indices_criados}")
-        print(f"⏭️  Índices que já existiam: {indices_existentes}")
-        print(f"📊 Tabelas analisadas: {len(tabelas_analisar)}")
+        logger.info("\n%s", "=" * 80)
+        logger.info("📊 RELATÓRIO DE OTIMIZAÇÕES APLICADAS")
+        logger.info("%s", "=" * 80)
+        logger.info("✅ Índices criados: %d", indices_criados)
+        logger.info("⏭️  Índices que já existiam: %d", indices_existentes)
+        logger.info("📊 Tabelas analisadas: %d", len(tabelas_analisar))
         
         if indices_criados > 0:
-            print(f"\n🎉 {indices_criados} novos índices foram criados com sucesso!")
-            print("🚀 A interface de histórico escolar deve estar mais rápida agora!")
+            logger.info("\n🎉 %d novos índices foram criados com sucesso!", indices_criados)
+            logger.info("🚀 A interface de histórico escolar deve estar mais rápida agora!")
         else:
-            print("\n✨ Todos os índices já estavam criados!")
-            print("👍 Sistema já otimizado para histórico escolar!")
+            logger.info("\n✨ Todos os índices já estavam criados!")
+            logger.info("👍 Sistema já otimizado para histórico escolar!")
         
         return True
         
     except Error as e:
-        print(f"\n❌ Erro durante a aplicação das otimizações: {e}")
+        logger.exception("\n❌ Erro durante a aplicação das otimizações: %s", e)
         conn.rollback()
         return False
         
     finally:
         cursor.close()
         conn.close()
-        print("\n🔌 Conexão com o banco fechada")
+        logger.info("\n🔌 Conexão com o banco fechada")
 
 def verificar_configuracao():
     """Verifica se a configuração está correta antes de executar"""
     
-    print("🔍 Verificando configuração...")
+    logger.info("🔍 Verificando configuração...")
     
     # Verificar se arquivo .env existe
     if not os.path.exists('.env'):
-        print("⚠️  Arquivo .env não encontrado!")
-        print("📝 Você precisa criar o arquivo .env com as configurações do banco.")
-        print("💡 Use o arquivo .env.example como modelo:")
-        print("   cp .env.example .env")
-        print("   # Edite o .env com suas configurações")
+        logger.error("⚠️  Arquivo .env não encontrado!")
+        logger.error("📝 Você precisa criar o arquivo .env com as configurações do banco.")
+        logger.error("💡 Use o arquivo .env.example como modelo:")
+        logger.error("   cp .env.example .env")
+        logger.error("   # Edite o .env com suas configurações")
         return False
     
     # Verificar se variáveis essenciais existem
@@ -257,30 +260,30 @@ def verificar_configuracao():
             vars_faltando.append(var)
     
     if vars_faltando:
-        print(f"❌ Variáveis faltando no .env: {', '.join(vars_faltando)}")
+        logger.error("❌ Variáveis faltando no .env: %s", ', '.join(vars_faltando))
         return False
     
-    print("✅ Configuração do .env está correta")
+    logger.info("✅ Configuração do .env está correta")
     return True
 
 def main():
     """Função principal"""
     
-    print("🔧 APLICADOR DE OTIMIZAÇÕES - HISTÓRICO ESCOLAR")
-    print("=" * 60)
+    logger.info("🔧 APLICADOR DE OTIMIZAÇÕES - HISTÓRICO ESCOLAR")
+    logger.info("%s", "=" * 60)
     
     # Verificar configuração
     if not verificar_configuracao():
-        print("\n❌ Configuração inválida. Operação cancelada.")
+        logger.error("\n❌ Configuração inválida. Operação cancelada.")
         return 1
     
     # Aplicar otimizações
     if aplicar_otimizacoes_historico():
-        print("\n🎉 OTIMIZAÇÕES APLICADAS COM SUCESSO!")
-        print("🚀 A interface de histórico escolar deve estar mais rápida!")
+        logger.info("\n🎉 OTIMIZAÇÕES APLICADAS COM SUCESSO!")
+        logger.info("🚀 A interface de histórico escolar deve estar mais rápida!")
         return 0
     else:
-        print("\n❌ FALHA NA APLICAÇÃO DAS OTIMIZAÇÕES")
+        logger.error("\n❌ FALHA NA APLICAÇÃO DAS OTIMIZAÇÕES")
         return 1
 
 if __name__ == "__main__":
