@@ -7,6 +7,42 @@ from config_logs import get_logger
 logger = get_logger(__name__)
 
 
+def _find_image_in_repo(filename: str) -> Optional[str]:
+    """Tenta localizar uma imagem no repositório retornando caminho absoluto.
+
+    Procura em alguns locais prováveis (diretório do módulo, diretório pai e
+    raíz do repositório/workdir). Retorna `None` se não encontrar.
+    """
+    import os as _os
+
+    repo_root = _os.path.abspath(_os.getcwd())
+    mod_dir = _os.path.dirname(__file__)
+
+    candidates = [
+        _os.path.join(mod_dir, filename),
+        _os.path.join(mod_dir, '..', filename),
+        _os.path.join(repo_root, filename),
+    ]
+
+    # também tentar variações de extensão comuns
+    base, ext = _os.path.splitext(filename)
+    other_exts = ['.png', '.jpg', '.jpeg']
+    for e in other_exts:
+        candidates.append(_os.path.join(repo_root, base + e))
+        candidates.append(_os.path.join(mod_dir, base + e))
+
+    for c in candidates:
+        try:
+            c_abs = _os.path.abspath(c)
+        except Exception:
+            continue
+        if _os.path.exists(c_abs):
+            return c_abs
+
+    logger.warning("Imagem '%s' não encontrada nos locais procurados; locais: %s", filename, ','.join(candidates))
+    return None
+
+
 def _ensure_legacy_module(target, required=None, candidate_filename: Optional[str] = None):
     """Garantir acesso ao módulo legado.
 
@@ -375,8 +411,8 @@ def _impl_gerar_tabela_frequencia() -> bool:
 
     df = pd.DataFrame(dados_aluno)
 
-    figura_superior = os.path.join(os.path.dirname(__file__), '..', 'logopacobranco.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), '..', 'logopaco.jpg')
+    figura_superior = _find_image_in_repo('logopacobranco.png') or ''
+    figura_inferior = _find_image_in_repo('logopaco.jpg') or ''
 
     doc, buffer = create_pdf_buffer()
     elements = []
@@ -531,8 +567,8 @@ def _impl_lista_frequencia() -> bool:
         "<b>CNPJ: 01.394.462/0001-01</b>"
     ]
 
-    figura_superior = os.path.join(os.path.dirname(__file__), '..', 'logopacobranco.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), '..', 'logopaco.jpg')
+    figura_superior = _find_image_in_repo('logopacobranco.png') or ''
+    figura_inferior = _find_image_in_repo('logopaco.jpg') or ''
 
     doc, buffer = create_pdf_buffer()
     elements = []
@@ -1290,8 +1326,8 @@ def _impl_gerar_lista_reuniao(dados_aluno=None, ano_letivo: Optional[int] = None
 
     # localizar imagens
     diretorio_principal = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    figura_superior = os.path.join(diretorio_principal, "logosemed.png")
-    figura_inferior = os.path.join(diretorio_principal, "logopaco.jpg")
+    figura_superior = _find_image_in_repo('logosemed.png') or ''
+    figura_inferior = _find_image_in_repo('logopaco.jpg') or ''
 
     cabecalho = [
         "PREFEITURA MUNICIPAL DE PAÇO DO LUMIAR",

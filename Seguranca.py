@@ -58,7 +58,7 @@ def fazer_backup():
         try:
             # Verificar se o diretório do Google Drive existe
             diretorio_drive = os.path.dirname(caminho_backup_drive)
-                if os.path.exists(diretorio_drive):
+            if os.path.exists(diretorio_drive):
                 # Ler o arquivo local e salvar no Drive
                 with open(caminho_backup_local, "r", encoding="utf-8") as arquivo_origem:
                     backup_content = arquivo_origem.read()
