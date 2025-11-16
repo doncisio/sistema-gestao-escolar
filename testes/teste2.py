@@ -1,11 +1,14 @@
 import xlsxwriter
 from conexao import conectar_bd
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 # Tenta conectar ao banco de dados
 conn = conectar_bd()
 
 if conn is None:
-    print("Não foi possível conectar ao banco de dados.  Encerrando.")
+    logger.error("Não foi possível conectar ao banco de dados.  Encerrando.")
     exit()  # Encerra o script se a conexão falhar
 
 try:
@@ -67,14 +70,14 @@ try:
     # Fecha o arquivo Excel
     workbook.close()
 
-    print("Relatório gerado com sucesso!")
+    logger.info("Relatório gerado com sucesso!")
 
 except Exception as e:
-    print(f"Um erro inesperado ocorreu: {e}")
+    logger.exception(f"Um erro inesperado ocorreu: {e}")
 
 finally:
     # Fecha a conexão com o banco de dados
     if conn and conn.is_connected(): # Verifica se conn não é None antes de usar
         cursor.close()
         conn.close()
-        print("Conexão MySQL foi fechada")
+        logger.info("Conexão MySQL foi fechada")

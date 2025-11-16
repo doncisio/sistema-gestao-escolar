@@ -5,6 +5,9 @@ import tkinter as tk
 from tkinter import messagebox
 from views.aluno_view import ListaAlunosView
 from utils.config import Config
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 def testar_lista_alunos():
     """Testa a visualização da lista de alunos"""
@@ -19,11 +22,11 @@ def testar_lista_alunos():
     
     # Tentar criar a lista de alunos
     try:
-        print("Iniciando teste da ListaAlunosView...")
+        logger.info("Iniciando teste da ListaAlunosView...")
         lista_alunos = ListaAlunosView(content_frame)
-        print("ListaAlunosView criada com sucesso!")
+        logger.info("ListaAlunosView criada com sucesso!")
     except Exception as e:
-        print(f"Erro ao criar ListaAlunosView: {str(e)}")
+        logger.exception(f"Erro ao criar ListaAlunosView: {str(e)}")
         messagebox.showerror("Erro", f"Erro ao criar ListaAlunosView: {str(e)}")
     
     # Botão para fechar
