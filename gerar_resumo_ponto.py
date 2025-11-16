@@ -9,24 +9,7 @@ import sys
 import re
 import unicodedata
 from typing import List
-
-
-def nome_mes_pt(mes_num):
-    meses = {
-        1: "Janeiro",
-        2: "Fevereiro",
-        3: "Março",
-        4: "Abril",
-        5: "Maio",
-        6: "Junho",
-        7: "Julho",
-        8: "Agosto",
-        9: "Setembro",
-        10: "Outubro",
-        11: "Novembro",
-        12: "Dezembro",
-    }
-    return meses.get(mes_num, str(mes_num))
+from utils.dates import nome_mes_pt
 
 
 def listar_colunas_funcionarios(conn):
