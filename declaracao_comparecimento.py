@@ -15,6 +15,9 @@ from gerarPDF import salvar_e_abrir_pdf
 from utilitarios.gerenciador_documentos import salvar_documento_sistema
 from tkinter import messagebox
 from typing import Any, cast
+from config_logs import get_logger
+
+logger = get_logger(__name__)
 
 
 def obter_dados_responsavel_aluno(cursor, aluno_id):
@@ -130,7 +133,7 @@ def gerar_declaracao_comparecimento_responsavel(aluno_id, data_comparecimento=No
             conn_temp = conectar_bd()
             if conn_temp is None:
                 # Não conseguimos abrir conexão temporária; manter cpf_responsavel como None
-                print("Aviso: não foi possível conectar ao banco para buscar CPF do responsável")
+                logger.warning("Aviso: não foi possível conectar ao banco para buscar CPF do responsável")
             else:
                 try:
                     cursor_temp = cast(Any, conn_temp).cursor()
@@ -230,7 +233,7 @@ def gerar_declaracao_comparecimento_responsavel(aluno_id, data_comparecimento=No
         
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao gerar declaração de comparecimento: {str(e)}")
-        print(f"Erro detalhado: {str(e)}")
+        logger.exception("Erro detalhado: %s", e)
 
 
 def criar_pdf_declaracao_comparecimento(buffer, dados, nome_aluno, nome_responsavel, cpf_responsavel,
@@ -421,4 +424,4 @@ def abrir_interface_declaracao_comparecimento(aluno_id, janela_pai):
 
 if __name__ == "__main__":
     # Teste
-    print("Módulo de Declaração de Comparecimento carregado com sucesso!")
+    logger.info("Módulo de Declaração de Comparecimento carregado com sucesso!")
