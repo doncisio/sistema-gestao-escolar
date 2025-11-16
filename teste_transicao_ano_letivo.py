@@ -27,7 +27,7 @@ def verificar_situacao_atual():
     try:
         conn: Any = conectar_bd()
         if not conn:
-            print("❌ Erro: Não foi possível conectar ao banco de dados.")
+            logger.error("❌ Erro: Não foi possível conectar ao banco de dados.")
             return
         
         cursor = cast(Any, conn).cursor(dictionary=True)
@@ -41,7 +41,7 @@ def verificar_situacao_atual():
         """)
         ano_atual = cast(Any, cursor.fetchone())
         if not ano_atual:
-            print("❌ Erro: não foi possível obter o ano letivo atual.")
+            logger.error("❌ Erro: não foi possível obter o ano letivo atual.")
             cursor.close()
             conn.close()
             return
@@ -104,20 +104,20 @@ def verificar_situacao_atual():
             ORDER BY s.nome, t.nome
         """, (ano_atual['id'],))
         
-        print(f"\n📚 Distribuição por Série/Turma:")
+        logger.info(f"\n📚 Distribuição por Série/Turma:")
         total_geral = 0
         for row in cast(Any, cursor.fetchall()):
-            print(f"   {row['serie_turma']}: {row['total_ativos']} alunos")
+            logger.info(f"   {row['serie_turma']}: {row['total_ativos']} alunos")
         logger.info(f"\n📚 Distribuição por Série/Turma:")
-        print(f"   ───────────────────")
-        print(f"   TOTAL: {total_geral} alunos")
+        logger.info(f"   ───────────────────")
+        logger.info(f"   TOTAL: {total_geral} alunos")
             logger.info(f"   {row['serie_turma']}: {row['total_ativos']} alunos")
         cursor.close()
         logger.info(f"   ───────────────────")
         logger.info(f"   TOTAL: {total_geral} alunos")
-        print("\n" + "="*60)
-        print("✅ Verificação concluída!")
-        print("="*60 + "\n")
+        logger.info("\n" + "="*60)
+        logger.info("✅ Verificação concluída!")
+        logger.info("="*60 + "\n")
         
         logger.info("\n" + "="*60)
         logger.info("✅ Verificação concluída!")
@@ -127,14 +127,14 @@ def verificar_situacao_atual():
         logger.exception(f"\n❌ Erro ao verificar situação: {str(e)}")
 def simular_transicao():
     """Simula a transição mostrando o que seria feito"""
-    print("\n" + "="*60)
-    print("SIMULAÇÃO DA TRANSIÇÃO")
-    print("="*60)
+    logger.info("\n" + "="*60)
+    logger.info("SIMULAÇÃO DA TRANSIÇÃO")
+    logger.info("="*60)
     logger.info("\n" + "="*60)
     logger.info("SIMULAÇÃO DA TRANSIÇÃO")
     logger.info("="*60)
         if not conn:
-            print("❌ Erro: Não foi possível conectar ao banco de dados.")
+            logger.error("❌ Erro: Não foi possível conectar ao banco de dados.")
             return
         
             logger.error("❌ Erro: Não foi possível conectar ao banco de dados.")
@@ -148,13 +148,12 @@ def simular_transicao():
         """)
         ano_atual = cast(Any, cursor.fetchone())
         if not ano_atual:
-            print("❌ Erro: não foi possível obter o ano letivo atual para simulação.")
+            logger.error("❌ Erro: não foi possível obter o ano letivo atual para simulação.")
             cursor.close()
             conn.close()
-            logger.error("❌ Erro: não foi possível obter o ano letivo atual para simulação.")
         ano_novo = ano_atual['ano_letivo'] + 1
         
-        print(f"\n📅 Transição: {ano_atual['ano_letivo']} → {ano_novo}")
+        logger.info(f"\n📅 Transição: {ano_atual['ano_letivo']} → {ano_novo}")
         
         # Contar matrículas que serão encerradas
         logger.info(f"\n📅 Transição: {ano_atual['ano_letivo']} → {ano_novo}")
@@ -165,7 +164,7 @@ def simular_transicao():
         """, (ano_atual['id'],))
         
         resultado = cast(Any, cursor.fetchone())
-        print(f"\n🔒 Matrículas que serão encerradas (status → 'Concluído'): {resultado['total']}")
+        logger.info(f"\n🔒 Matrículas que serão encerradas (status → 'Concluído'): {resultado['total']}")
         
         # Contar novas matrículas que serão criadas
         logger.info(f"\n🔒 Matrículas que serão encerradas (status → 'Concluído'): {resultado['total']}")
@@ -178,7 +177,7 @@ def simular_transicao():
         """, (ano_atual['id'],))
         
         resultado = cast(Any, cursor.fetchone())
-        print(f"✨ Novas matrículas que serão criadas: {resultado['total']}")
+        logger.info(f"✨ Novas matrículas que serão criadas: {resultado['total']}")
         
         # Alunos excluídos
         logger.info(f"✨ Novas matrículas que serão criadas: {resultado['total']}")
@@ -193,16 +192,16 @@ def simular_transicao():
             GROUP BY m.status
         """, (ano_atual['id'],))
         
-        print(f"\n❌ Alunos que NÃO serão rematriculados:")
+        logger.info(f"\n❌ Alunos que NÃO serão rematriculados:")
         for row in cast(Any, cursor.fetchall()):
-            print(f"   {row['status']}: {row['total']}")
+            logger.info(f"   {row['status']}: {row['total']}")
         logger.info(f"\n❌ Alunos que NÃO serão rematriculados:")
         cursor.close()
             logger.info(f"   {row['status']}: {row['total']}")
         
-        print("\n" + "="*60)
-        print("✅ Simulação concluída!")
-        print("⚠️  Esta foi apenas uma simulação. Nenhum dado foi alterado.")
+        logger.info("\n" + "="*60)
+        logger.info("✅ Simulação concluída!")
+        logger.info("⚠️  Esta foi apenas uma simulação. Nenhum dado foi alterado.")
         logger.info("\n" + "="*60)
         logger.info("✅ Simulação concluída!")
         logger.info("⚠️  Esta foi apenas uma simulação. Nenhum dado foi alterado.")
