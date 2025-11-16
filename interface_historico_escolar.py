@@ -6,6 +6,7 @@ import sys
 import re
 import pandas as pd
 from datetime import datetime, date
+from utils.dates import formatar_data
 from conexao import conectar_bd
 from historico_escolar import historico_escolar
 from utilitarios.escola_cache import get_escola_municipio
@@ -127,46 +128,11 @@ class InterfaceHistoricoEscolar:
         """
         if data_obj is None:
             return "Não informada"
-        
         try:
-            # Se já é uma string formatada
-            if isinstance(data_obj, str):
-                # Tentar converter string para datetime para validar formato
-                if len(data_obj) == 10 and '/' in data_obj:
-                    return data_obj  # Já está no formato dd/mm/yyyy
-                elif len(data_obj) == 10 and '-' in data_obj:
-                    # Formato yyyy-mm-dd, converter para dd/mm/yyyy
-                    partes = data_obj.split('-')
-                    if len(partes) == 3:
-                        return f"{partes[2]}/{partes[1]}/{partes[0]}"
-                
-            # Se é objeto datetime ou date
-            if isinstance(data_obj, (datetime, date)):
-                return data_obj.strftime('%d/%m/%Y')
-                
-            # Se é um número (timestamp)
-            if isinstance(data_obj, (int, float)):
-                try:
-                    data_convertida = datetime.fromtimestamp(data_obj)
-                    return data_convertida.strftime('%d/%m/%Y')
-                except:
-                    pass
-                    
-            # Tentar converter string para datetime
-            if isinstance(data_obj, str):
-                # Tentar diferentes formatos
-                formatos = ['%Y-%m-%d', '%d/%m/%Y', '%Y/%m/%d', '%d-%m-%Y']
-                for formato in formatos:
-                    try:
-                        data_convertida = datetime.strptime(data_obj, formato)
-                        return data_convertida.strftime('%d/%m/%Y')
-                    except:
-                        continue
-                        
+            return formatar_data(data_obj)
         except Exception as e:
             _logger.exception(f"Erro ao formatar data: {e}")
-            
-        return "Data inválida"
+            return "Data inválida"
 
     def validar_conexao_bd(self):
         """
