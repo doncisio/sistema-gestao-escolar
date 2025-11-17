@@ -53,15 +53,32 @@ def arredondar_personalizado(n):
     Returns:
         int: Nota arredondada e multiplicada por 10
     """
-    from decimal import Decimal, ROUND_HALF_UP
-    
-    # Divide por 10 para obter o valor real da nota
-    nota_real = n / 10
-    # Usa Decimal para arredondamento correto (sempre para cima quando >= 5)
-    nota_decimal = Decimal(str(nota_real))
-    nota_arredondada = nota_decimal.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
-    # Multiplica por 10 e retorna como inteiro
-    return int(float(nota_arredondada) * 10)
+    from decimal import Decimal
+
+    # A função recebe a nota multiplicada por 10 (ex: 63.7 representa 6.37)
+    # Vamos dividir por 10 para trabalhar com o valor real
+    nota_real = Decimal(str(n)) / Decimal('10')
+
+    # Separar parte inteira e a fração
+    parte_inteira = int(nota_real // 1)
+    fracao = nota_real - Decimal(parte_inteira)
+
+    # Limiares escolhidos com base no exemplo fornecido:
+    # - fracao < 0.3125  -> arredonda para baixo (x.00)
+    # - 0.3125 <= fracao < 0.8125 -> arredonda para x.5
+    # - fracao >= 0.8125 -> arredonda para cima (x+1.0)
+    t1 = Decimal('0.3125')
+    t2 = Decimal('0.8125')
+
+    if fracao < t1:
+        resultado = Decimal(parte_inteira)
+    elif fracao < t2:
+        resultado = Decimal(parte_inteira) + Decimal('0.5')
+    else:
+        resultado = Decimal(parte_inteira + 1)
+
+    # Retornar no formato do sistema (multiplicado por 10, inteiro)
+    return int((resultado * Decimal('10')).to_integral_value())
 
 def arredondamento_ata(n):
     """

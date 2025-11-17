@@ -13,6 +13,7 @@ import platform
 from conexao import conectar_bd
 from db.connection import get_cursor
 from decimal import Decimal, ROUND_HALF_UP
+from biblio_editor import arredondar_personalizado
 import re
 from typing import Any, cast
 
@@ -635,13 +636,21 @@ def gerar_documento_pdf(df, bimestre, nome_arquivo, disciplinas, nivel_ensino, a
                 valor_nota = row.get(coluna, None) if hasattr(row, 'get') else (row[coluna] if coluna in row.index else None)
                 if pd.notnull(valor_nota):
                     # Nota vem multiplicada por 10 (ex: 76.7 representa 7.67)
-                    nota_real = float(valor_nota) / 10
-                    # Arredondar usando Decimal para garantir arredondamento correto (sempre para cima quando >= 5)
-                    nota_decimal = Decimal(str(nota_real))
-                    nota_arredondada = float(nota_decimal.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP))
-                    # Multiplicar por 10 novamente para exibir (ex: 7.4 → 74)
-                    nota_final = nota_arredondada * 10
-                    # Mostrar como inteiro
+                    # Fazer parsing seguro antes de passar para as funções de arredondamento
+                    try:
+                        raw_val = float(valor_nota)
+                    except Exception:
+                        raw_val = 0.0
+
+                    try:
+                        nota_final = arredondar_personalizado(raw_val)
+                    except Exception:
+                        # Fallback: manter comportamento anterior usando Decimal
+                        nota_real = raw_val / 10.0
+                        nota_decimal = Decimal(str(nota_real))
+                        nota_arredondada = float(nota_decimal.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP))
+                        nota_final = int(nota_arredondada * 10)
+
                     linha_aluno.append(int(nota_final))
                 else:
                     linha_aluno.append("")  # Célula vazia para notas nulas
@@ -873,13 +882,19 @@ def gerar_documento_pdf_com_assinatura(df, bimestre, nome_arquivo, disciplinas, 
                 valor_nota = row.get(coluna, None) if hasattr(row, 'get') else (row[coluna] if coluna in row.index else None)
                 if pd.notnull(valor_nota):
                     # Nota vem multiplicada por 10 (ex: 76.7 representa 7.67)
-                    nota_real = float(valor_nota) / 10
-                    # Arredondar usando Decimal para garantir arredondamento correto (sempre para cima quando >= 5)
-                    nota_decimal = Decimal(str(nota_real))
-                    nota_arredondada = float(nota_decimal.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP))
-                    # Multiplicar por 10 novamente para exibir (ex: 7.4 → 74)
-                    nota_final = nota_arredondada * 10
-                    # Mostrar como inteiro
+                    try:
+                        raw_val = float(valor_nota)
+                    except Exception:
+                        raw_val = 0.0
+
+                    try:
+                        nota_final = arredondar_personalizado(raw_val)
+                    except Exception:
+                        nota_real = raw_val / 10.0
+                        nota_decimal = Decimal(str(nota_real))
+                        nota_arredondada = float(nota_decimal.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP))
+                        nota_final = int(nota_arredondada * 10)
+
                     linha_aluno.append(int(nota_final))
                 else:
                     linha_aluno.append("")  # Célula vazia para notas nulas

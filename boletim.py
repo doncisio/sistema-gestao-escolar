@@ -12,7 +12,7 @@ from gerarPDF import salvar_e_abrir_pdf
 from db.connection import get_connection
 from biblio_editor import arredondar_personalizado, quebra_linha
 from config_logs import get_logger
-from typing import Any, cast
+from typing import Any, cast, Dict, List, Optional
 
 logger = get_logger(__name__)
 
@@ -347,8 +347,11 @@ def boletiminiciais(aluno_id, ano_letivo_id):
         quebra_linha("RECUPERAÇÃO FINAL"), quebra_linha("MÉDIA FINAL")],
     ]
 
-    # Inicialização do dicionário para armazenar notas e faltas por disciplina
+    # Inicialização do dicionário para armazenar notas (exibição) e notas brutas (para cálculo)
     notas_disciplinas = {disciplina: ["--", "--", "--", "--"] for disciplina in ordem_disciplinas}
+    notas_brutas_disciplinas: Dict[str, List[Optional[float]]] = {disciplina: [None, None, None, None] for disciplina in ordem_disciplinas}
+    
+    faltas_bimestrais = {disciplina: [0, 0, 0, 0] for disciplina in ordem_disciplinas}
     faltas_bimestrais = {disciplina: [0, 0, 0, 0] for disciplina in ordem_disciplinas}
 
     # Iterar sobre os dados do aluno
@@ -362,22 +365,23 @@ def boletiminiciais(aluno_id, ano_letivo_id):
         if disciplina not in ordem_disciplinas:
             continue
 
-        # Dividir a nota por 10 para formatação
-        nota_formatada = nota / 10
-
-        # Preencher a nota correspondente ao bimestre
+        # Preencher a nota correspondente ao bimestre (armazenar bruto e exibição arredondada)
         if bimestre == '1º bimestre':
-            notas_disciplinas[disciplina][0] = f"{nota_formatada:.1f}"
-            faltas_bimestrais[disciplina][0] += faltas
+            notas_brutas_disciplinas[disciplina][0] = nota
+            notas_disciplinas[disciplina][0] = f"{arredondar_personalizado(nota)/10:.1f}"
+            faltas_bimestrais[disciplina][0] = faltas
         elif bimestre == '2º bimestre':
-            notas_disciplinas[disciplina][1] = f"{nota_formatada:.1f}"
-            faltas_bimestrais[disciplina][1] += faltas
+            notas_brutas_disciplinas[disciplina][1] = nota
+            notas_disciplinas[disciplina][1] = f"{arredondar_personalizado(nota)/10:.1f}"
+            faltas_bimestrais[disciplina][1] = faltas
         elif bimestre == '3º bimestre':
-            notas_disciplinas[disciplina][2] = f"{nota_formatada:.1f}"
-            faltas_bimestrais[disciplina][2] += faltas
+            notas_brutas_disciplinas[disciplina][2] = nota
+            notas_disciplinas[disciplina][2] = f"{arredondar_personalizado(nota)/10:.1f}"
+            faltas_bimestrais[disciplina][2] = faltas
         elif bimestre == '4º bimestre':
-            notas_disciplinas[disciplina][3] = f"{nota_formatada:.1f}"
-            faltas_bimestrais[disciplina][3] += faltas
+            notas_brutas_disciplinas[disciplina][3] = nota
+            notas_disciplinas[disciplina][3] = f"{arredondar_personalizado(nota)/10:.1f}"
+            faltas_bimestrais[disciplina][3] = faltas
 
     # Conectar ao banco de dados para buscar recuperação
     try:
@@ -423,14 +427,15 @@ def boletiminiciais(aluno_id, ano_letivo_id):
 
                     # Preencher a tabela data_nota com as disciplinas e suas respectivas notas
                     for disciplina in ordem_disciplinas:
-                        # Calcular média aritmética das notas
-                        notas = [_safe_float(nota) for nota in notas_disciplinas[disciplina] if nota != "--"]
+                        # Calcular média aritmética das notas a partir dos valores brutos
+                        notas_raw = [n for n in notas_brutas_disciplinas[disciplina] if n is not None]
 
-                        if not notas:
+                        if not notas_raw:
                             continue  # Pular disciplinas sem notas registradas
 
-                        # Calcular média anual com as notas disponíveis
-                        media_anual_sem_arredondamento = sum(notas) / len(notas)
+                        # media_anual_sem_arredondamento está em unidade bruta (ex: 63.7 representa 6.37)
+                        media_anual_sem_arredondamento = sum(notas_raw) / len(notas_raw)
+                        # Arredondar usando a função centralizada (retorna inteiro multiplicado por 10)
                         media_anual_arredondada = arredondar_personalizado(media_anual_sem_arredondamento)
 
                         # Verificar se temos o ID desta disciplina
@@ -443,21 +448,21 @@ def boletiminiciais(aluno_id, ano_letivo_id):
 
                             if disciplina_id in recuperacoes:
                                 rec_val = _safe_float(recuperacoes[disciplina_id], 0.0)
-                                nota_recuperacao = f"{rec_val/10:.1f}"
+                                nota_recuperacao = f"{arredondar_personalizado(rec_val)/10:.1f}"
                                 media_final_sem_arredondamento = (media_anual_sem_arredondamento + rec_val) / 2
                                 media_final_arredondada = arredondar_personalizado(media_final_sem_arredondamento)
 
                             # Só mostrar a média final se tiver 4 notas
-                            if len(notas) == 4:
+                            if len(notas_raw) == 4:
                                 data_nota.append([
                                     _cell(quebra_linha(disciplina)),
                                     _cell(notas_disciplinas[disciplina][0]),
                                     _cell(notas_disciplinas[disciplina][1]),
                                     _cell(notas_disciplinas[disciplina][2]),
                                     _cell(notas_disciplinas[disciplina][3]),
-                                    _cell(f"{media_anual_arredondada:.1f}"),
+                                    _cell(f"{media_anual_arredondada/10:.1f}"),
                                     _cell(nota_recuperacao),
-                                    _cell(f"{media_final_arredondada:.1f}")
+                                    _cell(f"{media_final_arredondada/10:.1f}")
                                 ])
                             else:
                                 data_nota.append([
@@ -466,13 +471,13 @@ def boletiminiciais(aluno_id, ano_letivo_id):
                                     _cell(notas_disciplinas[disciplina][1]),
                                     _cell(notas_disciplinas[disciplina][2]),
                                     _cell(notas_disciplinas[disciplina][3]),
-                                    _cell(f"{media_anual_arredondada:.1f}"),
+                                    _cell(f"{media_anual_arredondada/10:.1f}"),
                                     _cell(nota_recuperacao),
                                     _cell("--")
                                 ])
                         else:
                             # Só mostrar a média final se tiver 4 notas
-                            if len(notas) == 4:
+                            if len(notas_raw) == 4:
                                 data_nota.append([
                                     _cell(quebra_linha(disciplina)),
                                     _cell(notas_disciplinas[disciplina][0]),
@@ -481,7 +486,7 @@ def boletiminiciais(aluno_id, ano_letivo_id):
                                     _cell(notas_disciplinas[disciplina][3]),
                                     _cell(f"{media_anual_arredondada:.1f}"),
                                     _cell("--"),
-                                    _cell(f"{media_anual_arredondada:.1f}")
+                                    _cell(f"{media_anual_arredondada/10:.1f}")
                                 ])
                             else:
                                 data_nota.append([
@@ -988,8 +993,9 @@ def boletimfinais(aluno_id, ano_letivo_id):
         [quebra_linha("COMPONENTES CURRICULARES"), quebra_linha_menor("NOTA"), quebra_linha_menor("FALTAS"), quebra_linha_menor("NOTA"), quebra_linha_menor("FALTAS"), quebra_linha_menor("NOTA"), quebra_linha_menor("FALTAS"), quebra_linha_menor("NOTA"), quebra_linha_menor("FALTAS"), quebra_linha_menor("MÉDIA ANUAL"),quebra_linha_menor("AVAL. FINAL"),quebra_linha_menor("NOTA FINAL"),quebra_linha_menor("TOTAL FALTAS"), quebra_linha_menor("SITUAÇÃO FINAL")]
     ]
 
-    # Inicialização do dicionário para armazenar notas e faltas por disciplina
+    # Inicialização do dicionário para armazenar notas (exibição) e notas brutas (para cálculo)
     notas_disciplinas = {disciplina: ["--", "--", "--", "--"] for disciplina in ordem_disciplinas}
+    notas_brutas_disciplinas: Dict[str, List[Optional[float]]] = {disciplina: [None, None, None, None] for disciplina in ordem_disciplinas}
     faltas_bimestrais = {disciplina: [0, 0, 0, 0] for disciplina in ordem_disciplinas}
 
     # Iterar sobre os dados do aluno
@@ -1003,21 +1009,22 @@ def boletimfinais(aluno_id, ano_letivo_id):
         if disciplina not in ordem_disciplinas:
             continue
 
-        # Dividir a nota por 10 para formatação
-        nota_formatada = nota / 10
-
-        # Preencher a nota correspondente ao bimestre
+        # Preencher a nota correspondente ao bimestre (armazenar bruto e exibição arredondada)
         if bimestre == '1º bimestre':
-            notas_disciplinas[disciplina][0] = f"{nota_formatada:.1f}"
+            notas_brutas_disciplinas[disciplina][0] = nota
+            notas_disciplinas[disciplina][0] = f"{arredondar_personalizado(nota)/10:.1f}"
             faltas_bimestrais[disciplina][0] = faltas
         elif bimestre == '2º bimestre':
-            notas_disciplinas[disciplina][1] = f"{nota_formatada:.1f}"
+            notas_brutas_disciplinas[disciplina][1] = nota
+            notas_disciplinas[disciplina][1] = f"{arredondar_personalizado(nota)/10:.1f}"
             faltas_bimestrais[disciplina][1] = faltas
         elif bimestre == '3º bimestre':
-            notas_disciplinas[disciplina][2] = f"{nota_formatada:.1f}"
+            notas_brutas_disciplinas[disciplina][2] = nota
+            notas_disciplinas[disciplina][2] = f"{arredondar_personalizado(nota)/10:.1f}"
             faltas_bimestrais[disciplina][2] = faltas
         elif bimestre == '4º bimestre':
-            notas_disciplinas[disciplina][3] = f"{nota_formatada:.1f}"
+            notas_brutas_disciplinas[disciplina][3] = nota
+            notas_disciplinas[disciplina][3] = f"{arredondar_personalizado(nota)/10:.1f}"
             faltas_bimestrais[disciplina][3] = faltas
 
     # Calcular total de faltas
@@ -1054,17 +1061,14 @@ def boletimfinais(aluno_id, ano_letivo_id):
 
                     # Preencher a tabela data_nota com as disciplinas e suas respectivas notas
                     for disciplina in ordem_disciplinas:
-                        # Calcular média aritmética das notas
-                        notas = []
-                        for nota in notas_disciplinas[disciplina]:
-                            if nota != "--":
-                                notas.append(_safe_float(nota))
+                        # Calcular média aritmética das notas a partir dos valores brutos
+                        notas_raw = [n for n in notas_brutas_disciplinas[disciplina] if n is not None]
 
-                        if not notas:
+                        if not notas_raw:
                             continue  # Pular disciplinas sem notas registradas
 
-                        # Calcular média anual com as notas disponíveis
-                        media_anual_sem_arredondamento = sum(notas) / len(notas)
+                        # media_anual_sem_arredondamento está em unidade bruta (ex: 63.7 representa 6.37)
+                        media_anual_sem_arredondamento = sum(notas_raw) / len(notas_raw)
                         media_anual_arredondada = arredondar_personalizado(media_anual_sem_arredondamento)
 
                         # Verificar se temos o ID desta disciplina
@@ -1077,7 +1081,7 @@ def boletimfinais(aluno_id, ano_letivo_id):
 
                             if disciplina_id in recuperacoes:
                                 rec_val = _safe_float(recuperacoes[disciplina_id], 0.0)
-                                nota_recuperacao = f"{rec_val/10:.1f}"
+                                nota_recuperacao = f"{arredondar_personalizado(rec_val)/10:.1f}"
                                 media_final_sem_arredondamento = (media_anual_sem_arredondamento + rec_val) / 2
                                 media_final_arredondada = arredondar_personalizado(media_final_sem_arredondamento)
 
@@ -1092,11 +1096,11 @@ def boletimfinais(aluno_id, ano_letivo_id):
                                 _cell(str(faltas_bimestrais[disciplina][2]) if faltas_bimestrais[disciplina][2] > 0 else "--"),
                                 _cell(notas_disciplinas[disciplina][3]),
                                 _cell(str(faltas_bimestrais[disciplina][3]) if faltas_bimestrais[disciplina][3] > 0 else "--"),
-                                _cell(f"{media_anual_arredondada:.1f}"),
+                                _cell(f"{media_anual_arredondada/10:.1f}"),
                                 _cell(nota_recuperacao),
-                                _cell(f"{media_final_arredondada:.1f}" if len(notas) == 4 else "--"),
+                                _cell(f"{media_final_arredondada/10:.1f}" if len(notas_raw) == 4 else "--"),
                                 _cell(str(sum(faltas_bimestrais[disciplina]))),
-                                _cell("AP" if len(notas) == 4 and media_final_arredondada >= 6 else ("RP" if len(notas) == 4 else "--"))
+                                _cell("AP" if len(notas_raw) == 4 and media_final_arredondada/10 >= 6 else ("RP" if len(notas_raw) == 4 else "--"))
                             ])
                         else:
                             data_nota.append([
@@ -1109,11 +1113,11 @@ def boletimfinais(aluno_id, ano_letivo_id):
                                 _cell(str(faltas_bimestrais[disciplina][2]) if faltas_bimestrais[disciplina][2] > 0 else "--"),
                                 _cell(notas_disciplinas[disciplina][3]),
                                 _cell(str(faltas_bimestrais[disciplina][3]) if faltas_bimestrais[disciplina][3] > 0 else "--"),
-                                _cell(f"{media_anual_arredondada:.1f}"),
+                                _cell(f"{media_anual_arredondada/10:.1f}"),
                                 _cell("--"),
-                                _cell(f"{media_anual_arredondada:.1f}" if len(notas) == 4 else "--"),
+                                _cell(f"{media_anual_arredondada/10:.1f}" if len(notas_raw) == 4 else "--"),
                                 _cell(str(sum(faltas_bimestrais[disciplina]))),
-                                _cell("AP" if len(notas) == 4 and media_anual_arredondada >= 6 else ("RP" if len(notas) == 4 else "--"))
+                                _cell("AP" if len(notas_raw) == 4 and media_anual_arredondada/10 >= 6 else ("RP" if len(notas_raw) == 4 else "--"))
                             ])
                 finally:
                     try:
@@ -1171,8 +1175,8 @@ def boletimfinais(aluno_id, ano_letivo_id):
     todas_notas_completas = True
     media_final_arredondada = 0
     for disciplina in ordem_disciplinas:
-        notas = [float(nota) for nota in notas_disciplinas[disciplina] if nota != "--"]
-        if len(notas) != 4:
+        notas_raw = [n for n in notas_brutas_disciplinas[disciplina] if n is not None]
+        if len(notas_raw) != 4:
             todas_notas_completas = False
             break
 
