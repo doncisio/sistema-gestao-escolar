@@ -160,7 +160,11 @@ def gerar_nis_para_todos_os_alunos():
     diretorio_atual = os.getcwd()
     caminho_nis = os.path.join(diretorio_atual, "NIS")
     os.makedirs(caminho_nis, exist_ok=True)
-    nis_original = "NIS.pdf"
+    try:
+        from services.utils.templates import find_template
+        nis_original = find_template("NIS.pdf")
+    except Exception:
+        nis_original = "NIS.pdf"
 
     # Gerar NIS para cada grupo
     for serie_turma, alunos_grupo in grupos.items():

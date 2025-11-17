@@ -449,15 +449,26 @@ def desenhar_bloco_escola(can, escola: dict, largura: float, altura: float, y_to
 
 
 def _encontrar_arquivo_base(nome_sem_acento: str, nome_com_acento: str) -> str:
-    candidatos = []
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    # Raiz do projeto (diretório do script)
-    candidatos.append(os.path.join(base_dir, nome_sem_acento))
-    candidatos.append(os.path.join(base_dir, nome_com_acento))
-    for caminho in candidatos:
-        if os.path.isfile(caminho):
-            return caminho
-    raise FileNotFoundError(f"Nenhum arquivo base encontrado. Procurado: {', '.join(candidatos)}")
+    try:
+        from services.utils.templates import find_template
+    except Exception:
+        candidatos = []
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        candidatos.append(os.path.join(base_dir, nome_sem_acento))
+        candidatos.append(os.path.join(base_dir, "Modelos", nome_sem_acento))
+        candidatos.append(os.path.join(base_dir, nome_com_acento))
+        candidatos.append(os.path.join(base_dir, "Modelos", nome_com_acento))
+        candidatos.append(os.path.join(os.getcwd(), "Modelos", nome_sem_acento))
+        candidatos.append(os.path.join(os.getcwd(), "Modelos", nome_com_acento))
+        for caminho in candidatos:
+            if os.path.isfile(caminho):
+                return caminho
+        raise FileNotFoundError(f"Nenhum arquivo base encontrado. Procurado: {', '.join(candidatos)}")
+
+    try:
+        return find_template(nome_sem_acento)
+    except FileNotFoundError:
+        return find_template(nome_com_acento)
 
 
 def gerar_resumo_ponto(mes: int, ano: int):

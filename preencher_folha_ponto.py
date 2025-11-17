@@ -177,25 +177,30 @@ def gerar_folhas_de_ponto(template_pdf: str, saida_pdf: str, mes_referencia: int
 
 
 def localizar_template_folha() -> str:
-    """Tenta localizar o arquivo base "folha de ponto.pdf" em locais comuns.
+    """Localiza o template `folha de ponto.pdf` usando o utilitário central.
 
-    Ordem de busca:
-      1) mesma pasta deste script
-      2) pasta atual de execução (os.getcwd())
+    Usa `services.utils.templates.find_template` para procurar em `Modelos/` e
+    outros locais prováveis. Mantém a mesma mensagem de erro quando não
+    encontrado.
     """
-    nome_arquivo = "folha de ponto.pdf"
-    candidatos = [
-        os.path.join(os.path.dirname(__file__), nome_arquivo),
-        os.path.join(os.getcwd(), nome_arquivo),
-    ]
+    try:
+        from services.utils.templates import find_template
+    except Exception:
+        # fallback conservador: busca manualmente nos locais conhecidos
+        nome_arquivo = "folha de ponto.pdf"
+        candidatos = [
+            os.path.join(os.path.dirname(__file__), nome_arquivo),
+            os.path.join(os.getcwd(), "Modelos", nome_arquivo),
+            os.path.join(os.getcwd(), nome_arquivo),
+        ]
+        for caminho in candidatos:
+            if os.path.isfile(caminho):
+                return caminho
+        raise FileNotFoundError(
+            f"Arquivo base não encontrado. Procurado em: {', '.join(candidatos)}"
+        )
 
-    for caminho in candidatos:
-        if os.path.isfile(caminho):
-            return caminho
-
-    raise FileNotFoundError(
-        f"Arquivo base não encontrado. Procurado em: {', '.join(candidatos)}"
-    )
+    return find_template("folha de ponto.pdf")
 
 
 if __name__ == "__main__":

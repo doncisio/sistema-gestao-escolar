@@ -91,7 +91,11 @@ else:
     # Criar o caminho para a pasta Diploma_9º_ANO dentro do diretório atual
     caminho_diplomas = os.path.join(diretorio_atual, "Diploma_9º_ANO")
 
-    diploma_original = "MODELO CERTIFICADO 2024.pdf"  # Atualize com o caminho do diploma original
+    try:
+        from services.utils.templates import find_template
+        diploma_original = find_template("MODELO CERTIFICADO 2024.pdf")
+    except Exception:
+        diploma_original = "MODELO CERTIFICADO 2024.pdf"  # Atualize com o caminho do diploma original
     os.makedirs(caminho_diplomas, exist_ok=True)
 
     # Função para criar o diploma
