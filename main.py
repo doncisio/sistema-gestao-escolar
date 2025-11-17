@@ -2184,36 +2184,88 @@ def criar_pesquisa():
 
 def pesquisar(event=None):
     texto_pesquisa = e_nome_pesquisa.get().strip()  # Obtém o texto da pesquisa (sem lower() para FULLTEXT)
-    
+
+    # Garantir que vamos manipular as variáveis globais corretamente
+    global tabela_frame, treeview, dashboard_canvas
+
+    # Garantir que os componentes da tabela existam (cria se necessário)
+    try:
+        if 'tabela_frame' not in globals() or tabela_frame is None:
+            criar_tabela()
+        if 'treeview' not in globals() or not getattr(treeview, 'winfo_exists', lambda: False)():
+            criar_tabela()
+    except Exception as e:
+        logger.exception("Erro ao inicializar componentes da tabela: %s", e)
+        messagebox.showerror("Erro", f"Erro ao preparar a interface de pesquisa: {e}")
+        return
+
     if not texto_pesquisa:  # Se a busca estiver vazia, mostrar dashboard
-        # Ocultar tabela
-        if tabela_frame.winfo_ismapped():
-            tabela_frame.pack_forget()
-        
+        # Ocultar tabela se estiver visível
+        try:
+            if tabela_frame.winfo_ismapped():
+                tabela_frame.pack_forget()
+        except Exception:
+            pass
+
         # Limpar frame_tabela e mostrar dashboard
-        for widget in frame_tabela.winfo_children():
-            if widget != tabela_frame:  # Preservar tabela_frame oculto
-                widget.destroy()
-        
+        try:
+            for widget in list(frame_tabela.winfo_children()):
+                if widget != tabela_frame:
+                    try:
+                        widget.destroy()
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
         criar_dashboard()
         return
-    
-    # Se há texto de pesquisa, mostrar tabela
-    # Limpar dashboard
-    global dashboard_canvas
-    if dashboard_canvas is not None:
-        for widget in frame_tabela.winfo_children():
-            if widget != tabela_frame:
+
+
+    # Há texto de pesquisa: garantir que dashboard ou outros widgets não cubram a tabela
+    try:
+        # Remover tudo em frame_tabela e recriar a tabela limpa para evitar sobreposição
+        for widget in list(frame_tabela.winfo_children()):
+            try:
                 widget.destroy()
-        dashboard_canvas = None
-    
-    # Mostrar tabela_frame
-    if not tabela_frame.winfo_ismapped():
-        tabela_frame.pack(fill=BOTH, expand=True, padx=5, pady=5)
-    
+            except Exception:
+                pass
+
+        # Recriar a tabela (garante que tabela_frame e treeview existam)
+        criar_tabela()
+
+        # Se o criar_tabela adicionou o dashboard, removemos novamente deixando apenas `tabela_frame`
+        for widget in list(frame_tabela.winfo_children()):
+            if widget is not tabela_frame:
+                try:
+                    widget.destroy()
+                except Exception:
+                    pass
+
+        # resetar referência global ao canvas do dashboard
+        try:
+            dashboard_canvas = None
+        except Exception:
+            pass
+
+        # Mostrar tabela_frame
+        try:
+            if not tabela_frame.winfo_ismapped():
+                tabela_frame.pack(fill=BOTH, expand=True, padx=5, pady=5)
+        except Exception:
+            pass
+    except Exception as e:
+        logger.exception("Falha ao preparar área da tabela: %s", e)
+        messagebox.showerror("Erro", f"Falha ao preparar área da tabela: {e}")
+        return
+
     # Limpa o Treeview primeiro
-    for item in treeview.get_children():
-        treeview.delete(item)
+    try:
+        for item in treeview.get_children():
+            treeview.delete(item)
+    except Exception:
+        # Se não existir itens ou treeview, continuar
+        pass
     
     # ============================================================================
     # OTIMIZAÇÃO 5: Pesquisa com FULLTEXT (mais rápida que LIKE)
@@ -2319,6 +2371,7 @@ def pesquisar(event=None):
     
     # Adiciona os resultados filtrados ao Treeview
     if resultados_filtrados:
+        primeira_chave = None
         for resultado in resultados_filtrados:
             # Normalizar o resultado para uma lista de valores (suporta tuple/list/dict/valor)
             if isinstance(resultado, dict):
@@ -2343,7 +2396,22 @@ def pesquisar(event=None):
                 except Exception:
                     pass
 
-            treeview.insert("", "end", values=resultado)
+            try:
+                item_id = treeview.insert("", "end", values=resultado)
+                if primeira_chave is None:
+                    primeira_chave = item_id
+            except Exception as e:
+                logger.exception("Erro ao inserir resultado na treeview: %s - Resultado: %s", e, resultado)
+
+        # Forçar atualização visual e foco no primeiro item
+        try:
+            treeview.update_idletasks()
+            if primeira_chave:
+                treeview.selection_set(primeira_chave)
+                treeview.focus(primeira_chave)
+                treeview.see(primeira_chave)
+        except Exception:
+            pass
     else:
         # Exibe mensagem quando não há resultados
         messagebox.showinfo("Pesquisa", "Nenhum resultado encontrado para a pesquisa.")
