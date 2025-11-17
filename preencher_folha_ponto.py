@@ -38,7 +38,7 @@ def consultar_funcionarios(conn: Any):
                 f.nome AS nome,
                 f.matricula AS matricula,
                 f.data_admissao AS data_admissao,
-                f.cargo AS funcao,
+                f.funcao AS funcao,
                 f.carga_horaria AS carga_horaria,
                 f.telefone AS telefone,
                 f.email AS email,
