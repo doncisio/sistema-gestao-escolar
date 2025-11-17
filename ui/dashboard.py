@@ -189,6 +189,15 @@ class DashboardManager:
         self.co0 = co_fg
         self.co4 = co_accent
         self.dashboard_canvas = None
+        # Token to track the currently active background worker for the dashboard.
+        # Each time a new dashboard is created we bump this token; workers compare
+        # their captured token and silently abort if it's stale. This prevents
+        # workers from logging warnings when older workers try to update a
+        # destroyed UI after the user navigated away.
+        self._worker_token = 0
+        # Keep a reference to the last created dashboard frame so we can
+        # verify the worker is updating the intended widget instance.
+        self._last_dashboard_frame = None
 
     def criar_dashboard(self):
         """Cria o dashboard dentro do `frame_tabela` atual (obtido via `frame_getter`)."""
@@ -231,7 +240,11 @@ class DashboardManager:
             pass
 
         # Trabalho pesado em background
-        def _worker():
+        # Bump worker token and capture a snapshot token for this worker.
+        self._worker_token = (self._worker_token or 0) + 1
+        local_worker_token = self._worker_token
+
+        def _worker(local_worker_token=local_worker_token):
             try:
                 dados = self.obter_estatisticas_alunos()
 
@@ -327,39 +340,82 @@ class DashboardManager:
                 # Atualizar UI na thread principal
                 def _on_main():
                     nonlocal fig
+                    # Antes de manipular o UI, verificar se os frames principais ainda existem.
                     try:
-                        progress.stop()
-                    except Exception:
-                        pass
-                    try:
-                        loading_frame.destroy()
-                    except Exception:
-                        pass
+                        # Parar o progresso e remover o carregador, ignorando erros
+                        try:
+                            progress.stop()
+                        except Exception:
+                            pass
+                        try:
+                            loading_frame.destroy()
+                        except Exception:
+                            pass
 
-                    title_label.config(text=f"Dashboard - Alunos Matriculados no Ano Letivo de {ano_letivo_exibir}")
+                        # Se o dashboard_frame foi destruído enquanto o worker rodava,
+                        # abortamos a atualização já que não há mais onde desenhar.
+                        # If this worker is stale (a newer dashboard was requested),
+                        # silently abort without logging warnings.
+                        if local_worker_token != self._worker_token:
+                            logger.debug("dashboard worker obsoleto (token mismatch) — abortando atualização silenciosamente")
+                            return
 
-                    totais_frame = Frame(info_frame, bg=self.co1)
-                    totais_frame.pack()
-                    try:
-                        Label(totais_frame, text=f"Total Matriculados: {dados['total_matriculados']}", font=('Calibri', 12, 'bold'), bg=self.co1, fg=self.co0).pack(side='left', padx=20)
-                        Label(totais_frame, text=f"Ativos: {dados['total_ativos']}", font=('Calibri', 12, 'bold'), bg=self.co1, fg=self.co0).pack(side='left', padx=20)
-                        Label(totais_frame, text=f"Transferidos: {dados['total_transferidos']}", font=('Calibri', 12, 'bold'), bg=self.co1, fg=self.co0).pack(side='left', padx=20)
-                    except Exception:
-                        pass
+                        if not (dashboard_frame and getattr(dashboard_frame, 'winfo_exists', lambda: False)()):
+                            logger.debug("dashboard_frame não existe mais — abortando atualização do dashboard")
+                            return
 
-                    grafico_frame = Frame(dashboard_frame, bg=self.co1)
-                    grafico_frame.pack(fill='both', expand=True)
+                        if not (info_frame and getattr(info_frame, 'winfo_exists', lambda: False)()):
+                            logger.debug("info_frame não existe mais — abortando atualização do dashboard")
+                            return
 
-                    try:
-                        canvas = FigureCanvasTkAgg(fig, master=grafico_frame)
-                        canvas.draw()
-                        canvas.get_tk_widget().pack(fill='both', expand=True)
-                        self.dashboard_canvas = canvas
+                        # Protege a atualização do título caso o widget já tenha sido destruído
+                        try:
+                            if title_label is not None and getattr(title_label, 'winfo_exists', lambda: False)():
+                                title_label.config(text=f"Dashboard - Alunos Matriculados no Ano Letivo de {ano_letivo_exibir}")
+                            else:
+                                logger.warning("title_label não existe mais ao atualizar dashboard")
+                        except Exception:
+                            logger.exception("Falha ao atualizar title_label do dashboard")
+
+                        totais_frame = Frame(info_frame, bg=self.co1)
+                        totais_frame.pack()
+                        try:
+                            Label(totais_frame, text=f"Total Matriculados: {dados['total_matriculados']}", font=('Calibri', 12, 'bold'), bg=self.co1, fg=self.co0).pack(side='left', padx=20)
+                            Label(totais_frame, text=f"Ativos: {dados['total_ativos']}", font=('Calibri', 12, 'bold'), bg=self.co1, fg=self.co0).pack(side='left', padx=20)
+                            Label(totais_frame, text=f"Transferidos: {dados['total_transferidos']}", font=('Calibri', 12, 'bold'), bg=self.co1, fg=self.co0).pack(side='left', padx=20)
+                        except Exception:
+                            logger.exception("Erro ao criar labels de totais no dashboard")
+
+                        # Verificar novamente dashboard_frame antes de criar o grafico
+                        if not getattr(dashboard_frame, 'winfo_exists', lambda: False)():
+                            logger.debug("dashboard_frame foi destruído antes de criar o gráfico — abortando")
+                            return
+
+                        grafico_frame = Frame(dashboard_frame, bg=self.co1)
+                        grafico_frame.pack(fill='both', expand=True)
+
+                        try:
+                            canvas = FigureCanvasTkAgg(fig, master=grafico_frame)
+                            canvas.draw()
+                            canvas.get_tk_widget().pack(fill='both', expand=True)
+                            self.dashboard_canvas = canvas
+                        except Exception as e:
+                            try:
+                                Label(grafico_frame, text=f"Erro ao renderizar gráfico: {e}", bg=self.co1, fg='red').pack(pady=10)
+                            except Exception:
+                                logger.exception("Erro ao renderizar gráfico e também falha ao exibir mensagem")
+
+                        # Link the last created dashboard frame so future workers can
+                        # verify they still target the correct instance.
+                        try:
+                            self._last_dashboard_frame = dashboard_frame
+                        except Exception:
+                            pass
+
+                        btn_atualizar = Button(dashboard_frame, text="🔄 Atualizar Dashboard", font=('Calibri', 11, 'bold'), bg=self.co4, fg=self.co1, relief='raised', command=lambda: self.atualizar_dashboard())
+                        btn_atualizar.pack(pady=10)
                     except Exception as e:
-                        Label(grafico_frame, text=f"Erro ao renderizar gráfico: {e}", bg=self.co1, fg='red').pack(pady=10)
-
-                    btn_atualizar = Button(dashboard_frame, text="🔄 Atualizar Dashboard", font=('Calibri', 11, 'bold'), bg=self.co4, fg=self.co1, relief='raised', command=lambda: self.atualizar_dashboard())
-                    btn_atualizar.pack(pady=10)
+                        logger.exception("Erro durante atualização do _on_main do dashboard: %s", e)
 
                 self.janela.after(0, _on_main)
             except Exception as e:
