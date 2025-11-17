@@ -84,7 +84,7 @@ def desenhar_funcionario_no_canvas(c, dados, largura_pagina, altura_pagina, mes_
         # Mapeamentos desejados
         if chave == "especialista (coordenadora)":
             return "Coord. Pedagógica"
-        if chave == "coordenadora pedagógica":
+        if chave == "coordenadora pedagogica":
             return "Coord. Pedagógica"
         if chave == "tecnico em administracao escolar":
             return "Tec. Adm. Escolar"
