@@ -3370,7 +3370,13 @@ def criar_acoes():
         def gerar():
             dialog.destroy()
             try:
-                base_pdf = os.path.join(os.getcwd(), "folha de ponto.pdf")
+                try:
+                    from services.utils.templates import find_template
+                    base_pdf = find_template("folha de ponto.pdf")
+                except Exception:
+                    base_pdf = os.path.join(os.getcwd(), "Modelos", "folha de ponto.pdf")
+                    if not os.path.isfile(base_pdf):
+                        base_pdf = os.path.join(os.getcwd(), "folha de ponto.pdf")
                 if not os.path.isfile(base_pdf):
                     messagebox.showerror("Erro", f"Arquivo base não encontrado: {base_pdf}")
                     return

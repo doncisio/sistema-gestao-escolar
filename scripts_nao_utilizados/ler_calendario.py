@@ -5,7 +5,11 @@ from datetime import datetime
 from utils.dates import nome_mes_pt
 
 # Caminho do arquivo PDF
-pdf_path = "calendário.pdf"
+try:
+    from services.utils.templates import find_template
+    pdf_path = find_template("calendário.pdf")
+except Exception:
+    pdf_path = "calendário.pdf"
 
 # Verificar se o arquivo existe
 if not os.path.exists(pdf_path):
