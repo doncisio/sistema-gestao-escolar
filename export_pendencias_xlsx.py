@@ -5,19 +5,77 @@ import openpyxl
 import zipfile
 import shutil
 import time
+import errno
+import os
 
 IN_CSV = Path('pendencias_por_bimestre.csv')
-OUT_XLSX = Path('pendencias_por_bimestre.xlsx')
+# Allow overriding output path via environment variable `EXPORT_PENDENCIAS_OUT`.
+# This enables callers (e.g. the GUI) to ask the user for a Save As path and
+# provide it to this script without changing its CLI.
+env_out = os.environ.get('EXPORT_PENDENCIAS_OUT')
+if env_out:
+    OUT_XLSX = Path(env_out)
+else:
+    OUT_XLSX = Path('pendencias_por_bimestre.xlsx')
 
-if not IN_CSV.exists():
-    raise SystemExit(f"Arquivo CSV não encontrado: {IN_CSV.resolve()}")
+# Ler CSV se existir; caso contrário, buscar dados diretamente via relatorio_pendencias
+if IN_CSV.exists():
+    try:
+        df = pd.read_csv(IN_CSV, encoding='utf-8')
+    except Exception:
+        df = pd.read_csv(IN_CSV)
+else:
+    # construir via relatorio_pendencias.buscar_pendencias_notas
+    try:
+        from relatorio_pendencias import buscar_pendencias_notas
+    except Exception as e:
+        raise SystemExit(f"Arquivo CSV não encontrado e módulo 'relatorio_pendencias' indisponível: {e}")
 
-# Ler CSV
-try:
-    df = pd.read_csv(IN_CSV, encoding='utf-8')
-except Exception:
-    # tentar sem especificar encoding
-    df = pd.read_csv(IN_CSV)
+    bimestres = ['1º bimestre', '2º bimestre', '3º bimestre', '4º bimestre']
+    niveis = ['iniciais', 'finais']
+    rows = []
+    ESOLA_ID = 60
+    for b in bimestres:
+        for n in niveis:
+            try:
+                pend = buscar_pendencias_notas(b, n, None, ESOLA_ID)
+            except Exception as e:
+                print(f"Erro ao buscar pendências para {b} / {n}: {e}")
+                pend = {}
+
+            for chave, info in pend.items():
+                serie, turma, turno = chave
+                disciplinas_sem_lanc = sorted(list(info.get('disciplinas_sem_lancamento', []))) if info.get('disciplinas_sem_lancamento') else []
+                for aluno_id, aluno_info in info.get('alunos', {}).items():
+                    disc_sem_nota = sorted(list(set(aluno_info.get('disciplinas_sem_nota', []))))
+                    if not disc_sem_nota:
+                        continue
+                    rows.append({
+                        'bimestre': b,
+                        'nivel': n,
+                        'serie': serie,
+                        'turma': turma,
+                        'turno': turno,
+                        'aluno_id': aluno_id,
+                        'aluno_nome': aluno_info.get('nome'),
+                        'disciplinas_sem_nota': ';'.join(disc_sem_nota),
+                        'disciplinas_sem_lancamento': ';'.join(disciplinas_sem_lanc)
+                    })
+                has_alunos_com_pend = any(len(a.get('disciplinas_sem_nota', [])) > 0 for a in info.get('alunos', {}).values())
+                if disciplinas_sem_lanc and not has_alunos_com_pend:
+                    rows.append({
+                        'bimestre': b,
+                        'nivel': n,
+                        'serie': serie,
+                        'turma': turma,
+                        'turno': turno,
+                        'aluno_id': '',
+                        'aluno_nome': '',
+                        'disciplinas_sem_nota': '',
+                        'disciplinas_sem_lancamento': ';'.join(disciplinas_sem_lanc)
+                    })
+
+    df = pd.DataFrame(rows, columns=['bimestre','nivel','serie','turma','turno','aluno_id','aluno_nome','disciplinas_sem_nota','disciplinas_sem_lancamento'])
 
 # Função para sanitizar nomes de abas (máx 31 chars, evitar caracteres inválidos)
 def safe_sheet_name(name: str) -> str:
@@ -51,9 +109,18 @@ for b in sorted(df['bimestre'].dropna().unique()):
 sheets_to_write = set(['Resumo']) | set(bimestre_names)
 
 # Se o arquivo já existir, remover apenas as abas que iremos atualizar
+OUT_TARGET = OUT_XLSX
 if OUT_XLSX.exists():
     try:
         wb = openpyxl.load_workbook(OUT_XLSX)
+        # Garantir que exista pelo menos uma sheet visível
+        try:
+            any_visible = any(getattr(ws, 'sheet_state', 'visible') == 'visible' for ws in wb.worksheets)
+            if not any_visible and len(wb.worksheets) > 0:
+                wb.worksheets[0].sheet_state = 'visible'
+        except Exception:
+            pass
+
         removed = []
         for sheet in list(wb.sheetnames):
             if sheet in sheets_to_write:
@@ -65,7 +132,13 @@ if OUT_XLSX.exists():
                     pass
         if removed:
             # salvar workbook sem as abas removidas antes de reescrever
-            wb.save(OUT_XLSX)
+            try:
+                wb.save(OUT_XLSX)
+            except Exception as e:
+                # Se falhar ao salvar (arquivo em uso), avisar e ajustar destino para não sobrescrever
+                print(f"Aviso: não foi possível salvar alterações no workbook existente: {e}")
+                OUT_TARGET = OUT_XLSX.with_name(OUT_XLSX.stem + f'.new.{int(time.time())}' + OUT_XLSX.suffix)
+                print(f"Usando arquivo alternativo para saída: {OUT_TARGET}")
     except Exception as e:
         print(f"Aviso: falha ao abrir/atualizar workbook existente: {e}")
 
@@ -83,12 +156,25 @@ if OUT_XLSX.exists():
                 shutil.move(str(OUT_XLSX), str(bak))
                 print(f"Arquivo existente inválido movido para backup: {bak}")
             except Exception as e:
+                # Se falhar ao mover (ex.: arquivo em uso), não interromper; escolher saída alternativa
+                msg = str(e)
                 print(f"Falha ao mover arquivo inválido para backup: {e}")
+                if 'being used by another process' in msg or 'The process cannot access the file' in msg or getattr(e, 'winerror', None) == 32:
+                    OUT_TARGET = OUT_XLSX.with_name(OUT_XLSX.stem + f'.new.{int(time.time())}' + OUT_XLSX.suffix)
+                    print(f"Arquivo em uso: não será movido. Usando saída alternativa: {OUT_TARGET}")
             mode = 'w'
         else:
             # Tentar abrir com openpyxl — pode lançar se estiver corrompido
             try:
                 wb = openpyxl.load_workbook(OUT_XLSX)
+                # Garantir que exista pelo menos uma sheet visível
+                try:
+                    any_visible = any(getattr(ws, 'sheet_state', 'visible') == 'visible' for ws in wb.worksheets)
+                    if not any_visible and len(wb.worksheets) > 0:
+                        wb.worksheets[0].sheet_state = 'visible'
+                except Exception:
+                    pass
+
                 removed = []
                 for sheet in list(wb.sheetnames):
                     if sheet in sheets_to_write:
@@ -99,7 +185,12 @@ if OUT_XLSX.exists():
                         except Exception:
                             pass
                 if removed:
-                    wb.save(OUT_XLSX)
+                    try:
+                        wb.save(OUT_XLSX)
+                    except Exception as e_save:
+                        print(f"Aviso: não foi possível salvar alterações no workbook existente: {e_save}")
+                        OUT_TARGET = OUT_XLSX.with_name(OUT_XLSX.stem + f'.new.{int(time.time())}' + OUT_XLSX.suffix)
+                        print(f"Usando arquivo alternativo para saída: {OUT_TARGET}")
                 try:
                     wb.close()
                 except Exception:
@@ -112,14 +203,18 @@ if OUT_XLSX.exists():
                     shutil.move(str(OUT_XLSX), str(bak))
                     print(f"Arquivo XLSX corrompido movido para backup: {bak} (erro: {e})")
                 except Exception as e2:
+                    msg = str(e2)
                     print(f"Falha ao mover arquivo corrompido para backup: {e2}")
+                    if 'being used by another process' in msg or 'The process cannot access the file' in msg or getattr(e2, 'winerror', None) == 32:
+                        OUT_TARGET = OUT_XLSX.with_name(OUT_XLSX.stem + f'.new.{int(time.time())}' + OUT_XLSX.suffix)
+                        print(f"Arquivo em uso: não será movido. Usando saída alternativa: {OUT_TARGET}")
                 mode = 'w'
     except Exception as e:
         print(f"Aviso inesperado ao verificar arquivo existente: {e}")
 
 # Agora escrever diretamente com openpyxl para preservar dimensões/formatacoes de colunas
 try:
-    if OUT_XLSX.exists() and mode == 'a':
+    if OUT_XLSX.exists() and mode == 'a' and OUT_TARGET == OUT_XLSX:
         wb = openpyxl.load_workbook(OUT_XLSX)
     else:
         # criar novo workbook
@@ -190,8 +285,21 @@ try:
             preserve = False
         write_df_to_sheet(ws, sub, preserve_col_widths=preserve)
 
-    # Salvar workbook
-    wb.save(OUT_XLSX)
+    # Salvar workbook (usar OUT_TARGET se definido)
+    try:
+        wb.save(OUT_TARGET)
+    except Exception as e_save_final:
+        # Tentativa alternativa: se falhar ao salvar no destino (ex.: bloqueio), tentar um nome alternativo
+        msg = str(e_save_final)
+        print(f"Erro ao salvar arquivo XLSX no destino {OUT_TARGET}: {e_save_final}")
+        alt = OUT_XLSX.with_name(OUT_XLSX.stem + f'.auto.{int(time.time())}' + OUT_XLSX.suffix)
+        try:
+            wb.save(alt)
+            print(f"Arquivo salvo em saída alternativa: {alt}")
+            OUT_TARGET = alt
+        except Exception as e_alt:
+            print(f"Falha ao salvar em arquivo alternativo também: {e_alt}")
+            raise
     try:
         wb.close()
     except Exception:
@@ -199,4 +307,4 @@ try:
 except Exception as e:
     print(f"Erro ao gravar arquivo XLSX: {e}")
 
-print(f"Arquivo gerado: {OUT_XLSX.resolve()}")
+print(f"Arquivo gerado: {OUT_TARGET.resolve()}")
