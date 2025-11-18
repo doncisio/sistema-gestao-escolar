@@ -113,8 +113,9 @@ class InterfaceTransicaoAnoLetivo:
         self.label_alunos_continuar = self.criar_label_stat(
             stats_frame, "Alunos que Continuarão (1º ao 8º ano):", 1, cor=self.co2)
         
+        # Aplicar regra de reprovação a TODAS as turmas; atualizar rótulo
         self.label_alunos_9ano_reprovados = self.criar_label_stat(
-            stats_frame, "Alunos do 9º Ano Reprovados (média < 60):", 2, cor=self.co4)
+            stats_frame, "Alunos Reprovados (média < 60):", 2, cor=self.co4)
         
         self.label_alunos_excluir = self.criar_label_stat(
             stats_frame, "Alunos a Excluir (Transferidos/Cancelados/Evadidos):", 3, cor=self.co3)
@@ -223,13 +224,17 @@ class InterfaceTransicaoAnoLetivo:
         """Carrega estatísticas das matrículas"""
         try:
             # Total de matrículas ativas no ano atual
+            # Alinhar com o cálculo do dashboard: contar ALUNOS distintos (a.id)
+            # que possuem matrícula com status 'Ativo' no ano letivo atual
             cursor.execute("""
-                SELECT COUNT(DISTINCT m.id) as total
-                FROM Matriculas m
+                SELECT COUNT(DISTINCT a.id) as total
+                FROM Alunos a
+                JOIN Matriculas m ON a.id = m.aluno_id
                 WHERE m.ano_letivo_id = %s
                 AND m.status = 'Ativo'
-            """, (self.ano_atual['id'],))
-            
+                AND a.escola_id = %s
+            """, (self.ano_atual['id'], 60))
+
             resultado = cast(Any, cursor.fetchone())
             total_matriculas = resultado['total'] if resultado else 0
             self.label_total_matriculas.config(text=str(total_matriculas))
@@ -271,32 +276,56 @@ class InterfaceTransicaoAnoLetivo:
             alunos_continuar = resultado['total'] if resultado else 0
             self.label_alunos_continuar.config(text=str(alunos_continuar))
             
-            # Alunos do 9º ano REPROVADOS (média final < 60)
-            alunos_9ano_reprovados = 0
-            if turmas_9ano:
-                cursor.execute("""
-                    SELECT COUNT(DISTINCT a.id) as total
-                    FROM Alunos a
-                    JOIN Matriculas m ON a.id = m.aluno_id
-                    LEFT JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = %s
-                    WHERE m.ano_letivo_id = %s
-                    AND m.status = 'Ativo'
-                    AND a.escola_id = 60
-                    AND m.turma_id IN ({})
-                    GROUP BY a.id
-                    HAVING (
-                        COALESCE(AVG(CASE WHEN n.bimestre = '1º bimestre' THEN n.nota END), 0) +
-                        COALESCE(AVG(CASE WHEN n.bimestre = '2º bimestre' THEN n.nota END), 0) +
-                        COALESCE(AVG(CASE WHEN n.bimestre = '3º bimestre' THEN n.nota END), 0) +
-                        COALESCE(AVG(CASE WHEN n.bimestre = '4º bimestre' THEN n.nota END), 0)
-                    ) / 4 < 60 OR AVG(n.nota) IS NULL
-                """.format(','.join(['%s'] * len(turmas_9ano))),
-                (self.ano_atual['id'], self.ano_atual['id']) + tuple(turmas_9ano))
-                
-                resultado = cast(Any, cursor.fetchone())
-                alunos_9ano_reprovados = resultado['total'] if resultado else 0
-            
-            self.label_alunos_9ano_reprovados.config(text=str(alunos_9ano_reprovados))
+            # Alunos reprovados (média final < 60) - aplicar a TODAS as turmas
+            try:
+                if turmas_9ano:
+                    # Mesmo se tivermos turmas do 9º ano, verificamos reprovações em todas as turmas
+                    cursor.execute("""
+                        SELECT COUNT(DISTINCT a.id) as total
+                        FROM Alunos a
+                        JOIN Matriculas m ON a.id = m.aluno_id
+                        LEFT JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = %s
+                        WHERE m.ano_letivo_id = %s
+                        AND m.status = 'Ativo'
+                        AND a.escola_id = 60
+                        GROUP BY a.id
+                        HAVING (
+                            COALESCE(AVG(CASE WHEN n.bimestre = '1º bimestre' THEN n.nota END), 0) +
+                            COALESCE(AVG(CASE WHEN n.bimestre = '2º bimestre' THEN n.nota END), 0) +
+                            COALESCE(AVG(CASE WHEN n.bimestre = '3º bimestre' THEN n.nota END), 0) +
+                            COALESCE(AVG(CASE WHEN n.bimestre = '4º bimestre' THEN n.nota END), 0)
+                        ) / 4 < 60 OR AVG(n.nota) IS NULL
+                    """, (self.ano_atual['id'], self.ano_atual['id']))
+                    # cursor.fetchone não é suficiente aqui pois o GROUP BY retorna múltiplas linhas;
+                    # usar fetchall e contar
+                    rows_reprov = cursor.fetchall()
+                    alunos_reprovados = len(rows_reprov) if rows_reprov else 0
+                else:
+                    # Se não houver turmas do 9º (caso raro), aplicar mesma lógica
+                    cursor.execute("""
+                        SELECT COUNT(DISTINCT a.id) as total
+                        FROM Alunos a
+                        JOIN Matriculas m ON a.id = m.aluno_id
+                        LEFT JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = %s
+                        WHERE m.ano_letivo_id = %s
+                        AND m.status = 'Ativo'
+                        AND a.escola_id = 60
+                        GROUP BY a.id
+                        HAVING (
+                            COALESCE(AVG(CASE WHEN n.bimestre = '1º bimestre' THEN n.nota END), 0) +
+                            COALESCE(AVG(CASE WHEN n.bimestre = '2º bimestre' THEN n.nota END), 0) +
+                            COALESCE(AVG(CASE WHEN n.bimestre = '3º bimestre' THEN n.nota END), 0) +
+                            COALESCE(AVG(CASE WHEN n.bimestre = '4º bimestre' THEN n.nota END), 0)
+                        ) / 4 < 60 OR AVG(n.nota) IS NULL
+                    """, (self.ano_atual['id'], self.ano_atual['id']))
+                    rows_reprov = cursor.fetchall()
+                    alunos_reprovados = len(rows_reprov) if rows_reprov else 0
+
+                self.label_alunos_9ano_reprovados.config(text=str(alunos_reprovados))
+            except Exception:
+                # Em caso de erro na contagem de reprovações, registrar e continuar
+                alunos_reprovados = 0
+                self.label_alunos_9ano_reprovados.config(text=str(alunos_reprovados))
             
             # Alunos a excluir (Transferidos, Cancelados, Evadidos)
             cursor.execute("""
@@ -315,7 +344,7 @@ class InterfaceTransicaoAnoLetivo:
             self.estatisticas = {
                 'total_matriculas': total_matriculas,
                 'alunos_continuar': alunos_continuar,
-                'alunos_9ano_reprovados': alunos_9ano_reprovados,
+                'alunos_reprovados': alunos_reprovados,
                 'alunos_excluir': alunos_excluir
             }
             
@@ -345,8 +374,8 @@ class InterfaceTransicaoAnoLetivo:
         
         3️⃣ Criar novas matrículas para {self.ano_novo['ano_letivo']}:
            - {self.estatisticas['alunos_continuar']} alunos (1º ao 8º ano) serão rematriculados
-           - {self.estatisticas.get('alunos_9ano_reprovados', 0)} alunos do 9º ano REPROVADOS
-             (média < 60) serão rematriculados no 9º ano novamente
+                     - {self.estatisticas.get('alunos_reprovados', 0)} alunos REPROVADOS
+                         (média < 60) serão rematriculados conforme regra definida
         
         4️⃣ Alunos do 9º ano APROVADOS:
            - NÃO serão rematriculados (concluíram o ensino fundamental)
@@ -487,37 +516,40 @@ class InterfaceTransicaoAnoLetivo:
 
                 alunos_normais = cast(Any, cursor.fetchall())
 
-                # Buscar alunos do 9º ano REPROVADOS (média < 60)
-                if turmas_9ano:
-                    cursor.execute("""
-                        SELECT DISTINCT 
-                            a.id as aluno_id,
-                            m.turma_id,
-                            -- Calcular média final
-                            (
-                                COALESCE(AVG(CASE WHEN n.bimestre = '1º bimestre' THEN n.nota END), 0) +
-                                COALESCE(AVG(CASE WHEN n.bimestre = '2º bimestre' THEN n.nota END), 0) +
-                                COALESCE(AVG(CASE WHEN n.bimestre = '3º bimestre' THEN n.nota END), 0) +
-                                COALESCE(AVG(CASE WHEN n.bimestre = '4º bimestre' THEN n.nota END), 0)
-                            ) / 4 as media_final
-                        FROM Alunos a
-                        JOIN Matriculas m ON a.id = m.aluno_id
-                        LEFT JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = %s
-                        WHERE m.ano_letivo_id = %s
-                        AND m.status = 'Concluído'
-                        AND a.escola_id = 60
-                        AND m.turma_id IN ({})
-                        GROUP BY a.id, m.turma_id
-                        HAVING media_final < 60 OR media_final IS NULL
-                    """.format(','.join(['%s'] * len(turmas_9ano))),
-                    (self.ano_atual['id'], self.ano_atual['id']) + tuple(turmas_9ano))
+                # Buscar alunos REPROVADOS (média < 60) em todas as turmas
+                cursor.execute("""
+                    SELECT DISTINCT 
+                        a.id as aluno_id,
+                        m.turma_id,
+                        (
+                            COALESCE(AVG(CASE WHEN n.bimestre = '1º bimestre' THEN n.nota END), 0) +
+                            COALESCE(AVG(CASE WHEN n.bimestre = '2º bimestre' THEN n.nota END), 0) +
+                            COALESCE(AVG(CASE WHEN n.bimestre = '3º bimestre' THEN n.nota END), 0) +
+                            COALESCE(AVG(CASE WHEN n.bimestre = '4º bimestre' THEN n.nota END), 0)
+                        ) / 4 as media_final
+                    FROM Alunos a
+                    JOIN Matriculas m ON a.id = m.aluno_id
+                    LEFT JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = %s
+                    WHERE m.ano_letivo_id = %s
+                    AND m.status = 'Concluído'
+                    AND a.escola_id = 60
+                    GROUP BY a.id, m.turma_id
+                    HAVING media_final < 60 OR media_final IS NULL
+                """, (self.ano_atual['id'], self.ano_atual['id']))
 
-                    alunos_9ano_reprovados = cast(Any, cursor.fetchall())
-                else:
-                    alunos_9ano_reprovados = []
+                alunos_reprovados = cast(Any, cursor.fetchall())
 
-                # Combinar todos os alunos que serão rematriculados
-                alunos = alunos_normais + alunos_9ano_reprovados
+                # Combinar todos os alunos que serão rematriculados, evitando duplicatas
+                alunos_map = {}
+                for a in alunos_normais:
+                    alunos_map[int(a['aluno_id'])] = a
+
+                for a in alunos_reprovados:
+                    aid = int(a['aluno_id'])
+                    if aid not in alunos_map:
+                        alunos_map[aid] = a
+
+                alunos = list(alunos_map.values())
                 total_alunos = len(alunos)
 
                 # Passo 4: Criar novas matrículas
@@ -548,8 +580,8 @@ class InterfaceTransicaoAnoLetivo:
                     f"✓ {self.estatisticas['total_matriculas']} matrículas encerradas\n"
                     f"✓ {total_alunos} novas matrículas criadas\n"
                     f"   • {self.estatisticas['alunos_continuar']} alunos (1º ao 8º ano)\n"
-                    f"   • {self.estatisticas.get('alunos_9ano_reprovados', 0)} alunos do 9º ano reprovados\n\n"
-                    f"ℹ️ Alunos do 9º ano aprovados não foram rematriculados\n"
+                    f"   • {self.estatisticas.get('alunos_reprovados', 0)} alunos reprovados\n\n"
+                    f"ℹ️ Observação: Alunos do 9º ano aprovados não serão rematriculados\n"
                     f"   (concluíram o ensino fundamental)\n\n"
                     f"O sistema agora está configurado para o ano {self.ano_novo['ano_letivo']}.")
 
