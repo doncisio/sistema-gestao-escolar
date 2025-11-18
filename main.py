@@ -3500,7 +3500,7 @@ def criar_acoes():
         # Criar janela para configuração de relatório avançado
         janela_relatorio = Toplevel(janela)
         janela_relatorio.title("Relatório de Notas - Opções Avançadas")
-        janela_relatorio.geometry("500x350")
+        janela_relatorio.geometry("550x480")
         janela_relatorio.resizable(False, False)
         janela_relatorio.transient(janela)  # Torna a janela dependente da principal
         janela_relatorio.grab_set()  # Torna a janela modal
@@ -3638,7 +3638,68 @@ def criar_acoes():
     notas_menu.add_separator()
     notas_menu.add_command(label="Ata Geral", command=lambda: abrir_interface_ata(janela, status_label), font=menu_font)
     notas_menu.add_separator()
-    notas_menu.add_command(label="Relatório de Pendências", command=abrir_relatorio_pendencias, font=menu_font)
+    # Submenu para Relatórios de Pendências (gerar PDF direto por bimestre/nível + abrir interface)
+    relatorios_pendencias_menu = Menu(notas_menu, tearoff=0)
+
+    def _gerar_pendencias_em_bg(bimestre: str, nivel: str):
+        """Gera relatório de pendências em background para evitar bloquear a UI."""
+        try:
+            if status_label is not None:
+                status_label.config(text=f"Gerando pendências: {bimestre} ({nivel})...")
+            janela.update()
+        except Exception:
+            pass
+
+        def _worker():
+            try:
+                from services.report_service import gerar_relatorio_pendencias as svc
+                ok = svc(bimestre=bimestre, nivel_ensino=nivel, ano_letivo=datetime.now().year, escola_id=60)
+                def _on_done():
+                    try:
+                        if ok:
+                            if status_label is not None:
+                                status_label.config(text=f"Pendências geradas: {bimestre} ({nivel})")
+                            messagebox.showinfo("Concluído", f"Relatório de pendências gerado: {bimestre} ({nivel})")
+                        else:
+                            if status_label is not None:
+                                status_label.config(text="Nenhuma pendência encontrada.")
+                            messagebox.showinfo("Sem pendências", f"Nenhuma pendência encontrada para {bimestre} ({nivel}).")
+                    except Exception:
+                        pass
+
+                janela.after(0, _on_done)
+            except Exception as e:
+                def _on_error():
+                    messagebox.showerror("Erro", f"Falha ao gerar pendências: {e}")
+                    try:
+                        if status_label is not None:
+                            status_label.config(text="")
+                    except Exception:
+                        pass
+                janela.after(0, _on_error)
+
+        try:
+            from utils.executor import submit_background
+            submit_background(_worker, janela=janela)
+        except Exception:
+            from threading import Thread
+            Thread(target=_worker, daemon=True).start()
+
+    # Itens por bimestre (iniciais)
+    relatorios_pendencias_menu.add_command(label="1º bimestre", command=lambda: _gerar_pendencias_em_bg("1º bimestre", "iniciais"), font=menu_font)
+    relatorios_pendencias_menu.add_command(label="2º bimestre", command=lambda: _gerar_pendencias_em_bg("2º bimestre", "iniciais"), font=menu_font)
+    relatorios_pendencias_menu.add_command(label="3º bimestre", command=lambda: _gerar_pendencias_em_bg("3º bimestre", "iniciais"), font=menu_font)
+    relatorios_pendencias_menu.add_command(label="4º bimestre", command=lambda: _gerar_pendencias_em_bg("4º bimestre", "iniciais"), font=menu_font)
+    relatorios_pendencias_menu.add_separator()
+    # Itens por bimestre (6º ao 9º)
+    relatorios_pendencias_menu.add_command(label="1º bimestre (6º ao 9º ano)", command=lambda: _gerar_pendencias_em_bg("1º bimestre", "finais"), font=menu_font)
+    relatorios_pendencias_menu.add_command(label="2º bimestre (6º ao 9º ano)", command=lambda: _gerar_pendencias_em_bg("2º bimestre", "finais"), font=menu_font)
+    relatorios_pendencias_menu.add_command(label="3º bimestre (6º ao 9º ano)", command=lambda: _gerar_pendencias_em_bg("3º bimestre", "finais"), font=menu_font)
+    relatorios_pendencias_menu.add_command(label="4º bimestre (6º ao 9º ano)", command=lambda: _gerar_pendencias_em_bg("4º bimestre", "finais"), font=menu_font)
+    relatorios_pendencias_menu.add_separator()
+    relatorios_pendencias_menu.add_command(label="Abrir interface", command=abrir_relatorio_pendencias, font=menu_font)
+
+    notas_menu.add_cascade(label="Relatórios de Pendências", menu=relatorios_pendencias_menu, font=menu_font)
 
     # Configurando o menu na janela
     janela.config(menu=menu_bar)
@@ -4997,14 +5058,15 @@ def relatorio():
         menu_meses.post(janela.winfo_rootx() + 100, janela.winfo_rooty() + 100)
 
 def abrir_relatorio_avancado_com_assinatura():
-    # Criar janela para configuração de relatório avançado
+    # Criar janela para configuração de relatório avançado (padronizada com Pendências)
     janela_relatorio = Toplevel(janela)
     janela_relatorio.title("Relatório de Notas com Assinatura - Opções Avançadas")
-    janela_relatorio.geometry("550x350")
+    janela_relatorio.geometry("500x550")
     janela_relatorio.resizable(False, False)
-    janela_relatorio.transient(janela)  # Torna a janela dependente da principal
-    janela_relatorio.grab_set()  # Torna a janela modal
-    
+    janela_relatorio.transient(janela)
+    janela_relatorio.grab_set()
+    janela_relatorio.configure(bg=co0)
+
     # Variáveis para armazenar as opções
     bimestre_var = StringVar(value="1º bimestre")
     nivel_var = StringVar(value="iniciais")
@@ -5012,77 +5074,98 @@ def abrir_relatorio_avancado_com_assinatura():
     status_var = StringVar(value="Ativo")
     incluir_transferidos = BooleanVar(value=False)
     preencher_zeros = BooleanVar(value=False)
-    
-    # Frame principal
-    frame_principal = Frame(janela_relatorio, padx=20, pady=20)
-    frame_principal.pack(fill=BOTH, expand=True)
-    
-    # Título
-    Label(frame_principal, text="Configurar Relatório de Notas com Assinatura", font=("Arial", 12, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 15), sticky=W)
-    
+
+    # Usar grid no Toplevel para garantir comportamento previsível (cabecalho, conteudo, rodape)
+    janela_relatorio.grid_rowconfigure(0, weight=0)
+    janela_relatorio.grid_rowconfigure(1, weight=1)
+    janela_relatorio.grid_rowconfigure(2, weight=0)
+    janela_relatorio.grid_columnconfigure(0, weight=1)
+
+    # Cabeçalho com destaque (mesmo visual de Pendências)
+    frame_cabecalho = Frame(janela_relatorio, bg=co1, pady=15)
+    frame_cabecalho.grid(row=0, column=0, sticky=EW)
+    Label(frame_cabecalho, text="📄 RELATÓRIO COM ASSINATURA", font=("Arial", 13, "bold"), bg=co1, fg=co0).pack()
+    Label(frame_cabecalho, text="Configurações avançadas para geração do relatório de notas com assinatura",
+          font=("Arial", 9), bg=co1, fg=co9).pack(pady=(6, 0))
+
+    # Frame principal (conteúdo) - visual igual ao de pendências
+    frame_principal = Frame(janela_relatorio, bg=co0, padx=25, pady=18)
+    frame_principal.grid(row=1, column=0, sticky=NSEW)
+
     # Bimestre
-    Label(frame_principal, text="Bimestre:", anchor=W).grid(row=1, column=0, sticky=W, pady=5)
+    Label(frame_principal, text="Bimestre:", anchor=W, bg=co0, font=("Arial", 10, "bold")).grid(row=0, column=0, sticky=W, pady=8, padx=(0, 10))
     bimestres = ["1º bimestre", "2º bimestre", "3º bimestre", "4º bimestre"]
-    combo_bimestre = ttk.Combobox(frame_principal, textvariable=bimestre_var, values=bimestres, state="readonly", width=20)
-    combo_bimestre.grid(row=1, column=1, sticky=W, pady=5)
-    
+    combo_bimestre = ttk.Combobox(frame_principal, textvariable=bimestre_var, values=bimestres, state="readonly", width=22, font=("Arial", 10))
+    combo_bimestre.grid(row=0, column=1, sticky=W, pady=8)
+
+    # Separador visual
+    Frame(frame_principal, height=1, bg=co9).grid(row=1, column=0, columnspan=2, sticky=EW, pady=8)
+
     # Nível de ensino
-    Label(frame_principal, text="Nível de ensino:", anchor=W).grid(row=2, column=0, sticky=W, pady=5)
-    frame_nivel = Frame(frame_principal)
-    frame_nivel.grid(row=2, column=1, sticky=W, pady=5)
-    Radiobutton(frame_nivel, text="Séries iniciais (1º ao 5º)", variable=nivel_var, value="iniciais").pack(anchor=W)
-    Radiobutton(frame_nivel, text="Séries finais (6º ao 9º)", variable=nivel_var, value="finais").pack(anchor=W)
-    
+    Label(frame_principal, text="Nível de ensino:", anchor=W, bg=co0, font=("Arial", 10, "bold")).grid(row=2, column=0, sticky=W, pady=8, padx=(0, 10))
+    frame_nivel = Frame(frame_principal, bg=co0)
+    frame_nivel.grid(row=2, column=1, sticky=W, pady=8)
+    Radiobutton(frame_nivel, text="Séries iniciais (1º ao 5º)", variable=nivel_var, value="iniciais", bg=co0, font=("Arial", 9), activebackground=co0, selectcolor=co4).pack(anchor=W, pady=2)
+    Radiobutton(frame_nivel, text="Séries finais (6º ao 9º)", variable=nivel_var, value="finais", bg=co0, font=("Arial", 9), activebackground=co0, selectcolor=co4).pack(anchor=W, pady=2)
+
+    # Separador
+    Frame(frame_principal, height=1, bg=co9).grid(row=3, column=0, columnspan=2, sticky=EW, pady=8)
+
     # Ano letivo
-    Label(frame_principal, text="Ano letivo:", anchor=W).grid(row=3, column=0, sticky=W, pady=5)
+    Label(frame_principal, text="Ano letivo:", anchor=W, bg=co0, font=("Arial", 10, "bold")).grid(row=4, column=0, sticky=W, pady=8, padx=(0, 10))
     anos = ["2023", "2024", "2025", "2026", "2027"]
-    combo_ano = ttk.Combobox(frame_principal, textvariable=ano_letivo_var, values=anos, state="readonly", width=20)
-    combo_ano.grid(row=3, column=1, sticky=W, pady=5)
-    
-    # Status de matrícula
-    Label(frame_principal, text="Status de matrícula:", anchor=W).grid(row=4, column=0, sticky=W, pady=5)
-    frame_status = Frame(frame_principal)
-    frame_status.grid(row=4, column=1, sticky=W, pady=5)
-    Radiobutton(frame_status, text="Apenas ativos", variable=status_var, value="Ativo").pack(anchor=W)
-    Checkbutton(frame_status, text="Incluir transferidos", variable=incluir_transferidos).pack(anchor=W)
-    
+    combo_ano = ttk.Combobox(frame_principal, textvariable=ano_letivo_var, values=anos, state="readonly", width=22, font=("Arial", 10))
+    combo_ano.grid(row=4, column=1, sticky=W, pady=8)
+
+    # Status de matrícula e opção incluir transferidos
+    Label(frame_principal, text="Status de matrícula:", anchor=W, bg=co0, font=("Arial", 10, "bold")).grid(row=5, column=0, sticky=W, pady=8, padx=(0, 10))
+    frame_status = Frame(frame_principal, bg=co0)
+    frame_status.grid(row=5, column=1, sticky=W, pady=8)
+    Radiobutton(frame_status, text="Apenas ativos", variable=status_var, value="Ativo", bg=co0, font=("Arial", 9), activebackground=co0).pack(anchor=W)
+    Checkbutton(frame_status, text="Incluir transferidos", variable=incluir_transferidos, bg=co0).pack(anchor=W)
+
     # Opções de exibição
-    Label(frame_principal, text="Opções de exibição:", anchor=W).grid(row=5, column=0, sticky=W, pady=5)
-    frame_opcoes = Frame(frame_principal)
-    frame_opcoes.grid(row=5, column=1, sticky=W, pady=5)
-    Checkbutton(frame_opcoes, text="Preencher notas em branco com zeros", variable=preencher_zeros).pack(anchor=W)
-    
-    # Informação adicional sobre relatórios com assinatura
-    Label(frame_principal, text="Observação:", anchor=W, font=("Arial", 10, "bold")).grid(row=6, column=0, sticky=W, pady=(15, 0))
-    Label(frame_principal, text="Este relatório inclui uma coluna para assinatura dos\nresponsáveis e é gerado em modo paisagem.", 
-          anchor=W, justify=LEFT).grid(row=6, column=1, sticky=W, pady=(15, 0))
-    
-    # Frame para botões
-    frame_botoes = Frame(janela_relatorio, padx=20, pady=15)
-    frame_botoes.pack(fill=X)
-    
+    Label(frame_principal, text="Opções de exibição:", anchor=W, bg=co0, font=("Arial", 10, "bold")).grid(row=6, column=0, sticky=W, pady=8, padx=(0, 10))
+    frame_opcoes = Frame(frame_principal, bg=co0)
+    frame_opcoes.grid(row=6, column=1, sticky=W, pady=8)
+    Checkbutton(frame_opcoes, text="Preencher notas em branco com zeros", variable=preencher_zeros, bg=co0).pack(anchor=W)
+
+    # Observação
+    Label(frame_principal, text="Observação:", anchor=W, font=("Arial", 10, "bold"), bg=co0).grid(row=7, column=0, sticky=W, pady=(12, 0))
+    Label(frame_principal, text="Este relatório inclui uma coluna para assinatura dos\nresponsáveis e é gerado em modo paisagem.", anchor=W, justify=LEFT, bg=co0).grid(row=7, column=1, sticky=W, pady=(12, 0))
+
+    # Frame para botões (na base) - padronizado com Pendências
+    frame_botoes = Frame(janela_relatorio, bg=co0, padx=25, pady=12)
+    frame_botoes.grid(row=2, column=0, sticky=EW)
+    # Reservar altura fixa para o rodapé para evitar sobreposição com o conteúdo
+    try:
+        frame_botoes.grid_propagate(False)
+        frame_botoes.configure(height=60)
+    except Exception:
+        pass
+
     # Função para gerar o relatório
     def gerar_relatorio():
         bimestre = bimestre_var.get()
         nivel = nivel_var.get()
         ano = ano_letivo_var.get()
         preencher_com_zeros = preencher_zeros.get()
-        
+
         # Configurar status de matrícula
         if incluir_transferidos.get():
             status = ["Ativo", "Transferido"]
         else:
             status = status_var.get()
-        
+
         # Fechar a janela
         janela_relatorio.destroy()
-        
+
         # Exibir feedback ao usuário
         if status_label is not None:
             status_label.config(text=f"Gerando relatório de notas com assinatura para {bimestre} ({nivel})...")
         janela.update()
-        
-        # Gerar o relatório em background para não bloquear a UI
+
+        # Gerar o relatório em background
         def _worker():
             try:
                 from services.report_service import gerar_relatorio_avancado_com_assinatura as service_gerar
@@ -5112,12 +5195,127 @@ def abrir_relatorio_avancado_com_assinatura():
 
                 janela.after(0, _on_error)
 
-        from threading import Thread
-        Thread(target=_worker, daemon=True).start()
-    
-    # Botões
-    Button(frame_botoes, text="Cancelar", command=janela_relatorio.destroy, width=10).pack(side=RIGHT, padx=5)
-    Button(frame_botoes, text="Gerar", command=gerar_relatorio, width=10, bg=co5, fg=co0).pack(side=RIGHT, padx=5)
+        try:
+            from utils.executor import submit_background
+            submit_background(_worker, janela=janela)
+        except Exception:
+            from threading import Thread
+            Thread(target=_worker, daemon=True).start()
+
+    # Criar estilos locais para garantir visibilidade em temas do sistema
+    style_rel = ttk.Style(janela_relatorio)
+    # Estilo do botão Gerar
+    try:
+        style_rel.configure("Rel.TButton", background=co5, foreground=co0, font=("Arial", 10, "bold"))
+        style_rel.map("Rel.TButton", background=[('active', co6)])
+    except Exception:
+        pass
+
+    # Estilo do botão Cancelar
+    try:
+        style_rel.configure("Cancel.TButton", background=co7, foreground=co0, font=("Arial", 10, "bold"))
+        style_rel.map("Cancel.TButton", background=[('active', co8)])
+    except Exception:
+        pass
+
+    # Botões usando ttk (mais consistente com temas do Windows)
+    btn_cancelar_rel = ttk.Button(frame_botoes, text="✖ Cancelar", command=janela_relatorio.destroy, style="Cancel.TButton")
+    btn_cancelar_rel.pack(side=RIGHT, padx=6)
+
+    btn_gerar_rel = ttk.Button(frame_botoes, text="📄 Gerar", command=gerar_relatorio, style="Rel.TButton")
+    btn_gerar_rel.pack(side=RIGHT, padx=6)
+
+    # Adicionar log para confirmar criação dos botões (ajuda em debugging)
+    try:
+        logger.debug("Botões do Relatório Avançado criados: gerar=%s cancelar=%s", btn_gerar_rel, btn_cancelar_rel)
+    except Exception:
+        try:
+            logger.debug("Botões do Relatório Avançado criados (fallback)")
+        except Exception:
+            pass
+
+    # Hover: ajustar estilos dinamicamente caso o tema não respeite map()
+    def _on_enter_gerar(e):
+        try:
+            style_rel.configure("Rel.TButton", background=co6)
+        except Exception:
+            pass
+
+    def _on_leave_gerar(e):
+        try:
+            style_rel.configure("Rel.TButton", background=co5)
+        except Exception:
+            pass
+
+    def _on_enter_cancelar(e):
+        try:
+            style_rel.configure("Cancel.TButton", background=co8)
+        except Exception:
+            pass
+
+    def _on_leave_cancelar(e):
+        try:
+            style_rel.configure("Cancel.TButton", background=co7)
+        except Exception:
+            pass
+
+    btn_gerar_rel.bind("<Enter>", _on_enter_gerar)
+    btn_gerar_rel.bind("<Leave>", _on_leave_gerar)
+    btn_cancelar_rel.bind("<Enter>", _on_enter_cancelar)
+    btn_cancelar_rel.bind("<Leave>", _on_leave_cancelar)
+
+    # Diagnostic: log estado dos botões após a janela renderizar
+    def _log_button_stats():
+        try:
+            vals = {
+                'gerar_mapped': btn_gerar_rel.winfo_ismapped(),
+                'gerar_viewable': btn_gerar_rel.winfo_viewable(),
+                'gerar_reqw': btn_gerar_rel.winfo_reqwidth(),
+                'gerar_reqh': btn_gerar_rel.winfo_reqheight(),
+                'cancelar_mapped': btn_cancelar_rel.winfo_ismapped(),
+                'cancelar_viewable': btn_cancelar_rel.winfo_viewable(),
+                'cancelar_reqw': btn_cancelar_rel.winfo_reqwidth(),
+                'cancelar_reqh': btn_cancelar_rel.winfo_reqheight(),
+            }
+            try:
+                # Para ttk, tentar obter cores via style lookup
+                bg_rel = style_rel.lookup('Rel.TButton', 'background')
+                fg_rel = style_rel.lookup('Rel.TButton', 'foreground')
+                bg_cancel = style_rel.lookup('Cancel.TButton', 'background')
+                fg_cancel = style_rel.lookup('Cancel.TButton', 'foreground')
+                vals.update({'rel_bg': bg_rel, 'rel_fg': fg_rel, 'cancel_bg': bg_cancel, 'cancel_fg': fg_cancel})
+            except Exception:
+                pass
+            logger.debug("Relatório Avançado - stats: %s", vals)
+        except Exception as e:
+            logger.exception("Erro ao logar stats dos botões: %s", e)
+
+    try:
+        janela_relatorio.after(200, _log_button_stats)
+    except Exception:
+        _log_button_stats()
+    # Log adicional: verificar estado dos frames pai e gerenciadores de layout
+    def _log_parent_frames():
+        try:
+            stats = {
+                'toplevel_mapped': janela_relatorio.winfo_ismapped(),
+                'toplevel_viewable': janela_relatorio.winfo_viewable(),
+                'cabecalho_mapped': frame_cabecalho.winfo_ismapped() if 'frame_cabecalho' in locals() else None,
+                'principal_mapped': frame_principal.winfo_ismapped() if 'frame_principal' in locals() else None,
+                'botoes_mapped': frame_botoes.winfo_ismapped() if 'frame_botoes' in locals() else None,
+                'botoes_manager': frame_botoes.winfo_manager() if 'frame_botoes' in locals() else None,
+                'cabecalho_manager': frame_cabecalho.winfo_manager() if 'frame_cabecalho' in locals() else None,
+                'principal_manager': frame_principal.winfo_manager() if 'frame_principal' in locals() else None,
+                'toplevel_children': janela_relatorio.winfo_children()
+            }
+            logger.debug("Relatório Avançado - parent frames: %s", stats)
+        except Exception as e:
+            logger.exception("Erro ao logar parent frames: %s", e)
+
+    try:
+        janela_relatorio.after(250, _log_parent_frames)
+    except Exception:
+        _log_parent_frames()
 
 
 def abrir_relatorio_pendencias():
@@ -5127,7 +5325,7 @@ def abrir_relatorio_pendencias():
     # Criar janela
     janela_pendencias = Toplevel(janela)
     janela_pendencias.title("Relatório de Pendências de Notas")
-    janela_pendencias.geometry("550x480")
+    janela_pendencias.geometry("600x480")
     janela_pendencias.resizable(False, False)
     janela_pendencias.transient(janela)
     janela_pendencias.grab_set()
@@ -5255,59 +5453,119 @@ def abrir_relatorio_pendencias():
             from threading import Thread
             Thread(target=_worker_pendencias, daemon=True).start()
 
-    # Função para exportar todas as pendências para Excel (arquivo gerado no workspace)
-    def exportar_excel():
-        """Abre diálogo 'Salvar como' e executa o gerador de pendências em background.
+    # Função para gerar um relatório geral (PDF) com todos os bimestres e turmas
+    def gerar_relatorio_geral():
+        """Gera um PDF único combinando os relatórios de pendências de todos os
+        bimestres (iniciais e finais) para o ano selecionado.
 
-        Se o usuário selecionar um arquivo existente, o path será passado ao
-        `export_pendencias_xlsx.py` via variável de ambiente `EXPORT_PENDENCIAS_OUT`.
+        A implementação reutiliza o serviço `services.report_service.gerar_relatorio_pendencias`
+        para gerar os PDFs individuais sem abri-los e, em seguida, concatena-os com
+        `PyPDF2.PdfMerger`.
         """
 
-        # Pergunta ao usuário onde salvar o arquivo
-        try:
-            destino = filedialog.asksaveasfilename(defaultextension='.xlsx',
-                                                   filetypes=[('Arquivos Excel', '*.xlsx')],
-                                                   initialfile='pendencias_por_bimestre.xlsx',
-                                                   title='Salvar relatório de pendências como...')
-        except Exception:
-            destino = None
+        ano = ano_letivo_var.get()
 
-        # Se o usuário cancelar, não prosseguir
-        if not destino:
-            return
+        # Fechar a janela
+        janela_pendencias.destroy()
 
-        def _worker_export():
+        # Feedback
+        if status_label is not None:
+            status_label.config(text=f"Gerando relatório geral de pendências ({ano})...")
+        janela.update()
+
+        def _worker_geral():
             try:
-                # Fornecer o destino via variável de ambiente para o script de export
-                import runpy
+                from services import report_service as service
+                import relatorio_pendencias as rp
                 import os as _os
-                _os.environ['EXPORT_PENDENCIAS_OUT'] = destino
+                from PyPDF2 import PdfMerger
 
-                # Executa o script que gera o XLSX no working dir do app
-                runpy.run_path(str(os.path.join(os.getcwd(), 'export_pendencias_xlsx.py')),
-                                run_name='__main__')
+                # Evitar que cada geração abra o PDF no visualizador externo
+                try:
+                    rp.abrir_pdf_com_programa_padrao = lambda *a, **k: None
+                except Exception:
+                    pass
+
+                bimestres = ["1º bimestre", "2º bimestre", "3º bimestre", "4º bimestre"]
+                niveis = ["iniciais", "finais"]
+                gerados = []
+
+                for b in bimestres:
+                    for n in niveis:
+                        try:
+                            ok = service.gerar_relatorio_pendencias(bimestre=b, nivel_ensino=n, ano_letivo=ano, escola_id=60)
+                        except Exception as e:
+                            ok = False
+                        # Nome esperado do PDF gerado pelo módulo relatorio_pendencias
+                        fname = f"Pendencias_Notas_{b.replace(' ', '_')}_{n}_{ano}.pdf"
+                        fpath = _os.path.join(_os.getcwd(), fname)
+                        if ok and _os.path.exists(fpath):
+                            gerados.append(fpath)
+
+                if not gerados:
+                    def _no_files():
+                        if status_label is not None:
+                            status_label.config(text="Nenhum PDF gerado.")
+                        messagebox.showinfo("Sem relatórios", "Não foram gerados relatórios para combinar.")
+                    janela.after(0, _no_files)
+                    return
+
+                # Mesclar PDFs
+                merger = PdfMerger()
+                for p in gerados:
+                    try:
+                        merger.append(p)
+                    except Exception:
+                        pass
+
+                out_name = f"Pendencias_Todas_Bimestres_{ano}.pdf"
+                out_path = _os.path.join(_os.getcwd(), out_name)
+                try:
+                    with open(out_path, 'wb') as f_out:
+                        merger.write(f_out)
+                finally:
+                    try:
+                        merger.close()
+                    except Exception:
+                        pass
 
                 def _on_done():
                     try:
                         if status_label is not None:
-                            status_label.config(text=f'Arquivo Excel salvo em: {destino}')
+                            status_label.config(text=f"Relatório geral salvo em: {out_path}")
                     except Exception:
                         pass
-                    messagebox.showinfo('Exportar Excel', f'Arquivo salvo em:\n{destino}')
+                    try:
+                        # Tentar abrir com o helper do módulo legado
+                        try:
+                            rp.abrir_pdf_com_programa_padrao(out_path)
+                        except Exception:
+                            try:
+                                from gerarPDF import salvar_e_abrir_pdf
+                                import io
+                                with open(out_path, 'rb') as f:
+                                    buf = io.BytesIO(f.read())
+                                salvar_e_abrir_pdf(buf)
+                            except Exception:
+                                pass
+                    finally:
+                        messagebox.showinfo('Relatório Geral', f'Arquivo salvo em:\n{out_path}')
 
                 janela.after(0, _on_done)
             except Exception as e:
                 msg = str(e)
                 def _on_error():
-                    messagebox.showerror('Erro', f'Falha ao gerar Excel: {msg}')
+                    messagebox.showerror('Erro', f'Falha ao gerar Relatório Geral: {msg}')
+                    if status_label is not None:
+                        status_label.config(text='')
                 janela.after(0, _on_error)
 
         try:
             from utils.executor import submit_background
-            submit_background(_worker_export, janela=janela)
+            submit_background(_worker_geral, janela=janela)
         except Exception:
             from threading import Thread
-            Thread(target=_worker_export, daemon=True).start()
+            Thread(target=_worker_geral, daemon=True).start()
     
     # Botões estilizados
     btn_gerar = Button(frame_botoes, text="📄 Gerar Relatório", command=gerar_relatorio, 
@@ -5315,11 +5573,11 @@ def abrir_relatorio_pendencias():
                       relief=RAISED, bd=2, cursor="hand2")
     btn_gerar.pack(side=RIGHT, padx=5)
 
-    # Botão para exportar Excel com todas as pendências por bimestre
-    btn_export = Button(frame_botoes, text="📥 Exportar Excel", command=exportar_excel,
-                        width=16, height=1, bg=co4, fg=co0, font=("Arial", 10, "bold"),
-                        relief=RAISED, bd=2, cursor="hand2")
-    btn_export.pack(side=RIGHT, padx=5)
+    # Botão para gerar relatório geral (todos os bimestres)
+    btn_relatorio_geral = Button(frame_botoes, text="📚 Relatório Geral", command=gerar_relatorio_geral,
+                                 width=16, height=1, bg=co4, fg=co0, font=("Arial", 10, "bold"),
+                                 relief=RAISED, bd=2, cursor="hand2")
+    btn_relatorio_geral.pack(side=RIGHT, padx=5)
     
     btn_cancelar = Button(frame_botoes, text="✖ Cancelar", command=janela_pendencias.destroy, 
                          width=12, height=1, bg=co7, fg=co0, font=("Arial", 10, "bold"),
