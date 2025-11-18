@@ -5254,12 +5254,50 @@ def abrir_relatorio_pendencias():
         except Exception:
             from threading import Thread
             Thread(target=_worker_pendencias, daemon=True).start()
+
+    # Função para exportar todas as pendências para Excel (arquivo gerado no workspace)
+    def exportar_excel():
+        """Executa o script `export_pendencias_xlsx.py` em background e informa o usuário."""
+        def _worker_export():
+            try:
+                import runpy
+                # Executa o script que gera o XLSX no working dir do app
+                runpy.run_path(str(os.path.join(os.getcwd(), 'export_pendencias_xlsx.py')),
+                                run_name='__main__')
+
+                def _on_done():
+                    try:
+                        if status_label is not None:
+                            status_label.config(text='Arquivo Excel de pendências gerado com sucesso.')
+                    except Exception:
+                        pass
+                    messagebox.showinfo('Exportar Excel', 'Arquivo `pendencias_por_bimestre.xlsx` gerado no diretório do sistema.')
+
+                janela.after(0, _on_done)
+            except Exception as e:
+                msg = str(e)
+                def _on_error():
+                    messagebox.showerror('Erro', f'Falha ao gerar Excel: {msg}')
+                janela.after(0, _on_error)
+
+        try:
+            from utils.executor import submit_background
+            submit_background(_worker_export, janela=janela)
+        except Exception:
+            from threading import Thread
+            Thread(target=_worker_export, daemon=True).start()
     
     # Botões estilizados
     btn_gerar = Button(frame_botoes, text="📄 Gerar Relatório", command=gerar_relatorio, 
                       width=17, height=1, bg=co5, fg=co0, font=("Arial", 10, "bold"),
                       relief=RAISED, bd=2, cursor="hand2")
     btn_gerar.pack(side=RIGHT, padx=5)
+
+    # Botão para exportar Excel com todas as pendências por bimestre
+    btn_export = Button(frame_botoes, text="📥 Exportar Excel", command=exportar_excel,
+                        width=16, height=1, bg=co4, fg=co0, font=("Arial", 10, "bold"),
+                        relief=RAISED, bd=2, cursor="hand2")
+    btn_export.pack(side=RIGHT, padx=5)
     
     btn_cancelar = Button(frame_botoes, text="✖ Cancelar", command=janela_pendencias.destroy, 
                          width=12, height=1, bg=co7, fg=co0, font=("Arial", 10, "bold"),
