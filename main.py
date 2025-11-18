@@ -5257,10 +5257,32 @@ def abrir_relatorio_pendencias():
 
     # Função para exportar todas as pendências para Excel (arquivo gerado no workspace)
     def exportar_excel():
-        """Executa o script `export_pendencias_xlsx.py` em background e informa o usuário."""
+        """Abre diálogo 'Salvar como' e executa o gerador de pendências em background.
+
+        Se o usuário selecionar um arquivo existente, o path será passado ao
+        `export_pendencias_xlsx.py` via variável de ambiente `EXPORT_PENDENCIAS_OUT`.
+        """
+
+        # Pergunta ao usuário onde salvar o arquivo
+        try:
+            destino = filedialog.asksaveasfilename(defaultextension='.xlsx',
+                                                   filetypes=[('Arquivos Excel', '*.xlsx')],
+                                                   initialfile='pendencias_por_bimestre.xlsx',
+                                                   title='Salvar relatório de pendências como...')
+        except Exception:
+            destino = None
+
+        # Se o usuário cancelar, não prosseguir
+        if not destino:
+            return
+
         def _worker_export():
             try:
+                # Fornecer o destino via variável de ambiente para o script de export
                 import runpy
+                import os as _os
+                _os.environ['EXPORT_PENDENCIAS_OUT'] = destino
+
                 # Executa o script que gera o XLSX no working dir do app
                 runpy.run_path(str(os.path.join(os.getcwd(), 'export_pendencias_xlsx.py')),
                                 run_name='__main__')
@@ -5268,10 +5290,10 @@ def abrir_relatorio_pendencias():
                 def _on_done():
                     try:
                         if status_label is not None:
-                            status_label.config(text='Arquivo Excel de pendências gerado com sucesso.')
+                            status_label.config(text=f'Arquivo Excel salvo em: {destino}')
                     except Exception:
                         pass
-                    messagebox.showinfo('Exportar Excel', 'Arquivo `pendencias_por_bimestre.xlsx` gerado no diretório do sistema.')
+                    messagebox.showinfo('Exportar Excel', f'Arquivo salvo em:\n{destino}')
 
                 janela.after(0, _on_done)
             except Exception as e:
