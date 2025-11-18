@@ -18,6 +18,8 @@ from conexao import conectar_bd
 from db.connection import get_connection, get_cursor
 from typing import Any, cast
 from datetime import datetime
+from typing import Dict
+from relatorio_pendencias import buscar_pendencias_notas
 import traceback
 
 
@@ -351,13 +353,85 @@ class InterfaceTransicaoAnoLetivo:
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar estatísticas: {str(e)}")
             traceback.print_exc()
+
+    def verificar_fim_do_ano(self) -> bool:
+        """Verifica se o ano letivo atual já passou do último dia do ano.
+
+        Retorna True se a data atual for posterior a 31/12 do ano letivo atual.
+        """
+        try:
+            if not self.ano_atual or 'ano_letivo' not in self.ano_atual:
+                return False
+            ano = int(self.ano_atual['ano_letivo'])
+            fim_ano = datetime(ano, 12, 31).date()
+            hoje = datetime.now().date()
+            return hoje > fim_ano
+        except Exception:
+            return False
+
+    def verificar_pendencias_bimestrais(self) -> Dict:
+        """Verifica pendências de notas para os 4 bimestres em iniciais e finais.
+
+        Retorna um dicionário com as pendências (mesmo formato retornado por buscar_pendencias_notas).
+        Se vazio, não há pendências.
+        """
+        all_pend = {}
+        try:
+            if not self.ano_atual or 'ano_letivo' not in self.ano_atual:
+                return {}
+            ano_val = int(self.ano_atual['ano_letivo'])
+            bimestres = ['1º bimestre', '2º bimestre', '3º bimestre', '4º bimestre']
+            niveis = ['iniciais', 'finais']
+            for b in bimestres:
+                for n in niveis:
+                    try:
+                        pend = buscar_pendencias_notas(b, n, ano_val, 60)
+                        if pend:
+                            # mesclar
+                            for k, v in pend.items():
+                                if k not in all_pend:
+                                    all_pend[k] = v
+                    except Exception:
+                        # se uma checagem falhar, preferimos bloquear a transição
+                        return {'erro': {'mensagem': 'Falha ao verificar pendências'}}
+        except Exception:
+            return {'erro': {'mensagem': 'Falha ao verificar pendências'}}
+
+        return all_pend
     
     def simular_transicao(self):
         """Simula a transição mostrando detalhes do que será feito"""
         if not self.ano_atual or not self.ano_novo:
             messagebox.showerror("Erro", "Dados do ano letivo não carregados.")
             return
-        
+        # Antes de habilitar execução, verificar se o ano letivo acabou
+        if not self.verificar_fim_do_ano():
+            messagebox.showerror(
+                "Ano não encerrado",
+                "O ano letivo ainda não acabou. A transição só pode ser executada após o término do ano letivo (ex.: depois de 31/12)."
+            )
+            return
+
+        # Verificar pendências bimestrais (1º ao 4º bimestre, iniciais e finais)
+        pendencias = self.verificar_pendencias_bimestrais()
+        if pendencias:
+            # montar mensagem resumida
+            resumo = []
+            for chave, info in list(pendencias.items())[:5]:
+                serie, turma, turno = chave
+                # contar alunos com pendências e disciplinas sem lançamento
+                alunos_com_pend = sum(1 for a in info['alunos'].values() if len(a['disciplinas_sem_nota']) > 0)
+                disc_sem = len(info.get('disciplinas_sem_lancamento', []))
+                resumo.append(f"{serie} {turma} ({turno}): {alunos_com_pend} alunos, {disc_sem} disciplinas sem lançamento")
+
+            mensagem_pend = (
+                "Existem pendências de lançamento de notas. \n\n"
+                "Verifique o menu 'Gerenciamento de Notas > Relatório de Pendências' e corrija antes de executar a transição.\n\n"
+                "Exemplos de turmas com pendências:\n" + "\n".join(resumo)
+            )
+            messagebox.showerror("Pendências encontradas", mensagem_pend)
+            return
+
         mensagem = f"""
         SIMULAÇÃO DA TRANSIÇÃO DE ANO LETIVO
         {'='*50}
