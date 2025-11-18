@@ -37,6 +37,174 @@ from config_logs import get_logger
 # Logger da aplicação
 logger = get_logger(__name__)
 
+import json
+
+
+# -----------------------------------------------------------------------------
+# Documentos: pasta base e helpers
+# -----------------------------------------------------------------------------
+def _get_documents_root() -> str:
+    """Retorna a pasta raiz onde os documentos serão gerados.
+    Procura a variável de ambiente `DOCUMENTS_SECRETARIA_ROOT` e, se não
+    existir, usa por padrão o diretório da aplicação (cwd). Dessa forma a
+    estrutura final será `./Documentos Secretaria {ANO}` por padrão.
+    """
+    # 1) Preferir variável de ambiente quando definida (permite sobrepor sem alterar código)
+    try:
+        root = os.environ.get('DOCUMENTS_SECRETARIA_ROOT')
+        if root:
+            return os.path.abspath(root)
+    except Exception:
+        pass
+
+    # 2) Fallback para constante em `config.py` (facilita usar um caminho embutido)
+    try:
+        # Import local para evitar possíveis efeitos colaterais na importação do módulo
+        import config as _app_config
+        default = getattr(_app_config, 'DEFAULT_DOCUMENTS_SECRETARIA_ROOT', None)
+        if default:
+            return os.path.abspath(default)
+    except Exception:
+        pass
+
+    # 3) Último recurso: diretório atual da aplicação (cwd)
+    return os.path.abspath(os.getcwd())
+
+
+def _ensure_docs_dirs(ano: Optional[int] = None):
+    """Garante que a estrutura de pastas para o ano exista e retorna o path."""
+    root = _get_documents_root()
+    if ano is None:
+        try:
+            ano = obter_ano_letivo_atual()
+        except Exception:
+            ano = datetime.now().year
+
+    pasta_ano = os.path.join(root, f"Documentos Secretaria {int(ano)}")
+    subfolders = [
+        'Listas', 'Notas', 'Servicos', 'Faltas', 'Pendencias', 'Relatorios Gerais', 'Contatos', 'Outros'
+    ]
+    try:
+        os.makedirs(pasta_ano, exist_ok=True)
+        for s in subfolders:
+            os.makedirs(os.path.join(pasta_ano, s), exist_ok=True)
+    except Exception as e:
+        logger.exception("Falha ao criar pastas de documentos: %s", e)
+    return pasta_ano
+
+
+# -----------------------------
+# Helpers para configuração do Drive
+# -----------------------------
+LOCAL_CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'local_config.json')
+
+
+def _read_local_config() -> dict:
+    try:
+        if os.path.exists(LOCAL_CONFIG_PATH):
+            with open(LOCAL_CONFIG_PATH, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+
+def _write_local_config(d: dict) -> bool:
+    try:
+        with open(LOCAL_CONFIG_PATH, 'w', encoding='utf-8') as f:
+            json.dump(d, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception:
+        return False
+
+
+def _extract_drive_id(s: str) -> Optional[str]:
+    if not s:
+        return None
+    s = s.strip()
+    if '/folders/' in s:
+        parts = s.split('/folders/')
+        if len(parts) > 1:
+            return parts[1].split('?')[0].split('/')[0]
+    if '/d/' in s:
+        parts = s.split('/d/')
+        if len(parts) > 1:
+            return parts[1].split('/')[0]
+    if 'id=' in s:
+        parts = s.split('id=')
+        if len(parts) > 1:
+            return parts[1].split('&')[0]
+    # provável id cru
+    if len(s) >= 20 and all(c.isalnum() or c in ['-', '_'] for c in s):
+        return s
+    return None
+
+
+def get_drive_folder_id() -> Optional[str]:
+    # 1) variável de ambiente
+    v = os.environ.get('DOCUMENTS_DRIVE_FOLDER_ID')
+    if v:
+        return _extract_drive_id(v) or v
+
+    # 2) local_config.json
+    cfg = _read_local_config()
+    if cfg:
+        val = cfg.get('drive_folder_id')
+        if val:
+            val = str(val)
+            return _extract_drive_id(val) or val
+
+    # 3) config.py fallback
+    try:
+        import config as _appcfg
+        default = getattr(_appcfg, 'DEFAULT_DRIVE_FOLDER_ID', None)
+        if default:
+            return _extract_drive_id(default) or default
+    except Exception:
+        pass
+
+    return None
+
+
+def _categoria_por_descricao(descricao: str) -> str:
+    """Mapeia uma descrição textual para uma subpasta de documentos."""
+    d = (descricao or '').lower()
+    if 'pendên' in d or 'pendenc' in d or 'pendências' in d:
+        return 'Pendencias'
+    if 'assinatura' in d or 'nota' in d or 'relatório de notas' in d:
+        return 'Notas'
+    if 'lista' in d or 'reuni' in d:
+        return 'Listas'
+    if 'frequência' in d or 'frequencia' in d or 'falt' in d:
+        return 'Faltas'
+    if 'contato' in d or 'contatos' in d:
+        return 'Contatos'
+    if 'movimentação' in d or 'movimentacao' in d or 'serviço' in d or 'servicos' in d:
+        return 'Servicos'
+    if 'geral' in d:
+        return 'Relatorios Gerais'
+    return 'Outros'
+
+
+def _run_in_documents_dir(descricao: str, fn):
+    """Executa `fn()` com o cwd temporariamente alterado para a pasta apropriada.
+
+    A pasta é: <root>/Documentos Secretaria {ano}/{categoria}
+    """
+    pasta_ano = _ensure_docs_dirs()
+    categoria = _categoria_por_descricao(descricao)
+    target = os.path.join(pasta_ano, categoria)
+    cwd_before = os.getcwd()
+    try:
+        os.makedirs(target, exist_ok=True)
+        os.chdir(target)
+        return fn()
+    finally:
+        try:
+            os.chdir(cwd_before)
+        except Exception:
+            pass
+
 
 def _run_report_in_background(fn, descricao: str):
     # Delegar para o módulo de UI (`ui.dashboard`) que oferece janela de progresso
@@ -47,7 +215,12 @@ def _run_report_in_background(fn, descricao: str):
         # Se falhar (ex.: módulo não disponível), usar fallback mínimo local
         def _worker():
             try:
-                res = fn()
+                # Executa o trabalho dentro da pasta de documentos apropriada
+                def _call():
+                    return fn()
+
+                res = _run_in_documents_dir(descricao, _call)
+
                 try:
                     if status_label is not None:
                         status_label.config(text=f"{descricao} gerado com sucesso.")
@@ -81,7 +254,11 @@ def _run_report_module_returning_buffer(module_fn, descricao: str):
     except Exception:
         # Fallback local
         def _worker():
-            res = module_fn()
+            # Executar o módulo produtor de buffer dentro da pasta de documentos
+            def _call():
+                return module_fn()
+
+            res = _run_in_documents_dir(descricao, _call)
             if not res:
                 return None
             try:
@@ -5490,15 +5667,32 @@ def abrir_relatorio_pendencias():
                 niveis = ["iniciais", "finais"]
                 gerados = []
 
+                # Garantir que as pastas locais existam para o ano e categorias
+                pasta_ano = _ensure_docs_dirs(int(ano) if str(ano).isdigit() else None)
+                pendencias_dir = _os.path.join(pasta_ano, 'Pendencias')
+                relatorios_dir = _os.path.join(pasta_ano, 'Relatorios Gerais')
+                try:
+                    _os.makedirs(pendencias_dir, exist_ok=True)
+                    _os.makedirs(relatorios_dir, exist_ok=True)
+                except Exception:
+                    pass
+
                 for b in bimestres:
                     for n in niveis:
                         try:
-                            ok = service.gerar_relatorio_pendencias(bimestre=b, nivel_ensino=n, ano_letivo=ano, escola_id=60)
-                        except Exception as e:
+                            # Executar a geração dentro da pasta de Pendencias para que os PDFs
+                            # individuais sejam salvos em: <root>/Documentos Secretaria {ano}/Pendencias
+                            def _gen():
+                                return service.gerar_relatorio_pendencias(bimestre=b, nivel_ensino=n, ano_letivo=ano, escola_id=60)
+
+                            res = _run_in_documents_dir('Pendencias', _gen)
+                            ok = bool(res)
+                        except Exception:
                             ok = False
+
                         # Nome esperado do PDF gerado pelo módulo relatorio_pendencias
                         fname = f"Pendencias_Notas_{b.replace(' ', '_')}_{n}_{ano}.pdf"
-                        fpath = _os.path.join(_os.getcwd(), fname)
+                        fpath = _os.path.join(pendencias_dir, fname)
                         if ok and _os.path.exists(fpath):
                             gerados.append(fpath)
 
@@ -5519,7 +5713,7 @@ def abrir_relatorio_pendencias():
                         pass
 
                 out_name = f"Pendencias_Todas_Bimestres_{ano}.pdf"
-                out_path = _os.path.join(_os.getcwd(), out_name)
+                out_path = _os.path.join(relatorios_dir, out_name)
                 try:
                     with open(out_path, 'wb') as f_out:
                         merger.write(f_out)
@@ -5550,6 +5744,39 @@ def abrir_relatorio_pendencias():
                                 pass
                     finally:
                         messagebox.showinfo('Relatório Geral', f'Arquivo salvo em:\n{out_path}')
+
+                    # Tentar enviar para o Google Drive (se possível)
+                    try:
+                        from drive_uploader import upload_file
+                        drive_folder_id = get_drive_folder_id()
+                        logger.debug("gerar_relatorio_geral: out_path=%s drive_folder_id=%s", out_path, drive_folder_id)
+                        if drive_folder_id is None:
+                            # Tentar sem parent (vai para raiz da conta do usuário)
+                            logger.info("gerar_relatorio_geral: nenhum drive_folder_id configurado; enviando para raiz do Drive")
+                            fid, webview = upload_file(out_path, parent_id=None)
+                        else:
+                            logger.info("gerar_relatorio_geral: enviando para pasta do Drive id=%s", drive_folder_id)
+                            fid, webview = upload_file(out_path, parent_id=drive_folder_id)
+                        if fid:
+                            # Se obtivermos um link webView, mostrá-lo; senão apenas informar ID
+                            msg = f"Arquivo enviado ao Drive com sucesso.\nID: {fid}"
+                            if webview:
+                                msg += f"\nLink: {webview}"
+                            try:
+                                # Atualizar status e mostrar caixa
+                                if status_label is not None:
+                                    status_label.config(text=f"Enviado ao Drive (id={fid})")
+                                messagebox.showinfo('Upload para Drive', msg)
+                            except Exception:
+                                pass
+                        else:
+                            logger.warning("Upload para Drive não ocorreu: retorno None")
+                            try:
+                                messagebox.showwarning('Upload para Drive', 'Falha ao enviar o arquivo para o Google Drive. Verifique logs e autorização.')
+                            except Exception:
+                                pass
+                    except Exception as e:
+                        logger.exception("Erro ao enviar relatório ao Drive: %s", e)
 
                 janela.after(0, _on_done)
             except Exception as e:
