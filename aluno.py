@@ -5,7 +5,7 @@ from tkcalendar import DateEntry
 from PIL import Image, ImageTk
 from datetime import datetime
 from conexao import conectar_bd
-from db.connection import get_connection
+from db.connection import get_cursor
 import mysql.connector
 from Seguranca import atualizar_treeview
 from typing import Any, cast
@@ -129,40 +129,31 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
     # Obter séries do banco de dados
     def obter_series():
         try:
-            # Usar context manager centralizado para conexões
-            with get_connection() as conn:
-                if conn is None:
-                    return []
-                cursor = cast(Any, conn).cursor()
-
-                # Consulta para obter séries vinculadas ao ano letivo atual
-                cursor.execute("""
-                    SELECT s.id, s.nome 
-                    FROM serie s
-                    JOIN turmas t ON s.id = t.serie_id
-                    JOIN anosletivos a ON t.ano_letivo_id = a.id
-                    WHERE a.ano_letivo = YEAR(CURDATE())
-                    GROUP BY s.id, s.nome
-                """)
-
-                series = cursor.fetchall()
-                if not series:  # Se não encontrar para o ano atual, tenta 2025
+                from db.connection import get_cursor
+                with get_cursor() as cursor:
+                    # Consulta para obter séries vinculadas ao ano letivo atual
                     cursor.execute("""
                         SELECT s.id, s.nome 
                         FROM serie s
                         JOIN turmas t ON s.id = t.serie_id
                         JOIN anosletivos a ON t.ano_letivo_id = a.id
-                        WHERE a.ano_letivo = 2025
+                        WHERE a.ano_letivo = YEAR(CURDATE())
                         GROUP BY s.id, s.nome
                     """)
+
                     series = cursor.fetchall()
+                    if not series:  # Se não encontrar para o ano atual, tenta 2025
+                        cursor.execute("""
+                            SELECT s.id, s.nome 
+                            FROM serie s
+                            JOIN turmas t ON s.id = t.serie_id
+                            JOIN anosletivos a ON t.ano_letivo_id = a.id
+                            WHERE a.ano_letivo = 2025
+                            GROUP BY s.id, s.nome
+                        """)
+                        series = cursor.fetchall()
 
-                try:
-                    cursor.close()
-                except Exception:
-                    pass
-
-                return series
+                    return series
         except Exception as err:
             logger.exception("Erro ao obter séries: %s", err)
             return []
@@ -170,11 +161,8 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
     # Obter turmas com base na série selecionada
     def obter_turmas(serie_id):
         try:
-            with get_connection() as conn:
-                if conn is None:
-                    return []
-                cursor = cast(Any, conn).cursor()
-
+            from db.connection import get_cursor
+            with get_cursor() as cursor:
                 # Consulta para obter turmas vinculadas à série e ao ano letivo
                 cursor.execute("""
                     SELECT t.id, t.nome, t.turno
@@ -185,10 +173,6 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
                 """, (serie_id,))
 
                 turmas = cursor.fetchall()
-                try:
-                    cursor.close()
-                except Exception:
-                    pass
 
                 return turmas
         except Exception as err:
@@ -451,15 +435,10 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
                 messagebox.showerror("Erro", f"Preencha nome e CPF do Responsável {i}.")
                 return
         
-        conn = None
-        cursor = None
         try:
-            # Usar context manager centralizado para obter conexão
-            with get_connection() as conn:
-                if conn is None:
-                    messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                    return
-                cursor = cast(Any, conn).cursor()
+            from db.connection import get_cursor
+            # Usar cursor com commit para operações de escrita
+            with get_cursor(commit=True) as cursor:
 
                 # Obter o ID da escola atual
                 escola_id = 3  # Valor padrão, ajuste conforme necessário
@@ -559,8 +538,7 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
                         VALUES (%s, %s)
                     """, (responsavel_id, aluno_id))
 
-                # Commit das alterações
-                conn.commit()
+                # Commit/rollback gerenciados pelo context manager
 
                 # Atualizar a tabela na interface
                 if treeview and treeview.winfo_exists():
@@ -581,19 +559,9 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
         except mysql.connector.Error as err:
             messagebox.showerror("Erro", f"Erro ao salvar no banco de dados: {err}")
             logger.exception("Erro MySQL: %s", err)
-            try:
-                if conn:
-                    conn.rollback()
-            except Exception:
-                pass
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao salvar: {e}")
             logger.exception("Erro geral: %s", e)
-            try:
-                if conn:
-                    conn.rollback()
-            except Exception:
-                pass
 
 # Funções auxiliares para serem chamadas de outros módulos
 
@@ -608,46 +576,23 @@ def excluir_aluno(aluno_id, treeview, query):
         if not resposta:
             return False
 
-        # Usar context manager centralizado para obter conexão
-        with get_connection() as conn:
-            if conn is None:
-                messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                return False
-            cursor = cast(Any, conn).cursor()
+        from db.connection import get_cursor
+        with get_cursor(commit=True) as cursor:
+                # Verificar se o aluno existe
+                cursor.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
+                result = cursor.fetchone()
+                if not result:
+                    messagebox.showerror("Erro", "Aluno não encontrado.")
+                    return False
 
-            # Verificar se o aluno existe
-            cursor.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
-            result = cursor.fetchone()
-            if not result:
-                messagebox.showerror("Erro", "Aluno não encontrado.")
-                try:
-                    cursor.close()
-                except Exception:
-                    pass
-                return False
+                # Excluir associações com responsáveis
+                cursor.execute("DELETE FROM responsaveisalunos WHERE aluno_id = %s", (aluno_id,))
 
-            # Excluir associações com responsáveis
-            cursor.execute("DELETE FROM responsaveisalunos WHERE aluno_id = %s", (aluno_id,))
+                # Excluir matrículas
+                cursor.execute("DELETE FROM matriculas WHERE aluno_id = %s", (aluno_id,))
 
-            # Excluir matrículas
-            cursor.execute("DELETE FROM matriculas WHERE aluno_id = %s", (aluno_id,))
-
-            # Excluir o aluno
-            cursor.execute("DELETE FROM alunos WHERE id = %s", (aluno_id,))
-
-            # Commit das alterações
-            try:
-                conn.commit()
-            except Exception:
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
-
-            try:
-                cursor.close()
-            except Exception:
-                pass
+                # Excluir o aluno
+                cursor.execute("DELETE FROM alunos WHERE id = %s", (aluno_id,))
 
         # Não é mais necessário atualizar a treeview aqui, pois a função em main.py fará isso
         # Isso evita atualizações duplicadas e possíveis erros
