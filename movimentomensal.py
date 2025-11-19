@@ -938,7 +938,46 @@ def relatorio_movimentacao_mensal(mes=None):
     buffer_final.seek(0)
     
     # Salvar e abrir o PDF final
-    salvar_e_abrir_pdf(buffer_final)
+    try:
+        from gerarPDF import salvar_e_abrir_pdf as _salvar_helper
+    except Exception:
+        _salvar_helper = None
+
+    saved_path = None
+    try:
+        if _salvar_helper:
+            try:
+                saved_path = _salvar_helper(buffer_final)
+            except Exception:
+                saved_path = None
+
+        if not saved_path:
+            import tempfile
+            from utilitarios.gerenciador_documentos import salvar_documento_sistema
+            from utilitarios.tipos_documentos import TIPO_MOVIMENTO_MENSAL
+
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+            try:
+                tmp.write(buffer_final.getvalue())
+                tmp.close()
+                descricao = f"Movimento Mensal - {datetime.datetime.now().year}"
+                try:
+                    salvar_documento_sistema(tmp.name, TIPO_MOVIMENTO_MENSAL, funcionario_id=1, finalidade='Secretaria', descricao=descricao)
+                    saved_path = tmp.name
+                except Exception:
+                    try:
+                        if _salvar_helper:
+                            buffer_final.seek(0)
+                            _salvar_helper(buffer_final)
+                    except Exception:
+                        pass
+            finally:
+                pass
+    finally:
+        try:
+            buffer_final.close()
+        except Exception:
+            pass
 
 def gerar_relatorio_1_5(elements, cabecalho, figura_inferior, mes):
     ano_letivo = 2025

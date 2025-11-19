@@ -165,6 +165,29 @@ def gerar_folhas_de_ponto(template_pdf: str, saida_pdf: str, mes_referencia: int
             writer.write(f)
 
         logger.info(f"Folhas de ponto geradas em: {saida_pdf}")
+
+        # Registrar no sistema de documentos (upload + registro) quando possível
+        try:
+            from utilitarios.gerenciador_documentos import salvar_documento_sistema
+            from utilitarios.tipos_documentos import TIPO_FOLHA_PONTO
+            try:
+                sucesso, mensagem, link = salvar_documento_sistema(
+                    saida_pdf,
+                    TIPO_FOLHA_PONTO,
+                    aluno_id=None,
+                    funcionario_id=1,
+                    finalidade='Secretaria',
+                    descricao=f'Folhas de Ponto - {os.path.basename(saida_pdf)}',
+                )
+                if sucesso:
+                    logger.info('Folha de ponto registrada no sistema: %s', link)
+                else:
+                    logger.warning('Falha ao registrar folha de ponto: %s', mensagem)
+            except Exception:
+                logger.exception('Erro ao tentar registrar folha de ponto no sistema')
+        except Exception:
+            # sem gerenciador disponível, seguir sem upload
+            pass
     finally:
         try:
             if conn:

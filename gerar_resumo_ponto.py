@@ -620,10 +620,32 @@ def gerar_resumo_ponto(mes: int, ano: int):
         pass
     with open(final_out, "wb") as ff:
         wfinal.write(ff)
-
     logger.info(f"Resumo de ponto gerado: {final_out}")
 
-    # Abrir automaticamente no visualizador padrão de PDF
+    # Tentar registrar no sistema de documentos (upload + registro)
+    try:
+        from utilitarios.gerenciador_documentos import salvar_documento_sistema
+        from utilitarios.tipos_documentos import TIPO_RESUMO_PONTO
+        try:
+            sucesso, mensagem, link = salvar_documento_sistema(
+                final_out,
+                TIPO_RESUMO_PONTO,
+                aluno_id=None,
+                funcionario_id=1,
+                finalidade='Secretaria',
+                descricao=f'Resumo de Ponto - {nome_mes_pt(mes)} {ano}',
+            )
+            if sucesso:
+                logger.info('Resumo de ponto registrado no sistema: %s', link)
+            else:
+                logger.warning('Falha ao registrar resumo de ponto: %s', mensagem)
+        except Exception:
+            logger.exception('Erro ao tentar registrar resumo de ponto no sistema')
+    except Exception:
+        # Se o gerenciador de documentos não estiver disponível, apenas continuar
+        pass
+
+    # Abrir automaticamente no visualizador padrão de PDF (não crítico)
     try:
         if os.name == 'nt':
             os.startfile(final_out)  # Windows

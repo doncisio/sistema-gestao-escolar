@@ -1001,10 +1001,85 @@ def _impl_gerar_relatorio_notas_com_assinatura(*args, **kwargs) -> bool:
             except Exception:
                 # alguns mocks podem não aceitar build; ignorar para permitir salvar
                 pass
+
+            # Tentativa de salvar/registrar o PDF gerado
+            saved_path = None
             try:
-                salvar_e_abrir_pdf(buffer)
+                # tentar usar o helper central (tests costumam mockar isto)
+                salvar_helper = None
+                try:
+                    from services.utils.pdf import salvar_e_abrir_pdf as _sh
+                    salvar_helper = _sh
+                except Exception:
+                    try:
+                        from gerarPDF import salvar_e_abrir_pdf as _sh
+                        salvar_helper = _sh
+                    except Exception:
+                        salvar_helper = None
+
+                if salvar_helper is not None:
+                    try:
+                        # alguns helpers retornam path quando recebem filename
+                        if 'filename' in locals() and filename:
+                            saved_path = salvar_helper(buffer, filename)
+                        else:
+                            saved_path = salvar_helper(buffer)
+                    except TypeError:
+                        try:
+                            saved_path = salvar_helper(buffer)
+                        except Exception:
+                            saved_path = None
+                    except Exception:
+                        logger.exception('Helper de PDF disponível, mas falhou ao salvar em memória')
+                        saved_path = None
+
+                # Se helper não retornou caminho, escrever em arquivo temporário ou usar filename se legacy escreveu
+                import os as _os
+                import tempfile as _temp
+                if not saved_path:
+                    if 'filename' in locals() and filename and _os.path.exists(filename):
+                        saved_path = filename
+                    else:
+                        try:
+                            tf = _temp.NamedTemporaryFile(delete=False, suffix='.pdf')
+                            tf.close()
+                            buffer.seek(0)
+                            with open(tf.name, 'wb') as f:
+                                f.write(buffer.getvalue())
+                            saved_path = tf.name
+                        except Exception:
+                            logger.exception('Falha ao escrever PDF temporário para registro')
+                            saved_path = None
+
+                # Se obtivemos um arquivo salvo, tentar registrar via gerenciador de documentos
+                if saved_path:
+                    try:
+                        from utilitarios.gerenciador_documentos import salvar_documento_sistema
+                        from utilitarios.tipos_documentos import TIPO_LISTA_NOTAS
+                        finalidade = 'Secretaria'
+                        descricao = f'Relatório de Notas - {tipo_ensino} - {kwargs.get("ano_letivo")}'
+                        sucesso, mensagem, link = salvar_documento_sistema(
+                            saved_path,
+                            TIPO_LISTA_NOTAS,
+                            aluno_id=None,
+                            funcionario_id=1,
+                            finalidade=finalidade,
+                            descricao=descricao,
+                        )
+                        if sucesso:
+                            logger.info('Documento registrado no sistema: %s', link)
+                            # tentar remover arquivo temporário criado pelo processo
+                            try:
+                                if _os.path.exists(saved_path) and _os.path.dirname(saved_path) == _temp.gettempdir():
+                                    _os.remove(saved_path)
+                            except Exception:
+                                pass
+                        else:
+                            logger.warning('Falha ao registrar documento no sistema: %s', mensagem)
+                    except Exception:
+                        logger.exception('Erro ao tentar registrar documento no sistema de documentos')
             except Exception:
-                pass
+                logger.exception('Erro inesperado ao salvar/registrar PDF (relatorio_notas)')
 
         return True
     except NotImplementedError:
@@ -1477,27 +1552,85 @@ def _impl_gerar_lista_reuniao(dados_aluno=None, ano_letivo: Optional[int] = None
 
         doc.build(elements)
 
-        # salvar: use helper centralizado; informe filename quando out_dir fornecido
+        # salvar: escrever o buffer em arquivo temporário (ou em out_dir quando fornecido)
+        # e chamar `salvar_documento_sistema` para fazer upload + registro (evita double-upload).
         if out_dir:
             filename = os.path.join(out_dir, f"{nome_turma_completo}_Reuniao.pdf")
         else:
             filename = None
 
         try:
-            # chamar helper centralizado sem passar filename (algumas versões não aceitam o argumento)
-            salvar_e_abrir_pdf(buffer)
-        except Exception:
-            # tentar fallback para escrita direta como último recurso
+            # Primeiro, tentar usar helpers de PDF (tests frequentemente injetam mocks aqui)
+            salvar_helper = None
             try:
-                if filename:
-                    buffer.seek(0)
-                    with open(filename, 'wb') as f:
-                        f.write(buffer.getvalue())
-                    logger.info(f"PDF salvo em (fallback): {filename}")
-                else:
-                    logger.exception('Falha ao salvar PDF e sem filename para fallback')
+                from services.utils.pdf import salvar_e_abrir_pdf as _sh
+                salvar_helper = _sh
             except Exception:
-                logger.exception('Falha final ao salvar PDF')
+                try:
+                    from gerarPDF import salvar_e_abrir_pdf as _sh
+                    salvar_helper = _sh
+                except Exception:
+                    salvar_helper = None
+
+            saved_path = None
+            # Se existe helper, chame-o (alguns helpers retornam path)
+            if salvar_helper is not None:
+                try:
+                    # muitos helpers aceitam assinatura (buffer, filename=None)
+                    saved_path = salvar_helper(buffer, filename) if filename is not None else salvar_helper(buffer)
+                except TypeError:
+                    # fallback para chamada sem filename
+                    try:
+                        saved_path = salvar_helper(buffer)
+                    except Exception:
+                        saved_path = None
+                except Exception:
+                    logger.exception('Helper de PDF disponível, mas falhou ao salvar em memória')
+                    saved_path = None
+
+            # Se não obteve saved_path do helper, escrever em arquivo temporário
+            if not saved_path:
+                import tempfile
+                try:
+                    if filename:
+                        temp_path = filename
+                    else:
+                        tf = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+                        temp_path = tf.name
+                        tf.close()
+
+                    buffer.seek(0)
+                    with open(temp_path, 'wb') as f:
+                        f.write(buffer.getvalue())
+                    saved_path = temp_path
+                except Exception:
+                    logger.exception('Falha ao escrever PDF temporário para registro')
+                    saved_path = None
+
+            # Se conseguimos um caminho salvo, usar o gerenciador de documentos para upload+registro
+            if saved_path:
+                try:
+                    from utilitarios.gerenciador_documentos import salvar_documento_sistema
+                    from utilitarios.tipos_documentos import TIPO_LISTA_REUNIAO
+                    finalidade = 'Secretaria'
+                    descricao = f'Lista de Reunião - {nome_turma_completo}'
+                    sucesso, mensagem, link = salvar_documento_sistema(
+                        saved_path,
+                        TIPO_LISTA_REUNIAO,
+                        aluno_id=None,
+                        funcionario_id=1,
+                        finalidade=finalidade,
+                        descricao=descricao,
+                    )
+                    if sucesso:
+                        logger.info('Documento registrado no sistema: %s', link)
+                    else:
+                        logger.warning('Falha ao registrar documento no sistema: %s', mensagem)
+                except Exception:
+                    logger.exception('Erro ao tentar registrar documento no sistema de documentos')
+
+        except Exception:
+            logger.exception('Erro inesperado ao salvar/registrar PDF')
 
     return True
 
@@ -1774,21 +1907,80 @@ def _impl_lista_notas(dados_aluno=None, ano_letivo: Optional[int] = None, out_di
 
     doc.build(elements)
 
-    # salvar/abrir
+    # salvar/registrar usando helper + fallback para upload/registro
     try:
-        salvar_e_abrir_pdf(buffer)
-    except Exception:
-        # fallback para salvar em disco se out_dir fornecido
+        saved_path = None
+        salvar_helper = None
         try:
-            if out_dir:
-                filename = os.path.join(out_dir, f"lista_notas_{int(datetime.datetime.now().timestamp())}.pdf")
-                buffer.seek(0)
-                with open(filename, 'wb') as f:
-                    f.write(buffer.getvalue())
-                logger.info(f"PDF salvo em (fallback): {filename}")
-            else:
-                logger.exception('Falha ao salvar PDF e sem out_dir para fallback')
+            from services.utils.pdf import salvar_e_abrir_pdf as _sh
+            salvar_helper = _sh
         except Exception:
-            logger.exception('Falha final ao salvar PDF em fallback')
+            try:
+                from gerarPDF import salvar_e_abrir_pdf as _sh
+                salvar_helper = _sh
+            except Exception:
+                salvar_helper = None
+
+        if salvar_helper is not None:
+            try:
+                saved_path = salvar_helper(buffer)
+            except TypeError:
+                try:
+                    saved_path = salvar_helper(buffer, None)
+                except Exception:
+                    saved_path = None
+            except Exception:
+                logger.exception('Helper de PDF disponível, mas falhou ao salvar em memória')
+                saved_path = None
+
+        import os as _os
+        import tempfile as _temp
+        if not saved_path:
+            # fallback: escrever em arquivo temporário (ou out_dir se fornecido)
+            try:
+                if out_dir:
+                    filename = os.path.join(out_dir, f"lista_notas_{int(datetime.datetime.now().timestamp())}.pdf")
+                    buffer.seek(0)
+                    with open(filename, 'wb') as f:
+                        f.write(buffer.getvalue())
+                    saved_path = filename
+                else:
+                    tf = _temp.NamedTemporaryFile(delete=False, suffix='.pdf')
+                    tf.close()
+                    buffer.seek(0)
+                    with open(tf.name, 'wb') as f:
+                        f.write(buffer.getvalue())
+                    saved_path = tf.name
+            except Exception:
+                logger.exception('Falha ao escrever PDF temporário para lista_notas')
+                saved_path = None
+
+        if saved_path:
+            try:
+                from utilitarios.gerenciador_documentos import salvar_documento_sistema
+                from utilitarios.tipos_documentos import TIPO_LISTA_NOTAS
+                finalidade = 'Secretaria'
+                descricao = f'Lista de Notas - {int(datetime.datetime.now().timestamp())}'
+                sucesso, mensagem, link = salvar_documento_sistema(
+                    saved_path,
+                    TIPO_LISTA_NOTAS,
+                    aluno_id=None,
+                    funcionario_id=1,
+                    finalidade=finalidade,
+                    descricao=descricao,
+                )
+                if sucesso:
+                    logger.info('Documento registrado no sistema: %s', link)
+                    try:
+                        if _os.path.exists(saved_path) and _os.path.dirname(saved_path) == _temp.gettempdir():
+                            _os.remove(saved_path)
+                    except Exception:
+                        pass
+                else:
+                    logger.warning('Falha ao registrar documento no sistema: %s', mensagem)
+            except Exception:
+                logger.exception('Erro ao tentar registrar documento no sistema de documentos')
+    except Exception:
+        logger.exception('Falha inesperada ao salvar/registrar lista_notas')
 
     return True

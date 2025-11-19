@@ -10,7 +10,8 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import black, white, grey
 from Lista_atualizada import fetch_student_data
-from scripts_nao_utilizados.gerar_documentos import PASTAS_TURMAS, criar_pastas_se_nao_existirem, salvar_pdf, adicionar_cabecalho
+from scripts_nao_utilizados.gerar_documentos import adicionar_cabecalho
+from gerarPDF import salvar_e_abrir_pdf
 try:
     from services.report_service import _find_image_in_repo
 except Exception:
@@ -26,8 +27,6 @@ def gerar_lista_reuniao():
         return
         
     df = pd.DataFrame(dados_aluno)
-    criar_pastas_se_nao_existirem()
-    
     # Definir caminhos das imagens tentando localizar via helper; fallback para caminhos relativos
     if _find_image_in_repo:
         figura_superior = _find_image_in_repo('logosemed.png') or os.path.join(os.path.dirname(__file__), 'logosemed.png')
@@ -60,10 +59,6 @@ def gerar_lista_reuniao():
     for (nome_serie, nome_turma, turno), turma_df in df.groupby(['NOME_SERIE', 'NOME_TURMA', 'TURNO']):
         nome_turma_completo = f"{nome_serie} {nome_turma}" if nome_turma else nome_serie
         
-        if nome_turma_completo not in PASTAS_TURMAS:
-            logger.info(f"Aviso: Turma '{nome_turma_completo}' não está mapeada para uma pasta. Pulando...")
-            continue
-            
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
             buffer,
@@ -135,7 +130,52 @@ def gerar_lista_reuniao():
         
         doc.build(elements)
         buffer.seek(0)
-        salvar_pdf(buffer, nome_turma_completo, "Reuniao")
+        # Usar o util central de PDF para salvar/mover/upload via API (mantém compatibilidade com testes que mockam `services.utils.pdf.salvar_e_abrir_pdf`)
+        # Preferir o helper de PDF (mantém compatibilidade com testes que o mockam).
+        try:
+            from gerarPDF import salvar_e_abrir_pdf as _salvar_helper
+        except Exception:
+            _salvar_helper = None
+
+        saved_path = None
+        try:
+            if _salvar_helper:
+                try:
+                    saved_path = _salvar_helper(buffer)
+                except Exception:
+                    saved_path = None
+
+            if not saved_path:
+                import tempfile
+                from utilitarios.gerenciador_documentos import salvar_documento_sistema
+                from utilitarios.tipos_documentos import TIPO_LISTA_REUNIAO
+
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+                try:
+                    tmp.write(buffer.getvalue())
+                    tmp.close()
+                    descricao = f"Lista para Reunião - {nome_turma_completo}"
+                    try:
+                        salvar_documento_sistema(tmp.name, TIPO_LISTA_REUNIAO, funcionario_id=1, finalidade='Secretaria', descricao=descricao)
+                        saved_path = tmp.name
+                    except Exception:
+                        # fallback legado: escrever em disco local
+                        logger.exception("Falha ao salvar/upload via salvar_documento_sistema; fallback: escrever em disco local")
+                        try:
+                            fd, path = tempfile.mkstemp(suffix='.pdf')
+                            os.close(fd)
+                            with open(path, 'wb') as f:
+                                f.write(buffer.getvalue())
+                            logger.info("PDF gravado em fallback local: %s", path)
+                        except Exception:
+                            logger.exception("Falha no fallback ao gravar PDF local")
+                finally:
+                    pass
+        finally:
+            try:
+                buffer.close()
+            except Exception:
+                pass
 
 if __name__ == "__main__":
     gerar_lista_reuniao() 

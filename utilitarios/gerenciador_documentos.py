@@ -23,37 +23,47 @@ class GerenciadorDocumentos:
         # Configurações do Google Drive
         self.SCOPES = ['https://www.googleapis.com/auth/drive.file']
         self.service = None
-        self.setup_google_drive()
+        self.pasta_raiz_id = None
+        # NÃO executar setup na importação: inicialização preguiçosa (lazy)
+        # para evitar prompts interativos em importações (tests, CI)
     
     def setup_google_drive(self):
         """Configura a autenticação com o Google Drive"""
         creds = None
-        if os.path.exists('token.pickle'):
-            with open('token.pickle', 'rb') as token:
-                creds = pickle.load(token)
-        
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                try:
+        token_path = os.getenv('DRIVE_TOKEN_PATH', 'token_drive.pickle')
+        credentials_path = os.getenv('DRIVE_CREDENTIALS_PATH', 'credentials.json')
+
+        # Carregar token existente, se houver
+        if os.path.exists(token_path):
+            try:
+                with open(token_path, 'rb') as token:
+                    creds = pickle.load(token)
+            except Exception:
+                logger.exception("setup_google_drive: falha ao carregar token; será reautenticado")
+                creds = None
+
+        if not creds or not getattr(creds, 'valid', False):
+            try:
+                if creds and getattr(creds, 'expired', False) and getattr(creds, 'refresh_token', None):
                     creds.refresh(Request())
-                except Exception as e:
-                    # Token expirado ou revogado, remover e refazer autenticação
-                    logger.exception(f"Erro ao renovar token: {e}")
-                    if os.path.exists('token.pickle'):
-                        os.remove('token.pickle')
-                    flow = InstalledAppFlow.from_client_secrets_file('credentials.json', self.SCOPES)
+                else:
+                    flow = InstalledAppFlow.from_client_secrets_file(credentials_path, self.SCOPES)
                     creds = flow.run_local_server(port=0)
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file('credentials.json', self.SCOPES)
-                creds = flow.run_local_server(port=0)
-            
-            with open('token.pickle', 'wb') as token:
-                pickle.dump(creds, token)
-        
-        self.service = build('drive', 'v3', credentials=creds)
-        
-        # Configurar pasta raiz do sistema
-        self.pasta_raiz_id = self.get_or_create_pasta_raiz()
+
+                # Persistir token no caminho configurado
+                with open(token_path, 'wb') as token:
+                    pickle.dump(creds, token)
+            except Exception:
+                logger.exception("setup_google_drive: falha durante autenticação Drive")
+                raise
+
+        try:
+            self.service = build('drive', 'v3', credentials=creds)
+            # Configurar pasta raiz do sistema
+            self.pasta_raiz_id = self.get_or_create_pasta_raiz()
+        except Exception:
+            logger.exception("setup_google_drive: falha ao criar service Drive")
+            raise
     
     def get_or_create_pasta_raiz(self):
         """
@@ -129,6 +139,14 @@ class GerenciadorDocumentos:
         Returns:
             str: ID da pasta
         """
+        # Garantir que o service esteja pronto
+        if not self.service:
+            try:
+                self.setup_google_drive()
+            except Exception:
+                logger.exception("get_or_create_folder: Drive não disponível")
+                return None
+
         # Procurar pasta existente
         query = f"mimeType='application/vnd.google-apps.folder' and name='{folder_name}' and trashed=false"
         if parent_id:

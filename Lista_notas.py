@@ -111,7 +111,46 @@ def lista_notas():
     # 6. Finalização e Salvamento
     doc.build(elements)
     buffer.seek(0)
-    salvar_e_abrir_pdf(buffer)
+    try:
+        from gerarPDF import salvar_e_abrir_pdf as _salvar_helper
+    except Exception:
+        _salvar_helper = None
+
+    saved_path = None
+    try:
+        if _salvar_helper:
+            try:
+                saved_path = _salvar_helper(buffer)
+            except Exception:
+                saved_path = None
+
+        if not saved_path:
+            import tempfile, os
+            from utilitarios.gerenciador_documentos import salvar_documento_sistema
+            from utilitarios.tipos_documentos import TIPO_LISTA_NOTAS
+
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+            try:
+                tmp.write(buffer.getvalue())
+                tmp.close()
+                descricao = f"Lista de Notas - {datetime.datetime.now().year}"
+                try:
+                    salvar_documento_sistema(tmp.name, TIPO_LISTA_NOTAS, funcionario_id=1, finalidade='Secretaria', descricao=descricao)
+                    saved_path = tmp.name
+                except Exception:
+                    try:
+                        if _salvar_helper:
+                            buffer.seek(0)
+                            _salvar_helper(buffer)
+                    except Exception:
+                        pass
+            finally:
+                pass
+    finally:
+        try:
+            buffer.close()
+        except Exception:
+            pass
 
 def adicionar_tabela_turma_anos_finais(elements, cabecalho, figura_superior, figura_inferior, turma_df, nome_serie, nome_turma, turno):
     """Adiciona uma tabela para cada disciplina da turma dos anos finais, incluindo cabeçalho e informações."""
