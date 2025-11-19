@@ -300,41 +300,22 @@ def relatorio_contatos_responsaveis():
             ano_param = None
             try:
                 ano_id = obter_ano_letivo_atual()
-                with get_connection() as _conn:
-                    if _conn is not None:
-                        _cur = _conn.cursor()
-                        _cur.execute("SELECT ano_letivo FROM AnosLetivos WHERE id = %s", (int(str(ano_id)),))
-                        _res = _cur.fetchone()
-                        try:
-                            _cur.close()
-                        except Exception:
-                            pass
-                        if _res and _res[0] is not None:
+                with get_cursor() as _cur:
+                    _cur.execute("SELECT ano_letivo FROM AnosLetivos WHERE id = %s", (int(str(ano_id)),))
+                    _res = _cur.fetchone()
+                    # Normalizar resultado para suportar dictionary cursors
+                    if _res is not None:
+                        if isinstance(_res, dict):
+                            _val = list(_res.values())[0] if _res else None
+                        else:
+                            _val = _res[0] if len(_res) > 0 else None
+                        if _val is not None:
                             try:
-                                ano_param = int(str(_res[0]))
+                                ano_param = int(str(_val))
                             except Exception:
                                 ano_param = None
             except Exception:
                 ano_param = None
-                try:
-                    ano_id = obter_ano_letivo_atual()
-                    with get_cursor() as _cur:
-                        _cur.execute("SELECT ano_letivo FROM AnosLetivos WHERE id = %s", (int(str(ano_id)),))
-                        _res = _cur.fetchone()
-                        # Normalizar resultado para suportar dictionary cursors
-                        if _res is not None:
-                            if isinstance(_res, dict):
-                                # pegar o primeiro valor (ano_letivo)
-                                _val = list(_res.values())[0] if _res else None
-                            else:
-                                _val = _res[0] if len(_res) > 0 else None
-                            if _val is not None:
-                                try:
-                                    ano_param = int(str(_val))
-                                except Exception:
-                                    ano_param = None
-                except Exception:
-                    ano_param = None
 
             # Após determinar `ano_param`, chamar o gerador em background
             try:
@@ -813,21 +794,21 @@ inicializar_pool()
 janela = Tk()
 # Tentar obter o nome da escola a partir do banco; usar fallback simples se falhar
 try:
-    nome_escola = "Escola"
-    try:
-        with get_connection() as _conn:
-            _cur = _conn.cursor()
-            _cur.execute("SELECT nome FROM Escolas WHERE id = %s", (60,))
-            _res = _cur.fetchone()
-            if _res and _res[0]:
-                nome_escola = str(_res[0])
-            try:
-                _cur.close()
-            except Exception:
-                pass
-    except Exception:
-        # Se qualquer erro de BD ocorrer, manter o fallback
         nome_escola = "Escola"
+        try:
+            with get_cursor() as _cur:
+                _cur.execute("SELECT nome FROM Escolas WHERE id = %s", (60,))
+                _res = _cur.fetchone()
+                if _res is not None:
+                    if isinstance(_res, dict):
+                        _val = _res.get('nome') if 'nome' in _res else (list(_res.values())[0] if _res else None)
+                    else:
+                        _val = _res[0] if len(_res) > 0 else None
+                    if _val:
+                        nome_escola = str(_val)
+        except Exception:
+            # Se qualquer erro de BD ocorrer, manter o fallback
+            nome_escola = "Escola"
 except Exception:
     nome_escola = "Escola"
 
@@ -1990,50 +1971,32 @@ def excluir_funcionario_com_confirmacao(funcionario_id):
     
     if resposta:
         try:
-            with get_connection() as conexao:
-                if conexao is None:
-                    messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
+            with get_cursor(commit=True) as cursor:
+                # Verifica se o funcionário existe
+                cursor.execute("SELECT nome FROM funcionarios WHERE id = %s", (funcionario_id,))
+                funcionario = cursor.fetchone()
+
+                if not funcionario:
+                    messagebox.showerror("Erro", "Funcionário não encontrado.")
                     return False
-                cursor = conexao.cursor()
-                try:
-                    # Verifica se o funcionário existe
-                    cursor.execute("SELECT nome FROM funcionarios WHERE id = %s", (funcionario_id,))
-                    funcionario = cursor.fetchone()
 
-                    if not funcionario:
-                        messagebox.showerror("Erro", "Funcionário não encontrado.")
-                        return False
+                # Exclui associações com funcionario_disciplinas
+                cursor.execute("DELETE FROM funcionario_disciplinas WHERE funcionario_id = %s", (funcionario_id,))
 
-                    # Exclui associações com funcionario_disciplinas
-                    cursor.execute("DELETE FROM funcionario_disciplinas WHERE funcionario_id = %s", (funcionario_id,))
+                # Exclui o funcionário
+                cursor.execute("DELETE FROM funcionarios WHERE id = %s", (funcionario_id,))
 
-                    # Exclui o funcionário
-                    cursor.execute("DELETE FROM funcionarios WHERE id = %s", (funcionario_id,))
-                    conexao.commit()
+                # commit handled by get_cursor(commit=True)
 
-                    messagebox.showinfo("Sucesso", "Funcionário excluído com sucesso.")
+                messagebox.showinfo("Sucesso", "Funcionário excluído com sucesso.")
 
-                    # Atualizar a tabela principal
-                    atualizar_tabela_principal()
+                # Atualizar a tabela principal
+                atualizar_tabela_principal()
 
-                    # Volta para a tela principal
-                    voltar()
+                # Volta para a tela principal
+                voltar()
 
-                    return True
-                except Exception as e:
-                    # Tenta rollback se suportado
-                    try:
-                        conexao.rollback()
-                    except Exception:
-                        pass
-                    messagebox.showerror("Erro", f"Erro ao excluir funcionário: {str(e)}")
-                    logger.error(f"Erro ao excluir funcionário: {str(e)}")
-                    return False
-                finally:
-                    try:
-                        cursor.close()
-                    except Exception:
-                        pass
+                return True
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao excluir funcionário: {str(e)}")
             logger.error(f"Erro ao excluir funcionário: {str(e)}")
@@ -2110,29 +2073,19 @@ def gerar_declaracao(id_pessoa=None):
     else:
         # Se o ID foi fornecido diretamente, precisamos determinar o tipo da pessoa
         try:
-            with get_connection() as conn:
-                if conn is None:
-                    messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                    return
-                cursor = conn.cursor()
-                try:
-                    # Verificar se é um aluno
-                    cursor.execute("SELECT id FROM alunos WHERE id = %s", (id_pessoa,))
+            with get_cursor() as cursor:
+                # Verificar se é um aluno
+                cursor.execute("SELECT id FROM alunos WHERE id = %s", (id_pessoa,))
+                if cursor.fetchone():
+                    tipo_pessoa = 'Aluno'
+                else:
+                    # Verificar se é um funcionário
+                    cursor.execute("SELECT id FROM funcionarios WHERE id = %s", (id_pessoa,))
                     if cursor.fetchone():
-                        tipo_pessoa = 'Aluno'
+                        tipo_pessoa = 'Funcionário'
                     else:
-                        # Verificar se é um funcionário
-                        cursor.execute("SELECT id FROM funcionarios WHERE id = %s", (id_pessoa,))
-                        if cursor.fetchone():
-                            tipo_pessoa = 'Funcionário'
-                        else:
-                            messagebox.showerror("Erro", "ID não corresponde a nenhum usuário cadastrado.")
-                            return
-                finally:
-                    try:
-                        cursor.close()
-                    except Exception:
-                        pass
+                        messagebox.showerror("Erro", "ID não corresponde a nenhum usuário cadastrado.")
+                        return
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao verificar o tipo de usuário: {str(e)}")
             return
@@ -3966,14 +3919,8 @@ def verificar_e_gerar_boletim(aluno_id, ano_letivo_id=None):
         aluno_id: ID do aluno
         ano_letivo_id: ID opcional do ano letivo. Se não for fornecido, usará o ano letivo atual.
     """
-    cursor = None
     try:
-        with get_connection() as conn:
-            if conn is None:
-                messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                return
-            cursor = conn.cursor()
-
+        with get_cursor() as cursor:
             # Se o ano_letivo_id não foi fornecido, obtém o ID do ano letivo atual
             if ano_letivo_id is None:
                 cursor.execute("SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
@@ -4004,16 +3951,16 @@ def verificar_e_gerar_boletim(aluno_id, ano_letivo_id=None):
             ORDER BY m.data_matricula DESC
             LIMIT 1
         """, (int(str(aluno_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
-        
-        resultado = cursor.fetchone()
-        
-        if not resultado:
-            messagebox.showwarning("Aviso", "Não foi possível determinar o status da matrícula do aluno para o ano letivo selecionado.")
-            return False
-        
-        status_matricula = _safe_get(resultado, 0)
-        nome_aluno = _safe_get(resultado, 1)
-        ano_letivo = _safe_get(resultado, 2)
+            
+            resultado = cursor.fetchone()
+            
+            if not resultado:
+                messagebox.showwarning("Aviso", "Não foi possível determinar o status da matrícula do aluno para o ano letivo selecionado.")
+                return False
+            
+            status_matricula = _safe_get(resultado, 0)
+            nome_aluno = _safe_get(resultado, 1)
+            ano_letivo = _safe_get(resultado, 2)
         
         # Decidir qual documento gerar baseado no status
         # Gerar em background para não bloquear a UI
@@ -4068,12 +4015,6 @@ def verificar_e_gerar_boletim(aluno_id, ano_letivo_id=None):
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao verificar status e gerar boletim: {str(e)}")
         logger.error(f"Erro ao verificar status e gerar boletim: {str(e)}")
-    finally:
-        try:
-            if cursor:
-                cursor.close()
-        except Exception:
-            pass
 
 def criar_menu_contextual():
     menu_contextual = Menu(janela, tearoff=0)
@@ -4133,96 +4074,87 @@ def obter_estatisticas_alunos():
     
     # Buscar dados atualizados usando o context manager de conexão
     try:
-        with get_connection() as conn:
-            if conn is None:
-                return None
-            cursor = conn.cursor()
+        with get_cursor() as cursor:
+            # Obter ano letivo atual do cache
+            ano_letivo_id = obter_ano_letivo_atual()
+
+            escola_id = 60  # ID fixo da escola
+
+            # Query otimizada para obter todas as estatísticas de uma vez
+            cursor.execute("""
+                SELECT 
+                    COUNT(DISTINCT CASE WHEN m.status = 'Ativo' THEN a.id END) as total_ativos,
+                    COUNT(DISTINCT CASE WHEN m.status IN ('Transferido', 'Transferida') THEN a.id END) as total_transferidos
+                FROM Alunos a
+                JOIN Matriculas m ON a.id = m.aluno_id
+                JOIN turmas t ON m.turma_id = t.id
+                WHERE m.ano_letivo_id = %s 
+                AND a.escola_id = %s
+                AND m.status IN ('Ativo', 'Transferido', 'Transferida')
+            """, (ano_letivo_id, escola_id))
+
+            resultado_geral = cursor.fetchone()
+            if resultado_geral:
+                total_ativos = converter_para_int_seguro(resultado_geral[0])
+                total_transferidos = converter_para_int_seguro(resultado_geral[1])
+            else:
+                total_ativos = 0
+                total_transferidos = 0
+            # garantir inteiros válidos
             try:
-                # Obter ano letivo atual do cache
-                ano_letivo_id = obter_ano_letivo_atual()
+                total_ativos = int(total_ativos)
+            except Exception:
+                total_ativos = 0
+            try:
+                total_transferidos = int(total_transferidos)
+            except Exception:
+                total_transferidos = 0
+            total_matriculados = total_ativos + total_transferidos
 
-                escola_id = 60  # ID fixo da escola
+            # Estatísticas por série E TURMA - conta ALUNOS ÚNICOS e ATIVOS
+            cursor.execute("""
+                SELECT 
+                    CONCAT(s.nome, ' ', t.nome) as serie_turma,
+                    COUNT(DISTINCT a.id) as quantidade,
+                    COUNT(DISTINCT CASE WHEN m.status = 'Ativo' THEN a.id END) as ativos
+                FROM Alunos a
+                JOIN Matriculas m ON a.id = m.aluno_id
+                JOIN turmas t ON m.turma_id = t.id
+                JOIN serie s ON t.serie_id = s.id
+                WHERE m.ano_letivo_id = %s 
+                AND a.escola_id = %s
+                AND m.status = 'Ativo'
+                GROUP BY t.id, s.nome, t.nome
+                ORDER BY s.nome, t.nome
+            """, (ano_letivo_id, escola_id))
 
-                # Query otimizada para obter todas as estatísticas de uma vez
-                cursor.execute("""
-                    SELECT 
-                        COUNT(DISTINCT CASE WHEN m.status = 'Ativo' THEN a.id END) as total_ativos,
-                        COUNT(DISTINCT CASE WHEN m.status IN ('Transferido', 'Transferida') THEN a.id END) as total_transferidos
-                    FROM Alunos a
-                    JOIN Matriculas m ON a.id = m.aluno_id
-                    JOIN turmas t ON m.turma_id = t.id
-                    WHERE m.ano_letivo_id = %s 
-                    AND a.escola_id = %s
-                    AND m.status IN ('Ativo', 'Transferido', 'Transferida')
-                """, (ano_letivo_id, escola_id))
-
-                resultado_geral = cursor.fetchone()
-                if resultado_geral:
-                    total_ativos = converter_para_int_seguro(resultado_geral[0])
-                    total_transferidos = converter_para_int_seguro(resultado_geral[1])
-                else:
-                    total_ativos = 0
-                    total_transferidos = 0
-                # garantir inteiros válidos
+            por_serie = []
+            for row in cursor.fetchall():
                 try:
-                    total_ativos = int(total_ativos)
+                    quantidade = converter_para_int_seguro(row[1])
+                    ativos = converter_para_int_seguro(row[2])
                 except Exception:
-                    total_ativos = 0
-                try:
-                    total_transferidos = int(total_transferidos)
-                except Exception:
-                    total_transferidos = 0
-                total_matriculados = total_ativos + total_transferidos
+                    quantidade = 0
+                    ativos = 0
+                por_serie.append({
+                    'serie': row[0],
+                    'quantidade': quantidade,
+                    'ativos': ativos
+                })
 
-                # Estatísticas por série E TURMA - conta ALUNOS ÚNICOS e ATIVOS
-                cursor.execute("""
-                    SELECT 
-                        CONCAT(s.nome, ' ', t.nome) as serie_turma,
-                        COUNT(DISTINCT a.id) as quantidade,
-                        COUNT(DISTINCT CASE WHEN m.status = 'Ativo' THEN a.id END) as ativos
-                    FROM Alunos a
-                    JOIN Matriculas m ON a.id = m.aluno_id
-                    JOIN turmas t ON m.turma_id = t.id
-                    JOIN serie s ON t.serie_id = s.id
-                    WHERE m.ano_letivo_id = %s 
-                    AND a.escola_id = %s
-                    AND m.status = 'Ativo'
-                    GROUP BY t.id, s.nome, t.nome
-                    ORDER BY s.nome, t.nome
-                """, (ano_letivo_id, escola_id))
+            # Montar resultado
+            dados = {
+                'total_matriculados': total_matriculados,
+                'total_ativos': total_ativos,
+                'total_transferidos': total_transferidos,
+                'por_serie': por_serie
+            }
 
-                por_serie = []
-                for row in cursor.fetchall():
-                    try:
-                        quantidade = converter_para_int_seguro(row[1])
-                        ativos = converter_para_int_seguro(row[2])
-                    except Exception:
-                        quantidade = 0
-                        ativos = 0
-                    por_serie.append({
-                        'serie': row[0],
-                        'quantidade': quantidade,
-                        'ativos': ativos
-                    })
+            # Atualizar cache
+            _cache_estatisticas_dashboard['dados'] = dados
+            _cache_estatisticas_dashboard['timestamp'] = tempo_atual
 
-                # Montar resultado
-                dados = {
-                    'total_matriculados': total_matriculados,
-                    'total_ativos': total_ativos,
-                    'total_transferidos': total_transferidos,
-                    'por_serie': por_serie
-                }
-
-                # Atualizar cache
-                _cache_estatisticas_dashboard['dados'] = dados
-                _cache_estatisticas_dashboard['timestamp'] = tempo_atual
-
-                return dados
-            finally:
-                try:
-                    cursor.close()
-                except Exception:
-                    pass
+            return dados
     except Exception as e:
         logger.error(f"Erro ao obter estatísticas: {str(e)}")
         return None
