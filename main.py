@@ -4197,44 +4197,38 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
                 logger.debug(f"Cache ainda válido ({tempo_decorrido:.1f}s), pulando atualização")
                 return True
             
-        # Conectar ao banco de dados
-        cursor = None
-        with get_connection() as conn:
-                if conn is None:
-                    messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                    return False
-                cursor = conn.cursor()
+        # Conectar ao banco de dados usando helper de cursor (retorna cursores com dict-friendly rows)
+        with get_cursor() as cursor:
+            # Executar a consulta otimizada para obter dados atualizados
+            # Se a variável global 'query' não estiver definida, não atualizar
+            if 'query' not in globals() or not globals().get('query'):
+                logger.warning("Variável 'query' não definida; pulando atualização de tabela")
+                return False
+            # Usar a variável global `query` via globals() e assegurar ao verificador de tipos
+            # que se trata de uma string (cast) — já garantimos acima que 'query' existe e é truthy.
+            _q = globals().get('query')
+            cursor.execute(cast(str, _q))
 
-                # Executar a consulta otimizada para obter dados atualizados
-                # Se a variável global 'query' não estiver definida, não atualizar
-                if 'query' not in globals() or not globals().get('query'):
-                    logger.warning("Variável 'query' não definida; pulando atualização de tabela")
-                    return False
-                # Usar a variável global `query` via globals() e assegurar ao verificador de tipos
-                # que se trata de uma string (cast) — já garantimos acima que 'query' existe e é truthy.
-                _q = globals().get('query')
-                cursor.execute(cast(str, _q))
+            # Atualizar a variável global de resultados
+            global resultados
+            novos_resultados = cursor.fetchall()
 
-                # Atualizar a variável global de resultados
-                global resultados
-                novos_resultados = cursor.fetchall()
+            # Calcular hash dos novos dados para verificar mudanças
+            dados_str = str(novos_resultados)
+            novo_hash = hashlib.md5(dados_str.encode()).hexdigest()
 
-                # Calcular hash dos novos dados para verificar mudanças
-                dados_str = str(novos_resultados)
-                novo_hash = hashlib.md5(dados_str.encode()).hexdigest()
-
-                # Se os dados não mudaram, não precisa atualizar a interface
-                if not forcar_atualizacao and _cache_dados_tabela['hash'] == novo_hash:
-                    logger.debug("Dados não mudaram, mantendo interface atual")
-                    _cache_dados_tabela['timestamp'] = tempo_atual
-                    return True
-
-                # Dados mudaram, atualizar cache
-                _cache_dados_tabela['dados'] = novos_resultados
-                _cache_dados_tabela['hash'] = novo_hash
+            # Se os dados não mudaram, não precisa atualizar a interface
+            if not forcar_atualizacao and _cache_dados_tabela['hash'] == novo_hash:
+                logger.debug("Dados não mudaram, mantendo interface atual")
                 _cache_dados_tabela['timestamp'] = tempo_atual
+                return True
 
-                resultados = novos_resultados
+            # Dados mudaram, atualizar cache
+            _cache_dados_tabela['dados'] = novos_resultados
+            _cache_dados_tabela['hash'] = novo_hash
+            _cache_dados_tabela['timestamp'] = tempo_atual
+
+            resultados = novos_resultados
             
         # Limpar tabela atual usando try/except para cada operação crítica
         try:
@@ -4249,28 +4243,27 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
         # Inserir os novos dados
         try:
             for resultado in resultados:
-                resultado = list(resultado)
-                if resultado[4]:
+                # Normalizar linha: aceitar tanto dict-rows quanto tuplas/listas
+                if isinstance(resultado, dict):
+                    row = list(resultado.values())
+                else:
+                    row = list(resultado)
+
+                if row and len(row) > 4 and row[4]:
                     try:
-                        if isinstance(resultado[4], str):
-                            data = datetime.strptime(resultado[4], '%Y-%m-%d')
+                        if isinstance(row[4], str):
+                            data = datetime.strptime(row[4], '%Y-%m-%d')
                         else:
-                            data = resultado[4]
+                            data = row[4]
                         if isinstance(data, (datetime, date)):
-                            resultado[4] = data.strftime('%d/%m/%Y')
+                            row[4] = data.strftime('%d/%m/%Y')
                     except Exception:
                         pass
-                treeview.insert("", "end", values=resultado)
+
+                treeview.insert("", "end", values=row)
         except TclError as tcl_e:
             logger.error(f"Erro ao inserir dados na treeview: {str(tcl_e)}")
             raise  # Relançar para ser tratado pelo bloco de exceção principal
-            
-        # Fechar cursor (a conexão é fechada pelo context manager)
-        try:
-            if cursor:
-                cursor.close()
-        except Exception:
-            pass
         
         logger.info("Tabela atualizada com sucesso!")
         return True
@@ -4336,39 +4329,36 @@ def selecionar_ano_para_boletim(aluno_id):
     Args:
         aluno_id: ID do aluno
     """
-    # Obter informações do aluno e anos letivos dentro do contexto de conexão
-    cursor = None
+    # Obter informações do aluno e anos letivos
     try:
-        with get_connection() as conn:
-            if conn is None:
-                messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                return
-            cursor = conn.cursor()
-
-            # Obter nome do aluno
+        # Nome do aluno (conexão curta)
+        with get_cursor() as cursor:
             cursor.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
             resultado_nome = cursor.fetchone()
-            if resultado_nome is None:
+            if not resultado_nome:
                 messagebox.showerror("Erro", "Aluno não encontrado.")
                 return
-            nome_aluno = resultado_nome[0]
+            if isinstance(resultado_nome, dict):
+                nome_aluno = list(resultado_nome.values())[0]
+            else:
+                nome_aluno = resultado_nome[0]
 
-            # Obter anos letivos nos quais o aluno teve matrícula
-            tem_historico, anos_letivos = verificar_historico_matriculas(aluno_id)
+        # Obter anos letivos nos quais o aluno teve matrícula (helper já retorna a lista)
+        tem_historico, anos_letivos = verificar_historico_matriculas(aluno_id)
 
-            if not tem_historico or not anos_letivos:
-                messagebox.showwarning("Aviso", "Não foram encontradas matrículas para este aluno.")
-                return
+        if not tem_historico or not anos_letivos:
+            messagebox.showwarning("Aviso", "Não foram encontradas matrículas para este aluno.")
+            return
 
-            # Preparar janela de seleção (a interface não depende de manter a conexão aberta)
-            janela_selecao = Toplevel(janela)
-            janela_selecao.title(f"Selecionar Ano Letivo - {nome_aluno}")
-            janela_selecao.geometry("400x300")
-            janela_selecao.configure(background=co1)
-            janela_selecao.transient(janela)
-            janela_selecao.focus_force()
-            janela_selecao.grab_set()
-        
+        # Preparar janela de seleção (a interface não depende de manter a conexão aberta)
+        janela_selecao = Toplevel(janela)
+        janela_selecao.title(f"Selecionar Ano Letivo - {nome_aluno}")
+        janela_selecao.geometry("400x300")
+        janela_selecao.configure(background=co1)
+        janela_selecao.transient(janela)
+        janela_selecao.focus_force()
+        janela_selecao.grab_set()
+
         # Frame principal
         frame_selecao = Frame(janela_selecao, bg=co1, padx=20, pady=20)
         frame_selecao.pack(fill=BOTH, expand=True)
@@ -4382,27 +4372,34 @@ def selecionar_ano_para_boletim(aluno_id):
         Label(frame_selecao, text=f"Aluno: {nome_aluno}", 
              font=("Arial", 12), bg=co1, fg=co0).pack(anchor=W, pady=5)
         
-        # Criar dicionário para mapear anos letivos e status
+        # Criar dicionário para mapear anos letivos e status (usar cursor curto para as consultas)
         anos_info = {}
-        for ano_info in anos_letivos:
-            ano_letivo, ano_letivo_id = ano_info
-            
-            # Obter o status da matrícula para este ano letivo
-            cursor.execute("""
-                SELECT m.status
-                FROM matriculas m
-                JOIN turmas t ON m.turma_id = t.id
-                WHERE m.aluno_id = %s 
-                AND m.ano_letivo_id = %s 
-                ORDER BY m.data_matricula DESC
-                LIMIT 1
-            """, (int(str(aluno_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
-            
-            status_result = cursor.fetchone()
-            status = status_result[0] if status_result else "Desconhecido"
-            
-            # Armazenar informações no dicionário
-            anos_info[f"{ano_letivo} - {status}"] = (ano_letivo_id, status)
+        try:
+            with get_cursor() as cursor:
+                for ano_info in anos_letivos:
+                    ano_letivo, ano_letivo_id = ano_info
+                    cursor.execute("""
+                        SELECT m.status
+                        FROM matriculas m
+                        JOIN turmas t ON m.turma_id = t.id
+                        WHERE m.aluno_id = %s 
+                        AND m.ano_letivo_id = %s 
+                        ORDER BY m.data_matricula DESC
+                        LIMIT 1
+                    """, (int(str(aluno_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
+
+                    status_result = cursor.fetchone()
+                    # cursor may return dict rows or tuples; normalize
+                    if isinstance(status_result, dict):
+                        status = list(status_result.values())[0] if status_result else "Desconhecido"
+                    else:
+                        status = status_result[0] if status_result else "Desconhecido"
+
+                    # Armazenar informações no dicionário
+                    anos_info[f"{ano_letivo} - {status}"] = (ano_letivo_id, status)
+        except Exception:
+            # Falha ao obter status de anos não deve impedir a exibição da UI; deixar anos_info possivelmente vazio
+            logger.exception("Falha ao obter status de matrículas por ano para o aluno %s", aluno_id)
         
         # Frame para o combobox
         combo_frame = Frame(frame_selecao, bg=co1)
@@ -4528,12 +4525,6 @@ def selecionar_ano_para_boletim(aluno_id):
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao preparar seleção de ano letivo: {str(e)}")
         logger.error(f"Erro ao preparar seleção de ano letivo: {str(e)}")
-    finally:
-        try:
-            if cursor:
-                cursor.close()
-        except Exception:
-            pass
 
 def criar_menu_boletim(parent_frame, aluno_id, tem_matricula_ativa):
     """
@@ -4560,14 +4551,8 @@ def criar_menu_boletim(parent_frame, aluno_id, tem_matricula_ativa):
     # Criar dicionário para mapear anos letivos e status
     anos_info = {}
     
-    cursor = None
     try:
-        with get_connection() as conn:
-            if conn is None:
-                messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                return
-            cursor = conn.cursor()
-
+        with get_cursor() as cursor:
             for ano_letivo, ano_letivo_id in anos_letivos:
                 # Obter o status da matrícula para este ano letivo
                 cursor.execute("""
@@ -4581,7 +4566,11 @@ def criar_menu_boletim(parent_frame, aluno_id, tem_matricula_ativa):
                 """, (int(str(aluno_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
 
                 status_result = cursor.fetchone()
-                status = status_result[0] if status_result else "Desconhecido"
+                # cursor may return dict rows or tuples; normalize
+                if isinstance(status_result, dict):
+                    status = list(status_result.values())[0] if status_result else "Desconhecido"
+                else:
+                    status = status_result[0] if status_result else "Desconhecido"
 
                 # Armazenar informações no dicionário
                 anos_info[f"{ano_letivo} - {status}"] = (ano_letivo_id, status)
@@ -4589,12 +4578,6 @@ def criar_menu_boletim(parent_frame, aluno_id, tem_matricula_ativa):
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao obter informações de anos letivos: {str(e)}")
         logger.error(f"Erro ao obter informações de anos letivos: {str(e)}")
-    finally:
-        try:
-            if cursor:
-                cursor.close()
-        except Exception:
-            pass
     
     # Lista de anos para mostrar no combobox
     anos_display = list(anos_info.keys())
@@ -4689,22 +4672,18 @@ def editar_matricula(aluno_id):
     """
     # Inicializa variáveis que serão usadas pela UI
     try:
-        # Buscar informações iniciais em conexão curta
-        with get_connection() as conn_init:
-            if conn_init is None:
-                messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                return
-            cur_init = conn_init.cursor()
+        # Buscar informações iniciais em conexão curta usando helper de cursor
+        with get_cursor() as cur_init:
             cur_init.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
             resultado_nome = cur_init.fetchone()
             if not resultado_nome:
                 messagebox.showerror("Erro", "Aluno não encontrado.")
-                try:
-                    cur_init.close()
-                except Exception:
-                    pass
                 return
-            nome_aluno = resultado_nome[0]
+            # Normalizar fetchone (dict vs tuple)
+            if isinstance(resultado_nome, dict):
+                nome_aluno = list(resultado_nome.values())[0]
+            else:
+                nome_aluno = resultado_nome[0]
 
             # Obter ano letivo atual ou mais recente
             cur_init.execute("SELECT id, ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
@@ -4713,13 +4692,12 @@ def editar_matricula(aluno_id):
                 cur_init.execute("SELECT id, ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
                 resultado_ano = cur_init.fetchone()
             if not resultado_ano:
-                try:
-                    cur_init.close()
-                except Exception:
-                    pass
                 messagebox.showwarning("Aviso", "Não foi possível determinar o ano letivo atual.")
                 return
-            ano_letivo_id, ano_letivo = resultado_ano
+            if isinstance(resultado_ano, dict):
+                ano_letivo_id, ano_letivo = list(resultado_ano.values())
+            else:
+                ano_letivo_id, ano_letivo = resultado_ano
 
             # Obter matrícula mais recente do aluno para o ano letivo (independente do status)
             cur_init.execute("""
@@ -4732,10 +4710,6 @@ def editar_matricula(aluno_id):
                 LIMIT 1
             """, (int(str(aluno_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
             resultado_matricula = cur_init.fetchone()
-            try:
-                cur_init.close()
-            except Exception:
-                pass
 
         if not resultado_matricula:
             messagebox.showwarning("Aviso", "Não foi encontrada matrícula para este aluno no ano letivo atual.")
@@ -4805,11 +4779,7 @@ def editar_matricula(aluno_id):
         def carregar_series():
             nonlocal series_map, turmas_map
             try:
-                with get_connection() as conn:
-                    if conn is None:
-                        messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                        return
-                    cur = conn.cursor()
+                with get_cursor() as cur:
                     cur.execute("""
                         SELECT DISTINCT s.id, s.nome 
                         FROM serie s
@@ -4819,10 +4789,6 @@ def editar_matricula(aluno_id):
                         ORDER BY s.nome
                     """, (int(str(ano_letivo_id)) if ano_letivo_id is not None else 1,))
                     series = cur.fetchall()
-                    try:
-                        cur.close()
-                    except Exception:
-                        pass
 
                 if not series:
                     messagebox.showwarning("Aviso", "Não foram encontradas séries para a escola selecionada no ano letivo atual.")
@@ -4855,11 +4821,7 @@ def editar_matricula(aluno_id):
                 return
             serie_id = series_map[serie_nome]
             try:
-                with get_connection() as conn:
-                    if conn is None:
-                        messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                        return
-                    cur = conn.cursor()
+                with get_cursor() as cur:
                     cur.execute("""
                         SELECT id, nome, serie_id
                         FROM turmas 
@@ -4867,10 +4829,6 @@ def editar_matricula(aluno_id):
                         ORDER BY nome
                     """, (int(str(serie_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
                     turmas = cur.fetchall()
-                    try:
-                        cur.close()
-                    except Exception:
-                        pass
 
                 if not turmas:
                     messagebox.showwarning("Aviso", f"Não foram encontradas turmas para a série {serie_nome}.")
@@ -4926,11 +4884,7 @@ def editar_matricula(aluno_id):
             turma_id = turmas_map[turma_nome]
 
             try:
-                with get_connection() as conn:
-                    if conn is None:
-                        messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                        return
-                    cur = conn.cursor()
+                with get_cursor(commit=True) as cur:
                     cur.execute("""
                         SELECT id FROM historico_matricula 
                         WHERE matricula_id = %s 
@@ -4942,11 +4896,16 @@ def editar_matricula(aluno_id):
                     historico_existente = cur.fetchone()
 
                     if historico_existente:
+                        # normalize id extraction
+                        if isinstance(historico_existente, dict):
+                            existing_id = list(historico_existente.values())[0]
+                        else:
+                            existing_id = historico_existente[0]
                         cur.execute("""
                             UPDATE historico_matricula 
                             SET data_mudanca = %s
                             WHERE id = %s
-                        """, (data_formatada, int(str(historico_existente[0])) if historico_existente and historico_existente[0] is not None else 0))
+                        """, (data_formatada, int(str(existing_id)) if existing_id is not None else 0))
                     else:
                         cur.execute("""
                             INSERT INTO historico_matricula (matricula_id, status_anterior, status_novo, data_mudanca)
@@ -4965,18 +4924,6 @@ def editar_matricula(aluno_id):
                             SET status = %s
                             WHERE id = %s
                         """, (novo_status, int(str(matricula_id)) if matricula_id is not None else 0))
-
-                    try:
-                        conn.commit()
-                    except Exception:
-                        try:
-                            conn.rollback()
-                        except Exception:
-                            pass
-                    try:
-                        cur.close()
-                    except Exception:
-                        pass
 
                 messagebox.showinfo("Sucesso", f"Matrícula do aluno {nome_aluno} atualizada com sucesso!")
                 janela_matricula.destroy()
