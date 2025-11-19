@@ -814,20 +814,13 @@ def relatorio_movimentacao_mensal(mes=None):
     figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
     
     # Estabelecer conexão com o banco de dados e buscar dados necessários
-    with get_connection() as conn:
-        cursor = cast(Any, conn).cursor(dictionary=True)
-
+    from db.connection import get_cursor
+    with get_cursor() as cursor:
         # Buscar dados dos professores e tutores
         professores_1_5 = buscar_corpo_docente_1_5(cursor, escola_id=60)
         professores_6_9 = buscar_corpo_docente_6_9(cursor, escola_id=60)
         tutores = buscar_tutores(cursor, escola_id=60)
         funcionarios_admin = buscar_funcionarios_administrativos(cursor, escola_id=60)
-
-        # fechar cursor explicitamente (get_connection garante fechamento da conexão)
-        try:
-            cursor.close()
-        except Exception:
-            pass
     
     # Criar buffers separados para cada parte do relatório
     # 1. Capa (retrato)
@@ -1316,9 +1309,7 @@ def gerar_relatorio_1_5(elements, cabecalho, figura_inferior, mes):
     
     elements.append(table)
     
-    # Fechar a conexão com o banco de dados
-    cursor.close()
-    conn.close()
+    # A conexão/cursor é fechada automaticamente pelo context manager usado acima
 
 def gerar_relatorio_6_9(elements, cabecalho, figura_inferior, mes):
     ano_letivo = 2025

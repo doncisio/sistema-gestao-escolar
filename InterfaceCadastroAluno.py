@@ -496,8 +496,8 @@ class InterfaceCadastroAluno:
                 return
 
             # Inserir o aluno no banco de dados dentro de uma transação
-            with get_connection() as conn:
-                cur = cast(Any, conn).cursor()
+            from db.connection import get_cursor
+            with get_cursor(commit=True) as cur:
                 cur.execute(
                     """
                     INSERT INTO alunos (
@@ -520,16 +520,7 @@ class InterfaceCadastroAluno:
                 # Salvar os responsáveis usando o mesmo cursor/transação
                 self.salvar_responsaveis(aluno_id, cur)
 
-                try:
-                    conn.commit()
-                except Exception:
-                    conn.rollback()
-                    raise
-
-                try:
-                    cur.close()
-                except Exception:
-                    pass
+                # Commit/rollback são gerenciados pelo context manager `get_cursor(commit=True)`
 
             messagebox.showinfo("Sucesso", "Aluno cadastrado com sucesso!")
 

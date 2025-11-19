@@ -141,7 +141,13 @@ class InterfaceCadastroEdicaoFaltas:
 
     # --- Dados ---
     def garantir_tabela(self, conn):
-        cur = cast(Any, conn).cursor()
+        # Aceita tanto um objeto connection (com .cursor()) quanto um cursor direto
+        own_cursor = False
+        if hasattr(conn, 'cursor'):
+            cur = cast(Any, conn).cursor()
+            own_cursor = True
+        else:
+            cur = cast(Any, conn)
         cast(Any, cur).execute(
             """
             CREATE TABLE IF NOT EXISTS funcionario_faltas_mensal (
@@ -157,13 +163,18 @@ class InterfaceCadastroEdicaoFaltas:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             """
         )
-        cast(Any, cur).close()
+        try:
+            if own_cursor:
+                cast(Any, cur).close()
+        except Exception:
+            pass
 
     def carregar_funcionarios(self):
         try:
-            with get_connection() as conn:
-                self.garantir_tabela(conn)
-                cur = cast(Any, conn).cursor(dictionary=True)
+            from db.connection import get_cursor
+            with get_cursor() as cur:
+                # garantir_tabela aceita cursor ou connection
+                self.garantir_tabela(cur)
 
                 cur.execute(
                     """
@@ -245,10 +256,7 @@ class InterfaceCadastroEdicaoFaltas:
                 entrada_f.bind("<KeyRelease>", lambda e, fid=f["id"]: self._calcular_presenca(fid))
                 entrada_fj.bind("<KeyRelease>", lambda e, fid=f["id"]: self._calcular_presenca(fid))
 
-                try:
-                    cur.close()
-                except Exception:
-                    pass
+                # cursor é fechado automaticamente
 
             # Ajustar on scroll/movimento/redimensionamento
             self.tabela.bind("<ButtonRelease-1>", self._ajustar_inputs)
@@ -357,9 +365,11 @@ class InterfaceCadastroEdicaoFaltas:
 
     def salvar(self):
         try:
-            with get_connection() as conn:
-                self.garantir_tabela(conn)
-                cur = cast(Any, conn).cursor()
+            from db.connection import get_cursor
+            # Usar cursor com commit para operações de escrita
+            with get_cursor(commit=True) as cur:
+                # garantir_tabela aceita cursor
+                self.garantir_tabela(cur)
                 ano = int(self.ano.get())
                 mes = int(self.mes.get())
 
@@ -367,8 +377,7 @@ class InterfaceCadastroEdicaoFaltas:
                 total_dias_mes = calendar.monthrange(ano, mes)[1]
 
                 # Obter observações já salvas para preservar quando não for informado
-                cur_exist = cast(Any, conn).cursor(dictionary=True)
-                cur_exist.execute(
+                cur.execute(
                     """
                     SELECT funcionario_id, observacao
                     FROM funcionario_faltas_mensal
@@ -376,11 +385,7 @@ class InterfaceCadastroEdicaoFaltas:
                     """,
                     (ano, mes),
                 )
-                obs_existente_map = {r["funcionario_id"]: r.get("observacao") for r in cur_exist.fetchall()}
-                try:
-                    cur_exist.close()
-                except Exception:
-                    pass
+                obs_existente_map = {r["funcionario_id"]: r.get("observacao") for r in cur.fetchall()}
 
                 inseridos = 0
                 atualizados = 0
@@ -444,15 +449,7 @@ class InterfaceCadastroEdicaoFaltas:
                     else:
                         atualizados += 1
 
-                try:
-                    conn.commit()
-                except Exception:
-                    conn.rollback()
-                    raise
-                try:
-                    cur.close()
-                except Exception:
-                    pass
+                # Commit/rollback gerenciados pelo context manager `get_cursor(commit=True)`
             
             # Exibir resultado
             mensagem = f"Faltas salvas com sucesso!\n\nInseridos: {inseridos}\nAtualizados: {atualizados}"

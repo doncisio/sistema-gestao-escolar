@@ -5,7 +5,7 @@ import pandas as pd
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from conexao import conectar_bd
-from db.connection import get_connection
+from db.connection import get_cursor
 from typing import Any, cast
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
@@ -25,11 +25,8 @@ logger = get_logger(__name__)
 def gerar_documento_transferencia(aluno_id, ano_letivo_id):
     # Conectar ao banco de dados (usa get_connection para garantir fechamento)
     try:
-        with get_connection() as conn:
-            cursor = cast(Any, conn).cursor(buffered=True)  # Usar cursor buffered
-
-            # Iniciar transação
-            conn.start_transaction()
+        # Usar cursor com commit automático no exit (gera commit/rollback conforme sucesso/exceção)
+        with get_cursor(commit=True) as cursor:
 
         # Obter dados do aluno
         query_aluno = """
@@ -61,7 +58,6 @@ def gerar_documento_transferencia(aluno_id, ano_letivo_id):
         
         if not resultado:
             logger.warning("Aluno não encontrado.")
-            conn.rollback()
             return
 
         # Extrair informações do resultado
@@ -106,7 +102,7 @@ def gerar_documento_transferencia(aluno_id, ano_letivo_id):
         data_documento = formatar_data(datetime.datetime.now())
 
         # Consultar notas do aluno e os nomes das disciplinas
-        cursor.execute("""
+            cursor.execute("""
             SELECT d.nome AS disciplina_nome, n.bimestre, n.nota 
             FROM notas n 
             JOIN disciplinas d ON n.disciplina_id = d.id 
@@ -309,23 +305,10 @@ def gerar_documento_transferencia(aluno_id, ano_letivo_id):
             # Abrir/mostrar o PDF gerado
             salvar_e_abrir_pdf(buffer)
 
-            # Commit da transação
-            conn.commit()
+            # Commit é tratado pelo context manager `get_cursor(commit=True)`
 
     except Exception as e:
         logger.exception(f"Erro ao gerar documento de transferência: {e}")
-        try:
-            # tentar rollback se a conexão existir no escopo
-            if 'conn' in locals() and conn:
-                conn.rollback()
-        except Exception:
-            logger.exception("Erro ao tentar rollback após falha ao gerar transferência")
         return
-    finally:
-        try:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
-        except Exception as e:
-            logger.error(f"Erro ao fechar cursor: {e}")
 
 # gerar_documento_transferencia(575)

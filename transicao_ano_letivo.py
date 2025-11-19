@@ -530,9 +530,8 @@ class InterfaceTransicaoAnoLetivo:
         self.progressbar['value'] = 0
         
         try:
-            # Usar get_connection para garantir fechamento e controle de transação
-            with get_connection() as conn:
-                cursor = conn.cursor(dictionary=True)
+            # Usar cursor com commit automático para controlar transação
+            with get_cursor(commit=True) as cursor:
 
                 # Passo 1: Criar novo ano letivo
                 self.atualizar_status("Criando novo ano letivo...", 10)
@@ -541,7 +540,7 @@ class InterfaceTransicaoAnoLetivo:
                     VALUES (%s)
                     ON DUPLICATE KEY UPDATE ano_letivo = ano_letivo
                 """, (self.ano_novo['ano_letivo'],))
-                conn.commit()
+                # commit tratado pelo context manager
 
                 # Buscar ID do novo ano
                 cursor.execute("""
@@ -558,7 +557,7 @@ class InterfaceTransicaoAnoLetivo:
                     WHERE ano_letivo_id = %s
                     AND status = 'Ativo'
                 """, (self.ano_atual['id'],))
-                conn.commit()
+                # commit tratado pelo context manager
 
                 # Passo 3: Buscar alunos ativos para rematricular
                 self.atualizar_status("Buscando alunos para rematricular...", 50)
@@ -640,12 +639,12 @@ class InterfaceTransicaoAnoLetivo:
                     self.progressbar['value'] = progresso
                     self.janela.update()
 
-                conn.commit()
+                # commit tratado pelo context manager
 
                 # Finalizar
                 self.atualizar_status("Transição concluída com sucesso!", 100)
 
-                cursor.close()
+                # cursor é fechado automaticamente
 
                 messagebox.showinfo(
                     "✅ Sucesso!",
@@ -662,11 +661,7 @@ class InterfaceTransicaoAnoLetivo:
                 self.fechar()
 
         except Exception as e:
-            try:
-                if 'conn' in locals() and conn:
-                    conn.rollback()
-            except Exception:
-                pass
+            # rollback é tratado pelo context manager quando uma exceção é levantada
             messagebox.showerror("Erro", f"Erro ao executar transição:\n{str(e)}")
             traceback.print_exc()
             self.btn_simular.config(state=NORMAL)
