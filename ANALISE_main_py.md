@@ -1,13 +1,15 @@
-**Análise do `main.py`**
+**Análise do `main.py` (atualizada em 2025-11-19)**
 
 - **Descrição**: Arquivo principal da aplicação GUI (Tkinter) que monta a janela, menus, dashboard e muitas ações relacionadas a alunos, funcionários, matrículas, relatórios e integração com o banco MySQL.
-- **Tamanho/Contexto**: ~4.900 linhas — concentra muita lógica de UI, acesso a dados, regras de negócio, SQL e operações de I/O em um único módulo.
+- **Tamanho/Contexto**: ~4.900 linhas — concentra muita lógica de UI, acesso a dados, regras de negócio, SQL e operações de I/O em um único módulo. Desde a última revisão, o repositório recebeu modularizações importantes: utilitários em `utils/`, um wrapper de conexão em `db/`, e um serviço centralizado em `services/report_service.py`.
 
 **Pontos Positivos (o que já está bem feito)**
 - Uso consistente de queries parametrizadas na maior parte das operações, reduzindo risco de SQL injection.
 - Uso de connection pool (há chamadas para `inicializar_pool()` / `fechar_pool()`), o que é positivo para performance quando bem usado.
 - Tentativas claras de otimização e caching (comentários e caches `_cache_dados_estaticos`, `_cache_estatisticas_dashboard`, `_cache_dados_tabela`).
 - Boa preocupação com UX: progressbars, janelas modais, mensagens ao usuário, opção de FULLTEXT quando disponível.
+
+Observação recente: o repositório já contém utilitários e serviços que implementam várias das propostas abaixo — por exemplo `db/connection.py`, `utils/dates.py`, `utils/safe.py`, `services/report_service.py` e `config_logs.py` estão presentes e usados por múltiplos módulos.
 
 **Problemas observados / Riscos**
 - **Arquivo muito grande e `main` com responsabilidades demais**: UI, DB, lógica de negócio e geração de relatórios misturados. Isso dificulta manutenção, testes e revisão de código.
