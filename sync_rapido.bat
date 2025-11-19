@@ -36,4 +36,4 @@ if %ERRORLEVEL% EQU 0 (
     echo ❌ [ERRO] Falha ao enviar!
 )
 
-timeout /t 5
+timeout /t 10
