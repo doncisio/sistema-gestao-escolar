@@ -1013,8 +1013,46 @@ def lista_atualizada():
     output_buffer = io.BytesIO()
     output.write(output_buffer)
     output_buffer.seek(0)
-    
-    # Abre o PDF
-    salvar_e_abrir_pdf(output_buffer)
+
+    try:
+        from gerarPDF import salvar_e_abrir_pdf as _salvar_helper
+    except Exception:
+        _salvar_helper = None
+
+    saved_path = None
+    try:
+        if _salvar_helper:
+            try:
+                saved_path = _salvar_helper(output_buffer)
+            except Exception:
+                saved_path = None
+
+        if not saved_path:
+            import tempfile
+            from utilitarios.gerenciador_documentos import salvar_documento_sistema
+            from utilitarios.tipos_documentos import TIPO_LISTA_ATUALIZADA
+
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+            try:
+                tmp.write(output_buffer.getvalue())
+                tmp.close()
+                descricao = f"Lista Atualizada SEMED - {datetime.datetime.now().year}"
+                try:
+                    salvar_documento_sistema(tmp.name, TIPO_LISTA_ATUALIZADA, funcionario_id=1, finalidade='Secretaria', descricao=descricao)
+                    saved_path = tmp.name
+                except Exception:
+                    try:
+                        if _salvar_helper:
+                            output_buffer.seek(0)
+                            _salvar_helper(output_buffer)
+                    except Exception:
+                        pass
+            finally:
+                pass
+    finally:
+        try:
+            output_buffer.close()
+        except Exception:
+            pass
 
 # lista_atualizada()

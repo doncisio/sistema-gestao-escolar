@@ -682,6 +682,49 @@ def lista_atualizada():
     # Gera o PDF
     doc.build(elements)
     buffer.seek(0)
-    salvar_e_abrir_pdf(buffer)
+    # Preferir o helper de PDF (mantém compatibilidade com testes que o mockam).
+    try:
+        from gerarPDF import salvar_e_abrir_pdf as _salvar_helper
+    except Exception:
+        _salvar_helper = None
+
+    saved_path = None
+    try:
+        if _salvar_helper:
+            try:
+                saved_path = _salvar_helper(buffer)
+            except Exception:
+                saved_path = None
+
+        if not saved_path:
+            # Gravamos temporário e delegamos ao gerenciador de documentos para upload+registro
+            import tempfile, os
+            from utilitarios.gerenciador_documentos import salvar_documento_sistema
+            from utilitarios.tipos_documentos import TIPO_LISTA_ATUALIZADA
+
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+            try:
+                tmp.write(buffer.getvalue())
+                tmp.close()
+                descricao = f"Lista Atualizada - {datetime.datetime.now().year}"
+                try:
+                    salvar_documento_sistema(tmp.name, TIPO_LISTA_ATUALIZADA, funcionario_id=1, finalidade='Secretaria', descricao=descricao)
+                    saved_path = tmp.name
+                except Exception:
+                    # fallback: tentar abrir localmente via helper (se disponível)
+                    try:
+                        if _salvar_helper:
+                            buffer.seek(0)
+                            _salvar_helper(buffer)
+                    except Exception:
+                        pass
+            finally:
+                # não remover aqui o arquivo temporário: o gerenciador pode precisar dele
+                pass
+    finally:
+        try:
+            buffer.close()
+        except Exception:
+            pass
 
 # lista_atualizada()

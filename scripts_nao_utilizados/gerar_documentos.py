@@ -34,14 +34,60 @@ def salvar_pdf(buffer, nome_turma, tipo_documento):
     """Salva o PDF na pasta correspondente à turma."""
     if nome_turma not in PASTAS_TURMAS:
         raise ValueError(f"Turma '{nome_turma}' não mapeada para uma pasta.")
+    # Para compatibilidade, ainda expomos o mapeamento, mas preferimos
+    # delegar ao gerenciador de documentos (upload + registro no sistema).
+    try:
+        from utilitarios.gerenciador_documentos import salvar_documento_sistema
+        from utilitarios.tipos_documentos import TIPO_LISTA_REUNIAO
+    except Exception:
+        salvar_documento_sistema = None
 
     pasta_destino = PASTAS_TURMAS[nome_turma]
     caminho_pdf = os.path.join(pasta_destino, f"{tipo_documento}_{nome_turma}.pdf")
 
-    with open(caminho_pdf, "wb") as f:
-        f.write(buffer.getvalue())
+    # Se o gerenciador estiver disponível, escrever em arquivo temporário
+    # (ou no caminho mapeado) e delegar o upload+registro.
+    if salvar_documento_sistema is not None:
+        import tempfile
+        try:
+            tf = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+            temp_path = tf.name
+            tf.close()
+            buffer.seek(0)
+            with open(temp_path, 'wb') as f:
+                f.write(buffer.getvalue())
 
-    print(f"PDF salvo em: {caminho_pdf}")
+            # chamar o gerenciador (não assumir tipo exato; usar argumento recebido)
+            try:
+                sucesso, mensagem, link = salvar_documento_sistema(
+                    temp_path,
+                    tipo_documento,
+                    aluno_id=None,
+                    funcionario_id=1,
+                    finalidade='Secretaria',
+                    descricao=f'{tipo_documento} - {nome_turma}',
+                )
+                if sucesso:
+                    print(f"PDF salvo e registrado: {link}")
+                else:
+                    print(f"PDF salvo localmente em {temp_path} mas falha ao registrar: {mensagem}")
+            except Exception:
+                # se o registro falhar, manter o arquivo no caminho mapeado
+                buffer.seek(0)
+                with open(caminho_pdf, 'wb') as f:
+                    f.write(buffer.getvalue())
+                print(f"PDF salvo em: {caminho_pdf} (registro falhou)")
+        except Exception:
+            # fallback conservador: escrever diretamente na pasta mapeada
+            buffer.seek(0)
+            with open(caminho_pdf, "wb") as f:
+                f.write(buffer.getvalue())
+            print(f"PDF salvo em: {caminho_pdf}")
+    else:
+        # Sem gerenciador disponível: comportamento legado
+        with open(caminho_pdf, "wb") as f:
+            f.write(buffer.getvalue())
+        print(f"PDF salvo em: {caminho_pdf}")
 
 def adicionar_cabecalho(elements, cabecalho, figura_superior, figura_inferior, tamanho_fonte=12):
     """Adiciona o cabeçalho padrão ao documento."""
