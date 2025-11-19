@@ -9,7 +9,7 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer, PageBreak
 from reportlab.lib.styles import ParagraphStyle
 from gerarPDF import salvar_e_abrir_pdf
-from db.connection import get_connection
+from db.connection import get_connection, get_cursor
 from biblio_editor import arredondar_personalizado, quebra_linha
 from config_logs import get_logger
 from typing import Any, cast, Dict, List, Optional
@@ -60,40 +60,34 @@ def _safe_int(val, default=0):
 def obter_disciplinas_por_serie(serie_id):
     """Obter as disciplinas adequadas para a série especificada."""
     try:
-        with get_connection() as conn:
-            if conn is None:
+        with get_cursor() as cursor:
+            if cursor is None:
                 return {}
-            cursor = cast(Any, conn).cursor()
-            try:
-                # Primeiro determinar o nível de ensino da série
-                cursor.execute("""
-                    SELECT nivel_id FROM serie WHERE id = %s
-                """, (_safe_int(serie_id, 0),))
 
-                nivel_result = cursor.fetchone()
-                if not nivel_result:
-                    return {}
+            # Primeiro determinar o nível de ensino da série
+            cursor.execute("""
+                SELECT nivel_id FROM serie WHERE id = %s
+            """, (_safe_int(serie_id, 0),))
 
-                nivel_id = _to_int_param(nivel_result[0])
+            nivel_result = cursor.fetchone()
+            if not nivel_result:
+                return {}
 
-                # Obter as disciplinas para este nível de ensino
-                cursor.execute("""
-                    SELECT id, nome FROM disciplinas 
-                    WHERE nivel_id = %s
-                    ORDER BY nome
-                """, (_safe_int(nivel_id, 0),))
+            nivel_id = _to_int_param(nivel_result[0])
 
-                disciplinas = cursor.fetchall()
+            # Obter as disciplinas para este nível de ensino
+            cursor.execute("""
+                SELECT id, nome FROM disciplinas 
+                WHERE nivel_id = %s
+                ORDER BY nome
+            """, (_safe_int(nivel_id, 0),))
 
-                # Mapear as disciplinas para um dicionário nome -> id
-                disciplina_id_map = {disc[1]: disc[0] for disc in disciplinas}
+            disciplinas = cursor.fetchall()
 
-                return disciplina_id_map
-            finally:
-                try:
-                    cursor.close()
-                except Exception:
-                    pass
+            # Mapear as disciplinas para um dicionário nome -> id
+            disciplina_id_map = {disc[1]: disc[0] for disc in disciplinas}
+
+            return disciplina_id_map
     except Exception:
         # Em caso de erro de conexão ou execução, retornar vazio
         logger.exception("Erro ao obter disciplinas por serie")
@@ -135,20 +129,14 @@ def consultar_dados_aluno(aluno_id, ano_letivo_id):
         ORDER BY disciplinas.nome, notas.bimestre;
     """
     try:
-        with get_connection() as conn:
-            if conn is None:
+        with get_cursor() as cursor:
+            if cursor is None:
                 return []
-            cursor = cast(Any, conn).cursor()
-            try:
-                params = (_to_int_param(aluno_id), _to_int_param(ano_letivo_id))
-                cursor.execute(query_aluno, params)
-                dados_aluno = cursor.fetchall()
-                return dados_aluno
-            finally:
-                try:
-                    cursor.close()
-                except Exception:
-                    pass
+
+            params = (_to_int_param(aluno_id), _to_int_param(ano_letivo_id))
+            cursor.execute(query_aluno, params)
+            dados_aluno = cursor.fetchall()
+            return dados_aluno
     except Exception:
         logger.exception("Erro ao consultar dados do aluno")
         return []
