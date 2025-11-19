@@ -4165,7 +4165,9 @@ try:
     from ui.dashboard import DashboardManager
     from services.db_service import DbService
     frame_getter = lambda: globals().get('frame_tabela')
-    db_service = DbService(get_connection)
+    # Usar `get_cursor` como provider para evitar exposição direta de conexões
+    # Deixamos `get_connection` disponível se outros módulos precisarem.
+    db_service = DbService(get_cursor)
     dashboard_manager = DashboardManager(janela, db_service, obter_estatisticas_alunos, frame_getter, _cache_estatisticas_dashboard, co_bg=co1, co_fg=co0, co_accent=co4)
 except Exception:
     dashboard_manager = None
