@@ -3,11 +3,82 @@ Manager para gerenciar o frame de detalhes de alunos e funcionários.
 Extrai lógica de UI do main.py.
 """
 import tkinter as tk
-from tkinter import Button, Frame, RIDGE, X
-from typing import Dict, Optional, Callable
+from tkinter import Button, Frame, Label, RIDGE, X, W
+from typing import Dict, Optional, Callable, Tuple, Any
 from config_logs import get_logger
 
 logger = get_logger(__name__)
+
+
+def exibir_detalhes_item(
+    frame_detalhes: Frame,
+    tipo: str,
+    item_id: int,
+    values: Tuple[Any, ...],
+    colors: Dict[str, str]
+) -> None:
+    """
+    Exibe detalhes de um item selecionado (aluno ou funcionário).
+    
+    Args:
+        frame_detalhes: Frame onde exibir os detalhes
+        tipo: 'Aluno' ou 'Funcionário'
+        item_id: ID do item
+        values: Tupla com valores do item
+        colors: Dicionário de cores
+    """
+    try:
+        # Limpar frame
+        for widget in frame_detalhes.winfo_children():
+            widget.destroy()
+        
+        # Frame de informações
+        info_frame = Frame(frame_detalhes, bg=colors['co1'], padx=10, pady=10)
+        info_frame.pack(fill=X)
+        
+        # Título
+        Label(
+            info_frame,
+            text=f"{tipo} Selecionado",
+            font=('Ivy', 12, 'bold'),
+            bg=colors['co1'],
+            fg=colors['co0']
+        ).pack(anchor=W, pady=(0, 10))
+        
+        # Exibir informações básicas
+        if len(values) >= 3:
+            # ID
+            Label(
+                info_frame,
+                text=f"ID: {values[1]}",
+                font=('Ivy', 10),
+                bg=colors['co1'],
+                fg=colors['co0']
+            ).pack(anchor=W, pady=2)
+            
+            # Nome
+            Label(
+                info_frame,
+                text=f"Nome: {values[2]}",
+                font=('Ivy', 10),
+                bg=colors['co1'],
+                fg=colors['co0']
+            ).pack(anchor=W, pady=2)
+            
+            # CPF se disponível
+            if len(values) >= 4 and values[3]:
+                Label(
+                    info_frame,
+                    text=f"CPF: {values[3]}",
+                    font=('Ivy', 10),
+                    bg=colors['co1'],
+                    fg=colors['co0']
+                ).pack(anchor=W, pady=2)
+        
+        logger.debug(f"Detalhes exibidos para {tipo} ID={item_id}")
+        
+    except Exception as e:
+        logger.exception(f"Erro ao exibir detalhes: {e}")
 
 
 class DetalhesManager:

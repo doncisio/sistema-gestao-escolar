@@ -16,7 +16,8 @@ from conexao import inicializar_pool, fechar_pool
 from db.connection import get_connection
 from ui.dashboard import DashboardManager
 from ui.table import TableManager
-from ui.actions import ActionHandler
+from ui.action_callbacks import ActionCallbacksManager
+from ui.button_factory import ButtonFactory
 from ui.menu import MenuManager
 
 # Logger
@@ -58,8 +59,10 @@ class Application:
         # Managers
         self.dashboard_manager: Optional[DashboardManager] = None
         self.table_manager: Optional[TableManager] = None
-        self.action_handler: Optional[ActionHandler] = None
+        self.action_callbacks: Optional[ActionCallbacksManager] = None
+        self.button_factory: Optional[ButtonFactory] = None
         self.menu_manager: Optional[MenuManager] = None
+        self.e_nome_pesquisa = None  # Entry de pesquisa
         
         # Janela principal (será criada no setup)
         self.janela: Optional[Tk] = None
@@ -227,11 +230,14 @@ class Application:
         
         Args:
             callback_pesquisa: Função callback para executar pesquisa
+            
+        Returns:
+            Entry widget criado
         """
         from ui.frames import criar_pesquisa
         
         # assinatura: criar_pesquisa(frame_dados, pesquisar_callback, co0, co1, co4)
-        criar_pesquisa(
+        e_nome_pesquisa = criar_pesquisa(
             frame_dados=self.frames['frame_dados'],
             pesquisar_callback=callback_pesquisa,
             co0=self.colors['co0'],
@@ -239,7 +245,11 @@ class Application:
             co4=self.colors['co4']
         )
         
+        # Armazenar referência ao Entry widget (não em frames, pois Entry != Frame)
+        self.e_nome_pesquisa = e_nome_pesquisa
+        
         logger.debug("Barra de pesquisa configurada")
+        return e_nome_pesquisa
     
     def setup_footer(self):
         """Cria o rodapé com labels de status."""
@@ -281,170 +291,83 @@ class Application:
         
         logger.debug("Tabela configurada")
     
-    def setup_action_handler(self):
-        """Cria e configura o ActionHandler para gerenciar ações da UI."""
-        self.action_handler = ActionHandler(self)
-        logger.debug("ActionHandler configurado")
+    def setup_action_callbacks(self, atualizar_tabela_callback=None):
+        """Cria e configura o ActionCallbacksManager para gerenciar ações da UI."""
+        self.action_callbacks = ActionCallbacksManager(self.janela, atualizar_tabela_callback)
+        logger.debug("ActionCallbacksManager configurado")
+    
+    def setup_button_factory(self):
+        """Cria e configura o ButtonFactory para criar botões e menus."""
+        if not self.action_callbacks:
+            self.setup_action_callbacks()
+        
+        if 'frame_dados' not in self.frames:
+            logger.warning("Frame de dados não existe. Execute setup_frames() primeiro.")
+            return
+        
+        self.button_factory = ButtonFactory(
+            janela=self.janela,
+            frame_dados=self.frames['frame_dados'],
+            callbacks=self.action_callbacks,
+            colors=self.colors
+        )
+        logger.debug("ButtonFactory configurado")
     
     def setup_menu_manager(self):
-        """Cria e configura o MenuManager para gerenciar menus."""
-        self.menu_manager = MenuManager(self.janela, self.action_handler)
+        """Cria e configura o MenuManager para gerenciar menus contextuais."""
+        self.menu_manager = MenuManager(self.janela)
         logger.debug("MenuManager configurado")
     
-    def setup_context_menu(self):
-        """Cria menu contextual para a tabela."""
+    def setup_context_menu(self, editar_callback=None):
+        """
+        Cria menu contextual para a tabela.
+        
+        Args:
+            editar_callback: Callback para a opção 'Editar' do menu contextual
+        """
+        # Inicializar MenuManager se necessário
         if not self.menu_manager:
             self.setup_menu_manager()
         
-        if not self.table_manager or not self.table_manager.tree:
+        # Verificar se MenuManager foi inicializado
+        if not self.menu_manager:
+            logger.error("Erro: MenuManager não foi inicializado")
+            return
+        
+        if not self.table_manager or not self.table_manager.treeview:
             logger.warning("TableManager não inicializado. Execute setup_table() primeiro.")
             return
         
-        self.menu_manager.criar_menu_contextual(self.table_manager.tree)
+        callbacks = {'editar': editar_callback} if editar_callback else {}
+        self.menu_manager.criar_menu_contextual(
+            treeview=self.table_manager.treeview,
+            callbacks=callbacks
+        )
         logger.debug("Menu contextual configurado")
     
-    def setup_action_buttons(self, parent_frame):
+    def setup_action_buttons_and_menus(self):
         """
-        Cria botões de ação principais (Novo Aluno, Funcionário, Histórico, Admin).
+        Cria botões de ação e barra de menus usando ButtonFactory.
         
-        Args:
-            parent_frame: Frame onde os botões serão criados
+        Este método substitui a antiga função criar_acoes() do main.py.
         """
-        from tkinter import Button, LEFT, RIDGE
-        from PIL import Image, ImageTk
+        # Inicializar MenuManager se ainda não existe
+        if not self.menu_manager:
+            self.setup_menu_manager()
         
-        if not self.action_handler:
-            self.setup_action_handler()
+        # Inicializar ButtonFactory se ainda não existe
+        if not self.button_factory:
+            self.setup_button_factory()
         
-        # Frame para os botões
-        botoes_frame = Frame(parent_frame, bg=self.colors['co1'])
-        botoes_frame.pack(fill='x', expand=True, padx=10, pady=5)
+        # Verificar se ButtonFactory foi inicializado com sucesso
+        if not self.button_factory:
+            logger.error("Erro: ButtonFactory não foi inicializado")
+            return
         
-        # Configurar grid do frame de botões
-        for i in range(4):  # 4 botões principais
-            botoes_frame.grid_columnconfigure(i, weight=1)
+        # Configurar interface completa (botões + menus)
+        self.button_factory.configurar_interface()
         
-        # Botão Novo Aluno
-        try:
-            img_cadastro = Image.open('icon/plus.png')
-            img_cadastro = img_cadastro.resize((18, 18))
-            img_cadastro = ImageTk.PhotoImage(img_cadastro)
-            btn_cadastro = Button(
-                botoes_frame,
-                command=self.action_handler.cadastrar_novo_aluno,
-                image=img_cadastro,
-                text="Novo Aluno",
-                compound=LEFT,
-                overrelief=RIDGE,
-                font=('Ivy 11'),
-                bg=self.colors['co2'],
-                fg=self.colors['co0']
-            )
-            btn_cadastro._image_ref = img_cadastro  # Manter referência
-        except FileNotFoundError:
-            btn_cadastro = Button(
-                botoes_frame,
-                command=self.action_handler.cadastrar_novo_aluno,
-                text="+ Novo Aluno",
-                compound=LEFT,
-                overrelief=RIDGE,
-                font=('Ivy 11'),
-                bg=self.colors['co2'],
-                fg=self.colors['co0']
-            )
-        btn_cadastro.grid(row=0, column=0, padx=5, pady=5, sticky='ew')
-        
-        # Botão Novo Funcionário
-        try:
-            img_funcionario = Image.open('icon/video-conference.png')
-            img_funcionario = img_funcionario.resize((18, 18))
-            img_funcionario = ImageTk.PhotoImage(img_funcionario)
-            btn_funcionario = Button(
-                botoes_frame,
-                command=self.action_handler.cadastrar_novo_funcionario,
-                image=img_funcionario,
-                text="Novo Funcionário",
-                compound=LEFT,
-                overrelief=RIDGE,
-                font=('Ivy 11'),
-                bg=self.colors['co3'],
-                fg=self.colors['co0']
-            )
-            btn_funcionario._image_ref = img_funcionario
-        except FileNotFoundError:
-            btn_funcionario = Button(
-                botoes_frame,
-                command=self.action_handler.cadastrar_novo_funcionario,
-                text="+ Novo Funcionário",
-                compound=LEFT,
-                overrelief=RIDGE,
-                font=('Ivy 11'),
-                bg=self.colors['co3'],
-                fg=self.colors['co0']
-            )
-        btn_funcionario.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
-        
-        # Botão Histórico Escolar
-        try:
-            img_historico = Image.open('icon/history.png')
-            img_historico = img_historico.resize((18, 18))
-            img_historico = ImageTk.PhotoImage(img_historico)
-            btn_historico = Button(
-                botoes_frame,
-                command=self.action_handler.abrir_historico_escolar,
-                image=img_historico,
-                text="Histórico Escolar",
-                compound=LEFT,
-                overrelief=RIDGE,
-                font=('Ivy 11'),
-                bg=self.colors['co4'],
-                fg=self.colors['co0']
-            )
-            btn_historico._image_ref = img_historico
-        except FileNotFoundError:
-            btn_historico = Button(
-                botoes_frame,
-                command=self.action_handler.abrir_historico_escolar,
-                text="Histórico Escolar",
-                compound=LEFT,
-                overrelief=RIDGE,
-                font=('Ivy 11'),
-                bg=self.colors['co4'],
-                fg=self.colors['co0']
-            )
-        btn_historico.grid(row=0, column=2, padx=5, pady=5, sticky='ew')
-        
-        # Botão Administração
-        try:
-            img_admin = Image.open('icon/settings.png')
-            img_admin = img_admin.resize((18, 18))
-            img_admin = ImageTk.PhotoImage(img_admin)
-            btn_admin = Button(
-                botoes_frame,
-                command=self.action_handler.abrir_interface_administrativa,
-                image=img_admin,
-                text="Administração",
-                compound=LEFT,
-                overrelief=RIDGE,
-                font=('Ivy 11'),
-                bg=self.colors['co5'],
-                fg=self.colors['co0']
-            )
-            btn_admin._image_ref = img_admin
-        except FileNotFoundError:
-            btn_admin = Button(
-                botoes_frame,
-                command=self.action_handler.abrir_interface_administrativa,
-                text="Administração",
-                compound=LEFT,
-                overrelief=RIDGE,
-                font=('Ivy 11'),
-                bg=self.colors['co5'],
-                fg=self.colors['co0']
-            )
-        btn_admin.grid(row=0, column=3, padx=5, pady=5, sticky='ew')
-        
-        logger.debug("Botões de ação configurados")
+        logger.debug("Botões e menus configurados via ButtonFactory")
     
     def update_status(self, message: str):
         """
