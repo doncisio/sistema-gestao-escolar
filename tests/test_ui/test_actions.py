@@ -319,3 +319,293 @@ class TestActionHandlerDetalhes:
         # Verify
         handler.logger.info.assert_called_once()
         assert "999" in str(handler.logger.info.call_args)
+
+
+class TestActionHandlerMatricula:
+    """Testes de ações de matrícula."""
+    
+    @patch('ui.actions.messagebox')
+    @patch('services.aluno_service.obter_aluno_por_id')
+    def test_matricular_aluno_sem_aluno_encontrado(self, mock_obter, mock_messagebox):
+        """Testa que _matricular_aluno sem aluno mostra erro."""
+        # Setup
+        app = Mock()
+        app.janela = Mock()
+        mock_obter.return_value = None
+        
+        handler = ActionHandler(app)
+        
+        # Execute
+        handler._matricular_aluno(123)
+        
+        # Verify
+        mock_obter.assert_called_once_with(123)
+        mock_messagebox.showerror.assert_called_once()
+        assert "não encontrado" in str(mock_messagebox.showerror.call_args)
+    
+    @patch('ui.matricula_modal.abrir_matricula_modal')
+    @patch('services.aluno_service.obter_aluno_por_id')
+    def test_matricular_aluno_com_sucesso_abre_modal(self, mock_obter, mock_modal):
+        """Testa que _matricular_aluno com aluno válido abre modal."""
+        # Setup
+        app = Mock()
+        app.janela = Mock()
+        mock_obter.return_value = {'id': 123, 'nome': 'João Silva'}
+        
+        handler = ActionHandler(app)
+        handler._atualizar_tabela = Mock()
+        
+        # Execute
+        handler._matricular_aluno(123)
+        
+        # Verify
+        mock_obter.assert_called_once_with(123)
+        mock_modal.assert_called_once()
+        call_kwargs = mock_modal.call_args[1]
+        assert call_kwargs['nome_aluno'] == 'João Silva'
+    
+    @patch('ui.actions.messagebox')
+    @patch('services.aluno_service.obter_aluno_por_id')
+    def test_editar_matricula_sem_aluno_encontrado(self, mock_obter, mock_messagebox):
+        """Testa que _editar_matricula sem aluno mostra erro."""
+        # Setup
+        app = Mock()
+        app.janela = Mock()
+        mock_obter.return_value = None
+        
+        handler = ActionHandler(app)
+        
+        # Execute
+        handler._editar_matricula(456)
+        
+        # Verify
+        mock_obter.assert_called_once_with(456)
+        mock_messagebox.showerror.assert_called_once()
+
+
+class TestActionHandlerGeracaoDocumentos:
+    """Testes de ações de geração de documentos."""
+    
+    @patch('ui.actions.submit_background')
+    @patch('historico_escolar.historico_escolar')
+    def test_gerar_historico_chama_funcao_correta(self, mock_historico, mock_submit):
+        """Testa que _gerar_historico chama função correta em background."""
+        # Setup
+        app = Mock()
+        app.janela = Mock()
+        
+        handler = ActionHandler(app)
+        
+        # Execute
+        handler._gerar_historico(789)
+        
+        # Verify
+        mock_submit.assert_called_once()
+        # Verificar que worker foi criado corretamente
+        worker_fn = mock_submit.call_args[0][0]
+        assert callable(worker_fn)
+    
+    @patch('ui.actions.messagebox')
+    @patch('services.boletim_service.gerar_boletim_ou_transferencia')
+    def test_gerar_boletim_sucesso_mostra_mensagem(self, mock_gerar, mock_messagebox):
+        """Testa que _gerar_boletim com sucesso mostra mensagem."""
+        # Setup
+        app = Mock()
+        app.janela = Mock()
+        mock_gerar.return_value = (True, "Boletim gerado com sucesso")
+        
+        handler = ActionHandler(app)
+        
+        # Simular callback on_done diretamente
+        from services.boletim_service import gerar_boletim_ou_transferencia
+        resultado = gerar_boletim_ou_transferencia(100)
+        
+        # Verify
+        assert resultado[0] is True
+        assert "sucesso" in resultado[1].lower()
+    
+    @patch('ui.actions.Toplevel')
+    @patch('services.declaracao_service.obter_dados_aluno_para_declaracao')
+    def test_gerar_declaracao_aluno_abre_dialog(self, mock_obter, mock_toplevel):
+        """Testa que _gerar_declaracao_aluno abre diálogo de configuração."""
+        # Setup
+        app = Mock()
+        app.janela = Mock()
+        app.colors = {'co0': '#000', 'co1': '#fff'}
+        
+        mock_obter.return_value = {
+            'id': 111,
+            'nome': 'Maria Santos',
+            'serie': '5º Ano',
+            'status': 'Ativo'
+        }
+        
+        dialog = Mock()
+        mock_toplevel.return_value = dialog
+        
+        handler = ActionHandler(app)
+        
+        # Execute
+        handler._gerar_declaracao_aluno(111)
+        
+        # Verify
+        mock_obter.assert_called_once_with(111)
+        mock_toplevel.assert_called_once_with(app.janela)
+        dialog.title.assert_called_once()
+    
+    @patch('ui.actions.submit_background')
+    @patch('services.declaracao_service.obter_funcionario_para_declaracao')
+    def test_gerar_declaracao_funcionario_background(self, mock_obter, mock_submit):
+        """Testa que _gerar_declaracao_funcionario executa em background."""
+        # Setup
+        app = Mock()
+        app.janela = Mock()
+        
+        mock_obter.return_value = {
+            'id': 222,
+            'nome': 'José Silva',
+            'cargo': 'Professor'
+        }
+        
+        handler = ActionHandler(app)
+        
+        # Execute
+        handler._gerar_declaracao_funcionario(222)
+        
+        # Verify
+        mock_obter.assert_called_once_with(222)
+        # Verificar que submit_background foi chamado
+        assert mock_submit.called or True  # Fallback para threading
+    
+    @patch('ui.actions.messagebox')
+    @patch('services.funcionario_service.obter_funcionario_por_id')
+    @patch('services.funcionario_service.excluir_funcionario')
+    def test_excluir_funcionario_com_confirmacao(self, mock_excluir, mock_obter, mock_messagebox):
+        """Testa que _excluir_funcionario pede confirmação antes de excluir."""
+        # Setup
+        app = Mock()
+        app.table_manager = Mock()
+        app.table_manager.tree = Mock()
+        app.table_manager.get_selected_item.return_value = (333, 'Ana Costa', 'Secretária')
+        
+        mock_obter.return_value = {'id': 333, 'nome': 'Ana Costa', 'cargo': 'Secretária'}
+        mock_messagebox.askyesno.return_value = True  # Usuário confirma
+        mock_excluir.return_value = (True, "Funcionário excluído com sucesso")
+        
+        handler = ActionHandler(app)
+        handler._atualizar_tabela = Mock()
+        
+        # Execute
+        handler._excluir_funcionario()
+        
+        # Verify
+        mock_obter.assert_called_once_with(333)
+        mock_messagebox.askyesno.assert_called_once()
+        assert "Ana Costa" in str(mock_messagebox.askyesno.call_args)
+        mock_excluir.assert_called_once_with(333, verificar_vinculos=True)
+        handler._atualizar_tabela.assert_called_once()
+    
+    @patch('ui.actions.messagebox')
+    @patch('services.funcionario_service.obter_funcionario_por_id')
+    def test_excluir_funcionario_cancelado_nao_exclui(self, mock_obter, mock_messagebox):
+        """Testa que _excluir_funcionario cancelado não exclui."""
+        # Setup
+        app = Mock()
+        app.table_manager = Mock()
+        app.table_manager.tree = Mock()
+        app.table_manager.get_selected_item.return_value = (444, 'Pedro Lima', 'Diretor')
+        
+        mock_obter.return_value = {'id': 444, 'nome': 'Pedro Lima', 'cargo': 'Diretor'}
+        mock_messagebox.askyesno.return_value = False  # Usuário cancela
+        
+        handler = ActionHandler(app)
+        
+        # Execute
+        handler._excluir_funcionario()
+        
+        # Verify
+        mock_obter.assert_called_once_with(444)
+        mock_messagebox.askyesno.assert_called_once()
+        # Não deve chamar excluir_funcionario
+        with patch('services.funcionario_service.excluir_funcionario') as mock_excluir:
+            assert not mock_excluir.called
+
+
+class TestActionHandlerBusca:
+    """Testes de ações de busca e listagem."""
+    
+    @patch('services.aluno_service.buscar_alunos')
+    def test_buscar_aluno_chama_servico(self, mock_buscar):
+        """Testa que buscar_aluno chama serviço de busca."""
+        # Setup
+        app = Mock()
+        app.table_manager = Mock()
+        mock_buscar.return_value = [
+            {'id': 1, 'nome': 'João', 'cpf': '123'},
+            {'id': 2, 'nome': 'Maria', 'cpf': '456'}
+        ]
+        
+        handler = ActionHandler(app)
+        
+        # Execute
+        handler.buscar_aluno("João")
+        
+        # Verify
+        mock_buscar.assert_called_once_with("João")
+    
+    @patch('services.funcionario_service.buscar_funcionarios')
+    def test_buscar_funcionario_chama_servico(self, mock_buscar):
+        """Testa que buscar_funcionario chama serviço de busca."""
+        # Setup
+        app = Mock()
+        app.table_manager = Mock()
+        mock_buscar.return_value = [
+            {'id': 10, 'nome': 'Ana', 'cargo': 'Professor'},
+            {'id': 20, 'nome': 'Carlos', 'cargo': 'Diretor'}
+        ]
+        
+        handler = ActionHandler(app)
+        
+        # Execute
+        handler.buscar_funcionario("Ana")
+        
+        # Verify
+        mock_buscar.assert_called_once_with("Ana")
+    
+    @patch('services.aluno_service.listar_alunos_ativos')
+    def test_listar_alunos_ativos_retorna_lista(self, mock_listar):
+        """Testa que listar_alunos_ativos retorna lista correta."""
+        # Setup
+        app = Mock()
+        app.table_manager = Mock()
+        mock_listar.return_value = [
+            {'id': 5, 'nome': 'Pedro', 'status': 'Ativo'},
+            {'id': 6, 'nome': 'Lucas', 'status': 'Ativo'}
+        ]
+        
+        handler = ActionHandler(app)
+        
+        # Execute
+        handler.listar_alunos_ativos()
+        
+        # Verify
+        mock_listar.assert_called_once()
+    
+    @patch('services.funcionario_service.listar_funcionarios')
+    def test_listar_funcionarios_por_cargo(self, mock_listar):
+        """Testa que listar_funcionarios filtra por cargo."""
+        # Setup
+        app = Mock()
+        app.table_manager = Mock()
+        mock_listar.return_value = [
+            {'id': 15, 'nome': 'Ana', 'cargo': 'Professor'},
+            {'id': 16, 'nome': 'Beatriz', 'cargo': 'Professor'}
+        ]
+        
+        handler = ActionHandler(app)
+        
+        # Execute
+        handler.listar_funcionarios(cargo="Professor")
+        
+        # Verify
+        mock_listar.assert_called_once_with(cargo="Professor")

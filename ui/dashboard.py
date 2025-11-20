@@ -178,13 +178,15 @@ class DashboardManager:
 
     Recebe um `DbService` (com método `connection()`), uma função `obter_estatisticas_alunos`
     e um `frame_getter` que retorna o `frame_tabela` onde o dashboard deve ser renderizado.
+    
+    Agora integra com services/estatistica_service.py para buscar dados de estatísticas.
     """
-    def __init__(self, janela, db_service, obter_estatisticas_alunos, frame_getter, cache_ref, co_bg=CO_BG, co_fg=CO_FG, co_accent=CO_ACCENT):
+    def __init__(self, janela, db_service, frame_getter, cache_ref, escola_id=None, co_bg=CO_BG, co_fg=CO_FG, co_accent=CO_ACCENT):
         self.janela = janela
         self.db_service = db_service
-        self.obter_estatisticas_alunos = obter_estatisticas_alunos
         self.frame_getter = frame_getter
         self.cache_ref = cache_ref
+        self.escola_id = escola_id  # ID da escola (opcional, None = todas)
         self.co1 = co_bg
         self.co0 = co_fg
         self.co4 = co_accent
@@ -246,9 +248,12 @@ class DashboardManager:
 
         def _worker(local_worker_token=local_worker_token):
             try:
-                dados = self.obter_estatisticas_alunos()
+                # Usar estatistica_service para buscar dados
+                from services.estatistica_service import obter_estatisticas_alunos
+                
+                dados = obter_estatisticas_alunos(escola_id=self.escola_id)
 
-                if not dados or not dados.get('por_serie'):
+                if not dados or not dados.get('alunos_por_serie'):
                     def _on_empty():
                         try:
                             progress.stop()
@@ -293,9 +298,9 @@ class DashboardManager:
                 except Exception:
                     ano_letivo_exibir = "Corrente"
 
-                # Preparar dados para o gráfico
-                series = [item['serie'] for item in dados['por_serie']]
-                quantidades = [item['quantidade'] for item in dados['por_serie']]
+                # Preparar dados para o gráfico (ajustar campo correto)
+                series = [item['serie'] for item in dados['alunos_por_serie']]
+                quantidades = [item['quantidade'] for item in dados['alunos_por_serie']]
 
                 # Construir figura do matplotlib
                 from matplotlib.figure import Figure
@@ -380,9 +385,20 @@ class DashboardManager:
                         totais_frame = Frame(info_frame, bg=self.co1)
                         totais_frame.pack()
                         try:
-                            Label(totais_frame, text=f"Total Matriculados: {dados['total_matriculados']}", font=('Calibri', 12, 'bold'), bg=self.co1, fg=self.co0).pack(side='left', padx=20)
-                            Label(totais_frame, text=f"Ativos: {dados['total_ativos']}", font=('Calibri', 12, 'bold'), bg=self.co1, fg=self.co0).pack(side='left', padx=20)
-                            Label(totais_frame, text=f"Transferidos: {dados['total_transferidos']}", font=('Calibri', 12, 'bold'), bg=self.co1, fg=self.co0).pack(side='left', padx=20)
+                            # Usar chaves corretas retornadas por estatistica_service
+                            total_alunos = dados.get('total_alunos', 0)
+                            alunos_ativos = dados.get('alunos_ativos', 0)
+                            # Calcular transferidos/evadidos se necessário
+                            # estatistica_service não retorna 'total_matriculados' nem 'total_transferidos'
+                            # Ajustar labels para refletir dados disponíveis
+                            Label(totais_frame, text=f"Total Alunos: {total_alunos}", font=('Calibri', 12, 'bold'), bg=self.co1, fg=self.co0).pack(side='left', padx=20)
+                            Label(totais_frame, text=f"Ativos: {alunos_ativos}", font=('Calibri', 12, 'bold'), bg=self.co1, fg=self.co0).pack(side='left', padx=20)
+                            
+                            # Alunos por turno
+                            turnos = dados.get('alunos_por_turno', [])
+                            if turnos:
+                                turno_str = " | ".join([f"{t['turno']}: {t['quantidade']}" for t in turnos])
+                                Label(totais_frame, text=turno_str, font=('Calibri', 12, 'bold'), bg=self.co1, fg=self.co0).pack(side='left', padx=20)
                         except Exception:
                             logger.exception("Erro ao criar labels de totais no dashboard")
 
