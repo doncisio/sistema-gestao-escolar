@@ -3,8 +3,8 @@ Módulo de handlers de ações da interface.
 Encapsula a lógica de ações do usuário (botões, menus, etc.) do main.py.
 """
 
-from tkinter import messagebox, Toplevel
-from typing import Optional, Callable
+from tkinter import messagebox, Toplevel, Label, Frame, Button, StringVar, OptionMenu, Entry
+from typing import Optional, Callable, Dict
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,39 @@ class ActionHandler:
         """
         self.app = app
         self.logger = logger
+        self.detalhes_manager = None
+        self._configurar_detalhes_manager()
+    
+    def _configurar_detalhes_manager(self):
+        """Configura o gerenciador de detalhes se o frame existir."""
+        try:
+            # Só configura se app tiver frame_detalhes
+            if hasattr(self.app, 'frame_detalhes') and self.app.frame_detalhes:
+                from ui.detalhes import DetalhesManager
+                
+                # Criar dicionário de callbacks para os botões
+                callbacks = {
+                    'editar_aluno': self.editar_aluno,
+                    'excluir_aluno': self.excluir_aluno,
+                    'editar_funcionario': self.editar_funcionario,
+                    'excluir_funcionario': lambda: self._excluir_funcionario(),
+                    'gerar_historico': lambda aluno_id: self._gerar_historico(aluno_id),
+                    'gerar_boletim': lambda aluno_id: self._gerar_boletim(aluno_id),
+                    'gerar_declaracao_aluno': lambda aluno_id: self._gerar_declaracao_aluno(aluno_id),
+                    'gerar_declaracao_funcionario': lambda funcionario_id: self._gerar_declaracao_funcionario(funcionario_id),
+                    'matricular_aluno': lambda aluno_id: self._matricular_aluno(aluno_id),
+                    'editar_matricula': lambda aluno_id: self._editar_matricula(aluno_id),
+                }
+                
+                self.detalhes_manager = DetalhesManager(
+                    frame_detalhes=self.app.frame_detalhes,
+                    colors=self.app.colors,
+                    callbacks=callbacks
+                )
+                self.logger.info("DetalhesManager configurado com sucesso")
+        except Exception as e:
+            self.logger.error(f"Erro ao configurar DetalhesManager: {e}")
+            self.detalhes_manager = None
         
     def cadastrar_novo_aluno(self):
         """Abre a interface de cadastro de novo aluno."""
@@ -58,7 +91,9 @@ class ActionHandler:
             self.app.janela.deiconify()
     
     def editar_aluno(self):
-        """Abre a interface de edição do aluno selecionado."""
+        """Abre a interface de edição do aluno selecionado usando modal."""
+        from ui.aluno_modal import abrir_aluno_modal
+        
         try:
             if not self.app.table_manager or not self.app.table_manager.tree:
                 messagebox.showwarning("Aviso", "Tabela não inicializada")
@@ -72,28 +107,13 @@ class ActionHandler:
             
             aluno_id = item_selecionado[0]  # ID é o primeiro valor
             
-            from InterfaceEdicaoAluno import InterfaceEdicaoAluno
-            
-            janela_edicao = Toplevel(self.app.janela)
-            janela_edicao.title(f"Editar Aluno - ID: {aluno_id}")
-            janela_edicao.geometry('950x670')
-            janela_edicao.configure(background=self.app.colors['co1'])
-            janela_edicao.focus_set()
-            janela_edicao.grab_set()
-            
-            # Esconder janela principal
-            self.app.janela.withdraw()
-            
-            # Criar interface de edição
-            app_edicao = InterfaceEdicaoAluno(janela_edicao, aluno_id, janela_principal=self.app.janela)
-            
-            def ao_fechar_edicao():
-                self.app.janela.deiconify()
-                if self.app.table_manager:
-                    self._atualizar_tabela()
-                janela_edicao.destroy()
-            
-            janela_edicao.protocol("WM_DELETE_WINDOW", ao_fechar_edicao)
+            # Usar modal de edição
+            abrir_aluno_modal(
+                parent=self.app.janela,
+                aluno_id=aluno_id,
+                colors=self.app.cores,
+                callback_sucesso=self._atualizar_tabela
+            )
             
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao abrir edição: {str(e)}")
@@ -168,6 +188,36 @@ class ActionHandler:
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao abrir cadastro: {str(e)}")
             self.logger.error(f"Erro ao abrir cadastro: {str(e)}")
+            self.app.janela.deiconify()
+    
+    def editar_funcionario(self):
+        """Abre a interface de edição do funcionário selecionado usando modal."""
+        from ui.funcionario_modal import abrir_funcionario_modal
+        
+        try:
+            if not self.app.table_manager or not self.app.table_manager.tree:
+                messagebox.showwarning("Aviso", "Tabela não inicializada")
+                return
+                
+            item_selecionado = self.app.table_manager.get_selected_item()
+            
+            if not item_selecionado:
+                messagebox.showwarning("Aviso", "Selecione um funcionário para editar")
+                return
+            
+            funcionario_id = item_selecionado[0]  # ID é o primeiro valor
+            
+            # Usar modal de edição
+            abrir_funcionario_modal(
+                parent=self.app.janela,
+                funcionario_id=funcionario_id,
+                colors=self.app.cores,
+                callback_sucesso=self._atualizar_tabela
+            )
+            
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao abrir edição: {str(e)}")
+            self.logger.error(f"Erro ao abrir edição de funcionário: {str(e)}")
             self.app.janela.deiconify()
     
     def buscar_funcionario(self, termo: str):
@@ -448,7 +498,7 @@ class ActionHandler:
                     turmas = obter_turmas_por_serie(serie_id, ano_letivo_id)
                     turma_var['values'] = [t['nome'] for t in turmas]
                     # Guardar referência às turmas para buscar ID depois
-                    turma_var._turmas_data = turmas
+                    setattr(turma_var, '_turmas_data', turmas)
                 else:
                     turma_var['values'] = []
             
@@ -543,3 +593,356 @@ class ActionHandler:
                 self.listar_alunos_ativos()
             except Exception as e:
                 self.logger.error(f"Erro ao atualizar tabela: {str(e)}")
+    
+    # ===== Métodos stub para callbacks do DetalhesManager =====
+    # Esses métodos serão implementados progressivamente
+    
+    def _excluir_funcionario(self):
+        """Exclui funcionário selecionado usando funcionario_service."""
+        from services.funcionario_service import excluir_funcionario, obter_funcionario_por_id
+        
+        try:
+            if not self.app.table_manager or not self.app.table_manager.tree:
+                messagebox.showwarning("Aviso", "Tabela não inicializada")
+                return
+            
+            item_selecionado = self.app.table_manager.get_selected_item()
+            
+            if not item_selecionado:
+                messagebox.showwarning("Aviso", "Selecione um funcionário para excluir")
+                return
+            
+            funcionario_id = item_selecionado[0]
+            
+            # Buscar dados do funcionário
+            funcionario = obter_funcionario_por_id(funcionario_id)
+            if not funcionario:
+                messagebox.showerror("Erro", "Funcionário não encontrado")
+                return
+            
+            nome_funcionario = funcionario.get('nome', 'Desconhecido')
+            
+            # Confirmar exclusão
+            resposta = messagebox.askyesno(
+                "Confirmar Exclusão",
+                f"Tem certeza que deseja excluir o funcionário '{nome_funcionario}'?\n\n"
+                f"Esta ação não pode ser desfeita.",
+                icon='warning'
+            )
+            
+            if not resposta:
+                return
+            
+            # Excluir funcionário
+            sucesso, mensagem = excluir_funcionario(funcionario_id, verificar_vinculos=True)
+            
+            if sucesso:
+                messagebox.showinfo("Sucesso", mensagem)
+                self._atualizar_tabela()
+            else:
+                messagebox.showerror("Erro", mensagem)
+        
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao excluir funcionário: {str(e)}")
+            self.logger.exception(f"Erro ao excluir funcionário: {e}")
+    
+    def _gerar_historico(self, aluno_id: int):
+        """Gera histórico escolar do aluno."""
+        from historico_escolar import historico_escolar
+        
+        try:
+            # Worker para geração em background
+            def _worker():
+                # historico_escolar retorna buffer ou None
+                return historico_escolar(aluno_id)
+            
+            def _on_done(resultado):
+                if resultado:
+                    messagebox.showinfo("Concluído", "Histórico escolar gerado com sucesso.")
+                else:
+                    messagebox.showwarning("Aviso", "Nenhum dado disponível para o histórico.")
+            
+            def _on_error(exc):
+                messagebox.showerror("Erro", f"Falha ao gerar histórico: {exc}")
+            
+            try:
+                from utils.executor import submit_background
+                submit_background(_worker, on_done=_on_done, on_error=_on_error, janela=self.app.janela)
+            except Exception:
+                from threading import Thread
+                def _thread_worker():
+                    try:
+                        res = _worker()
+                        self.app.janela.after(0, lambda: _on_done(res))
+                    except Exception as e:
+                        self.app.janela.after(0, lambda: _on_error(e))
+                Thread(target=_thread_worker, daemon=True).start()
+        
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao gerar histórico: {str(e)}")
+            self.logger.exception(f"Erro ao gerar histórico: {e}")
+    
+    def _gerar_boletim(self, aluno_id: int):
+        """Gera boletim do aluno usando boletim_service."""
+        from services.boletim_service import gerar_boletim_ou_transferencia
+        
+        try:
+            # Worker para geração em background
+            def _worker():
+                return gerar_boletim_ou_transferencia(aluno_id)
+            
+            def _on_done(resultado):
+                sucesso, mensagem = resultado
+                if sucesso:
+                    messagebox.showinfo("Concluído", mensagem)
+                else:
+                    messagebox.showwarning("Aviso", mensagem)
+            
+            def _on_error(exc):
+                messagebox.showerror("Erro", f"Falha ao gerar documento: {exc}")
+            
+            try:
+                from utils.executor import submit_background
+                submit_background(_worker, on_done=_on_done, on_error=_on_error, janela=self.app.janela)
+            except Exception:
+                from threading import Thread
+                def _thread_worker():
+                    try:
+                        res = _worker()
+                        self.app.janela.after(0, lambda: _on_done(res))
+                    except Exception as e:
+                        self.app.janela.after(0, lambda: _on_error(e))
+                Thread(target=_thread_worker, daemon=True).start()
+        
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao gerar boletim: {str(e)}")
+            self.logger.exception(f"Erro ao gerar boletim: {e}")
+    
+    def _gerar_declaracao_aluno(self, aluno_id: int):
+        """Gera declaração para aluno usando declaracao_service."""
+        from services.declaracao_service import (
+            obter_dados_aluno_para_declaracao,
+            validar_dados_declaracao,
+            registrar_geracao_declaracao
+        )
+        from Gerar_Declaracao_Aluno import gerar_declaracao_aluno as gerar_declaracao_aluno_legacy
+        from tkinter import StringVar, OptionMenu, Entry
+        
+        try:
+            # Dialog para selecionar tipo de declaração
+            dialog = Toplevel(self.app.janela)
+            dialog.title("Tipo de Declaração")
+            dialog.geometry("380x220")
+            dialog.transient(self.app.janela)
+            dialog.focus_force()
+            dialog.grab_set()
+            dialog.configure(bg=self.app.colors['co0'])
+            
+            opcao = StringVar(dialog)
+            opcao.set("Transferência")
+            opcoes = ["Transferência", "Bolsa Família", "Trabalho", "Outros"]
+            
+            Label(dialog, text="Selecione o tipo de declaração:", font=("Ivy", 12), 
+                  bg=self.app.colors['co0'], fg=self.app.colors['co7']).pack(pady=10)
+            
+            option_menu = OptionMenu(dialog, opcao, *opcoes)
+            option_menu.config(bg=self.app.colors['co0'], fg=self.app.colors['co7'])
+            option_menu.pack(pady=5)
+            
+            # Frame para motivo "Outros"
+            motivo_frame = Frame(dialog, bg=self.app.colors['co0'])
+            motivo_frame.pack(pady=5, fill='x', padx=20)
+            Label(motivo_frame, text="Especifique o motivo:", font=("Ivy", 11), 
+                  bg=self.app.colors['co0'], fg=self.app.colors['co7']).pack(anchor='w')
+            motivo_entry = Entry(motivo_frame, width=40, font=("Ivy", 11))
+            motivo_entry.pack(fill='x', pady=5)
+            motivo_frame.pack_forget()
+            
+            def atualizar_interface(*args):
+                if opcao.get() == "Outros":
+                    motivo_frame.pack(pady=5, fill='x', padx=20)
+                    dialog.geometry("380px220")
+                    motivo_entry.focus_set()
+                else:
+                    motivo_frame.pack_forget()
+                    dialog.geometry("380x170")
+            
+            opcao.trace_add("write", atualizar_interface)
+            
+            def confirmar():
+                opcao_selecionada = opcao.get()
+                motivo_outros = ""
+                
+                if opcao_selecionada == "Outros":
+                    motivo_outros = motivo_entry.get().strip()
+                    if not motivo_outros:
+                        messagebox.showwarning("Aviso", "Por favor, especifique o motivo.")
+                        return
+                
+                # Obter dados via service
+                dados_aluno = obter_dados_aluno_para_declaracao(aluno_id)
+                if not dados_aluno:
+                    messagebox.showerror("Erro", "Não foi possível obter dados do aluno.")
+                    dialog.destroy()
+                    return
+                
+                # Validar dados
+                valido, mensagem = validar_dados_declaracao('Aluno', dados_aluno, opcao_selecionada)
+                if not valido:
+                    messagebox.showwarning("Aviso", mensagem)
+                    dialog.destroy()
+                    return
+                
+                dialog.destroy()
+                
+                # Preparar marcações para função legacy
+                marcacoes = [[False] * 4 for _ in range(1)]
+                if opcao_selecionada in opcoes:
+                    index = opcoes.index(opcao_selecionada)
+                    marcacoes[0][index] = True
+                
+                # Worker para geração em background
+                def _worker():
+                    resultado = gerar_declaracao_aluno_legacy(aluno_id, marcacoes, motivo_outros)
+                    # Registrar auditoria
+                    registrar_geracao_declaracao(
+                        pessoa_id=aluno_id,
+                        tipo_pessoa='Aluno',
+                        tipo_declaracao=opcao_selecionada,
+                        motivo_outros=motivo_outros if opcao_selecionada == 'Outros' else None
+                    )
+                    return resultado
+                
+                def _on_done(resultado):
+                    messagebox.showinfo("Concluído", "Declaração gerada com sucesso.")
+                
+                def _on_error(exc):
+                    messagebox.showerror("Erro", f"Falha ao gerar declaração: {exc}")
+                
+                try:
+                    from utils.executor import submit_background
+                    submit_background(_worker, on_done=_on_done, on_error=_on_error, janela=self.app.janela)
+                except Exception:
+                    from threading import Thread
+                    def _thread_worker():
+                        try:
+                            res = _worker()
+                            self.app.janela.after(0, lambda: _on_done(res))
+                        except Exception as e:
+                            self.app.janela.after(0, lambda: _on_error(e))
+                    Thread(target=_thread_worker, daemon=True).start()
+            
+            Button(dialog, text="Confirmar", command=confirmar, 
+                   bg=self.app.colors['co2'], fg=self.app.colors['co0']).pack(pady=10)
+        
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao abrir diálogo de declaração: {str(e)}")
+            self.logger.exception(f"Erro ao gerar declaração de aluno: {e}")
+    
+    def _gerar_declaracao_funcionario(self, funcionario_id: int):
+        """Gera declaração para funcionário usando declaracao_service."""
+        from services.declaracao_service import (
+            obter_dados_funcionario_para_declaracao,
+            validar_dados_declaracao,
+            registrar_geracao_declaracao
+        )
+        from Funcionario import gerar_declaracao_funcionario as gerar_declaracao_funcionario_legacy
+        
+        try:
+            # Obter dados via service
+            dados_funcionario = obter_dados_funcionario_para_declaracao(funcionario_id)
+            if not dados_funcionario:
+                messagebox.showerror("Erro", "Não foi possível obter dados do funcionário.")
+                return
+            
+            # Validar dados
+            valido, mensagem = validar_dados_declaracao('Funcionário', dados_funcionario, 'Trabalho')
+            if not valido:
+                messagebox.showwarning("Aviso", mensagem)
+                return
+            
+            # Worker para geração em background
+            def _worker():
+                resultado = gerar_declaracao_funcionario_legacy(funcionario_id)
+                # Registrar auditoria
+                registrar_geracao_declaracao(
+                    pessoa_id=funcionario_id,
+                    tipo_pessoa='Funcionário',
+                    tipo_declaracao='Trabalho',
+                    motivo_outros=None
+                )
+                return resultado
+            
+            def _on_done(resultado):
+                messagebox.showinfo("Concluído", "Declaração gerada com sucesso.")
+            
+            def _on_error(exc):
+                messagebox.showerror("Erro", f"Falha ao gerar declaração: {exc}")
+            
+            try:
+                from utils.executor import submit_background
+                submit_background(_worker, on_done=_on_done, on_error=_on_error, janela=self.app.janela)
+            except Exception:
+                from threading import Thread
+                def _thread_worker():
+                    try:
+                        res = _worker()
+                        self.app.janela.after(0, lambda: _on_done(res))
+                    except Exception as e:
+                        self.app.janela.after(0, lambda: _on_error(e))
+                Thread(target=_thread_worker, daemon=True).start()
+        
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao gerar declaração: {str(e)}")
+            self.logger.exception(f"Erro ao gerar declaração de funcionário: {e}")
+    
+    def _matricular_aluno(self, aluno_id: int):
+        """Matricula aluno usando MatriculaModal."""
+        from ui.matricula_modal import abrir_matricula_modal
+        from services.aluno_service import obter_aluno_por_id
+        
+        try:
+            # Buscar nome do aluno
+            aluno = obter_aluno_por_id(aluno_id)
+            if not aluno:
+                messagebox.showerror("Erro", "Aluno não encontrado")
+                return
+            
+            nome_aluno = aluno.get('nome', 'Desconhecido')
+            
+            abrir_matricula_modal(
+                parent=self.app.janela,
+                aluno_id=aluno_id,
+                nome_aluno=nome_aluno,
+                colors=self.app.colors,
+                callback_sucesso=self._atualizar_tabela
+            )
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao abrir matrícula: {str(e)}")
+            self.logger.exception(f"Erro ao matricular aluno: {e}")
+    
+    def _editar_matricula(self, aluno_id: int):
+        """Edita matrícula do aluno usando MatriculaModal."""
+        from ui.matricula_modal import abrir_matricula_modal
+        from services.aluno_service import obter_aluno_por_id
+        
+        try:
+            # Buscar nome do aluno
+            aluno = obter_aluno_por_id(aluno_id)
+            if not aluno:
+                messagebox.showerror("Erro", "Aluno não encontrado")
+                return
+            
+            nome_aluno = aluno.get('nome', 'Desconhecido')
+            
+            # Modal detecta automaticamente se aluno já tem matrícula
+            abrir_matricula_modal(
+                parent=self.app.janela,
+                aluno_id=aluno_id,
+                nome_aluno=nome_aluno,
+                colors=self.app.colors,
+                callback_sucesso=self._atualizar_tabela
+            )
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao editar matrícula: {str(e)}")
+            self.logger.exception(f"Erro ao editar matrícula: {e}")

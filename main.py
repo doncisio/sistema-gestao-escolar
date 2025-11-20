@@ -27,6 +27,8 @@ from Gerar_Declaracao_Aluno import gerar_declaracao_aluno
 import Lista_atualizada
 import Lista_atualizada_semed
 import Seguranca
+from ui.menu import MenuManager
+from ui.table import TableManager
 from conexao import inicializar_pool, fechar_pool
 from db.connection import get_connection
 from typing import Any, cast
@@ -907,93 +909,42 @@ def atualizar_dashboard():
     _cache_estatisticas_dashboard['dados'] = None
     criar_dashboard()
     messagebox.showinfo("Dashboard", "Dashboard atualizado com sucesso!")
+# Instância global do TableManager
+table_manager: Optional[TableManager] = None
 
 def criar_tabela():
-    global treeview, tabela_frame
-    # Nota: Esta função não realiza operações diretas ao banco de dados.
-    # Dados e exibição são construídos a partir de estruturas em memória (ex.: `df`).
-    # Não é necessário abrir/fechar conexões aqui; manter o padrão de conexões curtas em outras funções.
-    
-    # Frame para conter a tabela e sua barra de rolagem
-    tabela_frame = Frame(frame_tabela)
-    # NÃO fazer pack aqui - será controlado pelo sistema de pesquisa
-    
-    # Configurando o gerenciador de layout
-    tabela_frame.grid_rowconfigure(0, weight=1)
-    tabela_frame.grid_columnconfigure(0, weight=1)
-    
-    # Criar um estilo
-    style = ttk.Style()
-    style.configure("mystyle.Treeview", highlightthickness=0, bd=0, font=('Calibri', 11))
-    style.configure("mystyle.Treeview.Heading", font=('Calibri', 13, 'bold'), background=co1, foreground=co0)
-    
-    # Configurar cores para linhas selecionadas
-    style.map('mystyle.Treeview',
-        background=[('selected', co4)],
-        foreground=[('selected', co0)])
-    
-    style.layout("mystyle.Treeview", [('mystyle.Treeview.treearea', {'sticky': 'nswe'})])
+    """Cria a tabela principal usando TableManager.
+    Mantém compatibilidade com código legado que usa globals treeview e tabela_frame.
+    """
+    global treeview, tabela_frame, table_manager, colunas, df
     
     # Garantir colunas e df padrão caso não estejam definidos ainda
-    global colunas, df
-    # Usar globals().get para evitar referência a variável possivelmente não associada
     if 'colunas' not in globals() or not globals().get('colunas'):
         colunas = ['ID', 'Nome']
     if 'df' not in globals() or globals().get('df') is None:
         df = pd.DataFrame(columns=colunas)
-
-    # Criação do Treeview com barras de rolagem
-    treeview = ttk.Treeview(tabela_frame, style="mystyle.Treeview", columns=colunas, show='headings')
     
-    # Configurar barras de rolagem
-    vsb = ttk.Scrollbar(tabela_frame, orient="vertical", command=treeview.yview)
-    hsb = ttk.Scrollbar(tabela_frame, orient="horizontal", command=treeview.xview)
-    treeview.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+    # Criar TableManager se ainda não existe
+    if table_manager is None:
+        # Dicionário de cores para o TableManager
+        colors_dict = {
+            'co0': co0,
+            'co1': co1,
+            'co4': co4
+        }
+        table_manager = TableManager(parent_frame=frame_tabela, colors=colors_dict)
     
-    # Posicionar os componentes
-    treeview.grid(row=0, column=0, sticky=NSEW)
-    vsb.grid(row=0, column=1, sticky=NS)
-    hsb.grid(row=1, column=0, sticky=EW)
+    # Criar tabela com callbacks
+    table_manager.criar_tabela(
+        colunas=colunas,
+        df=df,
+        on_select_callback=selecionar_item,
+        on_keyboard_callback=on_select
+    )
     
-    # Configuração das colunas
-    for col in colunas:
-        treeview.heading(col, text=col, anchor=W)
-        treeview.column(col, width=120, anchor=W)
-    
-    # Adicionar dados iniciais
-    for i, row in df.iterrows():
-        row = list(row)
-        # Padronizar data de nascimento (índice 4)
-        if row[4]:
-            try:
-                if isinstance(row[4], str):
-                    # Tenta converter string para data
-                    data = datetime.strptime(row[4], '%Y-%m-%d')
-                elif isinstance(row[4], (datetime, date)):
-                    data = row[4]
-                else:
-                    continue  # Pula se não for um tipo de data válido
-                row[4] = data.strftime('%d/%m/%Y')
-            except Exception:
-                pass  # Se não conseguir converter, deixa como está
-        treeview.insert("", "end", values=row)
-    
-    # Vincular evento de clique único e duplo
-    treeview.bind("<ButtonRelease-1>", selecionar_item)
-    treeview.bind("<Double-1>", selecionar_item)
-    
-    # Vincular eventos de teclado para navegação
-    treeview.bind("<Up>", on_select)
-    treeview.bind("<Down>", on_select)
-    treeview.bind("<Prior>", on_select)  # Page Up
-    treeview.bind("<Next>", on_select)   # Page Down
-    treeview.bind("<Home>", on_select)   # Home
-    treeview.bind("<End>", on_select)    # End
-    
-    # Adicionar dica/instrução visual para o usuário
-    instrucao_label = Label(frame_tabela, text="Clique ou use as setas do teclado para selecionar um item", 
-                         font=('Ivy 10 italic'), bg=co1, fg=co0)
-    # NÃO fazer pack do label - será mostrado junto com a tabela quando necessário
+    # Atualizar globals para compatibilidade
+    treeview = table_manager.treeview
+    tabela_frame = table_manager.tabela_frame
     
     # IMPORTANTE: Exibir dashboard por padrão ao invés da tabela
     criar_dashboard()
@@ -4163,19 +4114,6 @@ def verificar_e_gerar_boletim(aluno_id, ano_letivo_id=None):
         except Exception:
             pass
 
-def criar_menu_contextual():
-    menu_contextual = Menu(janela, tearoff=0)
-    menu_contextual.add_command(label="Editar", command=editar_aluno_e_destruir_frames)
-    # Outros itens do menu...
-    
-    def mostrar_menu(event):
-        try:
-            menu_contextual.tk_popup(event.x_root, event.y_root)
-        finally:
-            menu_contextual.grab_release()
-    
-    treeview.bind("<Button-3>", mostrar_menu)  # Clique direito
-
 # ============================================================================
 # OTIMIZAÇÃO 4: Cache de resultados para atualização incremental
 # ============================================================================
@@ -5166,70 +5104,18 @@ def editar_matricula(aluno_id):
         logger.error(f"Erro detalhado: {str(e)}")
 
 def selecionar_mes_movimento():
-    # Criar uma nova janela
-    janela_mes = Toplevel()
-    janela_mes.title("Selecionar Mês")
-    janela_mes.geometry("300x200")
-    janela_mes.configure(background=co1)
-    janela_mes.resizable(False, False)
+    """Seleciona mês para o relatório de movimentação usando dialogs.py."""
+    from ui.dialogs import selecionar_mes
     
-    # Centralizar a janela
-    janela_mes.transient(janela)
-    janela_mes.grab_set()
-    
-    # Frame para o conteúdo
-    frame_mes = Frame(janela_mes, bg=co1)
-    frame_mes.pack(expand=True, fill=BOTH, padx=20, pady=20)
-    
-    # Label de instrução
-    Label(frame_mes, text="Selecione o mês para o relatório:", 
-          font=('Ivy', 12), bg=co1, fg=co0).pack(pady=10)
-    
-    # Lista de meses (gerada a partir do utilitário centralizado)
-    try:
-        meses = [nome_mes_pt_folha(i) for i in range(1, 13)]
-    except Exception:
-        meses = [
-            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-        ]
-    
-    # Obter mês atual
-    mes_atual = datetime.now().month
-    
-    # Filtrar apenas os meses até o atual
-    meses_disponiveis = meses[:mes_atual]
-    
-    # Variável para armazenar a seleção
-    mes_selecionado = StringVar(value=meses[mes_atual - 1])
-    
-    # Criar combobox com os meses disponíveis
-    combo_mes = ttk.Combobox(frame_mes, values=meses_disponiveis, 
-                            textvariable=mes_selecionado,
-                            state="readonly",
-                            font=('Ivy', 12))
-    combo_mes.current(mes_atual - 1)  # -1 porque o índice começa em 0
-    combo_mes.pack(pady=10)
-    
-    def confirmar():
-        # Converter o nome do mês para seu número correspondente
-        nome_mes = mes_selecionado.get()
-        numero_mes = meses.index(nome_mes) + 1  # +1 porque o índice começa em 0
-        janela_mes.destroy()
+    def callback_mes(numero_mes: int):
         relatorio_movimentacao_mensal(numero_mes)
     
-    def cancelar():
-        janela_mes.destroy()
-    
-    # Frame para os botões
-    frame_botoes = Frame(frame_mes, bg=co1)
-    frame_botoes.pack(pady=20)
-    
-    # Botões
-    Button(frame_botoes, text="Confirmar", command=confirmar,
-           font=('Ivy', 10), bg=co2, fg=co0, width=10).pack(side=LEFT, padx=5)
-    Button(frame_botoes, text="Cancelar", command=cancelar,
-           font=('Ivy', 10), bg=co8, fg=co0, width=10).pack(side=LEFT, padx=5)
+    selecionar_mes(
+        parent=janela,
+        titulo="Selecionar Mês para Relatório",
+        callback=callback_mes,
+        colors={'co1': co1, 'co0': co0, 'co2': co2, 'co8': co8}
+    )
 
 def relatorio():
     # Criar menu de meses
@@ -5894,7 +5780,13 @@ criar_acoes()  # Isso cria os botões principais
 criar_pesquisa()
 criar_tabela()
 criar_rodape()  # Cria o rodapé na parte inferior da janela
-criar_menu_contextual()
+
+# Criar menu contextual usando MenuManager
+menu_manager = MenuManager(janela=janela)
+menu_manager.criar_menu_contextual(
+    treeview=treeview,
+    callbacks={'editar': editar_aluno_e_destruir_frames}
+)
 
 # Iniciar o sistema de backup automático (pule quando em modo de teste)
 if not TEST_MODE:

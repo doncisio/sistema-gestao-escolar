@@ -219,7 +219,7 @@ def listar_funcionarios(
         with get_cursor() as cursor:
             # Construir query com filtros
             query = "SELECT * FROM funcionarios WHERE escola_id = %s"
-            params = [escola_id]
+            params: List = [escola_id]
             
             if cargo:
                 query += " AND cargo = %s"
