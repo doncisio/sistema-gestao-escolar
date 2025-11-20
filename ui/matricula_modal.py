@@ -56,7 +56,6 @@ class MatriculaModal:
             # Importar serviços
             from services.matricula_service import (
                 obter_ano_letivo_atual,
-                verificar_matricula_existente,
                 obter_series_disponiveis
             )
             
@@ -66,16 +65,8 @@ class MatriculaModal:
                 messagebox.showerror("Erro", "Ano letivo atual não encontrado")
                 return
             
-            # Verificar matrícula existente
-            matricula_existente = verificar_matricula_existente(self.aluno_id, self.ano_letivo_id)
-            if matricula_existente and matricula_existente.get('status') == 'Ativo':
-                messagebox.showwarning(
-                    "Aviso",
-                    f"Aluno já possui matrícula ativa:\n"
-                    f"Série: {matricula_existente.get('serie')}\n"
-                    f"Turma: {matricula_existente.get('turma')}"
-                )
-                return
+            # REMOVIDO: Verificação de matrícula existente
+            # O modal deve permitir tanto criar quanto editar matrículas
             
             # Criar janela
             self.janela = Toplevel(self.parent)
@@ -132,6 +123,15 @@ class MatriculaModal:
             ).pack(anchor='w')
             
             self.series = obter_series_disponiveis()
+            
+            # Verificar se séries foram carregadas
+            if not self.series:
+                self.logger.error("Nenhuma série disponível retornada")
+                messagebox.showerror("Erro", "Não foi possível carregar as séries disponíveis.")
+                if self.janela:
+                    self.janela.destroy()
+                return
+            
             self.serie_var = ttk.Combobox(
                 frame_serie,
                 state="readonly",

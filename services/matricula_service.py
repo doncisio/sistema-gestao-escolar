@@ -53,10 +53,11 @@ def obter_series_disponiveis() -> List[Dict]:
             cursor.execute("""
                 SELECT id, nome 
                 FROM serie 
-                ORDER BY ordem
+                ORDER BY id
             """)
             
             resultados = cursor.fetchall()
+            logger.debug(f"Séries encontradas: {len(resultados) if resultados else 0}")
             
             if isinstance(resultados, list) and len(resultados) > 0:
                 if isinstance(resultados[0], dict):
@@ -64,6 +65,7 @@ def obter_series_disponiveis() -> List[Dict]:
                 else:
                     return [{'id': r[0], 'nome': r[1]} for r in resultados]
             
+            logger.warning("Nenhuma série encontrada no banco de dados")
             return []
             
     except MySQLError as e:

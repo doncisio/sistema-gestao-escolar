@@ -80,7 +80,7 @@ def verificar_historico_matriculas(aluno_id: int) -> tuple[bool, list]:
         aluno_id: ID do aluno
         
     Returns:
-        Tupla (tem_historico, lista_de_anos_letivos)
+        Tupla (tem_historico, lista_de_tuplas) onde lista contém (ano_letivo, ano_letivo_id)
     """
     try:
         aluno_id_int = converter_para_int_seguro(aluno_id)
@@ -91,7 +91,7 @@ def verificar_historico_matriculas(aluno_id: int) -> tuple[bool, list]:
             cursor = conn.cursor()
             
             cursor.execute("""
-                SELECT DISTINCT al.ano_letivo
+                SELECT DISTINCT al.ano_letivo, al.id
                 FROM matriculas m
                 JOIN anosletivos al ON m.ano_letivo_id = al.id
                 WHERE m.aluno_id = %s
@@ -102,8 +102,9 @@ def verificar_historico_matriculas(aluno_id: int) -> tuple[bool, list]:
             cursor.close()
             
             if resultados:
-                anos = [r[0] if isinstance(r, tuple) else r['ano_letivo'] for r in resultados]
-                return True, anos
+                # Retornar lista de tuplas (ano_letivo, ano_letivo_id)
+                anos_letivos = [(r[0], r[1]) if isinstance(r, tuple) else (r['ano_letivo'], r['id']) for r in resultados]
+                return True, anos_letivos
             return False, []
             
     except Exception as e:
@@ -375,12 +376,6 @@ def criar_menu_boletim(
     from tkinter import StringVar, DISABLED, LEFT
     from tkinter import ttk
     
-    if not anos_letivos:
-        # Se não tem histórico, adicionar um botão desabilitado
-        Button(parent_frame, text="Boletim", state=DISABLED,
-               width=10, overrelief=RIDGE, font=('Ivy 9'), bg=colors['co6'], fg=colors['co7']).grid(row=0, column=col, padx=5, pady=5)
-        return
-    
     # Criar frame para conter o label e o combobox
     boletim_frame = Frame(parent_frame, bg=colors['co1'])
     boletim_frame.grid(row=0, column=col, padx=5, pady=5)
@@ -428,7 +423,8 @@ def criar_menu_boletim(
     anos_display = list(anos_info.keys())
     
     if not anos_display:
-        # Se não conseguiu obter anos, mostrar botão desabilitado
+        # Se não conseguiu obter anos, destruir o frame vazio e mostrar botão desabilitado
+        boletim_frame.destroy()
         Button(parent_frame, text="Boletim", state=DISABLED,
                width=10, overrelief=RIDGE, font=('Ivy 9'), bg=colors['co6'], fg=colors['co7']).grid(row=0, column=col, padx=5, pady=5)
         return
@@ -512,8 +508,8 @@ def criar_menu_boletim(
             from threading import Thread
             Thread(target=_thread_worker, daemon=True).start()
     
-    # NÃO vincular ao evento de seleção - apenas ao botão Gerar
-    # combo_anos.bind("<<ComboboxSelected>>", gerar_boletim_selecionado)
+    # Vincular a função ao evento de seleção no combobox
+    combo_anos.bind("<<ComboboxSelected>>", gerar_boletim_selecionado)
     
     # Adicionar botão "Gerar" ao lado do combobox
     Button(boletim_frame, text="Gerar", command=gerar_boletim_selecionado,
@@ -748,7 +744,9 @@ def matricular_aluno_wrapper(aluno_id):
         import tkinter as tk
         
         root = tk._default_root
+        
         if not root:
+            logger.error("Janela principal não encontrada")
             messagebox.showerror("Erro", "Janela principal não encontrada.")
             return
         
@@ -760,18 +758,19 @@ def matricular_aluno_wrapper(aluno_id):
             cursor.close()
         
         if resultado_nome is None:
+            logger.error(f"Aluno {aluno_id} não encontrado")
             messagebox.showerror("Erro", "Aluno não encontrado.")
             return
         
         nome_aluno = resultado_nome[0]
         
-        # Callback para atualizar interface após matrícula
-        def callback_sucesso():
+        # Callback para atualizar interface após matrícula (Sprint 15)
+        def ao_matricular_sucesso():
             try:
-                messagebox.showinfo("Sucesso", "Matrícula realizada com sucesso!")
-                # Recarregar detalhes se necessário
-            except Exception:
-                pass
+                logger.info(f"Aluno {nome_aluno} matriculado com sucesso")
+                messagebox.showinfo("Sucesso", f"Aluno {nome_aluno} matriculado com sucesso!")
+            except Exception as e:
+                logger.exception(f"Erro no callback de sucesso: {e}")
         
         # Criar e mostrar modal de matrícula
         MatriculaModal(
@@ -779,10 +778,11 @@ def matricular_aluno_wrapper(aluno_id):
             aluno_id=aluno_id,
             nome_aluno=nome_aluno,
             colors=get_colors_dict(),
-            callback_sucesso=callback_sucesso
+            callback_sucesso=ao_matricular_sucesso
         )
+        
     except Exception as e:
-        logger.exception(f"Erro ao abrir modal de matrícula: {e}")
+        logger.exception(f"ERRO em matricular_aluno_wrapper: {e}")
         messagebox.showerror("Erro", f"Erro ao matricular: {e}")
 
 
@@ -795,7 +795,9 @@ def editar_matricula_wrapper(aluno_id):
         from db.connection import get_connection
         
         root = tk._default_root
+        
         if not root:
+            logger.error("Janela principal não encontrada")
             messagebox.showerror("Erro", "Janela principal não encontrada.")
             return
         
@@ -807,21 +809,31 @@ def editar_matricula_wrapper(aluno_id):
             cursor.close()
         
         if resultado_nome is None:
+            logger.error(f"Aluno {aluno_id} não encontrado")
             messagebox.showerror("Erro", "Aluno não encontrado.")
             return
         
         nome_aluno = resultado_nome[0]
         
-        # Criar e mostrar modal de matrícula
+        # Callback para atualizar interface após edição (Sprint 15)
+        def ao_editar_sucesso():
+            try:
+                logger.info(f"Matrícula do aluno {nome_aluno} editada com sucesso")
+                messagebox.showinfo("Sucesso", f"Matrícula de {nome_aluno} atualizada com sucesso!")
+            except Exception as e:
+                logger.exception(f"Erro no callback de sucesso: {e}")
+        
+        # Criar e mostrar modal de matrícula (funciona para criar e editar)
         MatriculaModal(
             parent=root,
             aluno_id=aluno_id,
             nome_aluno=nome_aluno,
             colors=get_colors_dict(),
-            callback_sucesso=None
+            callback_sucesso=ao_editar_sucesso
         )
+        
     except Exception as e:
-        logger.exception(f"Erro ao editar matrícula: {e}")
+        logger.exception(f"ERRO em editar_matricula_wrapper: {e}")
         messagebox.showerror("Erro", f"Erro ao editar matrícula: {e}")
 
 

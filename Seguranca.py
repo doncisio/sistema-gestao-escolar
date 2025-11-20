@@ -201,14 +201,7 @@ def agendar_backup_diario():
     schedule.every().day.at("14:05").do(executar_backup_automatico)
     schedule.every().day.at("17:00").do(executar_backup_automatico)
     
-    logger.info("\n" + "="*70)
-    logger.info("Sistema de Backup Automático Ativado")
-    logger.info("="*70)
-    logger.info("• Horários de execução: 14:05 e 17:00 (todos os dias)")
-    logger.info("• Janela de execução permitida: 14:00 - 19:00")
-    logger.info("• Backup final: Ao fechar o programa")
-    logger.info("• Status: Aguardando próximo horário de backup...")
-    logger.info("="*70 + "\n")
+    logger.info("Sistema de Backup Automático ativado (14:05 e 17:00)")
 
 
 def executar_agendador():

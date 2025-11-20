@@ -25,7 +25,7 @@ import Seguranca
 logger = get_logger(__name__)
 
 # TEST_MODE: Usar variável de ambiente para controlar modo de teste
-TEST_MODE = os.environ.get('GESTAO_TEST_MODE', 'false').lower() == 'true'
+TEST_MODE = os.environ.get('GESTAO_TEST_MODE', 'false').lower() == 'false'
 
 if TEST_MODE:
     logger.warning("⚠️ SISTEMA EM MODO DE TESTE - Backups automáticos desabilitados")
@@ -40,27 +40,27 @@ def main():
     """
     try:
         # Criar instância da aplicação
-        logger.info("Criando instância da Application...")
+        logger.debug("Criando instância da Application...")
         app = Application()
         
         # Configurar frames principais
-        logger.info("Configurando frames...")
+        logger.debug("Configurando frames...")
         app.setup_frames()
         
         # Configurar logo
-        logger.info("Configurando logo...")
+        logger.debug("Configurando logo...")
         app.setup_logo()
         
         # Configurar callbacks de ações
-        logger.info("Configurando action callbacks...")
+        logger.debug("Configurando action callbacks...")
         app.setup_action_callbacks(atualizar_tabela_callback=None)  # TODO: implementar callback
         
         # Configurar botões e menus usando ButtonFactory
-        logger.info("Configurando botões e menus...")
+        logger.debug("Configurando botões e menus...")
         app.setup_action_buttons_and_menus()
         
         # Configurar barra de pesquisa
-        logger.info("Configurando pesquisa...")
+        logger.debug("Configurando pesquisa...")
         
         def pesquisar_callback(event=None):
             """Callback de pesquisa integrado"""
@@ -85,7 +85,7 @@ def main():
         app.setup_search(callback_pesquisa=pesquisar_callback)
         
         # Configurar tabela principal
-        logger.info("Configurando tabela...")
+        logger.debug("Configurando tabela...")
         
         def on_select_callback(event):
             """Callback de seleção na tabela"""
@@ -172,11 +172,11 @@ def main():
         )
         
         # Configurar rodapé
-        logger.info("Configurando rodapé...")
+        logger.debug("Configurando rodapé...")
         app.setup_footer()
         
         # Configurar menu contextual
-        logger.info("Configurando menu contextual...")
+        logger.debug("Configurando menu contextual...")
         
         def editar_callback():
             """Callback de edição via menu contextual"""
@@ -239,17 +239,14 @@ def main():
         # Iniciar sistema de backup automático (se não estiver em modo teste)
         if not TEST_MODE:
             try:
-                logger.info("Iniciando sistema de backup automático...")
+                logger.debug("Iniciando sistema de backup automático...")
                 Seguranca.iniciar_backup_automatico()
-                logger.info("Sistema de backup iniciado (14:05 e 17:00)")
+                logger.debug("Sistema de backup iniciado (14:05 e 17:00)")
             except Exception as e:
                 logger.error(f"Erro ao iniciar backup automático: {e}")
         
-        # Mensagem de sucesso
-        logger.info("="*70)
-        logger.info("Sistema inicializado com sucesso!")
-        logger.info("Application class integrada - Sprint 16")
-        logger.info("="*70)
+        # Mensagem de sucesso (resumida)
+        logger.info("Sistema inicializado com sucesso - Sprint 16")
         
         # Iniciar mainloop
         app.run()
