@@ -48,7 +48,7 @@ class Application:
     
     def __init__(self):
         """Inicializa a aplicação e seus componentes."""
-        logger.info("Inicializando aplicação...")
+        logger.debug("Inicializando aplicação...")
         
         # Estado da aplicação
         self.selected_item: Optional[Any] = None
@@ -84,9 +84,9 @@ class Application:
     def _initialize_connection_pool(self):
         """Inicializa o pool de conexões com o banco de dados."""
         try:
-            logger.info("Inicializando connection pool...")
+            logger.debug("Inicializando connection pool...")
             inicializar_pool()
-            logger.info("Connection pool inicializado com sucesso")
+            logger.debug("Connection pool inicializado com sucesso")
         except Exception as e:
             logger.exception(f"Erro ao inicializar connection pool: {e}")
             raise
@@ -414,5 +414,5 @@ class Application:
         assert self.janela is not None, "Janela não inicializada ao executar run"
         self.janela.protocol("WM_DELETE_WINDOW", self.on_close)
         
-        logger.info("Iniciando mainloop...")
+        logger.debug("Iniciando mainloop...")
         self.janela.mainloop()
