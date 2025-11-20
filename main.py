@@ -1531,143 +1531,154 @@ def verificar_matricula_ativa(aluno_id):
     Returns:
         bool: True se o aluno possui matrícula ativa ou transferida, False caso contrário
     """
+    from mysql.connector import Error as MySQLError
+    from db.connection import get_cursor
+    
     try:
-        # Usar o context manager para garantir fechamento da conexão
-        with get_connection() as conn:
-            if conn is None:
-                return False
-            cursor = conn.cursor()
-            try:
-                # Obtém o ID do ano letivo atual
-                cursor.execute("SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
+        aluno_id_int = int(str(aluno_id))
+    except (ValueError, TypeError) as e:
+        logger.error(f"ID de aluno inválido: {aluno_id} - {e}")
+        messagebox.showerror("Erro", "ID de aluno inválido.")
+        return False
+    
+    try:
+        with get_cursor() as cursor:
+            # Obtém o ID do ano letivo atual
+            cursor.execute("SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
+            resultado_ano = cursor.fetchone()
+
+            if not resultado_ano:
+                # Se não encontrar o ano letivo atual, tenta obter o ano letivo mais recente
+                logger.debug("Ano letivo atual não encontrado, buscando o mais recente")
+                cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
                 resultado_ano = cursor.fetchone()
 
-                if not resultado_ano:
-                    # Se não encontrar o ano letivo atual, tenta obter o ano letivo mais recente
-                    cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
-                    resultado_ano = cursor.fetchone()
+            if not resultado_ano:
+                logger.warning("Nenhum ano letivo encontrado no sistema")
+                messagebox.showwarning("Aviso", "Não foi possível determinar o ano letivo atual.")
+                return False
 
-                if not resultado_ano:
-                    messagebox.showwarning("Aviso", "Não foi possível determinar o ano letivo atual.")
-                    return False
+            ano_letivo_id = int(str(resultado_ano['id'] if isinstance(resultado_ano, dict) else resultado_ano[0]))
+            logger.debug(f"Verificando matrícula para aluno {aluno_id_int} no ano letivo {ano_letivo_id}")
 
-                ano_letivo_id = resultado_ano[0]
+            # Verifica se o aluno possui matrícula ativa ou transferida na escola 60 no ano letivo atual
+            cursor.execute("""
+                SELECT m.id 
+                FROM matriculas m
+                JOIN turmas t ON m.turma_id = t.id
+                WHERE m.aluno_id = %s 
+                AND m.ano_letivo_id = %s 
+                AND t.escola_id = 60
+                AND m.status IN ('Ativo', 'Transferido')
+            """, (aluno_id_int, ano_letivo_id))
 
-                # Verifica se o aluno possui matrícula ativa ou transferida na escola 60 no ano letivo atual
-                cursor.execute("""
-                    SELECT m.id 
-                    FROM matriculas m
-                    JOIN turmas t ON m.turma_id = t.id
-                    WHERE m.aluno_id = %s 
-                    AND m.ano_letivo_id = %s 
-                    AND t.escola_id = 60
-                    AND m.status IN ('Ativo', 'Transferido')
-                """, (int(str(aluno_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
-
-                resultado = cursor.fetchone()
-
-                return resultado is not None
-            finally:
-                try:
-                    cursor.close()
-                except Exception:
-                    pass
-    except Exception as e:
+            resultado = cursor.fetchone()
+            tem_matricula = resultado is not None
+            
+            logger.debug(f"Aluno {aluno_id_int} {'possui' if tem_matricula else 'não possui'} matrícula ativa")
+            return tem_matricula
+            
+    except MySQLError as e:
+        logger.exception(f"Erro MySQL ao verificar matrícula do aluno {aluno_id}: {e}")
         messagebox.showerror("Erro", f"Erro ao verificar matrícula: {str(e)}")
-        logger.error(f"Erro ao verificar matrícula: {str(e)}")
+        return False
+    except Exception as e:
+        logger.exception(f"Erro inesperado ao verificar matrícula do aluno {aluno_id}: {e}")
+        messagebox.showerror("Erro", f"Erro ao verificar matrícula: {str(e)}")
         return False
 
 def verificar_historico_matriculas(aluno_id):
     """
     Verifica se o aluno já teve alguma matrícula em qualquer escola e em qualquer ano letivo.
-        SELECT 
-        f.id AS id,
-        f.nome AS nome,
-        'Funcionário' AS tipo,
-        f.cargo AS cargo,
-        f.data_nascimento AS data_nascimento
-    FROM 
-        Funcionarios f
-    WHERE 
-        f.cargo IN ('Administrador do Sistemas','Gestor Escolar','Professor@','Auxiliar administrativo',
-            'Agente de Portaria','Merendeiro','Auxiliar de serviços gerais','Técnico em Administração Escolar',
-            'Especialista (Coordenadora)','Tutor/Cuidador', 'Interprete de Libras')
-    UNION
-    SELECT
-        a.id AS id,
-        a.nome AS nome,
-        'Aluno' AS tipo,
-        NULL AS cargo,
-        a.data_nascimento AS data_nascimento
-    FROM
-        Alunos a
-    WHERE 
-        a.escola_id = 60
-    ORDER BY 
-        tipo, 
-        nome;
+    
     Args:
         aluno_id: ID do aluno a ser verificado
         
     Returns:
-        bool: True se o aluno possui histórico de matrícula, False caso contrário
-        list: Lista de tuplas (ano_letivo, ano_letivo_id) com matrícula (vazio se não houver)
+        tuple: (bool, list) onde:
+            - bool: True se o aluno possui histórico de matrícula, False caso contrário
+            - list: Lista de tuplas (ano_letivo, ano_letivo_id) com matrícula (vazio se não houver)
     """
+    from mysql.connector import Error as MySQLError
+    from db.connection import get_cursor
+    
     try:
-        with get_connection() as conn:
-            if conn is None:
+        aluno_id_int = int(str(aluno_id))
+    except (ValueError, TypeError) as e:
+        logger.error(f"ID de aluno inválido em verificar_historico_matriculas: {aluno_id} - {e}")
+        messagebox.showerror("Erro", "ID de aluno inválido.")
+        return False, []
+    
+    try:
+        with get_cursor() as cursor:
+            # Verifica se o aluno possui matrícula em qualquer ano letivo
+            logger.debug(f"Buscando histórico de matrículas para aluno {aluno_id_int}")
+            cursor.execute("""
+                SELECT DISTINCT al.ano_letivo, al.id, m.status
+                FROM matriculas m
+                JOIN turmas t ON m.turma_id = t.id
+                JOIN anosletivos al ON m.ano_letivo_id = al.id
+                WHERE m.aluno_id = %s 
+                AND m.status IN ('Ativo', 'Transferido')
+                ORDER BY al.ano_letivo DESC
+            """, (aluno_id_int,))
+
+            resultados = cursor.fetchall()
+
+            # Se não houver resultados, verificar diretamente se há o ano letivo 2024 (ID=1)
+            if not resultados:
+                logger.debug(f"Nenhuma matrícula ativa encontrada para aluno {aluno_id_int}, verificando ano letivo padrão")
+                cursor.execute("SELECT ano_letivo, id FROM anosletivos WHERE id = 1")
+                ano_2024 = cursor.fetchone()
+                if ano_2024:
+                    # Verificar se o aluno tem qualquer matrícula para este ano
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM matriculas 
+                        WHERE aluno_id = %s AND ano_letivo_id = 1
+                    """, (aluno_id_int,))
+                    resultado_count = cursor.fetchone()
+                    count_val = resultado_count['COUNT(*)'] if isinstance(resultado_count, dict) else resultado_count[0]
+                    tem_matricula = bool(count_val and int(str(count_val)) > 0)
+
+                    if tem_matricula:
+                        ano_val = ano_2024['ano_letivo'] if isinstance(ano_2024, dict) else ano_2024[0]
+                        id_val = ano_2024['id'] if isinstance(ano_2024, dict) else ano_2024[1]
+                        resultados = [(ano_val, id_val, 'Ativo')]
+                        logger.debug(f"Encontrada matrícula no ano letivo padrão para aluno {aluno_id_int}")
+
+            # Se encontrou resultados, retorna True e a lista de anos letivos
+            if resultados:
+                anos_letivos = []
+                for row in resultados:
+                    if isinstance(row, dict):
+                        anos_letivos.append((row['ano_letivo'], row['id']))
+                    else:
+                        anos_letivos.append((row[0], row[1]))
+                logger.info(f"Aluno {aluno_id_int} possui {len(anos_letivos)} matrícula(s) no histórico")
+                return True, anos_letivos
+            else:
+                # Se ainda não encontrou, busca todos os anos letivos disponíveis
+                logger.debug("Nenhuma matrícula encontrada, retornando todos os anos letivos disponíveis")
+                cursor.execute("SELECT ano_letivo, id FROM anosletivos ORDER BY ano_letivo DESC")
+                todos_anos = cursor.fetchall()
+
+                if todos_anos:
+                    anos_list = []
+                    for row in todos_anos:
+                        if isinstance(row, dict):
+                            anos_list.append((row['ano_letivo'], row['id']))
+                        else:
+                            anos_list.append((row[0], row[1]))
+                    return True, anos_list
                 return False, []
-            cursor = cast(Any, conn).cursor()
-            try:
-                # Verifica se o aluno possui matrícula em qualquer ano letivo
-                cursor.execute("""
-                    SELECT DISTINCT al.ano_letivo, al.id, m.status
-                    FROM matriculas m
-                    JOIN turmas t ON m.turma_id = t.id
-                    JOIN anosletivos al ON m.ano_letivo_id = al.id
-                    WHERE m.aluno_id = %s 
-                    AND m.status IN ('Ativo', 'Transferido')
-                    ORDER BY al.ano_letivo DESC
-                """, (aluno_id,))
-
-                resultados = cursor.fetchall()
-
-                # Se não houver resultados, verificar diretamente se há o ano letivo 2024 (ID=1)
-                if not resultados:
-                    cursor.execute("SELECT ano_letivo, id FROM anosletivos WHERE id = 1")
-                    ano_2024 = cursor.fetchone()
-                    if ano_2024:
-                        # Verificar se o aluno tem qualquer matrícula para este ano
-                        cursor.execute("""
-                            SELECT COUNT(*) FROM matriculas 
-                            WHERE aluno_id = %s AND ano_letivo_id = 1
-                        """, (int(str(aluno_id)),))
-                        resultado_count = cursor.fetchone()
-                        tem_matricula = bool(resultado_count and resultado_count[0] and int(str(resultado_count[0])) > 0)
-
-                        if tem_matricula:
-                            resultados = [(ano_2024[0], ano_2024[1], 'Ativo')]
-
-                # Se encontrou resultados, retorna True e a lista de anos letivos
-                if resultados:
-                    anos_letivos = [(ano, id_ano) for ano, id_ano, _ in resultados]
-                    return True, anos_letivos
-                else:
-                    # Se ainda não encontrou, busca todos os anos letivos disponíveis
-                    cursor.execute("SELECT ano_letivo, id FROM anosletivos ORDER BY ano_letivo DESC")
-                    todos_anos = cursor.fetchall()
-
-                    if todos_anos:
-                        return True, todos_anos
-                    return False, []
-            finally:
-                try:
-                    cursor.close()
-                except Exception:
-                    pass
-    except Exception as e:
+                
+    except MySQLError as e:
+        logger.exception(f"Erro MySQL ao verificar histórico de matrículas do aluno {aluno_id}: {e}")
         messagebox.showerror("Erro", f"Erro ao verificar histórico de matrículas: {str(e)}")
-        logger.error(f"Erro ao verificar histórico de matrículas: {str(e)}")
+        return False, []
+    except Exception as e:
+        logger.exception(f"Erro inesperado ao verificar histórico de matrículas do aluno {aluno_id}: {e}")
+        messagebox.showerror("Erro", f"Erro ao verificar histórico de matrículas: {str(e)}")
         return False, []
 
 def matricular_aluno(aluno_id):
@@ -1767,9 +1778,13 @@ def matricular_aluno(aluno_id):
 
         # Função para carregar séries
         def carregar_series():
+            from mysql.connector import Error as MySQLError
+            from db.connection import get_cursor
+            
             try:
-                with get_connection() as conn:
-                    cursor = conn.cursor()
+                ano_letivo_id_int = int(str(ano_letivo_id)) if ano_letivo_id is not None else 1
+                
+                with get_cursor() as cursor:
                     cursor.execute("""
                         SELECT DISTINCT s.id, s.nome 
                         FROM serie s
@@ -1777,19 +1792,22 @@ def matricular_aluno(aluno_id):
                         WHERE t.escola_id = 60
                         AND t.ano_letivo_id = %s
                         ORDER BY s.nome
-                    """, (int(str(ano_letivo_id)) if ano_letivo_id is not None else 1,))
+                    """, (ano_letivo_id_int,))
                     series = cursor.fetchall()
-                    cursor.close()
 
                 if not series:
+                    logger.warning(f"Nenhuma série encontrada para ano letivo {ano_letivo_id_int}")
                     messagebox.showwarning("Aviso", "Não foram encontradas séries para a escola selecionada no ano letivo atual.")
                     return
 
                 series_map.clear()
                 for serie in series:
-                    series_map[serie[1]] = serie[0]
+                    serie_id = serie['id'] if isinstance(serie, dict) else serie[0]
+                    serie_nome = serie['nome'] if isinstance(serie, dict) else serie[1]
+                    series_map[serie_nome] = serie_id
 
                 cb_serie['values'] = list(series_map.keys())
+                logger.debug(f"Carregadas {len(series_map)} séries")
 
                 # Limpar seleção de turma
                 cb_turma.set("")
@@ -1799,17 +1817,25 @@ def matricular_aluno(aluno_id):
                 if len(series_map) == 1:
                     serie_nome = list(series_map.keys())[0]
                     cb_serie.set(serie_nome)
+                    logger.debug(f"Série única selecionada automaticamente: {serie_nome}")
                     # Carregar turmas automaticamente para a única série
                     carregar_turmas()
 
+            except MySQLError as e:
+                logger.exception(f"Erro MySQL ao carregar séries: {e}")
+                messagebox.showerror("Erro", f"Erro ao carregar séries: {str(e)}")
             except Exception as e:
+                logger.exception(f"Erro inesperado ao carregar séries: {e}")
                 messagebox.showerror("Erro", f"Erro ao carregar séries: {str(e)}")
 
         # Função para carregar turmas com base na série selecionada
         def carregar_turmas(event=None):
+            from mysql.connector import Error as MySQLError
+            from db.connection import get_cursor
+            
             serie_nome = serie_var.get()
             if not serie_nome:
-                logger.warning("Série não selecionada")
+                logger.warning("Tentativa de carregar turmas sem série selecionada")
                 return
 
             if serie_nome not in series_map:
@@ -1817,27 +1843,29 @@ def matricular_aluno(aluno_id):
                 return
 
             serie_id = series_map[serie_nome]
+            ano_letivo_id_int = int(str(ano_letivo_id)) if ano_letivo_id is not None else 1
 
             try:
-                with get_connection() as conn:
-                    cursor = conn.cursor()
+                with get_cursor() as cursor:
                     cursor.execute("""
                         SELECT id, nome, serie_id
                         FROM turmas 
                         WHERE serie_id = %s AND escola_id = 60 AND ano_letivo_id = %s
                         ORDER BY nome
-                    """, (int(str(serie_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
+                    """, (int(str(serie_id)), ano_letivo_id_int))
 
                     turmas = cursor.fetchall()
-                    cursor.close()
 
                 if not turmas:
+                    logger.warning(f"Nenhuma turma encontrada para série {serie_nome} (ID: {serie_id})")
                     messagebox.showwarning("Aviso", f"Não foram encontradas turmas para a série {serie_nome}.")
                     return
 
                 turmas_map.clear()
                 for turma in turmas:
-                    turma_id, turma_nome, turma_serie_id = turma
+                    turma_id = turma['id'] if isinstance(turma, dict) else turma[0]
+                    turma_nome = turma['nome'] if isinstance(turma, dict) else turma[1]
+                    
                     if not turma_nome or str(turma_nome).strip() == "":
                         if len(turmas) == 1:
                             turma_nome = f"Turma Única"
@@ -1847,6 +1875,7 @@ def matricular_aluno(aluno_id):
 
                 turmas_nomes = list(turmas_map.keys())
                 cb_turma['values'] = turmas_nomes
+                logger.debug(f"Carregadas {len(turmas_map)} turmas para série {serie_nome}")
 
                 if len(turmas_map) == 1:
                     turma_nome = turmas_nomes[0]
@@ -1857,9 +1886,12 @@ def matricular_aluno(aluno_id):
                     cb_turma.set("")
                     turma_var.set("")
 
-            except Exception as e:
+            except MySQLError as e:
+                logger.exception(f"Erro MySQL ao carregar turmas para série {serie_nome}: {e}")
                 messagebox.showerror("Erro", f"Erro ao carregar turmas: {str(e)}")
-                logger.error(f"Erro detalhado: {str(e)}")
+            except Exception as e:
+                logger.exception(f"Erro inesperado ao carregar turmas para série {serie_nome}: {e}")
+                messagebox.showerror("Erro", f"Erro ao carregar turmas: {str(e)}")
 
         # Vincular evento ao combobox de série
         cb_serie.bind("<<ComboboxSelected>>", carregar_turmas)
