@@ -75,8 +75,8 @@ def main():
                 # Executar pesquisa
                 pesquisar_alunos_funcionarios(
                     texto_pesquisa=texto,
-                    treeview=app.table_manager.treeview if app.table_manager else None,
-                    tabela_frame=app.table_manager.tabela_frame if app.table_manager else None,
+                    get_treeview_func=lambda: app.table_manager.treeview if app.table_manager else None,
+                    get_tabela_frame_func=lambda: app.table_manager.tabela_frame if app.table_manager else None,
                     frame_tabela=app.frames.get('frame_tabela'),
                     criar_tabela_func=lambda: app.setup_table(on_select_callback=on_select_callback),
                     criar_dashboard_func=lambda: app.dashboard_manager.criar_dashboard() if app.dashboard_manager else None
@@ -104,17 +104,54 @@ def main():
                 item = selected[0]
                 values = treeview.item(item, 'values')
                 
-                if not values or len(values) < 2:
+                if not values or len(values) < 3:
                     return
                 
-                # Valores: (tipo, id, nome, cpf, data_nasc, info_extra)
-                tipo = values[0]
-                item_id = values[1]
+                # Estrutura Sprint 15: (id, nome, tipo, cargo, data_nascimento)
+                # values[0] = ID
+                # values[1] = Nome
+                # values[2] = Tipo
+                # values[3] = Cargo (funcionário) ou NULL (aluno)
+                # values[4] = Data de nascimento
+                
+                item_id = values[0]
+                tipo = values[2]
                 
                 # Atualizar selected_item na aplicação
                 app.selected_item = {'tipo': tipo, 'id': item_id, 'values': values}
                 
                 logger.debug(f"Item selecionado: {tipo} ID={item_id}")
+                
+                # Atualizar logo/título
+                if 'frame_logo' in app.frames:
+                    frame_logo = app.frames['frame_logo']
+                    for widget in frame_logo.winfo_children():
+                        widget.destroy()
+                    
+                    # Criar frame para o título
+                    from tkinter import Frame, Label, LEFT, BOTH, TRUE, X
+                    from PIL import Image, ImageTk
+                    
+                    titulo_frame = Frame(frame_logo, bg=app.colors['co0'])
+                    titulo_frame.pack(fill=BOTH, expand=TRUE)
+                    
+                    try:
+                        # Tentar carregar ícone
+                        app_lp = Image.open('icon/learning.png')
+                        app_lp = app_lp.resize((30, 30))
+                        app_lp = ImageTk.PhotoImage(app_lp)
+                        app_logo = Label(titulo_frame, image=app_lp, text=f"Detalhes: {values[1]}", 
+                                        compound=LEFT, anchor='w', font=('Ivy 15 bold'), 
+                                        bg=app.colors['co0'], fg=app.colors['co1'], padx=10, pady=5)
+                        # Manter referência à imagem
+                        setattr(app_logo, '_image_ref', app_lp)
+                        app_logo.pack(fill=X, expand=TRUE)
+                    except:
+                        # Fallback sem ícone
+                        app_logo = Label(titulo_frame, text=f"Detalhes: {values[1]}", 
+                                        anchor='w', font=('Ivy 15 bold'), 
+                                        bg=app.colors['co0'], fg=app.colors['co1'], padx=10, pady=5)
+                        app_logo.pack(fill=X, expand=TRUE)
                 
                 # Exibir detalhes no frame_detalhes
                 if 'frame_detalhes' in app.frames:
