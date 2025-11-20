@@ -181,12 +181,18 @@ class DashboardManager:
     
     Agora integra com services/estatistica_service.py para buscar dados de estatísticas.
     """
-    def __init__(self, janela, db_service, frame_getter, cache_ref, escola_id=None, co_bg=CO_BG, co_fg=CO_FG, co_accent=CO_ACCENT):
+    def __init__(self, janela, db_service, frame_getter, cache_ref, escola_id: int = 60, ano_letivo: Optional[str] = None, co_bg=CO_BG, co_fg=CO_FG, co_accent=CO_ACCENT):
         self.janela = janela
         self.db_service = db_service
         self.frame_getter = frame_getter
         self.cache_ref = cache_ref
-        self.escola_id = escola_id  # ID da escola (opcional, None = todas)
+        # Garantir que `escola_id` seja um int (compatível com services.estatistica_service)
+        try:
+            self.escola_id: int = int(escola_id)  # ID da escola (padrão: 60)
+        except Exception:
+            # Fallback seguro caso o valor não seja conversível
+            self.escola_id = 60
+        self.ano_letivo = ano_letivo  # Ano letivo para filtrar (None = usa ano atual)
         self.co1 = co_bg
         self.co0 = co_fg
         self.co4 = co_accent
@@ -251,7 +257,7 @@ class DashboardManager:
                 # Usar estatistica_service para buscar dados
                 from services.estatistica_service import obter_estatisticas_alunos
                 
-                dados = obter_estatisticas_alunos(escola_id=self.escola_id)
+                dados = obter_estatisticas_alunos(escola_id=self.escola_id, ano_letivo=self.ano_letivo)
 
                 if not dados or not dados.get('alunos_por_serie'):
                     def _on_empty():
@@ -298,9 +304,38 @@ class DashboardManager:
                 except Exception:
                     ano_letivo_exibir = "Corrente"
 
-                # Preparar dados para o gráfico (ajustar campo correto)
-                series = [item['serie'] for item in dados['alunos_por_serie']]
-                quantidades = [item['quantidade'] for item in dados['alunos_por_serie']]
+                # Preparar dados para o gráfico
+                # Verificar se há turmas múltiplas em alguma série
+                turmas_detalhadas = dados.get('alunos_por_serie_turma', [])
+                
+                # Agrupar turmas por série para verificar se há múltiplas
+                series_com_multiplas_turmas = {}
+                for item in turmas_detalhadas:
+                    serie = item['serie']
+                    if serie not in series_com_multiplas_turmas:
+                        series_com_multiplas_turmas[serie] = []
+                    series_com_multiplas_turmas[serie].append(item)
+                
+                # Preparar labels e quantidades
+                labels = []
+                quantidades = []
+                
+                for item in dados['alunos_por_serie']:
+                    serie = item['serie']
+                    qtd_total = item['quantidade']
+                    
+                    # Se a série tem múltiplas turmas, mostrar detalhadas
+                    if serie in series_com_multiplas_turmas and len(series_com_multiplas_turmas[serie]) > 1:
+                        for turma_item in series_com_multiplas_turmas[serie]:
+                            turma = turma_item['turma']
+                            qtd_turma = turma_item['quantidade']
+                            label = f"{serie} {turma}" if turma.strip() else serie
+                            labels.append(label)
+                            quantidades.append(qtd_turma)
+                    else:
+                        # Série com turma única, mostrar apenas a série
+                        labels.append(serie)
+                        quantidades.append(qtd_total)
 
                 # Construir figura do matplotlib
                 from matplotlib.figure import Figure
@@ -309,14 +344,14 @@ class DashboardManager:
                 fig = Figure(figsize=(11, 6.5), dpi=100, facecolor=self.co1)
                 ax = fig.add_subplot(111)
                 ax.set_facecolor(self.co1)
-                cores = ['#1976d2', '#388e3c', '#d32f2f', '#f57c00', '#7b1fa2', '#0097a7', '#5d4037', '#455a64', '#c2185b', '#afb42b']
+                cores = ['#1976d2', '#388e3c', '#d32f2f', '#f57c00', '#7b1fa2', '#0097a7', '#5d4037', '#455a64', '#c2185b', '#afb42b', '#00897b', '#e64a19']
                 resultado_pie = ax.pie(
                     quantidades,
-                    labels=series,
+                    labels=labels,
                     autopct='%1.1f%%',
                     startangle=90,
-                    colors=cores[:len(series)],
-                    textprops={'fontsize': 10, 'weight': 'bold', 'color': self.co0}
+                    colors=cores[:len(labels)],
+                    textprops={'fontsize': 9, 'weight': 'bold', 'color': self.co0}
                 )
 
                 try:
@@ -332,7 +367,7 @@ class DashboardManager:
                     pass
 
                 ax.set_title('Distribuição de Alunos por Série', fontsize=14, weight='bold', pad=25, color=self.co0)
-                legendas = [f'{s}: {q} alunos' for s, q in zip(series, quantidades)]
+                legendas = [f'{s}: {q} alunos' for s, q in zip(labels, quantidades)]
                 try:
                     legend = ax.legend(legendas, loc='center left', bbox_to_anchor=(1.15, 0.5), fontsize=9, frameon=True, facecolor=self.co1, edgecolor=self.co0)
                     for text in legend.get_texts():
@@ -386,13 +421,16 @@ class DashboardManager:
                         totais_frame.pack()
                         try:
                             # Usar chaves corretas retornadas por estatistica_service
-                            total_alunos = dados.get('total_alunos', 0)
+                            total_alunos = dados.get('total_alunos', 0)  # Inclui ativos + transferidos
                             alunos_ativos = dados.get('alunos_ativos', 0)
-                            # Calcular transferidos/evadidos se necessário
-                            # estatistica_service não retorna 'total_matriculados' nem 'total_transferidos'
-                            # Ajustar labels para refletir dados disponíveis
-                            Label(totais_frame, text=f"Total Alunos: {total_alunos}", font=('Calibri', 12, 'bold'), bg=self.co1, fg=self.co0).pack(side='left', padx=20)
-                            Label(totais_frame, text=f"Ativos: {alunos_ativos}", font=('Calibri', 12, 'bold'), bg=self.co1, fg=self.co0).pack(side='left', padx=20)
+                            alunos_transferidos = dados.get('alunos_transferidos', 0)
+                            
+                            Label(totais_frame, text=f"Total (Ativos + Transferidos): {total_alunos}", 
+                                  font=('Calibri', 12, 'bold'), bg=self.co1, fg=self.co0).pack(side='left', padx=20)
+                            Label(totais_frame, text=f"Ativos: {alunos_ativos}", 
+                                  font=('Calibri', 12, 'bold'), bg=self.co1, fg='#4CAF50').pack(side='left', padx=20)
+                            Label(totais_frame, text=f"Transferidos: {alunos_transferidos}", 
+                                  font=('Calibri', 12, 'bold'), bg=self.co1, fg='#FF9800').pack(side='left', padx=20)
                             
                             # Alunos por turno
                             turnos = dados.get('alunos_por_turno', [])
