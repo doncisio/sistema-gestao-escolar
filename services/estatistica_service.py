@@ -11,96 +11,191 @@ from db.connection import get_cursor
 logger = logging.getLogger(__name__)
 
 
-def obter_estatisticas_alunos(escola_id: int = 60) -> Optional[Dict]:
+def obter_estatisticas_alunos(escola_id: int = 60, ano_letivo: Optional[str] = None) -> Optional[Dict]:
     """
     Calcula estatísticas gerais de alunos da escola.
     
     Args:
         escola_id: ID da escola (padrão: 60)
+        ano_letivo: Ano letivo para filtrar (ex: '2024'). Se None, usa o ano atual.
         
     Returns:
         dict: Estatísticas ou None em caso de erro
     """
     try:
+        logger.info(f"Iniciando obter_estatisticas_alunos para escola_id={escola_id}, ano_letivo={ano_letivo}")
         estatisticas = {}
         
         with get_cursor() as cursor:
-            # Total de alunos
+            if cursor is None:
+                logger.error("get_cursor() retornou None")
+                return None
+                
+            logger.debug("Cursor obtido com sucesso")
+            
+            # Se ano_letivo não foi especificado, usa o ano atual
+            if ano_letivo is None:
+                cursor.execute("SELECT ano_letivo FROM AnosLetivos WHERE CURDATE() BETWEEN data_inicio AND data_fim LIMIT 1")
+                resultado = cursor.fetchone()
+                ano_letivo = resultado['ano_letivo'] if resultado else str(__import__('datetime').datetime.now().year)
+                logger.info(f"Ano letivo atual detectado: {ano_letivo}")
+            
+            # Total de alunos com matrícula no ano letivo (Ativo, Transferido ou Transferida)
+            logger.debug(f"Executando query: Total de alunos para escola_id={escola_id}, ano_letivo={ano_letivo}")
+            cursor.execute("""
+                SELECT COUNT(DISTINCT m.aluno_id) as total
+                FROM matriculas m
+                INNER JOIN alunos a ON m.aluno_id = a.id
+                WHERE m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
+                  AND a.escola_id = %s
+                  AND (m.status = 'Ativo' OR m.status = 'Transferido' OR m.status = 'Transferida')
+            """, (ano_letivo, escola_id))
+            resultado = cursor.fetchone()
+            estatisticas['total_alunos'] = resultado['total'] if resultado else 0
+            logger.info(f"Total de alunos (com matrícula Ativa/Transferida no ano {ano_letivo}): {estatisticas['total_alunos']}")
+            
+            # Alunos com matrícula ativa
+            logger.debug(f"Executando query: Alunos ativos para escola_id={escola_id}")
+            cursor.execute("""
+                SELECT COUNT(DISTINCT m.aluno_id) as total
+                FROM matriculas m
+                INNER JOIN alunos a ON m.aluno_id = a.id
+                WHERE m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
+                  AND a.escola_id = %s 
+                  AND m.status = 'Ativo'
+            """, (ano_letivo, escola_id))
+            resultado = cursor.fetchone()
+            estatisticas['alunos_ativos'] = resultado['total'] if resultado else 0
+            logger.info(f"Alunos ativos: {estatisticas['alunos_ativos']}")
+            
+            # Alunos por série (usando filtro do Lista_atualizada.py)
+            logger.info("Executando query de alunos por série...")
+            try:
+                cursor.execute("""
+                    SELECT 
+                        s.nome as serie, 
+                        COUNT(DISTINCT m.aluno_id) as total
+                    FROM matriculas m
+                    INNER JOIN turmas t ON m.turma_id = t.id
+                    INNER JOIN serie s ON t.serie_id = s.id
+                    INNER JOIN alunos a ON m.aluno_id = a.id
+                    WHERE m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
+                      AND a.escola_id = %s
+                      AND (m.status = 'Ativo' OR m.status = 'Transferido' OR m.status = 'Transferida')
+                    GROUP BY s.id, s.nome
+                    ORDER BY s.nome
+                """, (ano_letivo, escola_id))
+                
+                logger.info("Fetchando resultados de alunos por série...")
+                resultados = cursor.fetchall()
+                logger.info(f"Obtidos {len(resultados)} resultados")
+            except Exception as e:
+                logger.warning(f"Erro na query de alunos por série: {e}. Usando fallback.")
+                resultados = []
+            
+            alunos_por_serie = []
+            
+            if resultados:
+                if isinstance(resultados[0], dict):
+                    alunos_por_serie = [{'serie': r['serie'], 'quantidade': r['total']} for r in resultados]
+                else:
+                    alunos_por_serie = [{'serie': r[0], 'quantidade': r[1]} for r in resultados]
+            
+            estatisticas['alunos_por_serie'] = alunos_por_serie
+            logger.info(f"Alunos por série: {len(alunos_por_serie)} séries encontradas")
+            logger.debug(f"Dados alunos_por_serie: {alunos_por_serie}")
+            
+            # Alunos por série E turma (detalhamento)
+            logger.info("Executando query de alunos por série e turma...")
+            try:
+                cursor.execute("""
+                    SELECT 
+                        s.nome as serie, 
+                        t.nome as turma,
+                        COUNT(DISTINCT m.aluno_id) as total
+                    FROM matriculas m
+                    INNER JOIN turmas t ON m.turma_id = t.id
+                    INNER JOIN serie s ON t.serie_id = s.id
+                    INNER JOIN alunos a ON m.aluno_id = a.id
+                    WHERE m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
+                      AND a.escola_id = %s
+                      AND (m.status = 'Ativo' OR m.status = 'Transferido' OR m.status = 'Transferida')
+                    GROUP BY s.id, s.nome, t.id, t.nome
+                    ORDER BY s.nome, t.nome
+                """, (ano_letivo, escola_id))
+                
+                resultados = cursor.fetchall()
+                alunos_por_turma = []
+                
+                if resultados:
+                    if isinstance(resultados[0], dict):
+                        alunos_por_turma = [{'serie': r['serie'], 'turma': r['turma'], 'quantidade': r['total']} for r in resultados]
+                    else:
+                        alunos_por_turma = [{'serie': r[0], 'turma': r[1], 'quantidade': r[2]} for r in resultados]
+                
+                estatisticas['alunos_por_serie_turma'] = alunos_por_turma
+                logger.info(f"Alunos por série/turma: {len(alunos_por_turma)} turmas encontradas")
+            except Exception as e:
+                logger.warning(f"Erro na query de alunos por série/turma: {e}. Usando fallback.")
+                estatisticas['alunos_por_serie_turma'] = []
+            
+            # Alunos por turno (usando filtro do Lista_atualizada.py)
+            cursor.execute("""
+                SELECT t.turno, COUNT(DISTINCT m.aluno_id) as total
+                FROM matriculas m
+                INNER JOIN turmas t ON m.turma_id = t.id
+                INNER JOIN alunos a ON m.aluno_id = a.id
+                WHERE m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
+                  AND a.escola_id = %s
+                  AND (m.status = 'Ativo' OR m.status = 'Transferido' OR m.status = 'Transferida')
+                GROUP BY t.turno
+            """, (ano_letivo, escola_id))
+            
+            resultados = cursor.fetchall()
+            alunos_por_turno = []
+            
+            if resultados:
+                if isinstance(resultados[0], dict):
+                    alunos_por_turno = [{'turno': r['turno'], 'quantidade': r['total']} for r in resultados]
+                else:
+                    alunos_por_turno = [{'turno': r[0], 'quantidade': r[1]} for r in resultados]
+            
+            estatisticas['alunos_por_turno'] = alunos_por_turno
+            
+            # Alunos transferidos no ano letivo
+            cursor.execute("""
+                SELECT COUNT(DISTINCT m.aluno_id) as total
+                FROM matriculas m
+                INNER JOIN alunos a ON m.aluno_id = a.id
+                WHERE m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
+                  AND a.escola_id = %s
+                  AND (m.status = 'Transferido' OR m.status = 'Transferida')
+            """, (ano_letivo, escola_id))
+            resultado = cursor.fetchone()
+            estatisticas['alunos_transferidos'] = resultado['total'] if resultado else 0
+            
+            # Alunos sem matrícula (calculado como diferença)
+            # Total no cadastro - Total com matrícula ativa/transferida
             cursor.execute("""
                 SELECT COUNT(*) as total
                 FROM alunos
                 WHERE escola_id = %s
             """, (escola_id,))
             resultado = cursor.fetchone()
-            estatisticas['total_alunos'] = resultado[0] if resultado else 0
+            total_cadastrados = resultado['total'] if resultado else 0
             
-            # Alunos com matrícula ativa
-            cursor.execute("""
-                SELECT COUNT(DISTINCT m.aluno_id) as total
-                FROM matriculas m
-                INNER JOIN alunos a ON m.aluno_id = a.id
-                WHERE a.escola_id = %s AND m.status = 'Ativo'
-            """, (escola_id,))
-            resultado = cursor.fetchone()
-            estatisticas['alunos_ativos'] = resultado[0] if resultado else 0
-            
-            # Alunos por série
-            cursor.execute("""
-                SELECT s.nome as serie, COUNT(DISTINCT m.aluno_id) as total
-                FROM matriculas m
-                INNER JOIN turmas t ON m.turma_id = t.id
-                INNER JOIN series s ON t.serie_id = s.id
-                INNER JOIN alunos a ON m.aluno_id = a.id
-                WHERE a.escola_id = %s AND m.status = 'Ativo'
-                GROUP BY s.id, s.nome
-                ORDER BY s.ordem
-            """, (escola_id,))
-            
-            resultados = cursor.fetchall()
-            alunos_por_serie = {}
-            
-            if resultados:
-                if isinstance(resultados[0], dict):
-                    alunos_por_serie = {r['serie']: r['total'] for r in resultados}
-                else:
-                    alunos_por_serie = {r[0]: r[1] for r in resultados}
-            
-            estatisticas['alunos_por_serie'] = alunos_por_serie
-            
-            # Alunos por turno
-            cursor.execute("""
-                SELECT t.turno, COUNT(DISTINCT m.aluno_id) as total
-                FROM matriculas m
-                INNER JOIN turmas t ON m.turma_id = t.id
-                INNER JOIN alunos a ON m.aluno_id = a.id
-                WHERE a.escola_id = %s AND m.status = 'Ativo'
-                GROUP BY t.turno
-            """, (escola_id,))
-            
-            resultados = cursor.fetchall()
-            alunos_por_turno = {}
-            
-            if resultados:
-                if isinstance(resultados[0], dict):
-                    alunos_por_turno = {r['turno']: r['total'] for r in resultados}
-                else:
-                    alunos_por_turno = {r[0]: r[1] for r in resultados}
-            
-            estatisticas['alunos_por_turno'] = alunos_por_turno
-            
-            # Alunos sem matrícula
             estatisticas['alunos_sem_matricula'] = (
-                estatisticas['total_alunos'] - estatisticas['alunos_ativos']
+                total_cadastrados - estatisticas['total_alunos']
             )
             
-            logger.info(f"Estatísticas calculadas: {estatisticas['total_alunos']} alunos total")
+            logger.info(f"Estatísticas calculadas com sucesso: {estatisticas['total_alunos']} alunos total, {len(alunos_por_serie)} séries")
             return estatisticas
             
     except MySQLError as e:
-        logger.exception(f"Erro MySQL ao calcular estatísticas de alunos")
+        logger.exception(f"Erro MySQL ao calcular estatísticas de alunos: {e}")
         return None
     except Exception as e:
-        logger.exception(f"Erro inesperado ao calcular estatísticas de alunos")
+        logger.exception(f"Erro inesperado ao calcular estatísticas de alunos: {e}")
         return None
 
 

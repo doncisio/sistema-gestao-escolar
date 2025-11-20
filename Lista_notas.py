@@ -125,7 +125,7 @@ def lista_notas():
                 saved_path = None
 
         if not saved_path:
-            import tempfile, os
+            import tempfile
             from utilitarios.gerenciador_documentos import salvar_documento_sistema
             from utilitarios.tipos_documentos import TIPO_LISTA_NOTAS
 

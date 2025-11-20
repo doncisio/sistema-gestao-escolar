@@ -698,7 +698,7 @@ def lista_atualizada():
 
         if not saved_path:
             # Gravamos temporário e delegamos ao gerenciador de documentos para upload+registro
-            import tempfile, os
+            import tempfile
             from utilitarios.gerenciador_documentos import salvar_documento_sistema
             from utilitarios.tipos_documentos import TIPO_LISTA_ATUALIZADA
 

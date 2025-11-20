@@ -11,21 +11,21 @@ from tkinter.ttk import Style, Progressbar, Separator
 from tkinter import messagebox
 from tkinter import TclError  # Importar TclError explicitamente para tratamento de erros
 from PIL import ImageTk, Image
-import pandas as pd
+# import pandas as pd  # LAZY: importado sob demanda
 
-# Importações para o dashboard com gráficos
-import matplotlib
-matplotlib.use('TkAgg')  # Backend para integração com Tkinter
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from mpl_toolkits.mplot3d import Axes3D  # Para gráficos 3D
-import numpy as np  # Para cálculos matemáticos do gráfico 3D
+# Importações para o dashboard com gráficos - LAZY: importados quando necessário
+# import matplotlib
+# matplotlib.use('TkAgg')  # Backend para integração com Tkinter
+# from matplotlib.figure import Figure
+# from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+# from mpl_toolkits.mplot3d import Axes3D  # Para gráficos 3D
+# import numpy as np  # Para cálculos matemáticos do gráfico 3D
 
-from Funcionario import gerar_declaracao_funcionario
-import Funcionario
-from Gerar_Declaracao_Aluno import gerar_declaracao_aluno
-import Lista_atualizada
-import Lista_atualizada_semed
+# from Funcionario import gerar_declaracao_funcionario  # LAZY
+# import Funcionario  # LAZY
+# from Gerar_Declaracao_Aluno import gerar_declaracao_aluno  # LAZY
+# import Lista_atualizada  # LAZY
+# import Lista_atualizada_semed  # LAZY
 import Seguranca
 from ui.menu import MenuManager
 from ui.table import TableManager
@@ -521,6 +521,7 @@ def lista_frequencia():
 
 def lista_atualizada_wrapper():
     try:
+        import Lista_atualizada  # Lazy import
         if hasattr(Lista_atualizada, 'lista_atualizada'):
             _run_report_in_background(Lista_atualizada.lista_atualizada, "Lista Atualizada")
         else:
@@ -531,6 +532,7 @@ def lista_atualizada_wrapper():
 
 def lista_atualizada_semed_wrapper():
     try:
+        import Lista_atualizada_semed  # Lazy import
         if hasattr(Lista_atualizada_semed, 'lista_atualizada'):
             _run_report_in_background(Lista_atualizada_semed.lista_atualizada, "Lista Atualizada SEMED")
         else:
@@ -665,7 +667,12 @@ def abrir_interface_ata(janela_pai=None, status_label=None):
 # Variáveis globais de fallback para evitar avisos estáticos
 query = None
 
-TEST_MODE = True
+# TEST_MODE: Usar variável de ambiente para controlar modo de teste
+# Define: set GESTAO_TEST_MODE=true (Windows) ou export GESTAO_TEST_MODE=true (Linux)
+TEST_MODE = os.environ.get('GESTAO_TEST_MODE', 'false').lower() == 'true'
+
+if TEST_MODE:
+    logger.warning("⚠️ SISTEMA EM MODO DE TESTE - Backups automáticos desabilitados")
 
 # Importar utilitários compartilhados
 from utils.safe import converter_para_int_seguro, _safe_get, _safe_slice
@@ -767,21 +774,28 @@ from GerenciadorDocumentosFuncionarios import GerenciadorDocumentosFuncionarios
 from declaracao_comparecimento import gerar_declaracao_comparecimento_responsavel
 
 
-# NOVAS Cores
-co0 = "#F5F5F5"  # Branco suave para o fundo (substituindo o branco puro)
-co1 = "#003A70"  # Azul escuro (mantido para identidade visual)
-co2 = "#77B341"  # Verde (mantido)
-co3 = "#E2418E"  # Rosa/Magenta (mantido)
-co4 = "#4A86E8"  # Azul mais claro (substituindo o azul médio para melhor contraste)
-co5 = "#F26A25"  # Laranja (mantido)
-co6 = "#F7B731"  # Amarelo (mantido)
-co7 = "#333333"  # Cinza escuro (substituindo o preto para suavizar)
-co8 = "#BF3036"  # Vermelho (mantido)
-co9 = "#6FA8DC"  # Azul claro (substituindo o azul claro anterior para melhor harmonia)
+# Importar cores centralizadas
+from ui.colors import COLORS, get_colors_dict
+
+# Criar variáveis globais de cores para compatibilidade com código legado
+# TODO Sprint 14: Eliminar essas variáveis e usar COLORS diretamente
+co0 = COLORS.co0  # Branco suave
+co1 = COLORS.co1  # Azul escuro
+co2 = COLORS.co2  # Verde
+co3 = COLORS.co3  # Rosa/Magenta
+co4 = COLORS.co4  # Azul claro
+co5 = COLORS.co5  # Laranja
+co6 = COLORS.co6  # Amarelo
+co7 = COLORS.co7  # Cinza escuro
+co8 = COLORS.co8  # Vermelho
+co9 = COLORS.co9  # Azul claro
+
 selected_item = None
 label_rodape = None
 status_label = None
 dashboard_manager = None
+treeview = None  # type: Optional[ttk.Treeview]
+tabela_frame = None  # type: Optional[Frame]
 
 
 # ============================================================================
@@ -882,14 +896,42 @@ def criar_frames():
 
 # Variável global para controlar o canvas do dashboard
 dashboard_canvas = None
+dashboard_manager = None  # Será inicializado sob demanda
 
 def criar_dashboard():
-    # Delega a criação do dashboard ao DashboardManager (instanciado mais abaixo).
+    # Inicializa o DashboardManager sob demanda (lazy loading)
+    global dashboard_manager
+    
+    if dashboard_manager is None:
+        try:
+            from ui.dashboard import DashboardManager
+            from services.db_service import DbService
+            frame_getter = lambda: globals().get('frame_tabela')
+            db_service = DbService(get_connection)
+            dashboard_manager = DashboardManager(
+                janela=janela, 
+                db_service=db_service, 
+                frame_getter=frame_getter, 
+                cache_ref=_cache_estatisticas_dashboard, 
+                escola_id=60,  # ID da escola
+                co_bg=co1, 
+                co_fg=co0, 
+                co_accent=co4
+            )
+            logger.info(f"✓ DashboardManager instanciado com sucesso")
+        except Exception as e:
+            logger.error(f"Erro ao instanciar DashboardManager: {e}", exc_info=True)
+            return None
+    
+    # Delega a criação do dashboard ao DashboardManager
     try:
-        if 'dashboard_manager' in globals() and dashboard_manager:
+        if dashboard_manager:
+            logger.info("Criando dashboard via DashboardManager...")
             return dashboard_manager.criar_dashboard()
-    except Exception:
-        pass
+        else:
+            logger.warning("DashboardManager não disponível, pulando criação do dashboard")
+    except Exception as e:
+        logger.error(f"Erro ao criar dashboard: {e}")
     return None
 
 def atualizar_dashboard():
@@ -922,6 +964,7 @@ def criar_tabela():
     if 'colunas' not in globals() or not globals().get('colunas'):
         colunas = ['ID', 'Nome']
     if 'df' not in globals() or globals().get('df') is None:
+        import pandas as pd  # Lazy import
         df = pd.DataFrame(columns=colunas)
     
     # Criar TableManager se ainda não existe
@@ -951,6 +994,8 @@ def criar_tabela():
 
 def selecionar_item(event):
     # Obtém o item selecionado
+    if treeview is None:
+        return
     item = treeview.identify_row(event.y)
     if not item:
         return
@@ -1183,6 +1228,8 @@ def on_select(event):
     # Usa after() para garantir que a seleção do treeview seja atualizada primeiro
     def processar_selecao():
         # Obtém o item atualmente selecionado
+        if treeview is None:
+            return
         selected_items = treeview.selection()
         if not selected_items:
             return
@@ -1402,7 +1449,8 @@ def on_select(event):
                   font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
     
     # Agendar processamento após a seleção ser atualizada
-    treeview.after(10, processar_selecao)
+    if treeview is not None:
+        treeview.after(10, processar_selecao)
 
 def criar_botoes_frame_detalhes(tipo, values):
     # Limpa quaisquer botões existentes antes de criar novos
@@ -1469,7 +1517,11 @@ def criar_botoes_frame_detalhes(tipo, values):
         Button(acoes_frame, text="Excluir", command=lambda: excluir_funcionario_com_confirmacao(id_item),
                width=10, overrelief=RIDGE, font=('Ivy 9'), bg=co8, fg=co0).grid(row=0, column=1, padx=5, pady=5)
         
-        Button(acoes_frame, text="Declaração", command=lambda: gerar_declaracao_funcionario(id_item),
+        def _gerar_declaracao():
+            from Funcionario import gerar_declaracao_funcionario  # Lazy import
+            return gerar_declaracao_funcionario(id_item)
+        
+        Button(acoes_frame, text="Declaração", command=_gerar_declaracao,
                width=10, overrelief=RIDGE, font=('Ivy 9'), bg=co2, fg=co0).grid(row=0, column=2, padx=5, pady=5)
 
 def verificar_matricula_ativa(aluno_id):
@@ -1634,12 +1686,18 @@ def verificar_historico_matriculas(aluno_id):
 
 def matricular_aluno(aluno_id):
     """
-    Abre uma janela para matricular o aluno na escola com ID 60.
+    Abre modal para matricular o aluno.
+    
+    REFATORADO Sprint 14: Usa ui/matricula_modal.py ao invés de código inline.
+    
     Args:
         aluno_id: ID do aluno a ser matriculado
     """
     try:
-        # Obter informações do aluno e do ano letivo atual usando conexões curtas
+        from ui.matricula_modal import MatriculaModal
+        from ui.colors import get_colors_dict
+        
+        # Obter nome do aluno
         with get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT nome FROM alunos WHERE id = %s", (int(str(aluno_id)),))
@@ -1649,329 +1707,25 @@ def matricular_aluno(aluno_id):
         if resultado_nome is None:
             messagebox.showerror("Erro", "Aluno não encontrado.")
             return
+        
         nome_aluno = resultado_nome[0]
-
-        with get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT id, ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
-            resultado_ano = cursor.fetchone()
-            if not resultado_ano:
-                cursor.execute("SELECT id, ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
-                resultado_ano = cursor.fetchone()
-            cursor.close()
-
-        if not resultado_ano:
-            messagebox.showwarning("Aviso", "Não foi possível determinar o ano letivo atual.")
-            return
-
-        ano_letivo_id, ano_letivo = resultado_ano
-
-        # Cria a janela de matrícula
-        janela_matricula = Toplevel(janela)
-        janela_matricula.title(f"Matricular Aluno - {nome_aluno}")
-        janela_matricula.geometry("500x450")
-        janela_matricula.configure(background=co1)
-        janela_matricula.transient(janela)
-        janela_matricula.focus_force()
-        janela_matricula.grab_set()
-
-        # Frame principal
-        frame_matricula = Frame(janela_matricula, bg=co1, padx=20, pady=20)
-        frame_matricula.pack(fill=BOTH, expand=True)
-
-        # Título
-        Label(frame_matricula, text=f"Matrícula de Aluno", 
-              font=("Arial", 14, "bold"), bg=co1, fg=co7).pack(pady=(0, 20))
-
-        # Informações do aluno
-        info_frame = Frame(frame_matricula, bg=co1)
-        info_frame.pack(fill=X, pady=10)
-
-        Label(info_frame, text=f"Aluno: {nome_aluno}", 
-              font=("Arial", 12), bg=co1, fg=co4).pack(anchor=W)
-
-        Label(info_frame, text=f"Ano Letivo: {ano_letivo}", 
-              font=("Arial", 12), bg=co1, fg=co4).pack(anchor=W)
-
-        # Selecionar Série
-        serie_frame = Frame(frame_matricula, bg=co1)
-        serie_frame.pack(fill=X, pady=10)
-
-        Label(serie_frame, text="Série:", bg=co1, fg=co4).pack(anchor=W, pady=(5, 0))
-        serie_var = StringVar()
-        cb_serie = ttk.Combobox(serie_frame, textvariable=serie_var, width=40)
-        cb_serie.pack(fill=X, pady=(0, 5))
-
-        # Selecionar Turma
-        turma_frame = Frame(frame_matricula, bg=co1)
-        turma_frame.pack(fill=X, pady=10)
-
-        Label(turma_frame, text="Turma:", bg=co1, fg=co4).pack(anchor=W, pady=(5, 0))
-        turma_var = StringVar()
-        cb_turma = ttk.Combobox(turma_frame, textvariable=turma_var, width=40)
-        cb_turma.pack(fill=X, pady=(0, 5))
-
-        # Data da matrícula
-        data_frame = Frame(frame_matricula, bg=co1)
-        data_frame.pack(fill=X, pady=10)
-
-        Label(data_frame, text="Data da Matrícula (dd/mm/aaaa):", bg=co1, fg=co4).pack(anchor=W, pady=(5, 0))
-        data_matricula_var = StringVar()
-        # Definir data atual como padrão
-        from datetime import datetime
-        data_matricula_var.set(datetime.now().strftime('%d/%m/%Y'))
-        entry_data_matricula = Entry(data_frame, textvariable=data_matricula_var, width=42, font=("Arial", 10))
-        entry_data_matricula.pack(fill=X, pady=(0, 5))
-
-        # Dicionários para mapear nomes para IDs
-        series_map = {}
-        turmas_map = {}
-
-        # Função para carregar séries
-        def carregar_series():
-            from mysql.connector import Error as MySQLError
-            from db.connection import get_cursor
-            
-            try:
-                ano_letivo_id_int = int(str(ano_letivo_id)) if ano_letivo_id is not None else 1
-                
-                with get_cursor() as cursor:
-                    cursor.execute("""
-                        SELECT DISTINCT s.id, s.nome 
-                        FROM serie s
-                        JOIN turmas t ON s.id = t.serie_id
-                        WHERE t.escola_id = 60
-                        AND t.ano_letivo_id = %s
-                        ORDER BY s.nome
-                    """, (ano_letivo_id_int,))
-                    series = cursor.fetchall()
-
-                if not series:
-                    logger.warning(f"Nenhuma série encontrada para ano letivo {ano_letivo_id_int}")
-                    messagebox.showwarning("Aviso", "Não foram encontradas séries para a escola selecionada no ano letivo atual.")
-                    return
-
-                series_map.clear()
-                for serie in series:
-                    serie_id = serie['id'] if isinstance(serie, dict) else serie[0]
-                    serie_nome = serie['nome'] if isinstance(serie, dict) else serie[1]
-                    series_map[serie_nome] = serie_id
-
-                cb_serie['values'] = list(series_map.keys())
-                logger.debug(f"Carregadas {len(series_map)} séries")
-
-                # Limpar seleção de turma
-                cb_turma.set("")
-                cb_turma['values'] = []
-
-                # Selecionar automaticamente se houver apenas uma série
-                if len(series_map) == 1:
-                    serie_nome = list(series_map.keys())[0]
-                    cb_serie.set(serie_nome)
-                    logger.debug(f"Série única selecionada automaticamente: {serie_nome}")
-                    # Carregar turmas automaticamente para a única série
-                    carregar_turmas()
-
-            except MySQLError as e:
-                logger.exception(f"Erro MySQL ao carregar séries: {e}")
-                messagebox.showerror("Erro", f"Erro ao carregar séries: {str(e)}")
-            except Exception as e:
-                logger.exception(f"Erro inesperado ao carregar séries: {e}")
-                messagebox.showerror("Erro", f"Erro ao carregar séries: {str(e)}")
-
-        # Função para carregar turmas com base na série selecionada
-        def carregar_turmas(event=None):
-            from mysql.connector import Error as MySQLError
-            from db.connection import get_cursor
-            
-            serie_nome = serie_var.get()
-            if not serie_nome:
-                logger.warning("Tentativa de carregar turmas sem série selecionada")
-                return
-
-            if serie_nome not in series_map:
-                logger.warning(f"Série '{serie_nome}' não encontrada no mapeamento: {series_map}")
-                return
-
-            serie_id = series_map[serie_nome]
-            ano_letivo_id_int = int(str(ano_letivo_id)) if ano_letivo_id is not None else 1
-
-            try:
-                with get_cursor() as cursor:
-                    cursor.execute("""
-                        SELECT id, nome, serie_id
-                        FROM turmas 
-                        WHERE serie_id = %s AND escola_id = 60 AND ano_letivo_id = %s
-                        ORDER BY nome
-                    """, (int(str(serie_id)), ano_letivo_id_int))
-
-                    turmas = cursor.fetchall()
-
-                if not turmas:
-                    logger.warning(f"Nenhuma turma encontrada para série {serie_nome} (ID: {serie_id})")
-                    messagebox.showwarning("Aviso", f"Não foram encontradas turmas para a série {serie_nome}.")
-                    return
-
-                turmas_map.clear()
-                for turma in turmas:
-                    turma_id = turma['id'] if isinstance(turma, dict) else turma[0]
-                    turma_nome = turma['nome'] if isinstance(turma, dict) else turma[1]
-                    
-                    if not turma_nome or str(turma_nome).strip() == "":
-                        if len(turmas) == 1:
-                            turma_nome = f"Turma Única"
-                        else:
-                            turma_nome = f"Turma {turma_id}"
-                    turmas_map[turma_nome] = turma_id
-
-                turmas_nomes = list(turmas_map.keys())
-                cb_turma['values'] = turmas_nomes
-                logger.debug(f"Carregadas {len(turmas_map)} turmas para série {serie_nome}")
-
-                if len(turmas_map) == 1:
-                    turma_nome = turmas_nomes[0]
-                    cb_turma.set(turma_nome)
-                    turma_var.set(turma_nome)
-                    logger.info(f"Turma selecionada automaticamente: '{turma_nome}'")
-                else:
-                    cb_turma.set("")
-                    turma_var.set("")
-
-            except MySQLError as e:
-                logger.exception(f"Erro MySQL ao carregar turmas para série {serie_nome}: {e}")
-                messagebox.showerror("Erro", f"Erro ao carregar turmas: {str(e)}")
-            except Exception as e:
-                logger.exception(f"Erro inesperado ao carregar turmas para série {serie_nome}: {e}")
-                messagebox.showerror("Erro", f"Erro ao carregar turmas: {str(e)}")
-
-        # Vincular evento ao combobox de série
-        cb_serie.bind("<<ComboboxSelected>>", carregar_turmas)
-
-        # Função para salvar a matrícula
-        def salvar_matricula():
-            serie_nome = serie_var.get()
-            turma_nome = turma_var.get()
-            data_str = data_matricula_var.get()
-
-            logger.debug(f"Série selecionada: '{serie_nome}', Turma selecionada: '{turma_nome}'")
-            logger.debug(f"Séries disponíveis: {list(series_map.keys())}")
-            logger.debug(f"Turmas disponíveis: {list(turmas_map.keys())}")
-
-            if len(turmas_map) == 1 and (not turma_nome or turma_nome not in turmas_map):
-                turma_nome = list(turmas_map.keys())[0]
-                turma_var.set(turma_nome)
-                logger.info(f"Turma ajustada automaticamente para: '{turma_nome}'")
-
-            if not serie_nome or serie_nome not in series_map:
-                messagebox.showwarning("Aviso", "Por favor, selecione uma série válida.")
-                return
-
-            if not turma_nome or turma_nome not in turmas_map:
-                messagebox.showwarning("Aviso", f"Por favor, selecione uma turma válida. Valor atual: '{turma_nome}'")
-                return
-
-            # Validar data
-            try:
-                from datetime import datetime
-                data_obj = datetime.strptime(data_str, '%d/%m/%Y')
-                data_formatada = data_obj.strftime('%Y-%m-%d')
-            except ValueError:
-                messagebox.showerror("Erro", "Data inválida! Use o formato dd/mm/aaaa (exemplo: 28/10/2025)")
-                return
-
-            turma_id = turmas_map[turma_nome]
-
-            try:
-                with get_connection() as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        """
-                        SELECT id, status 
-                        FROM matriculas 
-                        WHERE aluno_id = %s AND ano_letivo_id = %s
-                        ORDER BY id DESC
-                        LIMIT 1
-                        """,
-                        (int(str(aluno_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1)
-                    )
-                    registro_existente = cursor.fetchone()
-
-                    if registro_existente:
-                        matricula_id, status_atual = registro_existente
-                        cursor.execute(
-                            """
-                            UPDATE matriculas 
-                            SET turma_id = %s, status = 'Ativo', data_matricula = CURDATE()
-                            WHERE id = %s
-                            """,
-                            (int(str(turma_id)), int(str(matricula_id)) if matricula_id is not None else 0)
-                        )
-                        try:
-                            cursor.execute(
-                                """
-                                INSERT INTO historico_matricula (matricula_id, status_anterior, status_novo, data_mudanca)
-                                VALUES (%s, %s, %s, %s)
-                                """,
-                                (int(str(matricula_id)) if matricula_id is not None else 0, str(status_atual) if status_atual is not None else '', 'Ativo', data_formatada)
-                            )
-                        except Exception as hist_err:
-                            logger.error(f"Falha ao registrar histórico da matrícula (update): {hist_err}")
-                    else:
-                        cursor.execute(
-                            """
-                            INSERT INTO matriculas (aluno_id, turma_id, data_matricula, ano_letivo_id, status)
-                            VALUES (%s, %s, CURDATE(), %s, 'Ativo')
-                            """,
-                            (int(str(aluno_id)), int(str(turma_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1)
-                        )
-
-                        novo_matricula_id = cursor.lastrowid
-                        try:
-                            cursor.execute(
-                                """
-                                INSERT INTO historico_matricula (matricula_id, status_anterior, status_novo, data_mudanca)
-                                VALUES (%s, %s, %s, %s)
-                                """,
-                                (novo_matricula_id, None, 'Ativo', data_formatada)
-                            )
-                        except Exception as hist_err:
-                            logger.error(f"Falha ao registrar histórico da matrícula (insert): {hist_err}")
-
-                    conn.commit()
-                    cursor.close()
-
-                messagebox.showinfo("Sucesso", f"Aluno {nome_aluno} matriculado/atualizado com sucesso na turma {turma_nome}!")
-                janela_matricula.destroy()
-                criar_botoes_frame_detalhes("Aluno", [aluno_id, nome_aluno, "Aluno", None, None])
-
-            except Exception as e:
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                messagebox.showerror("Erro", f"Erro ao realizar matrícula: {str(e)}")
-
-        # Função ao fechar a janela de matrícula
-        def ao_fechar_janela():
-            janela_matricula.destroy()
-
-        # Configurar ação de fechamento da janela
-        janela_matricula.protocol("WM_DELETE_WINDOW", ao_fechar_janela)
-
-        # Botões
-        botoes_frame = Frame(frame_matricula, bg=co1)
-        botoes_frame.pack(fill=X, pady=20)
-
-        Button(botoes_frame, text="Salvar", command=salvar_matricula,
-              font=('Ivy 10 bold'), bg=co3, fg=co1, width=15).pack(side=LEFT, padx=5)
-
-        Button(botoes_frame, text="Cancelar", command=ao_fechar_janela,
-              font=('Ivy 10'), bg=co6, fg=co1, width=15).pack(side=RIGHT, padx=5)
-
-        # Carregar séries ao abrir a janela
-        carregar_series()
-
+        
+        # Callback para atualizar tabela após matrícula
+        def ao_matricular_sucesso():
+            atualizar_tabela_principal()
+            logger.info(f"Aluno {nome_aluno} matriculado com sucesso")
+        
+        # Criar e mostrar modal de matrícula
+        MatriculaModal(
+            parent=janela,
+            aluno_id=aluno_id,
+            nome_aluno=nome_aluno,
+            colors=get_colors_dict(),
+            callback_sucesso=ao_matricular_sucesso
+        )
+        
     except Exception as e:
+        logger.exception(f"Erro ao abrir matrícula: {e}")
         messagebox.showerror("Erro", f"Erro ao preparar matrícula: {str(e)}")
 
 def excluir_aluno_com_confirmacao(aluno_id):
@@ -2056,6 +1810,9 @@ def excluir_funcionario_com_confirmacao(funcionario_id):
 def editar_aluno_e_destruir_frames():
     # Obter o ID do aluno selecionado na tabela
     try:
+        if treeview is None:
+            messagebox.showerror("Erro", "Tabela não inicializada.")
+            return
         item_selecionado = treeview.focus()
         valores = treeview.item(item_selecionado, "values")
         
@@ -2108,6 +1865,9 @@ def gerar_declaracao(id_pessoa=None):
     
     # Se o ID não foi fornecido, tenta obter do item selecionado
     if id_pessoa is None:
+        if treeview is None:
+            messagebox.showerror("Erro", "Tabela não inicializada.")
+            return
         selected_item = treeview.focus()
         if not selected_item:
             messagebox.showerror("Erro", "Nenhum usuário selecionado.")
@@ -2224,8 +1984,10 @@ def gerar_declaracao(id_pessoa=None):
         # Executar geração da declaração em background para não bloquear a UI
         def _worker():
             if tipo_pessoa == 'Aluno':
+                from Gerar_Declaracao_Aluno import gerar_declaracao_aluno  # Lazy import
                 return gerar_declaracao_aluno(id_pessoa, marcacoes, motivo_outros)
             elif tipo_pessoa == 'Funcionário':
+                from Funcionario import gerar_declaracao_funcionario  # Lazy import
                 return gerar_declaracao_funcionario(id_pessoa)
             else:
                 raise RuntimeError('Tipo de usuário desconhecido')
@@ -2362,7 +2124,7 @@ def pesquisar(event=None):
     if not texto_pesquisa:  # Se a busca estiver vazia, mostrar dashboard
         # Ocultar tabela se estiver visível
         try:
-            if tabela_frame.winfo_ismapped():
+            if tabela_frame is not None and tabela_frame.winfo_ismapped():
                 tabela_frame.pack_forget()
         except Exception:
             pass
@@ -2410,7 +2172,7 @@ def pesquisar(event=None):
 
         # Mostrar tabela_frame
         try:
-            if not tabela_frame.winfo_ismapped():
+            if tabela_frame is not None and not tabela_frame.winfo_ismapped():
                 tabela_frame.pack(fill=BOTH, expand=True, padx=5, pady=5)
         except Exception:
             pass
@@ -2421,8 +2183,9 @@ def pesquisar(event=None):
 
     # Limpa o Treeview primeiro
     try:
-        for item in treeview.get_children():
-            treeview.delete(item)
+        if treeview is not None:
+            for item in treeview.get_children():
+                treeview.delete(item)
     except Exception:
         # Se não existir itens ou treeview, continuar
         pass
@@ -2557,19 +2320,21 @@ def pesquisar(event=None):
                     pass
 
             try:
-                item_id = treeview.insert("", "end", values=resultado)
-                if primeira_chave is None:
-                    primeira_chave = item_id
+                if treeview is not None:
+                    item_id = treeview.insert("", "end", values=resultado)
+                    if primeira_chave is None:
+                        primeira_chave = item_id
             except Exception as e:
                 logger.exception("Erro ao inserir resultado na treeview: %s - Resultado: %s", e, resultado)
 
         # Forçar atualização visual e foco no primeiro item
         try:
-            treeview.update_idletasks()
-            if primeira_chave:
-                treeview.selection_set(primeira_chave)
-                treeview.focus(primeira_chave)
-                treeview.see(primeira_chave)
+            if treeview is not None:
+                treeview.update_idletasks()
+                if primeira_chave:
+                    treeview.selection_set(primeira_chave)
+                    treeview.focus(primeira_chave)
+                    treeview.see(primeira_chave)
         except Exception:
             pass
     else:
@@ -2644,6 +2409,15 @@ def redefinir_frames(titulo):
     frame_detalhes.config(width=850, height=200)  # Definir altura mínima para o frame de detalhes
 
 def criar_acoes():
+    """
+    Cria os botões de ação e menus da aplicação.
+    
+    REFATORADO Sprint 15: Usa ActionCallbacksManager ao invés de callbacks inline.
+    """
+    # Inicializar gerenciador de callbacks
+    from ui.action_callbacks import ActionCallbacksManager
+    callbacks = ActionCallbacksManager(janela, atualizar_tabela_principal)
+    
     # Frame para os botões de ação
     botoes_frame = Frame(frame_dados, bg=co1)
     botoes_frame.pack(fill=X, expand=True, padx=10, pady=5)
@@ -2652,63 +2426,16 @@ def criar_acoes():
     for i in range(7):  # 7 colunas para acomodar todos os botões
         botoes_frame.grid_columnconfigure(i, weight=1)
 
-    # Função para cadastrar novo aluno
-    def cadastrar_novo_aluno():
-        # Abrir a interface de cadastro em uma nova janela
-        from InterfaceCadastroAluno import InterfaceCadastroAluno
-        cadastro_window = Toplevel(janela)
-        cadastro_window.title("Cadastro de Aluno")
-        cadastro_window.geometry('950x670')
-        cadastro_window.focus_set()  # Dar foco à nova janela
-        cadastro_window.grab_set()   # Torna a janela modal
-        
-        # Criar instância da interface de cadastro passando a janela principal
-        app_cadastro = InterfaceCadastroAluno(cadastro_window, janela)
-        
-        # Definir função para atualizar os dados quando a janela de cadastro for fechada
-        def ao_fechar_cadastro():
-            # Verificar se um aluno foi cadastrado
-            if hasattr(app_cadastro, 'aluno_cadastrado') and app_cadastro.aluno_cadastrado:
-                # Atualizar a tabela principal com os dados mais recentes
-                atualizar_tabela_principal()
-            
-            # Mostrar a janela principal novamente
-            janela.deiconify()
-            
-            # Destruir a janela de cadastro
-            cadastro_window.destroy()
-        
-        # Configurar evento para quando a janela for fechada
-        # Obs: Este evento só será executado se o usuário fechar a janela pelo X, 
-        # e não através do botão de salvar ou voltar
-        cadastro_window.protocol("WM_DELETE_WINDOW", ao_fechar_cadastro)
-
-    # Função para cadastrar novo funcionário
-    def cadastrar_novo_funcionario():
-        # Abrir a interface de cadastro em uma nova janela
-        from InterfaceCadastroFuncionario import InterfaceCadastroFuncionario
-        cadastro_window = Toplevel(janela)
-        cadastro_window.title("Cadastro de Funcionário")
-        cadastro_window.geometry('950x670')
-        cadastro_window.focus_set()  # Dar foco à nova janela
-        
-        # Criar instância da interface de cadastro passando a janela principal
-        app_cadastro = InterfaceCadastroFuncionario(cadastro_window, janela)
-
-    # Função para abrir a interface de histórico escolar
-    def abrir_historico():
-        abrir_interface_historico(janela)
-
     # Botões de ação
     global app_img_cadastro
     try:
         app_img_cadastro = Image.open('icon/plus.png')
         app_img_cadastro = app_img_cadastro.resize((18, 18))
         app_img_cadastro = ImageTk.PhotoImage(app_img_cadastro)
-        app_cadastro = Button(botoes_frame, command=cadastrar_novo_aluno, image=app_img_cadastro, text="Novo Aluno",
+        app_cadastro = Button(botoes_frame, command=callbacks.cadastrar_novo_aluno, image=app_img_cadastro, text="Novo Aluno",
                             compound=LEFT, overrelief=RIDGE, font=('Ivy 11'), bg=co2, fg=co0)
     except FileNotFoundError:
-        app_cadastro = Button(botoes_frame, command=cadastrar_novo_aluno, text="+ Novo Aluno",
+        app_cadastro = Button(botoes_frame, command=callbacks.cadastrar_novo_aluno, text="+ Novo Aluno",
                             compound=LEFT, overrelief=RIDGE, font=('Ivy 11'), bg=co2, fg=co0)
     app_cadastro.grid(row=0, column=0, padx=5, pady=5, sticky=EW)
     if 'app_img_cadastro' in locals():
@@ -2719,11 +2446,11 @@ def criar_acoes():
         app_img_funcionario = Image.open('icon/video-conference.png')
         app_img_funcionario = app_img_funcionario.resize((18, 18))
         app_img_funcionario = ImageTk.PhotoImage(app_img_funcionario)
-        app_funcionario = Button(botoes_frame, command=cadastrar_novo_funcionario, image=app_img_funcionario,
+        app_funcionario = Button(botoes_frame, command=callbacks.cadastrar_novo_funcionario, image=app_img_funcionario,
                                 text="Novo Funcionário", compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                                 bg=co3, fg=co0)
     except FileNotFoundError:
-        app_funcionario = Button(botoes_frame, command=cadastrar_novo_funcionario, text="+ Novo Funcionário", 
+        app_funcionario = Button(botoes_frame, command=callbacks.cadastrar_novo_funcionario, text="+ Novo Funcionário", 
                                 compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                                 bg=co3, fg=co0)
     app_funcionario.grid(row=0, column=1, padx=5, pady=5, sticky=EW)
@@ -2745,36 +2472,28 @@ def criar_acoes():
         app_img_historico = Image.open('icon/history.png')
         app_img_historico = app_img_historico.resize((18, 18))
         app_img_historico = ImageTk.PhotoImage(app_img_historico)
-        app_historico = Button(botoes_frame, command=abrir_historico, image=app_img_historico,
+        app_historico = Button(botoes_frame, command=callbacks.abrir_historico_escolar, image=app_img_historico,
                               text="Histórico Escolar", compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                               bg=co4, fg=co0)
     except FileNotFoundError:
-        app_historico = Button(botoes_frame, command=abrir_historico, text="Histórico Escolar", 
+        app_historico = Button(botoes_frame, command=callbacks.abrir_historico_escolar, text="Histórico Escolar", 
                               compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                               bg=co4, fg=co0)
     app_historico.grid(row=0, column=2, padx=5, pady=5, sticky=EW)
     if 'app_img_historico' in locals():
         setattr(app_historico, '_image_ref', app_img_historico)
     
-    # Função para abrir a interface administrativa
-    def abrir_interface_administrativa():
-        from interface_administrativa import InterfaceAdministrativa
-        admin_window = Toplevel(janela)
-        admin_window.title("Administração - Escolas, Disciplinas e Cargas Horárias")
-        admin_window.geometry('950x670')
-        InterfaceAdministrativa(admin_window, janela)
-
     # Botão para acessar a interface administrativa
     global app_img_admin
     try:
         app_img_admin = Image.open('icon/settings.png')
         app_img_admin = app_img_admin.resize((18, 18))
         app_img_admin = ImageTk.PhotoImage(app_img_admin)
-        app_admin = Button(botoes_frame, command=abrir_interface_administrativa, image=app_img_admin,
+        app_admin = Button(botoes_frame, command=callbacks.abrir_interface_administrativa, image=app_img_admin,
                           text="Administração", compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                           bg=co5, fg=co0)
     except FileNotFoundError:
-        app_admin = Button(botoes_frame, command=abrir_interface_administrativa, text="Administração", 
+        app_admin = Button(botoes_frame, command=callbacks.abrir_interface_administrativa, text="Administração", 
                           compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                           bg=co5, fg=co0)
     app_admin.grid(row=0, column=3, padx=5, pady=5, sticky=EW)
@@ -2829,19 +2548,19 @@ def criar_acoes():
     listas_menu = Menu(menu_bar, tearoff=0)
 
     # Aplicando a fonte às opções do menu
-    listas_menu.add_command(label="Lista Atualizada", command=lambda: lista_atualizada_wrapper(), font=menu_font)
-    listas_menu.add_command(label="Lista Atualizada SEMED", command=lambda: lista_atualizada_semed_wrapper(), font=menu_font)
-    listas_menu.add_command(label="Lista de Reunião", command=lambda: lista_reuniao(), font=menu_font)
-    listas_menu.add_command(label="Lista de Notas", command=lambda: lista_notas(), font=menu_font)
-    listas_menu.add_command(label="Lista de Frequências", command=lambda: lista_frequencia(), font=menu_font)
+    listas_menu.add_command(label="Lista Atualizada", command=callbacks.lista_atualizada, font=menu_font)
+    listas_menu.add_command(label="Lista Atualizada SEMED", command=callbacks.reports.lista_atualizada_semed, font=menu_font)
+    listas_menu.add_command(label="Lista de Reunião", command=callbacks.lista_reuniao, font=menu_font)
+    listas_menu.add_command(label="Lista de Notas", command=callbacks.lista_notas, font=menu_font)
+    listas_menu.add_command(label="Lista de Frequências", command=callbacks.reports.lista_frequencia, font=menu_font)
     listas_menu.add_separator()
-    listas_menu.add_command(label="Contatos de Responsáveis", command=lambda: relatorio_contatos_responsaveis(), font=menu_font)
-    listas_menu.add_command(label="Levantamento de Necessidades", command=lambda: relatorio_levantamento_necessidades(), font=menu_font)
-    listas_menu.add_command(label="Lista Alfabética", command=lambda: relatorio_lista_alfabetica(), font=menu_font)
-    listas_menu.add_command(label="Alunos com Transtornos", command=lambda: relatorio_alunos_transtornos(), font=menu_font)
+    listas_menu.add_command(label="Contatos de Responsáveis", command=callbacks.relatorio_contatos_responsaveis, font=menu_font)
+    listas_menu.add_command(label="Levantamento de Necessidades", command=callbacks.reports.relatorio_levantamento_necessidades, font=menu_font)
+    listas_menu.add_command(label="Lista Alfabética", command=callbacks.reports.relatorio_lista_alfabetica, font=menu_font)
+    listas_menu.add_command(label="Alunos com Transtornos", command=callbacks.reports.relatorio_alunos_transtornos, font=menu_font)
     listas_menu.add_separator()
-    listas_menu.add_command(label="Termo de Responsabilidade", command=lambda: relatorio_termo_responsabilidade(), font=menu_font)
-    listas_menu.add_command(label="Tabela de Docentes", command=lambda: relatorio_tabela_docentes(), font=menu_font)
+    listas_menu.add_command(label="Termo de Responsabilidade", command=callbacks.reports.relatorio_termo_responsabilidade, font=menu_font)
+    listas_menu.add_command(label="Tabela de Docentes", command=callbacks.reports.relatorio_tabela_docentes, font=menu_font)
     
     # (Movimento Mensal transferido para o menu 'Serviços')
 
@@ -2850,73 +2569,8 @@ def criar_acoes():
 
     # Adicionando o menu "Notas"
     notas_menu = Menu(menu_bar, tearoff=0)
-    notas_menu.add_command(label="Cadastrar/Editar Notas", command=lambda: abrir_cadastro_notas(), font=menu_font)
-    notas_menu.add_command(label="Relatório Estatístico de Notas", command=lambda: abrir_relatorio_analise(), font=menu_font)
-    
-    # Função para abrir a interface de cadastro de notas
-    def abrir_cadastro_notas():
-        # Esconder a janela principal
-        janela.withdraw()
-        
-        # Criar janela de nível superior
-        janela_notas = Toplevel()
-        janela_notas.title("Cadastro/Edição de Notas")
-        janela_notas.geometry("1000x600")
-        janela_notas.grab_set()  # Torna a janela modal
-        janela_notas.focus_force()
-        
-        # Configurar evento de fechamento da janela
-        def ao_fechar():
-            janela.deiconify()  # Mostrar a janela principal novamente
-            janela_notas.destroy()
-            
-        janela_notas.protocol("WM_DELETE_WINDOW", ao_fechar)
-        
-        # Criar interface de cadastro de notas
-        if _InterfaceCadastroEdicaoNotas:
-            try:
-                app_notas = _InterfaceCadastroEdicaoNotas.InterfaceCadastroEdicaoNotas(janela_notas, janela_principal=janela)
-            except Exception as e:
-                messagebox.showerror("Erro", f"Falha ao abrir interface de notas: {e}")
-                janela.deiconify()
-                return
-        else:
-            # Tenta import dinâmico como fallback e mostra erro amigável se falhar
-            try:
-                from InterfaceCadastroEdicaoNotas import InterfaceCadastroEdicaoNotas as _ICEN
-                app_notas = _ICEN(janela_notas, janela_principal=janela)
-            except Exception as e:
-                messagebox.showerror("Erro", f"Não foi possível abrir a interface de cadastro/edição de notas: {e}")
-                janela.deiconify()
-                return
-    
-    # Função para abrir o relatório estatístico de análise de notas
-    def abrir_relatorio_analise():
-        try:
-            from relatorio_analise_notas import abrir_relatorio_analise_notas
-            abrir_relatorio_analise_notas(janela_principal=janela)
-        except Exception as e:
-            messagebox.showerror("Erro", f"Não foi possível abrir o relatório: {e}")
-            import traceback
-            traceback.print_exc()
-
-    def abrir_gerenciador_horarios():
-        # Esconder a janela principal
-        janela.withdraw()
-        
-        # Criar janela de nível superior
-        janela_horarios = Toplevel()
-        
-        # Configurar evento de fechamento da janela
-        def ao_fechar():
-            janela.deiconify()  # Mostrar a janela principal novamente
-            janela_horarios.destroy()
-            
-        janela_horarios.protocol("WM_DELETE_WINDOW", ao_fechar)
-        
-        # Criar interface de horários escolares
-        app_horarios = InterfaceHorariosEscolares(
-            janela_horarios, janela_principal=janela)
+    notas_menu.add_command(label="Cadastrar/Editar Notas", command=callbacks.abrir_cadastro_notas, font=menu_font)
+    notas_menu.add_command(label="Relatório Estatístico de Notas", command=callbacks.reports.abrir_relatorio_analise, font=menu_font)
 
     # Adicionando o menu à barra de menus
     menu_bar.add_cascade(label="Gerenciamento de Notas", menu=notas_menu)
@@ -2931,364 +2585,32 @@ def criar_acoes():
     movimento_mensal_menu.add_command(label="Gerar Relatório", command=selecionar_mes_movimento, font=menu_font)
     servicos_menu.add_cascade(label="Movimento Mensal", menu=movimento_mensal_menu, font=menu_font)
 
-    def abrir_solicitacao_professores():
-        try:
-            from InterfaceSolicitacaoProfessores import abrir_interface_solicitacao
-            abrir_interface_solicitacao(janela_principal=janela)
-        except Exception as e:
-            messagebox.showerror("Erro", f"Não foi possível abrir a solicitação: {e}")
-
-    # Função para abrir o gerenciador de documentos de funcionários
-    def abrir_gerenciador_documentos():
-        # Esconder a janela principal
-        janela.withdraw()
-        
-        # Criar janela do gerenciador
-        janela_docs = Toplevel(janela)
-        janela_docs.title("Gerenciador de Documentos de Funcionários")
-        app = GerenciadorDocumentosFuncionarios(janela_docs)
-        janela_docs.focus_force()
-        janela_docs.grab_set()
-        
-        # Função para quando a janela for fechada
-        def ao_fechar():
-            janela.deiconify()  # Mostrar a janela principal novamente
-            janela_docs.destroy()
-            
-        # Configurar o evento de fechamento
-        janela_docs.protocol("WM_DELETE_WINDOW", ao_fechar)
-
-    # Função para abrir o gerenciador de documentos do sistema
-    def abrir_gerenciador_documentos_sistema():
-        # Esconder a janela principal
-        janela.withdraw()
-        
-        # Criar janela do gerenciador
-        janela_docs = Toplevel(janela)
-        janela_docs.title("Gerenciador de Documentos do Sistema")
-        from GerenciadorDocumentosSistema import GerenciadorDocumentosSistema
-        app = GerenciadorDocumentosSistema(janela_docs)
-        janela_docs.focus_force()
-        janela_docs.grab_set()
-        
-        # Função para quando a janela for fechada
-        def ao_fechar():
-            janela.deiconify()  # Mostrar a janela principal novamente
-            janela_docs.destroy()
-            
-        # Configurar o evento de fechamento
-        janela_docs.protocol("WM_DELETE_WINDOW", ao_fechar)
-
     servicos_menu.add_command(
         label="Solicitação de Professores e Coordenadores",
-        command=abrir_solicitacao_professores,
+        command=callbacks.administrativo.abrir_solicitacao_professores,
         font=menu_font
     )
 
     servicos_menu.add_command(
         label="Gerenciador de Documentos de Funcionários",
-        command=abrir_gerenciador_documentos,
+        command=callbacks.abrir_gerenciador_documentos,
         font=menu_font
     )
 
     servicos_menu.add_command(
         label="Gerenciador de Documentos do Sistema",
-        command=abrir_gerenciador_documentos_sistema,
+        command=callbacks.declaracao.abrir_gerenciador_documentos_sistema,
         font=menu_font
     )
 
-    # Função para abrir a interface de declaração de comparecimento
+    # Importar interface de declaração do módulo
+    from ui.interfaces_extended import abrir_interface_declaracao_comparecimento
+    from declaracao_comparecimento import gerar_declaracao_comparecimento_responsavel
+    
+    # Função wrapper para o menu
     def abrir_interface_declaracao_comparecimento_menu():
         """Abre interface para selecionar aluno e gerar declaração de comparecimento"""
-        from tkinter import Toplevel, Frame, Label, Entry, Button, Listbox, Scrollbar, END
-        from tkcalendar import DateEntry
-        
-        # Ocultar janela principal
-        janela.withdraw()
-        
-        # Criar janela
-        janela_decl = Toplevel(janela)
-        janela_decl.title("Declaração de Comparecimento de Responsável")
-        janela_decl.geometry("600x600")
-        janela_decl.configure(bg=co1)
-        
-        # Restaurar janela principal quando fechar
-        def ao_fechar():
-            janela_decl.destroy()
-            janela.deiconify()
-        
-        janela_decl.protocol("WM_DELETE_WINDOW", ao_fechar)
-        janela_decl.focus_force()
-        
-        frame_principal = Frame(janela_decl, bg=co1, padx=20, pady=20)
-        frame_principal.pack(fill='both', expand=True)
-        
-        # Título
-        Label(frame_principal, text="Gerar Declaração de Comparecimento", 
-              font=("Arial", 14, "bold"), bg=co1, fg=co0).pack(pady=(0, 15))
-        
-        # Frame de pesquisa
-        frame_pesquisa = Frame(frame_principal, bg=co1)
-        frame_pesquisa.pack(fill='x', pady=(0, 10))
-        
-        Label(frame_pesquisa, text="Pesquisar Aluno:", bg=co1, fg=co0, 
-              font=("Arial", 11)).pack(anchor='w', pady=(0, 5))
-        
-        pesquisa_entry = Entry(frame_pesquisa, width=50, font=("Arial", 11))
-        pesquisa_entry.pack(fill='x', pady=(0, 5))
-        
-        # Frame para lista de alunos
-        frame_lista = Frame(frame_principal, bg=co1)
-        frame_lista.pack(fill='both', expand=True, pady=(0, 10))
-        
-        Label(frame_lista, text="Selecione o Aluno:", bg=co1, fg=co0, 
-              font=("Arial", 11)).pack(anchor='w', pady=(0, 5))
-        
-        # Listbox com scrollbar
-        scrollbar = Scrollbar(frame_lista)
-        scrollbar.pack(side='right', fill='y')
-        
-        listbox_alunos = Listbox(frame_lista, font=("Arial", 10), 
-                                yscrollcommand=scrollbar.set, height=10)
-        listbox_alunos.pack(fill='both', expand=True)
-        scrollbar.config(command=listbox_alunos.yview)
-        
-        # Dicionário para mapear índice -> ID do aluno
-        alunos_dict = {}
-        
-        # Variável para armazenar o aluno selecionado
-        aluno_selecionado_id = {'id': None}
-        
-        # Função para carregar alunos
-        def carregar_alunos(filtro=""):
-            listbox_alunos.delete(0, END)
-            alunos_dict.clear()
-
-            try:
-                with get_connection() as conn:
-                    if conn is None:
-                        messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                        return
-                    cursor = conn.cursor()
-                    try:
-                        # Obter ano letivo atual
-                        cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = YEAR(CURDATE())")
-                        ano_atual = cursor.fetchone()
-
-                        if not ano_atual:
-                            cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
-                            ano_atual = cursor.fetchone()
-
-                        ano_letivo_id = ano_atual[0] if ano_atual else 1
-
-                        if filtro:
-                            query = """
-                                SELECT DISTINCT a.id, a.nome, s.nome as serie, t.nome as turma
-                                FROM alunos a
-                                INNER JOIN matriculas m ON a.id = m.aluno_id
-                                INNER JOIN turmas t ON m.turma_id = t.id
-                                INNER JOIN serie s ON t.serie_id = s.id
-                                WHERE a.escola_id = 60 
-                                AND m.ano_letivo_id = %s
-                                AND m.status IN ('Ativo', 'Transferido')
-                                AND a.nome LIKE %s
-                                ORDER BY a.nome
-                            """
-                            cursor.execute(query, (int(str(ano_letivo_id)) if ano_letivo_id is not None else 1, f"%{filtro}%"))
-                        else:
-                            query = """
-                                SELECT DISTINCT a.id, a.nome, s.nome as serie, t.nome as turma
-                                FROM alunos a
-                                INNER JOIN matriculas m ON a.id = m.aluno_id
-                                INNER JOIN turmas t ON m.turma_id = t.id
-                                INNER JOIN serie s ON t.serie_id = s.id
-                                WHERE a.escola_id = 60 
-                                AND m.ano_letivo_id = %s
-                                AND m.status IN ('Ativo', 'Transferido')
-                                ORDER BY a.nome
-                            """
-                            cursor.execute(query, (int(str(ano_letivo_id)) if ano_letivo_id is not None else 1,))
-
-                        resultados = cursor.fetchall()
-
-                        for idx, (aluno_id, nome, serie, turma) in enumerate(resultados):
-                            info_adicional = ""
-                            if serie:
-                                info_adicional = f" - {serie}"
-                                if turma:
-                                    info_adicional += f" {turma}"
-
-                            texto = f"{nome}{info_adicional}"
-                            listbox_alunos.insert(END, texto)
-                            alunos_dict[idx] = aluno_id
-                    finally:
-                        try:
-                            cursor.close()
-                        except Exception:
-                            pass
-
-            except Exception as e:
-                messagebox.showerror("Erro", f"Erro ao carregar alunos: {str(e)}")
-        
-        # Carregar alunos inicialmente
-        carregar_alunos()
-        
-        # Vincular pesquisa
-        def pesquisar(event=None):
-            filtro = pesquisa_entry.get()
-            carregar_alunos(filtro)
-        
-        pesquisa_entry.bind("<KeyRelease>", pesquisar)
-        
-        # Frame para parâmetros
-        frame_params = Frame(frame_principal, bg=co1)
-        frame_params.pack(fill='x', pady=(10, 0))
-        
-        # Label para mostrar aluno selecionado
-        Label(frame_params, text="Aluno Selecionado:", bg=co1, fg=co0, 
-              font=("Arial", 11, "bold")).grid(row=0, column=0, sticky='w', pady=5, columnspan=2)
-        
-        aluno_selecionado_label = Label(frame_params, text="Nenhum aluno selecionado", 
-                                       bg=co1, fg=co2, font=("Arial", 10))
-        aluno_selecionado_label.grid(row=1, column=0, sticky='w', pady=5, columnspan=2)
-        
-        # Seleção de Responsável
-        Label(frame_params, text="Responsável:", bg=co1, fg=co0, 
-              font=("Arial", 11)).grid(row=2, column=0, sticky='w', pady=5)
-        
-        responsavel_var = StringVar()
-        combo_responsavel = ttk.Combobox(frame_params, textvariable=responsavel_var, 
-                                        width=30, state='readonly')
-        combo_responsavel.grid(row=2, column=1, sticky='w', padx=(10, 0), pady=5)
-        
-        # Turno
-        Label(frame_params, text="Turno da Reunião:", bg=co1, fg=co0, 
-              font=("Arial", 11)).grid(row=3, column=0, sticky='w', pady=5)
-        
-        turno_var = StringVar(value="Matutino")
-        combo_turno = ttk.Combobox(frame_params, textvariable=turno_var, 
-                                   width=15, state='readonly',
-                                   values=["Matutino", "Vespertino"])
-        combo_turno.grid(row=3, column=1, sticky='w', padx=(10, 0), pady=5)
-        
-        Label(frame_params, text="Data do Comparecimento:", bg=co1, fg=co0, 
-              font=("Arial", 11)).grid(row=4, column=0, sticky='w', pady=5)
-        
-        data_entry = DateEntry(frame_params, width=20, background='darkblue', 
-                              foreground='white', borderwidth=2, 
-                              date_pattern='dd/mm/yyyy')
-        data_entry.grid(row=4, column=1, sticky='w', padx=(10, 0), pady=5)
-        
-        Label(frame_params, text="Motivo:", bg=co1, fg=co0, 
-              font=("Arial", 11)).grid(row=5, column=0, sticky='w', pady=5)
-        
-        motivo_entry = Entry(frame_params, width=30, font=("Arial", 11))
-        motivo_entry.insert(0, "reunião escolar")
-        motivo_entry.grid(row=5, column=1, sticky='w', padx=(10, 0), pady=5)
-        
-        # Função para carregar responsáveis quando um aluno for selecionado
-        def on_aluno_select(event):
-            selecao = listbox_alunos.curselection()
-            if not selecao:
-                return
-            
-            idx = selecao[0]
-            aluno_id = alunos_dict.get(idx)
-            
-            # Salvar o ID do aluno selecionado
-            aluno_selecionado_id['id'] = aluno_id
-            
-            # Mostrar nome do aluno selecionado
-            nome_aluno = listbox_alunos.get(idx)
-            aluno_selecionado_label.config(text=f"✓ {nome_aluno}", fg=co2)
-            
-            if aluno_id:
-                try:
-                    with get_connection() as conn:
-                        if conn is None:
-                            logger.error("Erro: Não foi possível conectar ao banco de dados.")
-                            return
-                        cursor = conn.cursor()
-                        try:
-                            # Buscar responsáveis do aluno
-                            query = """
-                                SELECT DISTINCT 
-                                    r.nome,
-                                    r.cpf
-                                FROM responsaveis r
-                                INNER JOIN responsaveisalunos ra ON r.id = ra.responsavel_id
-                                WHERE ra.aluno_id = %s
-                            """
-                            cursor.execute(query, (aluno_id,))
-                            resultados = cursor.fetchall()
-
-                            responsaveis = []
-                            # Adicionar todos os responsáveis encontrados
-                            for row in resultados:
-                                if row and row[0]:
-                                    responsaveis.append(row[0])
-                        finally:
-                            try:
-                                cursor.close()
-                            except Exception:
-                                pass
-
-                    # Atualizar combobox
-                    if responsaveis:
-                        combo_responsavel['values'] = responsaveis
-                        combo_responsavel.set(responsaveis[0])
-                    else:
-                        combo_responsavel['values'] = ["Responsável não cadastrado"]
-                        combo_responsavel.set("Responsável não cadastrado")
-                except Exception as e:
-                    logger.error(f"Erro ao carregar responsáveis: {str(e)}")
-        
-        # Vincular evento de seleção
-        listbox_alunos.bind("<<ListboxSelect>>", on_aluno_select)
-        
-        # Função para gerar
-        def gerar():
-            # Usar o ID do aluno salvo em vez da seleção da listbox
-            aluno_id = aluno_selecionado_id['id']
-            
-            if not aluno_id:
-                messagebox.showwarning("Aviso", "Por favor, selecione um aluno.")
-                return
-            
-            responsavel_selecionado = responsavel_var.get()
-            if not responsavel_selecionado or responsavel_selecionado == "Responsável não cadastrado":
-                messagebox.showwarning("Aviso", "Por favor, selecione um responsável válido.")
-                return
-            
-            turno_selecionado = turno_var.get()
-            if not turno_selecionado:
-                messagebox.showwarning("Aviso", "Por favor, selecione o turno da reunião.")
-                return
-            
-            data_selecionada = data_entry.get_date()
-            motivo = motivo_entry.get()
-            
-            # Passar os novos parâmetros para a função
-            gerar_declaracao_comparecimento_responsavel(
-                aluno_id, data_selecionada, motivo, 
-                responsavel_selecionado, turno_selecionado
-            )
-            
-            # Fechar interface e restaurar janela principal
-            janela_decl.destroy()
-            janela.deiconify()
-        
-        # Botões
-        frame_botoes = Frame(frame_principal, bg=co1)
-        frame_botoes.pack(fill='x', pady=(15, 0))
-        
-        Button(frame_botoes, text="Gerar Declaração", command=gerar, 
-               bg=co2, fg=co0, font=("Arial", 11, "bold"), 
-               width=18).pack(side='left', padx=5)
-        
-        Button(frame_botoes, text="Cancelar", command=janela_decl.destroy,
-               bg=co4, fg=co0, font=("Arial", 11), 
-               width=12).pack(side='right', padx=5)
+        abrir_interface_declaracao_comparecimento(janela, gerar_declaracao_comparecimento_responsavel)
 
     servicos_menu.add_separator()
     
@@ -3298,193 +2620,36 @@ def criar_acoes():
         font=menu_font
     )
 
-    # Função para gerar crachás
-    def abrir_interface_crachas():
-        """Abre uma interface para gerar crachás de alunos e responsáveis de forma não bloqueante.
-
-        Cria a janela de progresso no thread principal e executa a geração em background.
-        """
-        resposta = messagebox.askyesno(
-            "Gerar Crachás",
-            "Deseja gerar crachás para todos os alunos ativos?\n\n"
-            "Os crachás serão salvos na pasta 'Cracha_Anos_Iniciais', "
-            "organizados por série e turma."
-        )
-
-        if not resposta:
-            return
-
-        # Ocultar janela principal temporariamente
-        janela.withdraw()
-
-        # Criar janela de progresso (UI deve ser criada no thread principal)
-        janela_progresso = Toplevel(janela)
-        janela_progresso.title("Gerando Crachás")
-        janela_progresso.geometry("400x150")
-        janela_progresso.resizable(False, False)
-        janela_progresso.configure(bg=co1)
-
-        # Centralizar na tela
-        janela_progresso.update_idletasks()
-        x = (janela_progresso.winfo_screenwidth() // 2) - (400 // 2)
-        y = (janela_progresso.winfo_screenheight() // 2) - (150 // 2)
-        janela_progresso.geometry(f"400x150+{x}+{y}")
-
-        frame_prog = Frame(janela_progresso, bg=co1, padx=20, pady=20)
-        frame_prog.pack(fill=BOTH, expand=True)
-
-        Label(frame_prog, text="Gerando crachás...", font=("Arial", 12, "bold"), bg=co1, fg=co0).pack(pady=10)
-        Label(frame_prog, text="Aguarde, isso pode levar alguns minutos.", font=("Arial", 10), bg=co1, fg=co0).pack(pady=5)
-
-        progresso = Progressbar(frame_prog, mode='indeterminate', length=300)
-        progresso.pack(pady=10)
-        try:
-            progresso.start(10)
-        except Exception:
-            pass
-
-        janela_progresso.update()
-
-        # Trabalho pesado em background
-        def _worker():
-            success = False
-            error_msg = None
-            caminho = None
-            try:
-                # Usar o serviço centralizado para gerar crachás
-                from services.report_service import gerar_crachas_para_todos_os_alunos as service_gerar
-                caminho = service_gerar()
-                success = True
-            except Exception as e:
-                success = False
-                error_msg = e
-
-            # Atualizar UI no thread principal
-            def _on_done():
-                try:
-                    progresso.stop()
-                except Exception:
-                    pass
-                try:
-                    janela_progresso.destroy()
-                except Exception:
-                    pass
-                # Restaurar janela principal
-                try:
-                    janela.deiconify()
-                except Exception:
-                    pass
-
-                if not success:
-                    if isinstance(error_msg, ImportError):
-                        messagebox.showerror("Erro de Importação", f"Não foi possível importar o módulo de geração de crachás:\n{error_msg}")
-                    else:
-                        messagebox.showerror("Erro", f"Erro ao gerar crachás:\n{error_msg}")
-                    return
-
-                # Sucesso: avisar e abrir pasta
-                caminho_crachas = caminho or os.path.join(os.getcwd(), "Cracha_Anos_Iniciais")
-                messagebox.showinfo(
-                    "Sucesso",
-                    f"Crachás gerados com sucesso!\n\n"
-                    f"Os arquivos foram salvos em:\n{caminho_crachas}\n\n"
-                    f"A pasta será aberta automaticamente."
-                )
-
-                try:
-                    import subprocess
-                    import platform
-                    if platform.system() == 'Windows':
-                        os.startfile(caminho_crachas)
-                    elif platform.system() == 'Darwin':
-                        subprocess.Popen(['open', caminho_crachas])
-                    else:
-                        subprocess.Popen(['xdg-open', caminho_crachas])
-                except Exception:
-                    # Problema ao abrir a pasta não é crítico
-                    logger.warning(f"Não foi possível abrir a pasta dos crachás: {caminho_crachas}")
-
-            janela.after(0, _on_done)
-
-        try:
-            from utils.executor import submit_background
-            submit_background(_worker, janela=janela)
-        except Exception:
-            from threading import Thread
-            Thread(target=_worker, daemon=True).start()
+    # Importar interface de crachás do módulo
+    from ui.interfaces_extended import abrir_interface_crachas
+    
+    # Função wrapper (mantida para compatibilidade)
+    def _abrir_crachas():
+        abrir_interface_crachas(janela)
 
     servicos_menu.add_command(
         label="Crachás Alunos/Responsáveis",
-        command=abrir_interface_crachas,
+        command=_abrir_crachas,
         font=menu_font
     )
 
-    # Função para abrir importação de notas do HTML
-    def abrir_importacao_notas_html():
-        """Abre interface para importar notas de arquivo HTML do GEDUC"""
-        try:
-            # Ocultar janela principal
-            janela.withdraw()
-            
-            # Importar e executar o módulo de importação
-            from importar_notas_html import interface_importacao
-            
-            # Passa a referência da janela principal
-            interface_importacao(janela_pai=janela)
-            
-        except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao abrir importação de notas: {e}")
-            janela.deiconify()
+    # Importar interface de importação do módulo
+    from ui.interfaces_extended import abrir_importacao_notas_html
+    
+    # Função wrapper (mantida para compatibilidade)
+    def _abrir_importacao_html():
+        abrir_importacao_notas_html(janela)
 
     servicos_menu.add_command(
         label="Importar Notas do GEDUC (HTML → Excel)",
-        command=abrir_importacao_notas_html,
+        command=_abrir_importacao_html,
         font=menu_font
     )
-    
-    # Função para abrir a transição de ano letivo
-    def abrir_transicao_ano_letivo():
-        """Abre interface para transição de ano letivo"""
-        import os
-        from dotenv import load_dotenv
-        from tkinter import simpledialog
-        
-        # Carregar senha do banco de dados
-        load_dotenv()
-        senha_correta = os.getenv('DB_PASSWORD')
-        
-        # Solicitar senha ao usuário
-        senha_digitada = simpledialog.askstring(
-            "Autenticação Necessária",
-            "Digite a senha do banco de dados para acessar a Transição de Ano Letivo:",
-            show='*'
-        )
-        
-        # Verificar se o usuário cancelou
-        if senha_digitada is None:
-            return
-        
-        # Verificar senha
-        if senha_digitada != senha_correta:
-            messagebox.showerror(
-                "Acesso Negado",
-                "Senha incorreta! A transição de ano letivo é uma operação crítica\n"
-                "e requer autenticação para prosseguir."
-            )
-            return
-        
-        # Se a senha estiver correta, abrir a interface
-        try:
-            from transicao_ano_letivo import abrir_interface_transicao
-            abrir_interface_transicao(janela_principal=janela)
-        except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao abrir transição de ano letivo: {e}")
-            traceback.print_exc()
     
     servicos_menu.add_separator()
     servicos_menu.add_command(
         label="🔄 Transição de Ano Letivo",
-        command=abrir_transicao_ano_letivo,
+        command=callbacks.abrir_transicao_ano_letivo,
         font=menu_font
     )
 
@@ -3495,123 +2660,15 @@ def criar_acoes():
     # =========================
     faltas_menu = Menu(menu_bar, tearoff=0)
 
-    def abrir_dialogo_folhas_ponto():
-        dialog = Toplevel(janela)
-        dialog.title("Gerar Folhas de Ponto")
-        dialog.geometry("380x200")
-        dialog.resizable(False, False)
-        dialog.transient(janela)
-        dialog.grab_set()
-
-        mes_var = IntVar(value=datetime.today().month)
-        ano_var = IntVar(value=datetime.today().year)
-        pasta_var = StringVar(value=os.getcwd())
-
-        frame = Frame(dialog, padx=15, pady=15)
-        frame.pack(fill=BOTH, expand=True)
-
-        Label(frame, text="Mês:").grid(row=0, column=0, sticky=W, pady=5)
-        ttk.Spinbox(frame, from_=1, to=12, width=5, textvariable=mes_var).grid(row=0, column=1, sticky=W)
-
-        Label(frame, text="Ano:").grid(row=1, column=0, sticky=W, pady=5)
-        ttk.Spinbox(frame, from_=2020, to=2100, width=7, textvariable=ano_var).grid(row=1, column=1, sticky=W)
-
-        Label(frame, text="Pasta de saída:").grid(row=2, column=0, sticky=W, pady=5)
-        entrada_pasta = Entry(frame, textvariable=pasta_var, width=28)
-        entrada_pasta.grid(row=2, column=1, sticky=W)
-
-        def escolher_pasta():
-            pasta = filedialog.askdirectory()
-            if pasta:
-                pasta_var.set(pasta)
-
-        Button(frame, text="Escolher…", command=escolher_pasta).grid(row=2, column=2, padx=5)
-
-        def gerar():
-            dialog.destroy()
-            try:
-                try:
-                    from services.utils.templates import find_template
-                    base_pdf = find_template("folha de ponto.pdf")
-                except Exception:
-                    base_pdf = os.path.join(os.getcwd(), "Modelos", "folha de ponto.pdf")
-                    if not os.path.isfile(base_pdf):
-                        base_pdf = os.path.join(os.getcwd(), "folha de ponto.pdf")
-                if not os.path.isfile(base_pdf):
-                    messagebox.showerror("Erro", f"Arquivo base não encontrado: {base_pdf}")
-                    return
-                mes = mes_var.get()
-                ano = ano_var.get()
-                nome_mes = nome_mes_pt_folha(mes)
-                saida = os.path.join(pasta_var.get(), f"Folhas_de_Ponto_{nome_mes}_{ano}.pdf")
-                if status_label is not None:
-                    status_label.config(text=f"Gerando folhas de ponto de {nome_mes}/{ano}…")
-
-                def _worker():
-                    # Executa a geração em background e retorna o caminho de saída
-                    gerar_folhas_de_ponto(base_pdf, saida, mes_referencia=mes, ano_referencia=ano)
-                    return saida
-
-                try:
-                    _run_report_in_background(_worker, f"Folhas de Ponto {nome_mes}/{ano}")
-                except Exception as e:
-                    messagebox.showerror("Erro", f"Falha ao agendar geração das folhas de ponto: {e}")
-            except Exception as e:
-                if status_label is not None:
-                    status_label.config(text="")
-                messagebox.showerror("Erro", str(e))
-
-        botoes = Frame(dialog, padx=15, pady=10)
-        botoes.pack(fill=X)
-        Button(botoes, text="Cancelar", command=dialog.destroy).pack(side=RIGHT, padx=5)
-        Button(botoes, text="Gerar", command=gerar, bg=co5, fg=co0).pack(side=RIGHT)
-
-    def abrir_dialogo_resumo_ponto():
-        dialog = Toplevel(janela)
-        dialog.title("Gerar Resumo de Ponto")
-        dialog.geometry("320x160")
-        dialog.resizable(False, False)
-        dialog.transient(janela)
-        dialog.grab_set()
-
-        mes_var = IntVar(value=datetime.today().month)
-        ano_var = IntVar(value=datetime.today().year)
-
-        frame = Frame(dialog, padx=15, pady=15)
-        frame.pack(fill=BOTH, expand=True)
-
-        Label(frame, text="Mês:").grid(row=0, column=0, sticky=W, pady=5)
-        ttk.Spinbox(frame, from_=1, to=12, width=5, textvariable=mes_var).grid(row=0, column=1, sticky=W)
-
-        Label(frame, text="Ano:").grid(row=1, column=0, sticky=W, pady=5)
-        ttk.Spinbox(frame, from_=2020, to=2100, width=7, textvariable=ano_var).grid(row=1, column=1, sticky=W)
-
-        def gerar():
-            dialog.destroy()
-            try:
-                mes = mes_var.get()
-                ano = ano_var.get()
-                nome_mes = nome_mes_pt_resumo(mes)
-                if status_label is not None:
-                    status_label.config(text=f"Gerando resumo de ponto de {nome_mes}/{ano}…")
-
-                def _worker():
-                    gerar_resumo_ponto(mes, ano)
-                    return None
-
-                try:
-                    _run_report_in_background(_worker, f"Resumo de Ponto {nome_mes}/{ano}")
-                except Exception as e:
-                    messagebox.showerror("Erro", f"Falha ao agendar resumo de ponto: {e}")
-            except Exception as e:
-                if status_label is not None:
-                    status_label.config(text="")
-                messagebox.showerror("Erro", str(e))
-
-        botoes = Frame(dialog, padx=15, pady=10)
-        botoes.pack(fill=X)
-        Button(botoes, text="Cancelar", command=dialog.destroy).pack(side=RIGHT, padx=5)
-        Button(botoes, text="Gerar", command=gerar, bg=co5, fg=co0).pack(side=RIGHT)
+    # Importar diálogos de ponto do módulo
+    from ui.dialogs_extended import abrir_dialogo_folhas_ponto, abrir_dialogo_resumo_ponto
+    
+    # Wrappers para manter compatibilidade com chamadas do menu
+    def _abrir_folhas_ponto():
+        abrir_dialogo_folhas_ponto(janela, status_label)
+    
+    def _abrir_resumo_ponto():
+        abrir_dialogo_resumo_ponto(janela, status_label)
 
     # Cadastrar/Editar Faltas de Funcionários
     def abrir_cadastro_faltas():
@@ -3623,8 +2680,8 @@ def criar_acoes():
 
     faltas_menu.add_command(label="Cadastrar/Editar Faltas", command=abrir_cadastro_faltas, font=menu_font)
     faltas_menu.add_separator()
-    faltas_menu.add_command(label="Gerar Folhas de Ponto", command=abrir_dialogo_folhas_ponto, font=menu_font)
-    faltas_menu.add_command(label="Gerar Resumo de Ponto", command=abrir_dialogo_resumo_ponto, font=menu_font)
+    faltas_menu.add_command(label="Gerar Folhas de Ponto", command=_abrir_folhas_ponto, font=menu_font)
+    faltas_menu.add_command(label="Gerar Resumo de Ponto", command=_abrir_resumo_ponto, font=menu_font)
 
     menu_bar.add_cascade(label="Gerenciamento de Faltas", menu=faltas_menu)
     
@@ -3656,112 +2713,13 @@ def criar_acoes():
     menu_bar.add_cascade(label="Documentos da Escola", menu=documentos_menu)
 
     # Função para abrir interface de relatório avançado
+    # Importar diálogo de relatório do módulo
+    from ui.report_dialogs import abrir_relatorio_avancado as abrir_relatorio_avancado_dialog
+    from NotaAta import gerar_relatorio_notas
+    
+    # Função wrapper
     def abrir_relatorio_avancado():
-        # Criar janela para configuração de relatório avançado
-        janela_relatorio = Toplevel(janela)
-        janela_relatorio.title("Relatório de Notas - Opções Avançadas")
-        janela_relatorio.geometry("550x480")
-        janela_relatorio.resizable(False, False)
-        janela_relatorio.transient(janela)  # Torna a janela dependente da principal
-        janela_relatorio.grab_set()  # Torna a janela modal
-        
-        # Variáveis para armazenar as opções
-        bimestre_var = StringVar(value="1º bimestre")
-        nivel_var = StringVar(value="iniciais")
-        ano_letivo_var = IntVar(value=2025)
-        status_var = StringVar(value="Ativo")
-        incluir_transferidos = BooleanVar(value=False)
-        preencher_zeros = BooleanVar(value=False)
-        
-        # Frame principal
-        frame_principal = Frame(janela_relatorio, padx=20, pady=20)
-        frame_principal.pack(fill=BOTH, expand=True)
-        
-        # Título
-        Label(frame_principal, text="Configurar Relatório de Notas", font=("Arial", 12, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 15), sticky=W)
-        
-        # Bimestre
-        Label(frame_principal, text="Bimestre:", anchor=W).grid(row=1, column=0, sticky=W, pady=5)
-        bimestres = ["1º bimestre", "2º bimestre", "3º bimestre", "4º bimestre"]
-        combo_bimestre = ttk.Combobox(frame_principal, textvariable=bimestre_var, values=bimestres, state="readonly", width=20)
-        combo_bimestre.grid(row=1, column=1, sticky=W, pady=5)
-        
-        # Nível de ensino
-        Label(frame_principal, text="Nível de ensino:", anchor=W).grid(row=2, column=0, sticky=W, pady=5)
-        frame_nivel = Frame(frame_principal)
-        frame_nivel.grid(row=2, column=1, sticky=W, pady=5)
-        Radiobutton(frame_nivel, text="Séries iniciais (1º ao 5º)", variable=nivel_var, value="iniciais").pack(anchor=W)
-        Radiobutton(frame_nivel, text="Séries finais (6º ao 9º)", variable=nivel_var, value="finais").pack(anchor=W)
-        
-        # Ano letivo
-        Label(frame_principal, text="Ano letivo:", anchor=W).grid(row=3, column=0, sticky=W, pady=5)
-        anos = ["2023", "2024", "2025", "2026", "2027"]
-        combo_ano = ttk.Combobox(frame_principal, textvariable=ano_letivo_var, values=anos, state="readonly", width=20)
-        combo_ano.grid(row=3, column=1, sticky=W, pady=5)
-        
-        # Status de matrícula
-        Label(frame_principal, text="Status de matrícula:", anchor=W).grid(row=4, column=0, sticky=W, pady=5)
-        frame_status = Frame(frame_principal)
-        frame_status.grid(row=4, column=1, sticky=W, pady=5)
-        Radiobutton(frame_status, text="Apenas ativos", variable=status_var, value="Ativo").pack(anchor=W)
-        Checkbutton(frame_status, text="Incluir transferidos", variable=incluir_transferidos).pack(anchor=W)
-        
-        # Opções de exibição
-        Label(frame_principal, text="Opções de exibição:", anchor=W).grid(row=5, column=0, sticky=W, pady=5)
-        frame_opcoes = Frame(frame_principal)
-        frame_opcoes.grid(row=5, column=1, sticky=W, pady=5)
-        Checkbutton(frame_opcoes, text="Preencher notas em branco com zeros", variable=preencher_zeros).pack(anchor=W)
-        
-        # Frame para botões
-        frame_botoes = Frame(janela_relatorio, padx=20, pady=15)
-        frame_botoes.pack(fill=X)
-        
-        # Função para gerar o relatório
-        def gerar_relatorio():
-            bimestre = bimestre_var.get()
-            nivel = nivel_var.get()
-            ano = ano_letivo_var.get()
-            preencher_com_zeros = preencher_zeros.get()
-            
-            # Configurar status de matrícula
-            if incluir_transferidos.get():
-                status = ["Ativo", "Transferido"]
-            else:
-                status = status_var.get()
-            
-            # Fechar a janela
-            janela_relatorio.destroy()
-            
-            # Exibir feedback ao usuário
-            if status_label is not None:
-                status_label.config(text=f"Gerando relatório de notas para {bimestre} ({nivel})...")
-            janela.update()
-            
-            # Gerar o relatório
-            try:
-                resultado = gerar_relatorio_notas(
-                    bimestre=bimestre,
-                    nivel_ensino=nivel,
-                    ano_letivo=ano,
-                    status_matricula=status,
-                    preencher_nulos=preencher_com_zeros
-                )
-                
-                if resultado:
-                    if status_label is not None:
-                        status_label.config(text=f"Relatório gerado com sucesso!")
-                else:
-                    if status_label is not None:
-                        status_label.config(text=f"Nenhum dado encontrado para o relatório.")
-                    messagebox.showwarning("Sem dados", f"Não foram encontrados dados para o {bimestre} no nível {nivel}.")
-            except Exception as e:
-                messagebox.showerror("Erro", f"Falha ao gerar relatório: {str(e)}")
-                if status_label is not None:
-                    status_label.config(text="")
-        
-        # Botões
-        Button(frame_botoes, text="Cancelar", command=janela_relatorio.destroy, width=10).pack(side=RIGHT, padx=5)
-        Button(frame_botoes, text="Gerar", command=gerar_relatorio, width=10, bg=co5, fg=co0).pack(side=RIGHT, padx=5)
+        abrir_relatorio_avancado_dialog(janela, status_label, gerar_relatorio_notas)
     
     # Adicionar as opções dos bimestres e Ata Geral ao menu
     notas_menu.add_separator()
@@ -3889,11 +2847,11 @@ def criar_acoes():
         app_img_horarios = Image.open("icon/plus-square-fill.png")
         app_img_horarios = app_img_horarios.resize((18, 18))
         app_img_horarios = ImageTk.PhotoImage(app_img_horarios)
-        app_horarios = Button(botoes_frame, command=abrir_gerenciador_horarios, image=app_img_horarios,
+        app_horarios = Button(botoes_frame, command=callbacks.abrir_horarios_escolares, image=app_img_horarios,
                              text="Horários", compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                              bg=co3, fg=co0)
     except FileNotFoundError:
-        app_horarios = Button(botoes_frame, command=abrir_gerenciador_horarios, text="Horários",
+        app_horarios = Button(botoes_frame, command=callbacks.abrir_horarios_escolares, text="Horários",
                              compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                              bg=co3, fg=co0)
     app_horarios.grid(row=0, column=6, padx=5, pady=5, sticky=EW)
@@ -4254,15 +3212,8 @@ def obter_estatisticas_alunos():
         return None
 
 
-# Instanciar o DashboardManager se possível (injeta dependências necessárias)
-try:
-    from ui.dashboard import DashboardManager
-    from services.db_service import DbService
-    frame_getter = lambda: globals().get('frame_tabela')
-    db_service = DbService(get_connection)
-    dashboard_manager = DashboardManager(janela, db_service, obter_estatisticas_alunos, frame_getter, _cache_estatisticas_dashboard, co_bg=co1, co_fg=co0, co_accent=co4)
-except Exception:
-    dashboard_manager = None
+# DashboardManager será instanciado após criar_frames() para garantir que frame_tabela exista
+dashboard_manager = None
 
 def atualizar_tabela_principal(forcar_atualizacao=False):
     """
@@ -4274,7 +3225,7 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
     """
     try:
         # Verificar se temos uma treeview válida antes de tentar atualizar
-        if 'treeview' not in globals() or not treeview.winfo_exists():
+        if treeview is None or not treeview.winfo_exists():
             logger.warning("Treeview não existe, não é possível atualizar")
             return False
         
@@ -4333,7 +3284,7 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
         # Limpar tabela atual usando try/except para cada operação crítica
         try:
             # Verificar se tem itens antes de tentar limpar
-            if treeview.get_children():
+            if treeview is not None and treeview.get_children():
                 for item in treeview.get_children():
                     treeview.delete(item)
         except TclError as tcl_e:
@@ -4342,19 +3293,20 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
             
         # Inserir os novos dados
         try:
-            for resultado in resultados:
-                resultado = list(resultado)
-                if resultado[4]:
-                    try:
-                        if isinstance(resultado[4], str):
-                            data = datetime.strptime(resultado[4], '%Y-%m-%d')
-                        else:
-                            data = resultado[4]
-                        if isinstance(data, (datetime, date)):
-                            resultado[4] = data.strftime('%d/%m/%Y')
-                    except Exception:
-                        pass
-                treeview.insert("", "end", values=resultado)
+            if treeview is not None:
+                for resultado in resultados:
+                    resultado = list(resultado)
+                    if resultado[4]:
+                        try:
+                            if isinstance(resultado[4], str):
+                                data = datetime.strptime(resultado[4], '%Y-%m-%d')
+                            else:
+                                data = resultado[4]
+                            if isinstance(data, (datetime, date)):
+                                resultado[4] = data.strftime('%d/%m/%Y')
+                        except Exception:
+                            pass
+                    treeview.insert("", "end", values=resultado)
         except TclError as tcl_e:
             logger.error(f"Erro ao inserir dados na treeview: {str(tcl_e)}")
             raise  # Relançar para ser tratado pelo bloco de exceção principal
@@ -4393,6 +3345,9 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
 def editar_funcionario_e_destruir_frames():
     # Obter o ID do funcionário selecionado na tabela
     try:
+        if treeview is None:
+            messagebox.showerror("Erro", "Tabela não inicializada.")
+            return
         item_selecionado = treeview.focus()
         valores = treeview.item(item_selecionado, "values")
         
@@ -4776,332 +3731,47 @@ def criar_menu_boletim(parent_frame, aluno_id, tem_matricula_ativa):
 
 def editar_matricula(aluno_id):
     """
-    Abre uma janela para editar a matrícula do aluno.
+    Abre modal para editar a matrícula do aluno.
+    
+    REFATORADO Sprint 14: Usa ui/matricula_modal.py ao invés de código inline.
     
     Args:
-        aluno_id: ID do aluno a ser editado
+        aluno_id: ID do aluno a ter matrícula editada
     """
-    # Inicializa variáveis que serão usadas pela UI
     try:
-        # Buscar informações iniciais em conexão curta
-        with get_connection() as conn_init:
-            if conn_init is None:
-                messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                return
-            cur_init = conn_init.cursor()
-            cur_init.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
-            resultado_nome = cur_init.fetchone()
-            if not resultado_nome:
-                messagebox.showerror("Erro", "Aluno não encontrado.")
-                try:
-                    cur_init.close()
-                except Exception:
-                    pass
-                return
-            nome_aluno = resultado_nome[0]
+        from ui.matricula_modal import MatriculaModal
+        from ui.colors import get_colors_dict
+        
+        # Obter nome do aluno
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT nome FROM alunos WHERE id = %s", (int(str(aluno_id)),))
+            resultado_nome = cursor.fetchone()
+            cursor.close()
 
-            # Obter ano letivo atual ou mais recente
-            cur_init.execute("SELECT id, ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
-            resultado_ano = cur_init.fetchone()
-            if not resultado_ano:
-                cur_init.execute("SELECT id, ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
-                resultado_ano = cur_init.fetchone()
-            if not resultado_ano:
-                try:
-                    cur_init.close()
-                except Exception:
-                    pass
-                messagebox.showwarning("Aviso", "Não foi possível determinar o ano letivo atual.")
-                return
-            ano_letivo_id, ano_letivo = resultado_ano
-
-            # Obter matrícula mais recente do aluno para o ano letivo (independente do status)
-            cur_init.execute("""
-                SELECT m.id, m.turma_id, m.status, t.nome as turma_nome, s.nome as serie_nome, s.id as serie_id
-                FROM matriculas m
-                JOIN turmas t ON m.turma_id = t.id
-                JOIN serie s ON t.serie_id = s.id
-                WHERE m.aluno_id = %s AND m.ano_letivo_id = %s
-                ORDER BY m.data_matricula DESC, m.id DESC
-                LIMIT 1
-            """, (int(str(aluno_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
-            resultado_matricula = cur_init.fetchone()
-            try:
-                cur_init.close()
-            except Exception:
-                pass
-
-        if not resultado_matricula:
-            messagebox.showwarning("Aviso", "Não foi encontrada matrícula para este aluno no ano letivo atual.")
+        if resultado_nome is None:
+            messagebox.showerror("Erro", "Aluno não encontrado.")
             return
-
-        matricula_id, turma_id_atual, status_atual, turma_nome_atual, serie_nome_atual, serie_id_atual = resultado_matricula
-
-        # Cria a janela de edição de matrícula
-        janela_matricula = Toplevel(janela)
-        janela_matricula.title(f"Editar Matrícula - {nome_aluno}")
-        janela_matricula.geometry("500x600")
-        janela_matricula.configure(background=co1)
-        janela_matricula.transient(janela)
-        janela_matricula.focus_force()
-        janela_matricula.grab_set()
-
-        # Frame principal
-        frame_matricula = Frame(janela_matricula, bg=co1, padx=20, pady=20)
-        frame_matricula.pack(fill=BOTH, expand=True)
-
-        # Título e informações iniciais
-        Label(frame_matricula, text=f"Edição de Matrícula", font=("Arial", 14, "bold"), bg=co1, fg=co7).pack(pady=(0, 20))
-        info_frame = Frame(frame_matricula, bg=co1)
-        info_frame.pack(fill=X, pady=10)
-        Label(info_frame, text=f"Aluno: {nome_aluno}", font=("Arial", 12), bg=co1, fg=co4).pack(anchor=W)
-        Label(info_frame, text=f"Ano Letivo: {ano_letivo}", font=("Arial", 12), bg=co1, fg=co4).pack(anchor=W)
-        Label(info_frame, text=f"Status Atual: {status_atual}", font=("Arial", 12), bg=co1, fg=co4).pack(anchor=W)
-
-        # Séries / Turmas / Status UI
-        serie_frame = Frame(frame_matricula, bg=co1)
-        serie_frame.pack(fill=X, pady=10)
-        Label(serie_frame, text="Série:", bg=co1, fg=co4).pack(anchor=W, pady=(5, 0))
-        serie_var = StringVar()
-        cb_serie = ttk.Combobox(serie_frame, textvariable=serie_var, width=40)
-        cb_serie.pack(fill=X, pady=(0, 5))
-
-        turma_frame = Frame(frame_matricula, bg=co1)
-        turma_frame.pack(fill=X, pady=10)
-        Label(turma_frame, text="Turma:", bg=co1, fg=co4).pack(anchor=W, pady=(5, 0))
-        turma_var = StringVar()
-        cb_turma = ttk.Combobox(turma_frame, textvariable=turma_var, width=40)
-        cb_turma.pack(fill=X, pady=(0, 5))
-
-        status_frame = Frame(frame_matricula, bg=co1)
-        status_frame.pack(fill=X, pady=10)
-        Label(status_frame, text="Novo Status:", bg=co1, fg=co4).pack(anchor=W, pady=(5, 0))
-        status_var = StringVar()
-        status_opcoes = ['Ativo', 'Evadido', 'Cancelado', 'Transferido', 'Concluído']
-        cb_status = ttk.Combobox(status_frame, textvariable=status_var, values=status_opcoes, width=40)
-        cb_status.pack(fill=X, pady=(0, 5))
-        status_var.set(str(status_atual) if status_atual is not None else "")
-
-        # Data da mudança de status
-        data_frame = Frame(frame_matricula, bg=co1)
-        data_frame.pack(fill=X, pady=10)
-        Label(data_frame, text="Data da Mudança de Status (dd/mm/aaaa):", bg=co1, fg=co4).pack(anchor=W, pady=(5, 0))
-        data_mudanca_var = StringVar()
-        from datetime import datetime
-        data_mudanca_var.set(datetime.now().strftime('%d/%m/%Y'))
-        entry_data_mudanca = Entry(data_frame, textvariable=data_mudanca_var, width=42, font=("Arial", 10))
-        entry_data_mudanca.pack(fill=X, pady=(0, 5))
-
-        series_map = {}
-        turmas_map = {}
-
-        # Função para carregar séries (usa conexão curta)
-        def carregar_series():
-            nonlocal series_map, turmas_map
-            try:
-                with get_connection() as conn:
-                    if conn is None:
-                        messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                        return
-                    cur = conn.cursor()
-                    cur.execute("""
-                        SELECT DISTINCT s.id, s.nome 
-                        FROM serie s
-                        JOIN turmas t ON s.id = t.serie_id
-                        WHERE t.escola_id = 60
-                        AND t.ano_letivo_id = %s
-                        ORDER BY s.nome
-                    """, (int(str(ano_letivo_id)) if ano_letivo_id is not None else 1,))
-                    series = cur.fetchall()
-                    try:
-                        cur.close()
-                    except Exception:
-                        pass
-
-                if not series:
-                    messagebox.showwarning("Aviso", "Não foram encontradas séries para a escola selecionada no ano letivo atual.")
-                    return
-
-                series_map.clear()
-                for serie in series:
-                    series_map[serie[1]] = serie[0]
-                cb_serie['values'] = list(series_map.keys())
-
-                # Selecionar a série atual do aluno
-                if serie_nome_atual in series_map:
-                    serie_var.set(str(serie_nome_atual) if serie_nome_atual is not None else "")
-                    carregar_turmas()
-                elif len(series_map) == 1:
-                    serie_nome = list(series_map.keys())[0]
-                    cb_serie.set(serie_nome)
-                    carregar_turmas()
-
-            except Exception as e:
-                messagebox.showerror("Erro", f"Erro ao carregar séries: {str(e)}")
-
-        # Função para carregar turmas com base na série selecionada (usa conexão curta)
-        def carregar_turmas(event=None):
-            nonlocal turmas_map
-            serie_nome = serie_var.get()
-            if not serie_nome:
-                return
-            if serie_nome not in series_map:
-                return
-            serie_id = series_map[serie_nome]
-            try:
-                with get_connection() as conn:
-                    if conn is None:
-                        messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                        return
-                    cur = conn.cursor()
-                    cur.execute("""
-                        SELECT id, nome, serie_id
-                        FROM turmas 
-                        WHERE serie_id = %s AND escola_id = 60 AND ano_letivo_id = %s
-                        ORDER BY nome
-                    """, (int(str(serie_id)), int(str(ano_letivo_id)) if ano_letivo_id is not None else 1))
-                    turmas = cur.fetchall()
-                    try:
-                        cur.close()
-                    except Exception:
-                        pass
-
-                if not turmas:
-                    messagebox.showwarning("Aviso", f"Não foram encontradas turmas para a série {serie_nome}.")
-                    return
-
-                turmas_map.clear()
-                for turma in turmas:
-                    turma_id, turma_nome, turma_serie_id = turma
-                    if not turma_nome or str(turma_nome).strip() == "":
-                        turma_nome = f"Turma {turma_id}" if len(turmas) > 1 else "Turma Única"
-                    turmas_map[turma_nome] = turma_id
-
-                turmas_nomes = list(turmas_map.keys())
-                cb_turma['values'] = turmas_nomes
-
-                if serie_id == serie_id_atual and turma_nome_atual in turmas_map:
-                    turma_var.set(str(turma_nome_atual) if turma_nome_atual is not None else "")
-                elif len(turmas_map) == 1:
-                    cb_turma.set(turmas_nomes[0])
-                else:
-                    cb_turma.set("")
-
-            except Exception as e:
-                messagebox.showerror("Erro", f"Erro ao carregar turmas: {str(e)}")
-
-        cb_serie.bind("<<ComboboxSelected>>", carregar_turmas)
-
-        # Função para salvar a edição da matrícula (usa conexão curta com commit)
-        def salvar_edicao_matricula():
-            serie_nome = serie_var.get()
-            turma_nome = turma_var.get()
-            novo_status = status_var.get()
-            data_str = data_mudanca_var.get()
-
-            if not serie_nome or serie_nome not in series_map:
-                messagebox.showwarning("Aviso", "Por favor, selecione uma série válida.")
-                return
-            if not turma_nome or turma_nome not in turmas_map:
-                messagebox.showwarning("Aviso", f"Por favor, selecione uma turma válida. Valor atual: '{turma_nome}'")
-                return
-            if not novo_status:
-                messagebox.showwarning("Aviso", "Por favor, selecione um status válido.")
-                return
-
-            try:
-                from datetime import datetime
-                data_obj = datetime.strptime(data_str, '%d/%m/%Y')
-                data_formatada = data_obj.strftime('%Y-%m-%d')
-            except ValueError:
-                messagebox.showerror("Erro", "Data inválida! Use o formato dd/mm/aaaa (exemplo: 28/10/2025)")
-                return
-
-            turma_id = turmas_map[turma_nome]
-
-            try:
-                with get_connection() as conn:
-                    if conn is None:
-                        messagebox.showerror("Erro", "Não foi possível conectar ao banco de dados.")
-                        return
-                    cur = conn.cursor()
-                    cur.execute("""
-                        SELECT id FROM historico_matricula 
-                        WHERE matricula_id = %s 
-                        AND status_anterior = %s 
-                        AND status_novo = %s
-                        ORDER BY id DESC
-                        LIMIT 1
-                    """, (int(str(matricula_id)) if matricula_id is not None else 0, str(status_atual) if status_atual is not None else '', novo_status))
-                    historico_existente = cur.fetchone()
-
-                    if historico_existente:
-                        cur.execute("""
-                            UPDATE historico_matricula 
-                            SET data_mudanca = %s
-                            WHERE id = %s
-                        """, (data_formatada, int(str(historico_existente[0])) if historico_existente and historico_existente[0] is not None else 0))
-                    else:
-                        cur.execute("""
-                            INSERT INTO historico_matricula (matricula_id, status_anterior, status_novo, data_mudanca)
-                            VALUES (%s, %s, %s, %s)
-                        """, (int(str(matricula_id)) if matricula_id is not None else 0, str(status_atual) if status_atual is not None else '', novo_status, data_formatada))
-
-                    if turma_id != turma_id_atual:
-                        cur.execute("""
-                            UPDATE matriculas 
-                            SET turma_id = %s, status = %s
-                            WHERE id = %s
-                        """, (int(str(turma_id)), novo_status, int(str(matricula_id)) if matricula_id is not None else 0))
-                    else:
-                        cur.execute("""
-                            UPDATE matriculas 
-                            SET status = %s
-                            WHERE id = %s
-                        """, (novo_status, int(str(matricula_id)) if matricula_id is not None else 0))
-
-                    try:
-                        conn.commit()
-                    except Exception:
-                        try:
-                            conn.rollback()
-                        except Exception:
-                            pass
-                    try:
-                        cur.close()
-                    except Exception:
-                        pass
-
-                messagebox.showinfo("Sucesso", f"Matrícula do aluno {nome_aluno} atualizada com sucesso!")
-                janela_matricula.destroy()
-                criar_botoes_frame_detalhes("Aluno", [aluno_id, nome_aluno, "Aluno", None, None])
-
-            except Exception as e:
-                messagebox.showerror("Erro", f"Erro ao atualizar matrícula: {str(e)}")
-
-        def ao_fechar_janela():
-            try:
-                janela_matricula.destroy()
-            except Exception:
-                pass
-
-        # Botões
-        botoes_frame = Frame(frame_matricula, bg=co1)
-        botoes_frame.pack(fill=X, pady=20)
-        Button(botoes_frame, text="Salvar", command=salvar_edicao_matricula,
-              font=('Ivy 10 bold'), width=10, bg=co3, fg=co0, overrelief=RIDGE).pack(side=LEFT, padx=10)
-        Button(botoes_frame, text="Cancelar", command=ao_fechar_janela,
-              font=('Ivy 10'), width=10, bg=co8, fg=co0, overrelief=RIDGE).pack(side=LEFT, padx=10)
-
-        # Carregar séries ao iniciar
-        carregar_series()
-
-        # Callback de fechamento
-        janela_matricula.protocol("WM_DELETE_WINDOW", ao_fechar_janela)
-
+        
+        nome_aluno = resultado_nome[0]
+        
+        # Callback para atualizar tabela após edição
+        def ao_editar_sucesso():
+            atualizar_tabela_principal()
+            logger.info(f"Matrícula do aluno {nome_aluno} editada com sucesso")
+        
+        # Criar e mostrar modal de matrícula (funciona tanto para criar quanto editar)
+        MatriculaModal(
+            parent=janela,
+            aluno_id=aluno_id,
+            nome_aluno=nome_aluno,
+            colors=get_colors_dict(),
+            callback_sucesso=ao_editar_sucesso
+        )
+        
     except Exception as e:
-        messagebox.showerror("Erro", f"Erro ao abrir edição de matrícula: {str(e)}")
-        logger.error(f"Erro detalhado: {str(e)}")
+        logger.exception(f"Erro ao abrir edição de matrícula: {e}")
+        messagebox.showerror("Erro", f"Erro ao preparar edição: {str(e)}")
 
 def selecionar_mes_movimento():
     """Seleciona mês para o relatório de movimentação usando dialogs.py."""
@@ -5775,6 +4445,9 @@ def ao_fechar_programa():
 
 # Iniciando a interface gráfica
 criar_frames()
+
+# DashboardManager será inicializado sob demanda quando criar_dashboard() for chamado
+
 criar_logo()
 criar_acoes()  # Isso cria os botões principais
 criar_pesquisa()
