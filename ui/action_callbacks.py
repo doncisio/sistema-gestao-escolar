@@ -67,7 +67,7 @@ class ReportCallbacks:
     def lista_reuniao(self):
         """Gera lista de reunião."""
         try:
-            from main import lista_reuniao as _lista_reuniao
+            from Lista_reuniao import lista_reuniao as _lista_reuniao
             _lista_reuniao()
         except Exception as e:
             logger.exception(f"Erro ao gerar lista de reunião: {e}")
@@ -76,7 +76,7 @@ class ReportCallbacks:
     def lista_notas(self):
         """Gera lista de notas."""
         try:
-            from main import lista_notas as _lista_notas
+            from Lista_notas import lista_notas as _lista_notas
             _lista_notas()
         except Exception as e:
             logger.exception(f"Erro ao gerar lista de notas: {e}")
@@ -85,7 +85,7 @@ class ReportCallbacks:
     def lista_frequencia(self):
         """Gera lista de frequências."""
         try:
-            from main import lista_frequencia as _lista_frequencia
+            from lista_frequencia import lista_frequencia as _lista_frequencia
             _lista_frequencia()
         except Exception as e:
             logger.exception(f"Erro ao gerar lista de frequência: {e}")
@@ -94,8 +94,22 @@ class ReportCallbacks:
     def relatorio_contatos_responsaveis(self):
         """Gera relatório de contatos de responsáveis."""
         try:
-            from main import relatorio_contatos_responsaveis as _relatorio
-            _relatorio()
+            from Lista_contatos_responsaveis import gerar_pdf_contatos
+            from datetime import datetime
+            from db.connection import get_cursor
+            
+            # Obter o ano letivo atual (não o ID)
+            ano_letivo = datetime.now().year
+            try:
+                with get_cursor() as cursor:
+                    cursor.execute("SELECT ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo LIMIT 1")
+                    resultado = cursor.fetchone()
+                    if resultado:
+                        ano_letivo = resultado['ano_letivo'] if isinstance(resultado, dict) else resultado[0]
+            except Exception as e:
+                logger.warning(f"Erro ao buscar ano letivo, usando ano atual: {e}")
+            
+            gerar_pdf_contatos(ano_letivo)
         except Exception as e:
             logger.exception(f"Erro ao gerar relatório: {e}")
             messagebox.showerror("Erro", f"Não foi possível gerar o relatório: {e}")
@@ -103,8 +117,8 @@ class ReportCallbacks:
     def relatorio_levantamento_necessidades(self):
         """Gera relatório de levantamento de necessidades."""
         try:
-            from main import relatorio_levantamento_necessidades as _relatorio
-            _relatorio()
+            from levantamento_necessidades import gerar_levantamento_necessidades
+            gerar_levantamento_necessidades()
         except Exception as e:
             logger.exception(f"Erro ao gerar relatório: {e}")
             messagebox.showerror("Erro", f"Não foi possível gerar o relatório: {e}")
@@ -112,8 +126,8 @@ class ReportCallbacks:
     def relatorio_lista_alfabetica(self):
         """Gera lista alfabética de alunos."""
         try:
-            from main import relatorio_lista_alfabetica as _relatorio
-            _relatorio()
+            from Lista_alunos_alfabetica import lista_alfabetica
+            lista_alfabetica()
         except Exception as e:
             logger.exception(f"Erro ao gerar relatório: {e}")
             messagebox.showerror("Erro", f"Não foi possível gerar o relatório: {e}")
@@ -121,8 +135,8 @@ class ReportCallbacks:
     def relatorio_alunos_transtornos(self):
         """Gera relatório de alunos com transtornos."""
         try:
-            from main import relatorio_alunos_transtornos as _relatorio
-            _relatorio()
+            from Lista_alunos_transtornos import lista_alunos_transtornos
+            lista_alunos_transtornos()
         except Exception as e:
             logger.exception(f"Erro ao gerar relatório: {e}")
             messagebox.showerror("Erro", f"Não foi possível gerar o relatório: {e}")
@@ -130,8 +144,8 @@ class ReportCallbacks:
     def relatorio_termo_responsabilidade(self):
         """Gera termo de responsabilidade."""
         try:
-            from main import relatorio_termo_responsabilidade as _relatorio
-            _relatorio()
+            from termo_responsabilidade_empresa import gerar_termo_responsabilidade
+            gerar_termo_responsabilidade()
         except Exception as e:
             logger.exception(f"Erro ao gerar relatório: {e}")
             messagebox.showerror("Erro", f"Não foi possível gerar o relatório: {e}")
@@ -139,8 +153,8 @@ class ReportCallbacks:
     def relatorio_tabela_docentes(self):
         """Gera tabela de docentes."""
         try:
-            from main import relatorio_tabela_docentes as _relatorio
-            _relatorio()
+            from tabela_docentes import gerar_tabela_docentes
+            gerar_tabela_docentes()
         except Exception as e:
             logger.exception(f"Erro ao gerar relatório: {e}")
             messagebox.showerror("Erro", f"Não foi possível gerar o relatório: {e}")
@@ -148,8 +162,8 @@ class ReportCallbacks:
     def relatorio_movimentacao_mensal(self, numero_mes: int):
         """Gera relatório de movimentação mensal."""
         try:
-            from main import relatorio_movimentacao_mensal as _relatorio
-            _relatorio(numero_mes)
+            from movimentomensal import relatorio_movimentacao_mensal
+            relatorio_movimentacao_mensal(mes=numero_mes)
         except Exception as e:
             logger.exception(f"Erro ao gerar relatório mensal: {e}")
             messagebox.showerror("Erro", f"Não foi possível gerar o relatório: {e}")
@@ -187,6 +201,46 @@ class ReportCallbacks:
         except Exception as e:
             logger.exception(f"Erro ao abrir relatório de análise: {e}")
             messagebox.showerror("Erro", f"Não foi possível abrir o relatório: {e}")
+    
+    def abrir_cadastro_faltas(self):
+        """Abre interface de cadastro/edição de faltas."""
+        try:
+            from InterfaceCadastroEdicaoFaltas import abrir_interface_faltas
+            abrir_interface_faltas(janela_principal=self.janela)
+        except Exception as e:
+            logger.exception(f"Erro ao abrir cadastro de faltas: {e}")
+            messagebox.showerror("Erro", f"Não foi possível abrir a interface de faltas: {e}")
+
+
+class RHCallbacks:
+    """Callbacks relacionados a RH (folhas de ponto, resumo de ponto, solicitações)."""
+    
+    def __init__(self, janela):
+        """
+        Inicializa os callbacks de RH.
+        
+        Args:
+            janela: Janela principal da aplicação
+        """
+        self.janela = janela
+    
+    def gerar_folhas_de_ponto(self, numero_mes: int):
+        """Gera folhas de ponto para o mês especificado."""
+        try:
+            from main import gerar_folhas_de_ponto as _gerar_folhas
+            _gerar_folhas(numero_mes)
+        except Exception as e:
+            logger.exception(f"Erro ao gerar folhas de ponto: {e}")
+            messagebox.showerror("Erro", f"Não foi possível gerar as folhas de ponto: {e}")
+    
+    def gerar_resumo_ponto(self, numero_mes: int):
+        """Gera resumo de ponto para o mês especificado."""
+        try:
+            from main import gerar_resumo_ponto as _gerar_resumo
+            _gerar_resumo(numero_mes)
+        except Exception as e:
+            logger.exception(f"Erro ao gerar resumo de ponto: {e}")
+            messagebox.showerror("Erro", f"Não foi possível gerar o resumo de ponto: {e}")
 
 
 class CadastroCallbacks:
@@ -384,7 +438,7 @@ class DeclaracaoCallbacks:
             from GerenciadorDocumentosFuncionarios import GerenciadorDocumentosFuncionarios
             
             gerenciador_window = Toplevel(self.janela)
-            GerenciadorDocumentosFuncionarios(gerenciador_window, self.janela)
+            GerenciadorDocumentosFuncionarios(gerenciador_window)
             
             logger.info("Gerenciador de documentos aberto")
             
@@ -398,7 +452,7 @@ class DeclaracaoCallbacks:
             from InterfaceGerenciamentoLicencas import InterfaceGerenciamentoLicencas
             
             licencas_window = Toplevel(self.janela)
-            InterfaceGerenciamentoLicencas(licencas_window, self.janela)
+            InterfaceGerenciamentoLicencas(licencas_window)
             
             logger.info("Gerenciador de licenças aberto")
             
@@ -431,6 +485,16 @@ class DeclaracaoCallbacks:
             logger.exception(f"Erro ao abrir gerenciador de documentos do sistema: {e}")
             messagebox.showerror("Erro", f"Erro ao abrir gerenciador: {str(e)}")
             self.janela.deiconify()
+    
+    def declaracao_comparecimento(self):
+        """Abre interface para gerar declaração de comparecimento."""
+        try:
+            from ui.interfaces_extended import abrir_interface_declaracao_comparecimento
+            from declaracao_comparecimento import gerar_declaracao_comparecimento_responsavel
+            abrir_interface_declaracao_comparecimento(self.janela, gerar_declaracao_comparecimento_responsavel)
+        except Exception as e:
+            logger.exception(f"Erro ao abrir declaração de comparecimento: {e}")
+            messagebox.showerror("Erro", f"Não foi possível abrir a declaração: {e}")
 
 
 class ActionCallbacksManager:
@@ -458,8 +522,9 @@ class ActionCallbacksManager:
         self.historico = HistoricoCallbacks(janela)
         self.administrativo = AdministrativoCallbacks(janela)
         self.declaracao = DeclaracaoCallbacks(janela)
+        self.rh = RHCallbacks(janela)
         
-        logger.debug("ActionCallbacksManager inicializado com 5 categorias")
+        logger.debug("ActionCallbacksManager inicializado com 6 categorias")
     
     # Métodos de conveniência para acesso direto
     
@@ -515,3 +580,31 @@ class ActionCallbacksManager:
     def relatorio_contatos_responsaveis(self):
         """Atalho para reports.relatorio_contatos_responsaveis()"""
         return self.reports.relatorio_contatos_responsaveis()
+    
+    def abrir_cadastro_faltas(self):
+        """Atalho para reports.abrir_cadastro_faltas()"""
+        return self.reports.abrir_cadastro_faltas()
+    
+    def lista_atualizada_semed(self):
+        """Atalho para reports.lista_atualizada_semed()"""
+        return self.reports.lista_atualizada_semed()
+    
+    def relatorio_movimentacao_mensal(self, numero_mes: int):
+        """Atalho para reports.relatorio_movimentacao_mensal()"""
+        return self.reports.relatorio_movimentacao_mensal(numero_mes)
+    
+    def gerar_folhas_de_ponto(self, numero_mes: int):
+        """Atalho para rh.gerar_folhas_de_ponto()"""
+        return self.rh.gerar_folhas_de_ponto(numero_mes)
+    
+    def gerar_resumo_ponto(self, numero_mes: int):
+        """Atalho para rh.gerar_resumo_ponto()"""
+        return self.rh.gerar_resumo_ponto(numero_mes)
+    
+    def abrir_solicitacao_professores(self):
+        """Atalho para administrativo.abrir_solicitacao_professores()"""
+        return self.administrativo.abrir_solicitacao_professores()
+    
+    def declaracao_comparecimento(self):
+        """Atalho para declaracao.declaracao_comparecimento()"""
+        return self.declaracao.declaracao_comparecimento()

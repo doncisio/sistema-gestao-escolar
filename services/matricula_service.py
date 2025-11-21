@@ -159,11 +159,63 @@ def verificar_matricula_existente(aluno_id: int, ano_letivo_id: int) -> Optional
         return None
 
 
+def obter_matricula_aluno(aluno_id: int, ano_letivo_id: int) -> Optional[Dict]:
+    """
+    Retorna os dados completos da matrícula do aluno no ano letivo (se existir).
+
+    Args:
+        aluno_id: ID do aluno
+        ano_letivo_id: ID do ano letivo
+
+    Returns:
+        dict: Dados da matrícula (id, status, turma_id, turma, serie, data_matricula) ou None
+    """
+    try:
+        with get_cursor() as cursor:
+            # Query principal
+            cursor.execute("""
+                SELECT m.id, m.status, m.turma_id, 
+                       COALESCE(NULLIF(t.nome, ''), t.turno) as turma,
+                       s.nome as serie, 
+                       m.data_matricula
+                FROM matriculas m
+                JOIN turmas t ON m.turma_id = t.id
+                JOIN serie s ON t.serie_id = s.id
+                WHERE m.aluno_id = %s AND m.ano_letivo_id = %s
+                LIMIT 1
+            """, (aluno_id, ano_letivo_id))
+            resultado = cursor.fetchone()
+
+            if resultado:
+                if isinstance(resultado, dict):
+                    return resultado
+                else:
+                    dados = {
+                        'id': resultado[0],
+                        'status': resultado[1],
+                        'turma_id': resultado[2],
+                        'turma': resultado[3],  # turma_nome
+                        'serie': resultado[4],  # serie_nome
+                        'data_matricula': resultado[5]
+                    }
+                    return dados
+
+            return None
+
+    except MySQLError as e:
+        logger.exception(f"Erro MySQL ao obter matrícula do aluno: {e}")
+        return None
+    except Exception as e:
+        logger.exception(f"Erro inesperado ao obter matrícula do aluno: {e}")
+        return None
+
+
 def matricular_aluno(
     aluno_id: int,
     turma_id: int,
     ano_letivo_id: Optional[int] = None,
-    status: str = 'Ativo'
+    status: str = 'Ativo',
+    data_matricula: Optional[str] = None
 ) -> Tuple[bool, str]:
     """
     Matricula um aluno em uma turma.
@@ -173,6 +225,7 @@ def matricular_aluno(
         turma_id: ID da turma
         ano_letivo_id: ID do ano letivo (se None, usa ano atual)
         status: Status da matrícula (padrão: 'Ativo')
+        data_matricula: Data da matrícula no formato YYYY-MM-DD (se None, usa data atual)
         
     Returns:
         tuple: (sucesso: bool, mensagem: str)
@@ -184,19 +237,35 @@ def matricular_aluno(
             if ano_letivo_id is None:
                 return False, "Ano letivo atual não encontrado"
         
-        # Verificar se já existe matrícula ativa
+        # Usar data atual se não especificada
+        if data_matricula is None:
+            from datetime import datetime
+            data_matricula = datetime.now().strftime('%Y-%m-%d')
+        
+        # Verificar se já existe matrícula (qualquer status)
         matricula_existente = verificar_matricula_existente(aluno_id, ano_letivo_id)
-        if matricula_existente and matricula_existente['status'] == 'Ativo':
-            return False, f"Aluno já possui matrícula ativa na turma {matricula_existente['turma']}"
         
         with get_cursor() as cursor:
-            cursor.execute("""
-                INSERT INTO matriculas (aluno_id, turma_id, ano_letivo_id, status)
-                VALUES (%s, %s, %s, %s)
-            """, (aluno_id, turma_id, ano_letivo_id, status))
-            
-            logger.info(f"Aluno {aluno_id} matriculado na turma {turma_id} com sucesso")
-            return True, "Matrícula realizada com sucesso"
+            if matricula_existente:
+                # Atualizar matrícula existente
+                matricula_id = matricula_existente['id']
+                cursor.execute("""
+                    UPDATE matriculas 
+                    SET turma_id = %s, status = %s, data_matricula = %s
+                    WHERE id = %s
+                """, (turma_id, status, data_matricula, matricula_id))
+                
+                logger.info(f"Matrícula {matricula_id} do aluno {aluno_id} atualizada com sucesso")
+                return True, "Matrícula atualizada com sucesso"
+            else:
+                # Inserir nova matrícula
+                cursor.execute("""
+                    INSERT INTO matriculas (aluno_id, turma_id, ano_letivo_id, status, data_matricula)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (aluno_id, turma_id, ano_letivo_id, status, data_matricula))
+                
+                logger.info(f"Aluno {aluno_id} matriculado na turma {turma_id} com sucesso")
+                return True, "Matrícula realizada com sucesso"
             
     except MySQLError as e:
         logger.exception(f"Erro MySQL ao matricular aluno: {e}")

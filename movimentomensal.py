@@ -1061,8 +1061,9 @@ def gerar_relatorio_1_5(elements, cabecalho, figura_inferior, mes):
     elements.append(Paragraph("<b>MUNICÍPIO:</b> Paço do Lumiar – MA", estilo_info))
     elements.append(Paragraph("<b>TURNO:</b> MATUTINO", estilo_info))
     
-    # Buscar dias letivos do mês atual
-    dias_letivos = buscar_dias_letivos(cursor, ano_letivo, mes)
+    # Buscar dias letivos do mês atual usando uma nova conexão
+    with get_cursor() as cursor:
+        dias_letivos = buscar_dias_letivos(cursor, ano_letivo, mes)
     
     # Informações sobre salas e dias letivos
     info_salas_data = [
@@ -1108,19 +1109,22 @@ def gerar_relatorio_1_5(elements, cabecalho, figura_inferior, mes):
     
     # Preparar dados de movimentação mensal
     series = ['1º Ano', '2º Ano', '3º Ano', '4º Ano', '5º Ano']
-    dados_movimentacao = {serie: contar_movimentacao_mensal(cursor, ano_letivo_id, mes, serie) for serie in series}
     
-    # Contar transferências recebidas
-    logger.info(f"\nDEBUG - Chamando contar_transferencias_recebidas com:")
-    logger.info(f"ano_letivo_id: {ano_letivo_id}")
-    logger.info(f"data_inicio: {data_inicio}")
-    logger.info(f"series: {series}")
-    transferencias_recebidas = contar_transferencias_recebidas(cursor, ano_letivo_id, data_inicio, series)
-    
-    # Se o ano letivo terminou, buscar aprovações/reprovações
-    hoje = datetime.date.today()
-    if hoje > data_fim:
-        dados_aprovacao = {serie: contar_aprovacoes_reprovacoes(cursor, ano_letivo_id, serie) for serie in series}
+    # Usar uma nova conexão para buscar dados de movimentação
+    with get_cursor() as cursor:
+        dados_movimentacao = {serie: contar_movimentacao_mensal(cursor, ano_letivo_id, mes, serie) for serie in series}
+        
+        # Contar transferências recebidas
+        logger.info(f"\nDEBUG - Chamando contar_transferencias_recebidas com:")
+        logger.info(f"ano_letivo_id: {ano_letivo_id}")
+        logger.info(f"data_inicio: {data_inicio}")
+        logger.info(f"series: {series}")
+        transferencias_recebidas = contar_transferencias_recebidas(cursor, ano_letivo_id, data_inicio, series)
+        
+        # Se o ano letivo terminou, buscar aprovações/reprovações
+        hoje = datetime.date.today()
+        if hoje > data_fim:
+            dados_aprovacao = {serie: contar_aprovacoes_reprovacoes(cursor, ano_letivo_id, serie) for serie in series}
     
     # Processar dados de transferências e evasões
     evadidos = {serie: {'M': 0, 'F': 0} for serie in series}
@@ -1226,16 +1230,17 @@ def gerar_relatorio_1_5(elements, cabecalho, figura_inferior, mes):
             [quebra_linha("ALUNOS REPROVADOS")] + ["--"]*13
         ])
     
-    # Adicionar contagem de turmas
-    query_turmas = """
-    SELECT s.nome as serie, COUNT(DISTINCT t.id) as total_turmas
-    FROM turmas t
-    JOIN serie s ON t.serie_id = s.id
-    WHERE t.ano_letivo_id = %s
-    GROUP BY s.nome
-    """
-    cursor.execute(query_turmas, (ano_letivo_id,))
-    turmas = {r['serie']: r['total_turmas'] for r in cursor.fetchall()}
+    # Adicionar contagem de turmas usando uma nova conexão
+    with get_cursor() as cursor:
+        query_turmas = """
+        SELECT s.nome as serie, COUNT(DISTINCT t.id) as total_turmas
+        FROM turmas t
+        JOIN serie s ON t.serie_id = s.id
+        WHERE t.ano_letivo_id = %s
+        GROUP BY s.nome
+        """
+        cursor.execute(query_turmas, (ano_letivo_id,))
+        turmas = {r['serie']: r['total_turmas'] for r in cursor.fetchall()}
     
     # Criar lista com número de turmas por série
     turmas_por_serie = []
@@ -1315,10 +1320,6 @@ def gerar_relatorio_1_5(elements, cabecalho, figura_inferior, mes):
     ]))
     
     elements.append(table)
-    
-    # Fechar a conexão com o banco de dados
-    cursor.close()
-    conn.close()
 
 def gerar_relatorio_6_9(elements, cabecalho, figura_inferior, mes):
     ano_letivo = 2025
@@ -1397,8 +1398,9 @@ def gerar_relatorio_6_9(elements, cabecalho, figura_inferior, mes):
     elements.append(Paragraph("<b>MUNICÍPIO:</b> Paço do Lumiar – MA", estilo_info))
     elements.append(Paragraph("<b>TURNO:</b> VESPERTINO", estilo_info))
     
-    # Buscar dias letivos do mês atual
-    dias_letivos = buscar_dias_letivos(cursor, ano_letivo, mes)
+    # Buscar dias letivos do mês atual usando uma nova conexão
+    with get_cursor() as cursor:
+        dias_letivos = buscar_dias_letivos(cursor, ano_letivo, mes)
     
     # Informações sobre salas e dias letivos
     info_salas_data = [
@@ -1446,10 +1448,12 @@ def gerar_relatorio_6_9(elements, cabecalho, figura_inferior, mes):
     total_geral_atual = total_m_atual + total_f_atual
     
     # Preparar dados de movimentação mensal
-    dados_movimentacao = {serie: contar_movimentacao_mensal(cursor, ano_letivo_id, mes, serie) for serie in series}
-    
-    # Contar transferências recebidas
-    transferencias_recebidas = contar_transferencias_recebidas(cursor, ano_letivo_id, data_inicio, series)
+    # Usar uma nova conexão para buscar dados de movimentação
+    with get_cursor() as cursor:
+        dados_movimentacao = {serie: contar_movimentacao_mensal(cursor, ano_letivo_id, mes, serie) for serie in series}
+        
+        # Contar transferências recebidas
+        transferencias_recebidas = contar_transferencias_recebidas(cursor, ano_letivo_id, data_inicio, series)
     
     # Se o ano letivo terminou, buscar aprovações/reprovações
     hoje = datetime.date.today()
@@ -1559,25 +1563,26 @@ def gerar_relatorio_6_9(elements, cabecalho, figura_inferior, mes):
             [quebra_linha("ALUNOS REPROVADOS")] + ["--"]*11
         ])
     
-    # Adicionar contagem de turmas
-    query_turmas = """
-    SELECT 
-        CASE 
-            WHEN s.nome = '6º Ano' THEN CONCAT(s.nome, ' ', t.nome)
-            ELSE s.nome 
-        END as serie_nome,
-        COUNT(DISTINCT t.id) as total_turmas
-    FROM turmas t
-    JOIN serie s ON t.serie_id = s.id
-    WHERE t.ano_letivo_id = %s
-    GROUP BY 
-        CASE 
-            WHEN s.nome = '6º Ano' THEN CONCAT(s.nome, ' ', t.nome)
-            ELSE s.nome 
-        END;
-    """
-    cursor.execute(query_turmas, (ano_letivo_id,))
-    turmas = {r['serie_nome']: r['total_turmas'] for r in cursor.fetchall()}
+    # Adicionar contagem de turmas usando uma nova conexão
+    with get_cursor() as cursor:
+        query_turmas = """
+        SELECT 
+            CASE 
+                WHEN s.nome = '6º Ano' THEN CONCAT(s.nome, ' ', t.nome)
+                ELSE s.nome 
+            END as serie_nome,
+            COUNT(DISTINCT t.id) as total_turmas
+        FROM turmas t
+        JOIN serie s ON t.serie_id = s.id
+        WHERE t.ano_letivo_id = %s
+        GROUP BY 
+            CASE 
+                WHEN s.nome = '6º Ano' THEN CONCAT(s.nome, ' ', t.nome)
+                ELSE s.nome 
+            END;
+        """
+        cursor.execute(query_turmas, (ano_letivo_id,))
+        turmas = {r['serie_nome']: r['total_turmas'] for r in cursor.fetchall()}
     
     # Criar lista com número de turmas por série
     turmas_por_serie = []
@@ -1656,11 +1661,6 @@ def gerar_relatorio_6_9(elements, cabecalho, figura_inferior, mes):
     ]))
     
     elements.append(table)
-    
-    # Fim da função
-    # Certifique-se de fechar as conexões com o banco de dados
-    cursor.close()
-    conn.close()
 
 def parse_turma_nome(turma_nome):
     """Extrai o número do ano e a letra da turma (se houver) para ordenação.

@@ -1,6 +1,7 @@
 from config_logs import get_logger
 logger = get_logger(__name__)
 import os
+import datetime
 import pandas as pd
 from reportlab.lib.colors import black, white, grey
 from reportlab.lib.units import inch
@@ -20,29 +21,44 @@ def buscar_contatos_alunos(ano_letivo: int):
         return []
     cursor: Any = cast(Any, conn).cursor(dictionary=True)
 
+    # Debug: verificar ano letivo
+    logger.info(f"Buscando contatos para ano letivo: {ano_letivo}")
+    
+    # Verificar se o ano letivo existe
+    try:
+        cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = %s", (ano_letivo,))
+        ano_result = cursor.fetchone()
+        if not ano_result:
+            logger.warning(f"Ano letivo {ano_letivo} não encontrado na tabela anosletivos")
+            return []
+        logger.info(f"ID do ano letivo: {ano_result['id']}")
+    except Exception as e:
+        logger.error(f"Erro ao verificar ano letivo: {e}")
+        return []
+
     query = """
         SELECT 
             a.nome AS ALUNO,
             s.nome AS NOME_SERIE,
-            t.nome AS NOME_TURMA,
+            COALESCE(NULLIF(t.nome, ''), t.turno) AS NOME_TURMA,
             t.turno AS TURNO,
             GROUP_CONCAT(DISTINCT r.nome ORDER BY r.id SEPARATOR ', ') AS RESPONSAVEIS,
             GROUP_CONCAT(DISTINCT r.telefone ORDER BY r.id SEPARATOR '/') AS TELEFONES
-        FROM Alunos a
-        JOIN Matriculas m ON a.id = m.aluno_id
-        JOIN Turmas t ON m.turma_id = t.id
-        JOIN Serie s ON t.serie_id = s.id
-        LEFT JOIN ResponsaveisAlunos ra ON a.id = ra.aluno_id
-        LEFT JOIN Responsaveis r ON ra.responsavel_id = r.id
-        WHERE m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
+        FROM alunos a
+        JOIN matriculas m ON a.id = m.aluno_id
+        JOIN turmas t ON m.turma_id = t.id
+        JOIN serie s ON t.serie_id = s.id
+        LEFT JOIN responsaveisalunos ra ON a.id = ra.aluno_id
+        LEFT JOIN responsaveis r ON ra.responsavel_id = r.id
+        WHERE m.ano_letivo_id = (SELECT id FROM anosletivos WHERE ano_letivo = %s)
           AND a.escola_id = 60
-          AND (m.status = 'Ativo' OR m.status = 'Transferido' OR m.status = 'Transferida')
         GROUP BY a.id, a.nome, s.nome, t.nome, t.turno
         ORDER BY s.nome, t.nome, a.nome
     """
     try:
         cursor.execute(query, (ano_letivo,))
         registros = cursor.fetchall()
+        logger.info(f"Total de registros encontrados: {len(registros)}")
         return registros
     except Exception as e:
         logger.error("Erro ao executar a consulta: %s", str(e))
@@ -120,11 +136,11 @@ def gerar_pdf_contatos(ano_letivo: int):
     registros = buscar_contatos_alunos(ano_letivo)
     if not registros:
         logger.info('Nenhum dado encontrado.')
+        from tkinter import messagebox
+        messagebox.showinfo("Info", "Nenhum dado encontrado para gerar o relatório.")
         return None
 
     df = pd.DataFrame(registros)
-
-    # Não pré-formata telefones aqui; usa a função padrão do relatório na montagem
 
     cabecalho = [
         "SECRETARIA MUNICIPAL DE EDUCAÇÃO",
@@ -147,42 +163,17 @@ def gerar_pdf_contatos(ano_letivo: int):
 
     doc.build(elements)
     buffer.seek(0)
+    
+    # Salvar e abrir o PDF
     try:
-        from gerarPDF import salvar_e_abrir_pdf as _salvar_helper
-    except Exception:
-        _salvar_helper = None
-
-    saved_path = None
-    try:
-        if _salvar_helper:
-            try:
-                saved_path = _salvar_helper(buffer)
-            except Exception:
-                saved_path = None
-
-        if not saved_path:
-            import tempfile
-            from utilitarios.gerenciador_documentos import salvar_documento_sistema
-            from utilitarios.tipos_documentos import TIPO_LISTA_ATUALIZADA
-
-            tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
-            try:
-                tmp.write(buffer.getvalue())
-                tmp.close()
-                descricao = f"Contatos de Responsáveis - {datetime.datetime.now().year}"
-                try:
-                    # Tipo genérico de listas atualizadas/contatos
-                    salvar_documento_sistema(tmp.name, TIPO_LISTA_ATUALIZADA, funcionario_id=1, finalidade='Secretaria', descricao=descricao)
-                    saved_path = tmp.name
-                except Exception:
-                    try:
-                        if _salvar_helper:
-                            buffer.seek(0)
-                            _salvar_helper(buffer)
-                    except Exception:
-                        pass
-            finally:
-                pass
+        saved_path = salvar_e_abrir_pdf(buffer)
+        logger.info(f"PDF de contatos gerado: {saved_path}")
+        return saved_path
+    except Exception as e:
+        logger.exception(f"Erro ao salvar PDF: {e}")
+        from tkinter import messagebox
+        messagebox.showerror("Erro", f"Erro ao salvar PDF: {e}")
+        return None
     finally:
         try:
             buffer.close()

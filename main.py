@@ -43,6 +43,10 @@ def main():
         logger.debug("Criando instância da Application...")
         app = Application()
         
+        # Adicionar referência ao app na janela para acesso pelos callbacks
+        if app.janela:
+            setattr(app.janela, '_app_instance', app)  # type: ignore
+        
         # Configurar frames principais
         logger.debug("Configurando frames...")
         app.setup_frames()
@@ -174,6 +178,10 @@ def main():
         # Configurar rodapé
         logger.debug("Configurando rodapé...")
         app.setup_footer()
+        
+        # Configurar e exibir dashboard automaticamente (otimizado)
+        logger.debug("Configurando dashboard...")
+        app.setup_dashboard(criar_agora=True)
         
         # Configurar menu contextual
         logger.debug("Configurando menu contextual...")

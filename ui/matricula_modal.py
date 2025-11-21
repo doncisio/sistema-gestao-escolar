@@ -51,13 +51,15 @@ class MatriculaModal:
         self._criar_interface()
     
     def _criar_interface(self):
-        """Cria a interface do modal."""
+        """Cria a interface do modal (estilo Sprint 15 - backup)."""
         try:
             # Importar serviços
             from services.matricula_service import (
                 obter_ano_letivo_atual,
                 obter_series_disponiveis
             )
+            from datetime import datetime
+            from tkinter import Entry, W, X, BOTH, StringVar
             
             # Verificar ano letivo
             self.ano_letivo_id = obter_ano_letivo_atual()
@@ -65,210 +67,416 @@ class MatriculaModal:
                 messagebox.showerror("Erro", "Ano letivo atual não encontrado")
                 return
             
-            # REMOVIDO: Verificação de matrícula existente
-            # O modal deve permitir tanto criar quanto editar matrículas
+            # Obter ano letivo
+            from db.connection import get_connection
+            with get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT ano_letivo FROM anosletivos WHERE id = %s", (self.ano_letivo_id,))
+                resultado = cursor.fetchone()
+                ano_letivo = resultado[0] if resultado else "Atual"
+                cursor.close()
             
-            # Criar janela
+            # Criar janela (estilo backup Sprint 15)
             self.janela = Toplevel(self.parent)
             self.janela.title(f"Matricular Aluno - {self.nome_aluno}")
-            self.janela.geometry('450x320')
-            self.janela.configure(bg=self.colors.get('co1', '#ffffff'))
+            self.janela.geometry('500x520')
+            self.janela.configure(background=self.colors.get('co1', '#003A70'))
             self.janela.transient(self.parent)
+            self.janela.focus_force()
             self.janela.grab_set()
-            self.janela.resizable(False, False)
             
-            # Frame principal com padding
-            frame_principal = Frame(
-                self.janela, 
-                bg=self.colors.get('co1', '#ffffff'),
-                padx=30,
-                pady=25
+            # Frame principal
+            frame_matricula = Frame(
+                self.janela,
+                bg=self.colors.get('co1', '#003A70'),
+                padx=20,
+                pady=20
             )
-            frame_principal.pack(fill='both', expand=True)
+            frame_matricula.pack(fill=BOTH, expand=True)
             
-            # Cabeçalho
+            # Título
             Label(
-                frame_principal,
-                text="📝 Matrícula de Aluno",
-                bg=self.colors.get('co1', '#ffffff'),
-                fg=self.colors.get('co7', '#000000'),
-                font=("Arial", 14, "bold")
-            ).pack(pady=(0, 5))
-            
-            Label(
-                frame_principal,
-                text=f"Aluno: {self.nome_aluno}",
-                bg=self.colors.get('co1', '#ffffff'),
-                fg=self.colors.get('co4', '#666666'),
-                font=("Arial", 10)
+                frame_matricula,
+                text="Matrícula de Aluno",
+                font=("Arial", 14, "bold"),
+                bg=self.colors.get('co1', '#003A70'),
+                fg=self.colors.get('co7', '#333333')
             ).pack(pady=(0, 20))
             
-            # Separador
-            Frame(
-                frame_principal,
-                height=2,
-                bg=self.colors.get('co9', '#cccccc')
-            ).pack(fill='x', pady=(0, 20))
-            
-            # Série
-            frame_serie = Frame(frame_principal, bg=self.colors.get('co1', '#ffffff'))
-            frame_serie.pack(fill='x', pady=(0, 15))
+            # Informações do aluno
+            info_frame = Frame(frame_matricula, bg=self.colors.get('co1', '#003A70'))
+            info_frame.pack(fill=X, pady=10)
             
             Label(
-                frame_serie,
+                info_frame,
+                text=f"Aluno: {self.nome_aluno}",
+                font=("Arial", 12),
+                bg=self.colors.get('co1', '#003A70'),
+                fg=self.colors.get('co4', '#4A86E8')
+            ).pack(anchor=W)
+            
+            Label(
+                info_frame,
+                text=f"Ano Letivo: {ano_letivo}",
+                font=("Arial", 12),
+                bg=self.colors.get('co1', '#003A70'),
+                fg=self.colors.get('co4', '#4A86E8')
+            ).pack(anchor=W)
+            
+            # Selecionar Série
+            serie_frame = Frame(frame_matricula, bg=self.colors.get('co1', '#003A70'))
+            serie_frame.pack(fill=X, pady=10)
+            
+            Label(
+                serie_frame,
                 text="Série:",
-                bg=self.colors.get('co1', '#ffffff'),
-                fg=self.colors.get('co7', '#000000'),
-                font=("Arial", 10, "bold")
-            ).pack(anchor='w')
+                bg=self.colors.get('co1', '#003A70'),
+                fg=self.colors.get('co4', '#4A86E8')
+            ).pack(anchor=W, pady=(5, 0))
             
-            self.series = obter_series_disponiveis()
-            
-            # Verificar se séries foram carregadas
-            if not self.series:
-                self.logger.error("Nenhuma série disponível retornada")
-                messagebox.showerror("Erro", "Não foi possível carregar as séries disponíveis.")
-                if self.janela:
-                    self.janela.destroy()
-                return
-            
-            self.serie_var = ttk.Combobox(
-                frame_serie,
-                state="readonly",
-                width=35,
-                font=("Arial", 10)
+            self.serie_var = StringVar()
+            self.cb_serie = ttk.Combobox(
+                serie_frame,
+                textvariable=self.serie_var,
+                width=40,
+                state="readonly"
             )
-            self.serie_var['values'] = [s['nome'] for s in self.series]
-            self.serie_var.pack(pady=(5, 0))
-            self.serie_var.bind('<<ComboboxSelected>>', self._atualizar_turmas)
+            self.cb_serie.pack(fill=X, pady=(0, 5))
             
-            # Turma
-            frame_turma = Frame(frame_principal, bg=self.colors.get('co1', '#ffffff'))
-            frame_turma.pack(fill='x', pady=(0, 25))
+            # Selecionar Turma
+            turma_frame = Frame(frame_matricula, bg=self.colors.get('co1', '#003A70'))
+            turma_frame.pack(fill=X, pady=10)
             
             Label(
-                frame_turma,
+                turma_frame,
                 text="Turma:",
-                bg=self.colors.get('co1', '#ffffff'),
-                fg=self.colors.get('co7', '#000000'),
-                font=("Arial", 10, "bold")
-            ).pack(anchor='w')
+                bg=self.colors.get('co1', '#003A70'),
+                fg=self.colors.get('co4', '#4A86E8')
+            ).pack(anchor=W, pady=(5, 0))
             
-            self.turma_var = ttk.Combobox(
-                frame_turma,
-                state="readonly",
-                width=35,
+            self.turma_var = StringVar()
+            self.cb_turma = ttk.Combobox(
+                turma_frame,
+                textvariable=self.turma_var,
+                width=40,
+                state="readonly"
+            )
+            self.cb_turma.pack(fill=X, pady=(0, 5))
+            
+            # Data da matrícula
+            data_frame = Frame(frame_matricula, bg=self.colors.get('co1', '#003A70'))
+            data_frame.pack(fill=X, pady=10)
+            
+            Label(
+                data_frame,
+                text="Data da Matrícula (dd/mm/aaaa):",
+                bg=self.colors.get('co1', '#003A70'),
+                fg=self.colors.get('co4', '#4A86E8')
+            ).pack(anchor=W, pady=(5, 0))
+            
+            self.data_matricula_var = StringVar()
+            self.data_matricula_var.set(datetime.now().strftime('%d/%m/%Y'))
+            entry_data_matricula = Entry(
+                data_frame,
+                textvariable=self.data_matricula_var,
+                width=42,
                 font=("Arial", 10)
             )
-            self.turma_var.pack(pady=(5, 0))
+            entry_data_matricula.pack(fill=X, pady=(0, 5))
+            
+            # Status da matrícula
+            status_frame = Frame(frame_matricula, bg=self.colors.get('co1', '#003A70'))
+            status_frame.pack(fill=X, pady=10)
+            
+            Label(
+                status_frame,
+                text="Status:",
+                bg=self.colors.get('co1', '#003A70'),
+                fg=self.colors.get('co4', '#4A86E8')
+            ).pack(anchor=W, pady=(5, 0))
+            
+            self.status_var = StringVar()
+            self.cb_status = ttk.Combobox(
+                status_frame,
+                textvariable=self.status_var,
+                width=40,
+                state="readonly",
+                values=['Ativo', 'Transferido', 'Evadido', 'Concluído']
+            )
+            self.cb_status.pack(fill=X, pady=(0, 5))
+            self.cb_status.set('Ativo')  # Valor padrão
+            
+            # Carregar séries
+            self._carregar_series()
+
+            # Vincular evento de mudança de série
+            self.cb_serie.bind('<<ComboboxSelected>>', lambda e: self._carregar_turmas())
+
+            # Se já houver matrícula, preencher os campos (série, turma, data)
+            # IMPORTANTE: Fazer isso DEPOIS de carregar séries/turmas
+            self._preencher_matricula_existente()
             
             # Botões
-            frame_botoes = Frame(frame_principal, bg=self.colors.get('co1', '#ffffff'))
-            frame_botoes.pack()
+            btn_frame = Frame(frame_matricula, bg=self.colors.get('co1', '#003A70'))
+            btn_frame.pack(pady=20)
+            
+            # Determinar texto do botão baseado na existência de matrícula
+            texto_botao = "Matricular"
+            if hasattr(self, 'matricula_existente') and self.matricula_existente:
+                texto_botao = "Salvar"
             
             Button(
-                frame_botoes,
-                text="✓ Matricular",
+                btn_frame,
+                text=texto_botao,
                 command=self._confirmar_matricula,
-                bg=self.colors.get('co2', '#4CAF50'),
-                fg='#ffffff',
                 font=("Arial", 10, "bold"),
+                bg=self.colors.get('co2', '#77B341'),
+                fg='#ffffff',
                 width=14,
-                cursor='hand2',
-                relief='flat',
-                padx=10,
-                pady=8
+                relief='raised'
             ).pack(side='left', padx=5)
             
             Button(
-                frame_botoes,
-                text="✗ Cancelar",
+                btn_frame,
+                text="Cancelar",
                 command=self.janela.destroy,
-                bg=self.colors.get('co7', '#999999'),
-                fg='#ffffff',
                 font=("Arial", 10),
+                bg=self.colors.get('co8', '#BF3036'),
+                fg='#ffffff',
                 width=14,
-                cursor='hand2',
-                relief='flat',
-                padx=10,
-                pady=8
+                relief='raised'
             ).pack(side='left', padx=5)
             
             # Focar no primeiro campo
-            self.serie_var.focus()
+            self.cb_serie.focus()
             
         except Exception as e:
             self.logger.exception(f"Erro ao criar interface de matrícula: {e}")
             messagebox.showerror("Erro", f"Erro ao criar interface: {str(e)}")
     
-    def _atualizar_turmas(self, event=None):
-        """Atualiza lista de turmas quando série é selecionada."""
+    def _carregar_series(self):
+        """Carrega as séries disponíveis."""
         try:
-            from services.matricula_service import obter_turmas_por_serie
+            from services.matricula_service import obter_series_disponiveis
             
-            if not self.serie_var or not self.serie_var.get():
+            series = obter_series_disponiveis()
+            
+            if not series:
+                self.logger.error("Nenhuma série disponível")
+                messagebox.showerror("Erro", "Não há séries disponíveis para matrícula")
                 return
             
-            if not self.ano_letivo_id:
-                return
+            # Criar dicionário série_nome -> série_id
+            self.series_map = {s['nome']: s['id'] for s in series}
             
-            # Encontrar ID da série selecionada
-            serie_nome = self.serie_var.get()
-            serie_id = next((s['id'] for s in self.series if s['nome'] == serie_nome), None)
+            # Configurar combobox
+            self.cb_serie['values'] = list(self.series_map.keys())
             
-            if not serie_id:
-                self.logger.warning(f"ID da série '{serie_nome}' não encontrado")
-                return
-            
-            # Buscar turmas
-            turmas = obter_turmas_por_serie(serie_id, self.ano_letivo_id)
-            
-            if not turmas:
-                messagebox.showwarning(
-                    "Aviso",
-                    f"Não há turmas disponíveis para a série '{serie_nome}'"
-                )
-                if self.turma_var:
-                    self.turma_var['values'] = []
-                return
-            
-            # Atualizar combobox
-            if self.turma_var:
-                self.turma_var['values'] = [t['nome'] for t in turmas]
-                self.turma_var.set('')  # Limpar seleção anterior
-                
-                # Guardar referência às turmas para buscar ID depois
-                self.turma_var._turmas_data = turmas  # type: ignore
-            
-            self.logger.debug(f"Carregadas {len(turmas)} turma(s) para série {serie_nome}")
+            # NÃO selecionar automaticamente - será feito em _selecionar_serie_inicial()
             
         except Exception as e:
-            self.logger.exception(f"Erro ao atualizar turmas: {e}")
-            messagebox.showerror("Erro", f"Erro ao carregar turmas: {str(e)}")
+            self.logger.exception(f"Erro ao carregar séries: {e}")
+            messagebox.showerror("Erro", "Erro ao carregar séries")
+    
+    def _carregar_turmas(self, event=None):
+        """Carrega turmas da série selecionada."""
+        turmas = []
+        try:
+            serie_nome = self.serie_var.get()
+            if not serie_nome:
+                return
+            
+            serie_id = self.series_map.get(serie_nome)
+            if not serie_id:
+                return
+            
+            from db.connection import get_connection
+            
+            # Buscar turmas da série no ano letivo atual (escola_id=60)
+            with get_connection() as conn:
+                cursor = conn.cursor(dictionary=True)
+                cursor.execute("""
+                    SELECT id, COALESCE(NULLIF(nome, ''), turno) as nome_turma
+                    FROM turmas 
+                    WHERE serie_id = %s 
+                    AND ano_letivo_id = %s 
+                    AND escola_id = 60
+                    ORDER BY turno, nome
+                """, (serie_id, self.ano_letivo_id))
+                turmas = cursor.fetchall()
+                cursor.close()
+            
+            if not turmas:
+                self.cb_turma['values'] = []
+                self.turma_var.set('')
+                # NÃO mostrar aviso aqui - será tratado em _selecionar_serie_inicial
+                return
+            
+            # Se houver apenas 1 turma, renomear para "Única"
+            if len(turmas) == 1:
+                turmas[0]['nome_turma'] = 'Única'
+            
+            # Criar dicionário turma_nome -> turma_id
+            self.turmas_map = {t['nome_turma']: t['id'] for t in turmas}
+            
+            # Configurar combobox
+            self.cb_turma['values'] = list(self.turmas_map.keys())
+            if self.cb_turma['values']:
+                self.cb_turma.current(0)  # Selecionar primeira turma
+                
+        except Exception as e:
+            self.logger.exception(f"Erro ao carregar turmas: {e}")
+            messagebox.showerror("Erro", "Erro ao carregar turmas")
+    
+    def _atualizar_turmas(self, event=None):
+        """Atualiza lista de turmas quando série é selecionada (mantido para compatibilidade)."""
+        # Método mantido para compatibilidade, mas agora usa _carregar_turmas
+        self._carregar_turmas(event)
+    
+    def _preencher_matricula_existente(self):
+        """Preenche os campos se já existir matrícula para o aluno."""
+        try:
+            from services.matricula_service import obter_matricula_aluno
+            from datetime import datetime
+            
+            matricula = obter_matricula_aluno(self.aluno_id, self.ano_letivo_id)
+            
+            # Guardar flag de matrícula existente
+            self.matricula_existente = matricula is not None
+            
+            if not matricula:
+                # Se não há matrícula, selecionar primeira série que tenha turmas
+                self._selecionar_serie_inicial()
+                return
+            
+            # Preencher status
+            status_db = matricula.get('status', 'Ativo')
+            self.status_var.set(status_db)
+            
+            # Preencher data
+            data_db = matricula.get('data_matricula')
+            
+            if data_db:
+                try:
+                    if hasattr(data_db, 'strftime'):
+                        data_str = data_db.strftime('%d/%m/%Y')
+                    else:
+                        data_str = datetime.strptime(str(data_db)[:10], '%Y-%m-%d').strftime('%d/%m/%Y')
+                    self.data_matricula_var.set(data_str)
+                except Exception as e:
+                    self.logger.warning(f"Erro ao converter data_matricula: {e}")
+            
+            # Preencher série
+            serie_name = matricula.get('serie')
+            
+            if serie_name and hasattr(self, 'series_map'):
+                if serie_name in self.series_map:
+                    self.serie_var.set(serie_name)
+                    
+                    # Recarregar turmas da série selecionada
+                    self._carregar_turmas()
+            
+            # Preencher turma
+            turma_name = matricula.get('turma')
+            turma_id_db = matricula.get('turma_id')
+            
+            if hasattr(self, 'turmas_map'):
+                # Se houver apenas 1 turma, ela foi renomeada para "Única"
+                if len(self.turmas_map) == 1:
+                    self.turma_var.set('Única')
+                elif turma_name and turma_name in self.turmas_map:
+                    self.turma_var.set(turma_name)
+                elif turma_id_db:
+                    # Procurar pelo ID
+                    for nome, idv in self.turmas_map.items():
+                        if idv == turma_id_db:
+                            self.turma_var.set(nome)
+                            break
+            
+        except Exception as e:
+            self.logger.error(f"Erro ao preencher matrícula existente: {e}", exc_info=True)
+    
+    def _selecionar_serie_inicial(self):
+        """Seleciona primeira série que tenha turmas cadastradas."""
+        try:
+            from db.connection import get_connection
+            
+            # Percorrer séries até encontrar uma com turmas
+            for serie_nome in self.cb_serie['values']:
+                serie_id = self.series_map.get(serie_nome)
+                if not serie_id:
+                    continue
+                
+                # Verificar se há turmas para esta série
+                with get_connection() as conn:
+                    cursor = conn.cursor(dictionary=True)
+                    cursor.execute("""
+                        SELECT COUNT(*) as total
+                        FROM turmas 
+                        WHERE serie_id = %s 
+                        AND ano_letivo_id = %s 
+                        AND escola_id = 60
+                    """, (serie_id, self.ano_letivo_id))
+                    resultado = cursor.fetchone()
+                    cursor.close()
+                    
+                    total = resultado['total'] if resultado else 0
+                    
+                    if total > 0:
+                        # Encontrou série com turmas!
+                        self.serie_var.set(serie_nome)
+                        self._carregar_turmas()
+                        return
+            
+            # Se chegou aqui, nenhuma série tem turmas
+            if self.cb_serie['values']:
+                self.serie_var.set(self.cb_serie['values'][0])
+                self._carregar_turmas()
+            
+        except Exception as e:
+            self.logger.error(f"Erro ao selecionar série inicial: {e}", exc_info=True)
     
     def _confirmar_matricula(self):
         """Confirma e executa a matrícula."""
         try:
+            from datetime import datetime
+            
             # Validar campos
-            if not self.serie_var or not self.serie_var.get():
+            if not self.serie_var.get():
                 messagebox.showwarning("Aviso", "Selecione a série")
-                if self.serie_var:
-                    self.serie_var.focus()
+                self.cb_serie.focus()
                 return
             
-            if not self.turma_var or not self.turma_var.get():
+            if not self.turma_var.get():
                 messagebox.showwarning("Aviso", "Selecione a turma")
-                if self.turma_var:
-                    self.turma_var.focus()
+                self.cb_turma.focus()
                 return
             
-            # Encontrar ID da turma
+            # Validar data
+            data_str = self.data_matricula_var.get().strip()
+            if not data_str:
+                messagebox.showwarning("Aviso", "Informe a data da matrícula")
+                return
+            
+            # Validar status
+            status = self.status_var.get()
+            if not status:
+                messagebox.showwarning("Aviso", "Selecione o status")
+                return
+            
+            # Tentar converter a data
+            try:
+                data_matricula = datetime.strptime(data_str, '%d/%m/%Y')
+            except ValueError:
+                messagebox.showerror("Erro", "Data inválida. Use o formato dd/mm/aaaa")
+                return
+            
+            # Obter IDs usando os dicionários
             turma_nome = self.turma_var.get()
-            turmas_data = getattr(self.turma_var, '_turmas_data', [])
-            turma_id = next((t['id'] for t in turmas_data if t['nome'] == turma_nome), None)
+            turma_id = self.turmas_map.get(turma_nome)
             
             if not turma_id:
-                messagebox.showerror("Erro", "Turma não encontrada. Tente novamente.")
+                messagebox.showerror("Erro", "Turma não encontrada")
                 return
             
             # Matricular usando serviço
@@ -278,7 +486,8 @@ class MatriculaModal:
                 self.aluno_id,
                 turma_id,
                 self.ano_letivo_id,
-                status='Ativo'
+                status=status,
+                data_matricula=data_matricula.strftime('%Y-%m-%d')
             )
             
             if sucesso:
