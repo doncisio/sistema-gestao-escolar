@@ -7,6 +7,7 @@ Este módulo centraliza todas as operações de negócio relacionadas a alunos:
 - Validações e regras de negócio
 
 Extraído do main.py como parte da refatoração do Sprint 2.
+Atualizado no Sprint 18 com validação Pydantic.
 """
 
 from typing import Tuple, List, Dict, Optional
@@ -14,8 +15,55 @@ from tkinter import messagebox
 from mysql.connector import Error as MySQLError
 from db.connection import get_cursor
 from config_logs import get_logger
+from pydantic import ValidationError
+
+# Import condicional dos modelos Pydantic (para compatibilidade)
+try:
+    from models.aluno import AlunoCreate, AlunoUpdate, AlunoRead
+    PYDANTIC_AVAILABLE = True
+except ImportError:
+    PYDANTIC_AVAILABLE = False
+    logger = get_logger(__name__)
+    logger.warning("Modelos Pydantic não disponíveis, validação desabilitada")
 
 logger = get_logger(__name__)
+
+
+def validar_dados_aluno(dados: Dict, is_update: bool = False) -> Tuple[bool, Optional[str]]:
+    """
+    Valida dados de aluno usando Pydantic.
+    
+    Args:
+        dados: Dicionário com dados do aluno
+        is_update: Se True, usa validação de update (campos opcionais)
+        
+    Returns:
+        tuple: (sucesso: bool, mensagem_erro: Optional[str])
+    """
+    if not PYDANTIC_AVAILABLE:
+        logger.debug("Validação Pydantic pulada (não disponível)")
+        return True, None
+    
+    try:
+        if is_update:
+            AlunoUpdate(**dados)
+        else:
+            AlunoCreate(**dados)
+        return True, None
+    except ValidationError as e:
+        # Formata erros de validação de forma amigável
+        erros = []
+        for erro in e.errors():
+            campo = ' -> '.join(str(loc) for loc in erro['loc'])
+            mensagem = erro['msg']
+            erros.append(f"{campo}: {mensagem}")
+        
+        mensagem_completa = "Erro de validação:\n" + "\n".join(erros)
+        logger.warning(f"Validação falhou: {mensagem_completa}")
+        return False, mensagem_completa
+    except Exception as e:
+        logger.exception(f"Erro inesperado na validação: {e}")
+        return False, f"Erro inesperado na validação: {str(e)}"
 
 
 def verificar_matricula_ativa(aluno_id: int) -> bool:

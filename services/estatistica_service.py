@@ -7,13 +7,15 @@ from typing import Dict, List, Optional
 from mysql.connector import Error as MySQLError
 import logging
 from db.connection import get_cursor
+from utils.cache import dashboard_cache
 
 logger = logging.getLogger(__name__)
 
 
+@dashboard_cache.cached(ttl=600)  # Cache de 10 minutos
 def obter_estatisticas_alunos(escola_id: int = 60, ano_letivo: Optional[str] = None) -> Optional[Dict]:
     """
-    Calcula estatísticas gerais de alunos da escola (OTIMIZADO).
+    Calcula estatísticas gerais de alunos da escola (OTIMIZADO + CACHE).
     
     Args:
         escola_id: ID da escola (padrão: 60)
@@ -136,7 +138,7 @@ def obter_estatisticas_alunos(escola_id: int = 60, ano_letivo: Optional[str] = N
             estatisticas['alunos_por_serie_turma'] = alunos_por_turma
             logger.info(f"Turmas: {len(alunos_por_turma)}")
             
-            # Alunos por turno
+            # Alunos por turno (apenas ativos, sem transferidos)
             cursor.execute("""
                 SELECT t.turno, COUNT(DISTINCT m.aluno_id) as total
                 FROM matriculas m
@@ -144,7 +146,7 @@ def obter_estatisticas_alunos(escola_id: int = 60, ano_letivo: Optional[str] = N
                 INNER JOIN alunos a ON m.aluno_id = a.id
                 WHERE m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
                   AND a.escola_id = %s
-                  AND (m.status = 'Ativo' OR m.status = 'Transferido' OR m.status = 'Transferida')
+                  AND m.status = 'Ativo'
                 GROUP BY t.turno
             """, (ano_letivo, escola_id))
             
@@ -196,9 +198,10 @@ def obter_estatisticas_alunos(escola_id: int = 60, ano_letivo: Optional[str] = N
         return None
 
 
+@dashboard_cache.cached(ttl=600)  # Cache de 10 minutos
 def obter_estatisticas_por_ano_letivo(ano_letivo_id: int, escola_id: int = 60) -> Optional[Dict]:
     """
-    Calcula estatísticas de alunos para um ano letivo específico.
+    Calcula estatísticas de alunos para um ano letivo específico (CACHE).
     
     Args:
         ano_letivo_id: ID do ano letivo
@@ -335,9 +338,10 @@ def obter_alunos_por_situacao(situacao: str, escola_id: int = 60) -> List[Dict]:
         return []
 
 
+@dashboard_cache.cached(ttl=300)  # Cache de 5 minutos
 def calcular_media_idade_alunos(escola_id: int = 60) -> Optional[float]:
     """
-    Calcula a média de idade dos alunos ativos.
+    Calcula a média de idade dos alunos ativos (CACHE).
     
     Args:
         escola_id: ID da escola (padrão: 60)
