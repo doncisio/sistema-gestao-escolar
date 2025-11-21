@@ -164,12 +164,9 @@ def create_pdf_buffer(pagesize=letter):
         bottomMargin=bottom_margin
     )
     return doc, buffer
+
+# Importar get_nome_mes do módulo utils.dates (já tem suporte a uppercase)
 from utils.dates import get_nome_mes
-
-
-def get_nome_mes(numero_mes):
-    # Compatibilidade: devolve o mês em MAIÚSCULAS, mesmo comportamento anterior
-    return get_nome_mes(numero_mes, uppercase=True)
 
 def formatar_cpf(cpf):
     """Formata um CPF para o formato 000.000.000-00."""

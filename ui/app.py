@@ -369,6 +369,57 @@ class Application:
         
         logger.debug("Botões e menus configurados via ButtonFactory")
     
+    def setup_dashboard(self, criar_agora=False):
+        """
+        Inicializa o DashboardManager (opcionalmente cria o dashboard).
+        
+        Este método configura o dashboard com gráfico de pizza mostrando
+        a distribuição de alunos por série e turma.
+        
+        Args:
+            criar_agora: Se True, cria o dashboard imediatamente. Se False, apenas
+                        inicializa o manager para criação sob demanda.
+        """
+        if 'frame_tabela' not in self.frames:
+            logger.warning("Frame de tabela não existe. Execute setup_frames() primeiro.")
+            return
+        
+        try:
+            from services.db_service import DbService
+            
+            # Frame getter para o dashboard
+            frame_getter = lambda: self.frames.get('frame_tabela')
+            
+            # Criar serviço de banco de dados
+            db_service = DbService(get_connection)
+            
+            # Cache para estatísticas do dashboard (vazio inicialmente)
+            cache_estatisticas = {'timestamp': None, 'dados': None}
+            
+            # Criar DashboardManager
+            self.dashboard_manager = DashboardManager(
+                janela=self.janela,
+                db_service=db_service,
+                frame_getter=frame_getter,
+                cache_ref=cache_estatisticas,
+                escola_id=60,  # ID da escola
+                co_bg=self.colors['co1'],
+                co_fg=self.colors['co0'],
+                co_accent=self.colors['co4']
+            )
+            
+            logger.info("✓ DashboardManager instanciado com sucesso")
+            
+            # Criar o dashboard apenas se solicitado
+            if criar_agora:
+                self.dashboard_manager.criar_dashboard()
+                logger.info("✓ Dashboard criado e exibido")
+            else:
+                logger.info("✓ Dashboard configurado para carregamento sob demanda")
+            
+        except Exception as e:
+            logger.error(f"Erro ao configurar dashboard: {e}", exc_info=True)
+    
     def update_status(self, message: str):
         """
         Atualiza a mensagem de status no rodapé.

@@ -443,50 +443,24 @@ def gerar_levantamento_necessidades():
     except Exception:
         pass
     
-    # Retorna o buffer
+    # Salvar e abrir o PDF
     buffer.seek(0)
-    return buffer
+    try:
+        saved_path = salvar_e_abrir_pdf(buffer)
+        return saved_path
+    except Exception as e:
+        raise RuntimeError(f"Erro ao salvar PDF: {e}")
+    finally:
+        try:
+            buffer.close()
+        except Exception:
+            pass
 
 if __name__ == "__main__":
-    buffer = gerar_levantamento_necessidades()
-    if buffer:
-        try:
-            from gerarPDF import salvar_e_abrir_pdf as _salvar_helper
-        except Exception:
-            _salvar_helper = None
-
-        saved_path = None
-        try:
-            if _salvar_helper:
-                try:
-                    saved_path = _salvar_helper(buffer)
-                except Exception:
-                    saved_path = None
-
-            if not saved_path:
-                import tempfile
-                from utilitarios.gerenciador_documentos import salvar_documento_sistema
-                from utilitarios.tipos_documentos import TIPO_LISTA_ATUALIZADA
-
-                tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
-                try:
-                    tmp.write(buffer.getvalue())
-                    tmp.close()
-                    descricao = f"Levantamento de Necessidades - {datetime.datetime.now().year}"
-                    try:
-                        salvar_documento_sistema(tmp.name, TIPO_LISTA_ATUALIZADA, funcionario_id=1, finalidade='Secretaria', descricao=descricao)
-                        saved_path = tmp.name
-                    except Exception:
-                        try:
-                            if _salvar_helper:
-                                buffer.seek(0)
-                                _salvar_helper(buffer)
-                        except Exception:
-                            pass
-                finally:
-                    pass
-        finally:
-            try:
-                buffer.close()
-            except Exception:
-                pass
+    try:
+        saved_path = gerar_levantamento_necessidades()
+        print(f"PDF gerado com sucesso: {saved_path}")
+    except Exception as e:
+        print(f"Erro ao gerar PDF: {e}")
+        import traceback
+        traceback.print_exc()
