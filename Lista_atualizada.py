@@ -14,6 +14,39 @@ from gerarPDF import salvar_e_abrir_pdf
 from biblio_editor import formatar_telefone
 from typing import Any, cast
 
+# Cache global para imagens e estilos
+_IMAGE_CACHE = {}
+_STYLE_CACHE = {}
+
+def _get_cached_image(path, width, height):
+    """Retorna uma imagem em cache para evitar recarregamento."""
+    key = (path, width, height)
+    if key not in _IMAGE_CACHE:
+        _IMAGE_CACHE[key] = Image(path, width=width, height=height)
+    return _IMAGE_CACHE[key]
+
+def _get_cached_style(name, **kwargs):
+    """Retorna um estilo em cache para evitar recriação."""
+    key = (name, tuple(sorted(kwargs.items())))
+    if key not in _STYLE_CACHE:
+        _STYLE_CACHE[key] = ParagraphStyle(name=name, **kwargs)
+    return _STYLE_CACHE[key]
+
+def _get_common_table_style():
+    """Retorna o estilo de tabela comum usado em múltiplos lugares."""
+    if 'common_table' not in _STYLE_CACHE:
+        _STYLE_CACHE['common_table'] = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), white),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), '#f0f0f0'),
+            ('GRID', (0, 0), (-1, -1), 1, black)
+        ])
+    return _STYLE_CACHE['common_table']
+
 def fetch_student_data(ano_letivo):
     conn: Any = conectar_bd()
     if not conn:
@@ -209,45 +242,37 @@ def add_employee_table(elements, funcionarios_df, figura_inferior, cabecalho):
     """
     Adiciona uma tabela de funcionários ao PDF.
     """
-    # Cabeçalho da página
+    # Cabeçalho da página com imagem em cache
+    img = _get_cached_image(figura_inferior, 3 * inch, 0.7 * inch)
+    header_style = _get_cached_style('Header', fontSize=12, alignment=1)
     data = [
-        [Image(figura_inferior, width=3 * inch, height=0.7 * inch)],
-        [Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1))]
+        [img],
+        [Paragraph('<br/>'.join(cabecalho), header_style)]
     ]
     table = Table(data, colWidths=[5 * inch])
     table_style = TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),  # Alinhamento vertical
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER')    # Alinhamento horizontal
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER')
     ])
     table.setStyle(table_style)
     elements.append(table)
 
     elements.append(Spacer(1, 0.25 * inch))
-    elements.append(Paragraph("<b>RELATÓRIO DE FUNCIONÁRIOS</b>", ParagraphStyle(name='FuncionariosTitulo', fontSize=16, alignment=1)))
+    titulo_style = _get_cached_style('FuncionariosTitulo', fontSize=16, alignment=1)
+    elements.append(Paragraph("<b>RELATÓRIO DE FUNCIONÁRIOS</b>", titulo_style))
     elements.append(Spacer(1, 0.15 * inch))
 
     # Cabeçalho da tabela de funcionários
     data: list[list[Any]] = [['Nº', 'Nome', 'Cargo', 'Disciplina']]
     for row_num, (index, row) in enumerate(funcionarios_df.iterrows(), start=1):
-        nome = row['Funcionario']
-        cargo = row['Cargo']
-        disciplina = row['Disciplina']
-        data.append([row_num, nome, cargo, disciplina])
+        data.append([row_num, row['Funcionario'], row['Cargo'], row['Disciplina']])
 
     # Cria a tabela
     table = Table(data)
-    table_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), white),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('ALIGN', (1, 1), (1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 14),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), '#f0f0f0'),
-        ('GRID', (0, 0), (-1, -1), 1, black)
-    ])
-    table.setStyle(table_style)
+    table.setStyle(_get_common_table_style())
+    # Adiciona alinhamento específico
+    table_style_extra = TableStyle([('ALIGN', (1, 1), (1, -1), 'LEFT')])
+    table.setStyle(table_style_extra)
     elements.append(table)
     elements.append(PageBreak())
 
@@ -269,77 +294,85 @@ def create_pdf_buffer():
     return doc, buffer
 
 def add_cover_page(doc, elements, cabecalho, figura_superior, figura_inferior):
+    img = _get_cached_image(figura_inferior, 3 * inch, 0.7 * inch)
+    header_style = _get_cached_style('Header', fontSize=12, alignment=1)
     data = [
-        [Image(figura_inferior, width=3 * inch, height=0.7 * inch)],
-        [Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1))]
+        [img],
+        [Paragraph('<br/>'.join(cabecalho), header_style)]
     ]
     table = Table(data, colWidths=[5 * inch])
     table_style = TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),  # Alinhamento vertical
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER')    # Alinhamento horizontal
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER')
     ])
     table.setStyle(table_style)
     elements.append(table)
     elements.append(Spacer(1, 3.3 * inch))
-    elements.append(Paragraph("<b>RELAÇÃO DE ALUNOS</b>", ParagraphStyle(name='Capa', fontSize=24, alignment=1)))
+    capa_style = _get_cached_style('Capa', fontSize=24, alignment=1)
+    elements.append(Paragraph("<b>RELAÇÃO DE ALUNOS</b>", capa_style))
     elements.append(Spacer(1, 5 * inch))
-    elements.append(Paragraph(f"<b>{datetime.datetime.now().year}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
+    ano_style = _get_cached_style('Ano', fontSize=18, alignment=1)
+    elements.append(Paragraph(f"<b>{datetime.datetime.now().year}</b>", ano_style))
     elements.append(PageBreak())
 
 def format_phone_numbers(telefones):
     """
-    Formata os números de telefone, adicionando uma quebra de linha após cada dois números.
+    Formata os números de telefone, adicionando uma quebra de linha após cada número.
     """
     if not telefones:
         return ""
     
-    # Divide os telefones pela barra (/)
+    # Divide os telefones pela barra (/) e formata
     telefones_lista = telefones.split('/')
-
-    # Formata cada número de telefone
     telefones_formatados = [formatar_telefone(tel) for tel in telefones_lista]
     
-    # Agrupa os telefones de dois em dois
-    grupos = []
-    for i in range(0, len(telefones_lista), 1):
-        grupo = telefones_formatados[i:i+1]  # Pega um telefones por vez
-        grupos.append('/'.join(grupo))  # Junta os dois telefones com uma barra
-    
-    # Adiciona uma quebra de linha após cada grupo
-    return '<br/>'.join(grupos)
+    # Retorna com quebras de linha entre os telefones
+    return '<br/>'.join(telefones_formatados)
 
 def add_class_table(elements, turma_df, nome_serie, nome_turma, turno, nome_professor, figura_inferior, cabecalho):
+    # Cabeçalho com cache
+    img = _get_cached_image(figura_inferior, 3 * inch, 0.7 * inch)
+    header_style = _get_cached_style('Header', fontSize=12, alignment=1)
     datacabecalho = [
-        [Image(figura_inferior, width=3 * inch, height=0.7 * inch)],
-        [Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1))]
+        [img],
+        [Paragraph('<br/>'.join(cabecalho), header_style)]
     ]
     tablecabecalho = Table(datacabecalho, colWidths=[5 * inch])
     table_style = TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),  # Alinhamento vertical
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER')    # Alinhamento horizontal
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER')
     ])
     tablecabecalho.setStyle(table_style)
     elements.append(tablecabecalho)
 
     elements.append(Spacer(1, 0.25 * inch))
-    elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno} - {datetime.datetime.now().year}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=12, alignment=1)))
+    turma_style = _get_cached_style('TurmaTitulo', fontSize=12, alignment=1)
+    elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno} - {datetime.datetime.now().year}</b>", turma_style))
     elements.append(Spacer(1, 0.1 * inch))
-    elements.append(Paragraph(f"<b>PROFESSOR@: {nome_professor} </b>", ParagraphStyle(name='ProfessoraTitulo', fontSize=12, alignment=0)))
+    prof_style = _get_cached_style('ProfessoraTitulo', fontSize=12, alignment=0)
+    elements.append(Paragraph(f"<b>PROFESSOR@: {nome_professor} </b>", prof_style))
     elements.append(Spacer(1, 0.15 * inch))
     
-    # Calcula totais incluindo alunos transferidos
-    total_masculino = turma_df[turma_df['SEXO'] == 'M'].shape[0]
-    total_feminino = turma_df[turma_df['SEXO'] == 'F'].shape[0]
-    total_transferidos = turma_df[turma_df['SITUAÇÃO'].isin(['Transferido', 'Transferida'])].shape[0]
+    # Calcula totais usando máscaras booleanas (mais eficiente)
+    mask_masculino = turma_df['SEXO'] == 'M'
+    mask_feminino = turma_df['SEXO'] == 'F'
+    mask_transferidos = turma_df['SITUAÇÃO'].isin(['Transferido', 'Transferida'])
     
-    elements.append(Paragraph(f"TOTAIS: MASCULINO ({total_masculino}) FEMININO ({total_feminino}) - TRANSFERIDOS: {total_transferidos}", ParagraphStyle(name='TotaisAlunos', fontSize=12, alignment=0)))
+    total_masculino = mask_masculino.sum()
+    total_feminino = mask_feminino.sum()
+    total_transferidos = mask_transferidos.sum()
+    
+    totais_style = _get_cached_style('TotaisAlunos', fontSize=12, alignment=0)
+    elements.append(Paragraph(f"TOTAIS: MASCULINO ({total_masculino}) FEMININO ({total_feminino}) - TRANSFERIDOS: {total_transferidos}", totais_style))
     elements.append(Spacer(1, 0.15 * inch))
 
+    # Estilos reutilizáveis para a tabela
+    tel_style = _get_cached_style('Telefones', fontSize=10)
+    sit_style = _get_cached_style('Situacao', fontSize=10)
+    
     data: list[list[Any]] = [['Nº', 'Nome', 'Nascimento', 'Telefones', 'Transtorno', 'Situação']]
     for row_num, (index, row) in enumerate(turma_df.iterrows(), start=1):
-        nome = row['NOME DO ALUNO']
         nascimento = row['NASCIMENTO'].strftime('%d/%m/%Y') if row['NASCIMENTO'] else "Data não disponível"
-        transtorno = row['TRANSTORNO']
         telefones = format_phone_numbers(row['TELEFONES'])
         
         # Formata a situação do aluno
@@ -353,22 +386,16 @@ def add_class_table(elements, turma_df, nome_serie, nome_turma, turno, nome_prof
             data_matricula = row['DATA_MATRICULA'].strftime('%d/%m/%Y')
             situacao = f"<b><font color='blue'>Matriculado em {data_matricula}</font></b>"
         
-        data.append([row_num, nome, nascimento, Paragraph(telefones, ParagraphStyle(name='Telefones', fontSize=10)), transtorno, Paragraph(situacao, ParagraphStyle(name='Situacao', fontSize=10))])
+        data.append([row_num, row['NOME DO ALUNO'], nascimento, Paragraph(telefones, tel_style), row['TRANSTORNO'], Paragraph(situacao, sit_style)])
 
     table = Table(data, colWidths=[0.275 * inch, 3.1 * inch, 1. * inch, 1.2* inch, 1.2 * inch, 1.2 * inch])
-    table_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), white),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+    table.setStyle(_get_common_table_style())
+    # Adiciona estilos específicos desta tabela
+    extra_style = TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (1, 1), (1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), '#f0f0f0'),
-        ('GRID', (0, 0), (-1, -1), 1, black)
+        ('ALIGN', (1, 1), (1, -1), 'LEFT')
     ])
-    table.setStyle(table_style)
+    table.setStyle(extra_style)
     elements.append(table)
     elements.append(PageBreak())
 
@@ -376,10 +403,12 @@ def add_transtornos_detalhados(elements, df, figura_inferior, cabecalho):
     """
     Adiciona uma tabela detalhada de transtornos por série, sexo e turno.
     """
-    # Cabeçalho da página
+    # Cabeçalho da página com cache
+    img = _get_cached_image(figura_inferior, 3 * inch, 0.7 * inch)
+    header_style = _get_cached_style('Header', fontSize=12, alignment=1)
     data = [
-        [Image(figura_inferior, width=3 * inch, height=0.7 * inch)],
-        [Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1))]
+        [img],
+        [Paragraph('<br/>'.join(cabecalho), header_style)]
     ]
     table = Table(data, colWidths=[5 * inch])
     table_style = TableStyle([
@@ -390,7 +419,8 @@ def add_transtornos_detalhados(elements, df, figura_inferior, cabecalho):
     elements.append(table)
 
     elements.append(Spacer(1, 0.25 * inch))
-    elements.append(Paragraph("<b>DISTRIBUIÇÃO DE TRANSTORNOS POR SÉRIE, SEXO E TURNO</b>", ParagraphStyle(name='TranstornosDetalhadosTitulo', fontSize=16, alignment=1)))
+    titulo_style = _get_cached_style('TranstornosDetalhadosTitulo', fontSize=16, alignment=1)
+    elements.append(Paragraph("<b>DISTRIBUIÇÃO DE TRANSTORNOS POR SÉRIE, SEXO E TURNO</b>", titulo_style))
     elements.append(Spacer(1, 0.15 * inch))
 
     # Filtra os dados para excluir transtornos nulos e o transtorno 'Nenhum'
@@ -415,19 +445,9 @@ def add_transtornos_detalhados(elements, df, figura_inferior, cabecalho):
         
         dados_tabela.append([serie, turma, turno, sexo, transtorno, str(total)])
 
-    # Cria a tabela
+    # Cria a tabela usando estilo comum
     table = Table(dados_tabela, colWidths=[1 * inch, 0.8 * inch, 0.8 * inch, 0.8 * inch, 1.2 * inch, 0.6 * inch])
-    table_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), '#f0f0f0'),
-        ('GRID', (0, 0), (-1, -1), 1, black)
-    ])
-    table.setStyle(table_style)
+    table.setStyle(_get_common_table_style())
     elements.append(table)
     elements.append(PageBreak())
 
@@ -435,10 +455,12 @@ def add_dashboard(elements, df, figura_inferior, cabecalho):
     """
     Adiciona um dashboard com estatísticas dos alunos ao PDF.
     """
-    # Cabeçalho da página
+    # Cabeçalho da página com cache
+    img = _get_cached_image(figura_inferior, 3 * inch, 0.7 * inch)
+    header_style = _get_cached_style('Header', fontSize=12, alignment=1)
     data = [
-        [Image(figura_inferior, width=3 * inch, height=0.7 * inch)],
-        [Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1))]
+        [img],
+        [Paragraph('<br/>'.join(cabecalho), header_style)]
     ]
     table = Table(data, colWidths=[5 * inch])
     table_style = TableStyle([
@@ -449,21 +471,26 @@ def add_dashboard(elements, df, figura_inferior, cabecalho):
     elements.append(table)
 
     elements.append(Spacer(1, 0.25 * inch))
-    elements.append(Paragraph("<b>DASHBOARD - ESTATÍSTICAS DOS ALUNOS</b>", ParagraphStyle(name='DashboardTitulo', fontSize=16, alignment=1)))
+    dash_style = _get_cached_style('DashboardTitulo', fontSize=16, alignment=1)
+    elements.append(Paragraph("<b>DASHBOARD - ESTATÍSTICAS DOS ALUNOS</b>", dash_style))
     elements.append(Spacer(1, 0.15 * inch))
 
-    # Calcula as estatísticas
+    # Calcula as estatísticas usando máscaras booleanas (mais eficiente)
     total_alunos = len(df)
-    total_masculino = len(df[df['SEXO'] == 'M'])
-    total_feminino = len(df[df['SEXO'] == 'F'])
-    total_transferidos = len(df[df['SITUAÇÃO'].isin(['Transferido', 'Transferida'])])
-    transferidos_masculino = len(df[(df['SITUAÇÃO'].isin(['Transferido', 'Transferida'])) & (df['SEXO'] == 'M')])
-    transferidos_feminino = len(df[(df['SITUAÇÃO'].isin(['Transferido', 'Transferida'])) & (df['SEXO'] == 'F')])
+    mask_masculino = df['SEXO'] == 'M'
+    mask_feminino = df['SEXO'] == 'F'
+    mask_transferidos = df['SITUAÇÃO'].isin(['Transferido', 'Transferida'])
+    
+    total_masculino = mask_masculino.sum()
+    total_feminino = mask_feminino.sum()
+    total_transferidos = mask_transferidos.sum()
+    transferidos_masculino = (mask_transferidos & mask_masculino).sum()
+    transferidos_feminino = (mask_transferidos & mask_feminino).sum()
     
     # Filtra apenas alunos ativos para as distribuições (exclui Transferidos e Cancelados)
     df_ativos = df[~df['SITUAÇÃO'].isin(['Transferido', 'Transferida', 'Cancelado'])]
-    ativos_masculino = len(df_ativos[df_ativos['SEXO'] == 'M'])
-    ativos_feminino = len(df_ativos[df_ativos['SEXO'] == 'F'])
+    ativos_masculino = (df_ativos['SEXO'] == 'M').sum()
+    ativos_feminino = (df_ativos['SEXO'] == 'F').sum()
     
     # Tabela de estatísticas gerais
     stats_data = [
@@ -474,27 +501,16 @@ def add_dashboard(elements, df, figura_inferior, cabecalho):
     ]
     
     stats_table = Table(stats_data, colWidths=[2 * inch, 1 * inch, 1 * inch, 1 * inch])
-    stats_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), '#f0f0f0'),
-        ('GRID', (0, 0), (-1, -1), 1, black)
-    ])
-    stats_table.setStyle(stats_style)
+    stats_table.setStyle(_get_common_table_style())
     elements.append(stats_table)
     elements.append(Spacer(1, 0.25 * inch))
 
-    # Distribuição por série e turma
+    # Distribuição por série e turma usando máscaras booleanas
     series_data = []
-    # Agrupa por série e turma
     grupos = df_ativos.groupby(['NOME_SERIE', 'NOME_TURMA'])
     for (serie, turma), grupo in grupos:
-        masculino = len(grupo[grupo['SEXO'] == 'M'])
-        feminino = len(grupo[grupo['SEXO'] == 'F'])
+        masculino = (grupo['SEXO'] == 'M').sum()
+        feminino = (grupo['SEXO'] == 'F').sum()
         total = len(grupo)
         # Formata o nome da série e turma
         nome_serie_turma = f"{serie} {turma}"
@@ -506,89 +522,59 @@ def add_dashboard(elements, df, figura_inferior, cabecalho):
     # Tabela de distribuição por série e turma
     series_header = [['Série/Turma', 'Masculino', 'Feminino', 'Total']]
     series_table = Table(series_header + series_data, colWidths=[2 * inch, 1 * inch, 1 * inch, 1 * inch])
-    series_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), '#f0f0f0'),
-        ('GRID', (0, 0), (-1, -1), 1, black)
-    ])
-    series_table.setStyle(series_style)
+    series_table.setStyle(_get_common_table_style())
     elements.append(series_table)
     elements.append(Spacer(1, 0.25 * inch))
 
-    # Distribuição por turno
+    # Distribuição por turno usando máscaras
     turnos_data = []
     for turno in df_ativos['TURNO'].unique():
         turno_df = df_ativos[df_ativos['TURNO'] == turno]
-        masculino = len(turno_df[turno_df['SEXO'] == 'M'])
-        feminino = len(turno_df[turno_df['SEXO'] == 'F'])
+        masculino = (turno_df['SEXO'] == 'M').sum()
+        feminino = (turno_df['SEXO'] == 'F').sum()
         total = len(turno_df)
         turnos_data.append([turno, str(masculino), str(feminino), str(total)])
 
     # Tabela de distribuição por turno
     turnos_header = [['Turno', 'Masculino', 'Feminino', 'Total']]
     turnos_table = Table(turnos_header + turnos_data, colWidths=[2 * inch, 1 * inch, 1 * inch, 1 * inch])
-    turnos_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), '#f0f0f0'),
-        ('GRID', (0, 0), (-1, -1), 1, black)
-    ])
-    turnos_table.setStyle(turnos_style)
+    turnos_table.setStyle(_get_common_table_style())
     elements.append(turnos_table)
     elements.append(Spacer(1, 0.25 * inch))
 
     # Tabela de total de alunos com transtorno por turno
-    elements.append(Paragraph("<b>TOTAL DE ALUNOS COM TRANSTORNO POR TURNO</b>", ParagraphStyle(name='TranstornosTurnoTitulo', fontSize=14, alignment=1)))
+    trans_titulo_style = _get_cached_style('TranstornosTurnoTitulo', fontSize=14, alignment=1)
+    elements.append(Paragraph("<b>TOTAL DE ALUNOS COM TRANSTORNO POR TURNO</b>", trans_titulo_style))
     elements.append(Spacer(1, 0.15 * inch))
 
     # Filtra alunos com transtorno (excluindo 'Nenhum' e nulos)
     df_transtornos = df_ativos[(df_ativos['TRANSTORNO'].notna()) & (df_ativos['TRANSTORNO'] != 'Nenhum')]
     
-    # Agrupa por turno e sexo
+    # Agrupa por turno e sexo usando máscaras
     turnos_transtorno_data = []
     for turno in df_transtornos['TURNO'].unique():
         turno_df = df_transtornos[df_transtornos['TURNO'] == turno]
-        masculino = len(turno_df[turno_df['SEXO'] == 'M'])
-        feminino = len(turno_df[turno_df['SEXO'] == 'F'])
+        masculino = (turno_df['SEXO'] == 'M').sum()
+        feminino = (turno_df['SEXO'] == 'F').sum()
         total = len(turno_df)
         turnos_transtorno_data.append([turno, str(masculino), str(feminino), str(total)])
 
     # Tabela de total de alunos com transtorno por turno
     turnos_transtorno_header = [['Turno', 'Masculino', 'Feminino', 'Total']]
     turnos_transtorno_table = Table(turnos_transtorno_header + turnos_transtorno_data, colWidths=[2 * inch, 1 * inch, 1 * inch, 1 * inch])
-    turnos_transtorno_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), '#f0f0f0'),
-        ('GRID', (0, 0), (-1, -1), 1, black)
-    ])
-    turnos_transtorno_table.setStyle(turnos_transtorno_style)
+    turnos_transtorno_table.setStyle(_get_common_table_style())
     elements.append(turnos_transtorno_table)
     elements.append(Spacer(1, 0.25 * inch))
 
-    # Distribuição por transtorno
+    # Distribuição por transtorno usando máscaras
     transtornos_data = []
-    # Primeiro, vamos separar os dados em dois grupos: sem transtorno e com transtorno
     sem_transtorno = None
     com_transtorno = []
     
     for transtorno in df_ativos['TRANSTORNO'].unique():
         transtorno_df = df_ativos[df_ativos['TRANSTORNO'] == transtorno]
-        masculino = len(transtorno_df[transtorno_df['SEXO'] == 'M'])
-        feminino = len(transtorno_df[transtorno_df['SEXO'] == 'F'])
+        masculino = (transtorno_df['SEXO'] == 'M').sum()
+        feminino = (transtorno_df['SEXO'] == 'F').sum()
         total = len(transtorno_df)
         
         if not transtorno:
@@ -608,17 +594,7 @@ def add_dashboard(elements, df, figura_inferior, cabecalho):
     # Tabela de distribuição por transtorno
     transtornos_header = [['Transtorno', 'Masculino', 'Feminino', 'Total']]
     transtornos_table = Table(transtornos_header + transtornos_data, colWidths=[2 * inch, 1 * inch, 1 * inch, 1 * inch])
-    transtornos_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), '#f0f0f0'),
-        ('GRID', (0, 0), (-1, -1), 1, black)
-    ])
-    transtornos_table.setStyle(transtornos_style)
+    transtornos_table.setStyle(_get_common_table_style())
     elements.append(transtornos_table)
     elements.append(PageBreak())
 

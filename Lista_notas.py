@@ -14,6 +14,40 @@ from gerarPDF import salvar_e_abrir_pdf
 from Lista_atualizada import fetch_student_data
 from biblio_editor import definir_coordenador
 
+# Cache global para imagens e estilos
+_IMAGE_CACHE = {}
+_STYLE_CACHE = {}
+
+def _get_cached_image(path, width, height):
+    """Retorna uma imagem em cache para evitar recarregamento."""
+    key = (path, width, height)
+    if key not in _IMAGE_CACHE:
+        _IMAGE_CACHE[key] = Image(path, width=width, height=height)
+    return _IMAGE_CACHE[key]
+
+def _get_cached_style(name, **kwargs):
+    """Retorna um estilo em cache para evitar recriação."""
+    key = (name, tuple(sorted(kwargs.items())))
+    if key not in _STYLE_CACHE:
+        _STYLE_CACHE[key] = ParagraphStyle(name=name, **kwargs)
+    return _STYLE_CACHE[key]
+
+def _get_common_table_style():
+    """Retorna o estilo de tabela comum usado em múltiplos lugares."""
+    if 'common_table' not in _STYLE_CACHE:
+        _STYLE_CACHE['common_table'] = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), white),
+            ('TEXTCOLOR', (0, 0), (-1, 0), black),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), white),
+            ('GRID', (0, 0), (-1, -1), 1, black)
+        ])
+    return _STYLE_CACHE['common_table']
+
 def lista_notas():
     """Gera um PDF com a lista de notas dos alunos, agrupados por turma."""
 
@@ -232,42 +266,48 @@ def buscar_disciplinas_nivel_3():
 
 def adicionar_capainicial(elements, cabecalho, figura_superior, figura_inferior):
     """Adiciona a capa ao início do documento."""
-
+    img_sup = _get_cached_image(figura_superior, 1 * inch, 1 * inch)
+    img_inf = _get_cached_image(figura_inferior, 1.5 * inch, 1 * inch)
+    header_style = _get_cached_style('Header', fontSize=12, alignment=1)
+    
     data = [
-        [Image(figura_superior, width=1 * inch, height=1 * inch),
-         Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1)),
-         Image(figura_inferior, width=1.5 * inch, height=1 * inch)]
+        [img_sup,
+         Paragraph('<br/>'.join(cabecalho), header_style),
+         img_inf]
     ]
     table = Table(data, colWidths=[1.32 * inch, 4 * inch, 1.32 * inch])
-    table_style = TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
-    ])
+    table_style = TableStyle([('VALIGN', (0, 0), (-1, -1), 'MIDDLE')])
     table.setStyle(table_style)
     elements.append(table)
     elements.append(Spacer(1, 3.3 * inch))
-    elements.append(Paragraph("<b>TABELA DE NOTAS ANOS INICIAIS</b>", ParagraphStyle(name='Capa', fontSize=24, alignment=1)))
+    capa_style = _get_cached_style('Capa', fontSize=24, alignment=1)
+    elements.append(Paragraph("<b>TABELA DE NOTAS ANOS INICIAIS</b>", capa_style))
     elements.append(Spacer(1, 4 * inch))
-    elements.append(Paragraph(f"<b>{datetime.datetime.now().year}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
+    ano_style = _get_cached_style('Ano', fontSize=18, alignment=1)
+    elements.append(Paragraph(f"<b>{datetime.datetime.now().year}</b>", ano_style))
     elements.append(PageBreak())
 
 def adicionar_capafinal(elements, cabecalho, figura_superior, figura_inferior):
     """Adiciona a capa ao início do documento."""
-
+    img_sup = _get_cached_image(figura_superior, 1 * inch, 1 * inch)
+    img_inf = _get_cached_image(figura_inferior, 1.5 * inch, 1 * inch)
+    header_style = _get_cached_style('Header', fontSize=12, alignment=1)
+    
     data = [
-        [Image(figura_superior, width=1 * inch, height=1 * inch),
-         Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1)),
-         Image(figura_inferior, width=1.5 * inch, height=1 * inch)]
+        [img_sup,
+         Paragraph('<br/>'.join(cabecalho), header_style),
+         img_inf]
     ]
     table = Table(data, colWidths=[1.32 * inch, 4 * inch, 1.32 * inch])
-    table_style = TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
-    ])
+    table_style = TableStyle([('VALIGN', (0, 0), (-1, -1), 'MIDDLE')])
     table.setStyle(table_style)
     elements.append(table)
     elements.append(Spacer(1, 3.3 * inch))
-    elements.append(Paragraph("<b>TABELA DE NOTAS ANOS FINAIS</b>", ParagraphStyle(name='Capa', fontSize=24, alignment=1)))
+    capa_style = _get_cached_style('Capa', fontSize=24, alignment=1)
+    elements.append(Paragraph("<b>TABELA DE NOTAS ANOS FINAIS</b>", capa_style))
     elements.append(Spacer(1, 4 * inch))
-    elements.append(Paragraph(f"<b>{datetime.datetime.now().year}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
+    ano_style = _get_cached_style('Ano', fontSize=18, alignment=1)
+    elements.append(Paragraph(f"<b>{datetime.datetime.now().year}</b>", ano_style))
     elements.append(PageBreak())
 
 def adicionar_tabela_turma_anos_iniciais(elements, cabecalho, figura_superior, figura_inferior, turma_df, nome_serie, nome_turma, turno):
@@ -277,16 +317,18 @@ def adicionar_tabela_turma_anos_iniciais(elements, cabecalho, figura_superior, f
     nome_professor = turma_df['NOME_PROFESSOR'].iloc[0] if not turma_df['NOME_PROFESSOR'].isnull().all() else 'Sem Professor'
     turma_df = turma_df[turma_df['SITUAÇÃO'] == 'Ativo']
 
-    # 2. Cabeçalho da Turma
+    # 2. Cabeçalho da Turma com cache
+    img_sup = _get_cached_image(figura_superior, .75 * inch, .75 * inch)
+    img_inf = _get_cached_image(figura_inferior, 1.125 * inch, .75 * inch)
+    header_style = _get_cached_style('Header', fontSize=10, alignment=1)
+    
     data = [
-        [Image(figura_superior, width=.75 * inch, height=.75 * inch),
-         Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=10, alignment=1)),
-         Image(figura_inferior, width=1.125 * inch, height=.75 * inch)]
+        [img_sup,
+         Paragraph('<br/>'.join(cabecalho), header_style),
+         img_inf]
     ]
     table = Table(data, colWidths=[1.32 * inch, 4 * inch, 1.32 * inch])
-    table_style = TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
-    ])
+    table_style = TableStyle([('VALIGN', (0, 0), (-1, -1), 'MIDDLE')])
     table.setStyle(table_style)
     elements.append(table)
     elements.append(Spacer(1, 0.1 * inch))
@@ -295,37 +337,27 @@ def adicionar_tabela_turma_anos_iniciais(elements, cabecalho, figura_superior, f
     coordenador = definir_coordenador(turma_df)
 
     # 4. Título e Informações da Turma
-    elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno} - {datetime.datetime.now().year}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=12, alignment=1)))
+    turma_style = _get_cached_style('TurmaTitulo', fontSize=12, alignment=1)
+    elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno} - {datetime.datetime.now().year}</b>", turma_style))
     elements.append(Spacer(1, 0.1 * inch))
     adicionar_assinaturas(elements, nome_professor, coordenador)
 
     # 5. Tabela de Alunos - Removidas as disciplinas HST., GGF. e REL.
     data = [['Nº', 'Nome', 'PORT.', 'MTM.', 'CNC.', 'ART.', 'REC.']]
     for row_num, (index, row) in enumerate(turma_df.iterrows(), start=1):
-        nome = row['NOME DO ALUNO']
         notas = ['', '', '', '', '']  # Notas vazias para as disciplinas restantes
-        data.append([row_num, nome] + notas)
+        data.append([row_num, row['NOME DO ALUNO']] + notas)
 
     table = Table(data, colWidths=[0.33 * inch, 3 * inch] + [0.52 * inch] * 5)
-    table_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), white),
-        ('TEXTCOLOR', (0, 0), (-1, 0), black),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('ALIGN', (1, 1), (1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), white),
-        ('GRID', (0, 0), (-1, -1), 1, black)
-    ])
-    table.setStyle(table_style)
+    table.setStyle(_get_common_table_style())
     elements.append(table)
     elements.append(PageBreak())
 
 def adicionar_assinaturas(elements, nome_professor, coordenador):
     """Adiciona as linhas de assinatura do professor e coordenador."""
-    paragrafo_professor = Paragraph(f"<b>PROFESSOR@: {nome_professor}</b>", ParagraphStyle(name='ProfessoraTitulo', fontSize=12, alignment=1))
-    paragrafo_coordenador = Paragraph(f"<b>Coordenadora: {coordenador}</b>", ParagraphStyle(name='ProfessoraTitulo', fontSize=12, alignment=1))
+    prof_style = _get_cached_style('ProfessoraTitulo', fontSize=12, alignment=1)
+    paragrafo_professor = Paragraph(f"<b>PROFESSOR@: {nome_professor}</b>", prof_style)
+    paragrafo_coordenador = Paragraph(f"<b>Coordenadora: {coordenador}</b>", prof_style)
 
     dados_tabela_assinatura = [[paragrafo_professor, paragrafo_coordenador]]
     tabela_assinatura = Table(dados_tabela_assinatura, colWidths=[4.5 * inch, 3.5 * inch])

@@ -7,6 +7,24 @@ from reportlab.lib.colors import black, grey
 from Lista_atualizada import create_pdf_buffer
 from gerarPDF import salvar_e_abrir_pdf
 
+# Cache global para imagens e estilos
+_IMAGE_CACHE = {}
+_STYLE_CACHE = {}
+
+def _get_cached_image(path, width, height):
+    """Retorna uma imagem em cache para evitar recarregamento."""
+    key = (path, width, height)
+    if key not in _IMAGE_CACHE:
+        _IMAGE_CACHE[key] = Image(path, width=width, height=height)
+    return _IMAGE_CACHE[key]
+
+def _get_cached_style(name, **kwargs):
+    """Retorna um estilo em cache para evitar recriação."""
+    key = (name, tuple(sorted(kwargs.items())))
+    if key not in _STYLE_CACHE:
+        _STYLE_CACHE[key] = ParagraphStyle(name=name, **kwargs)
+    return _STYLE_CACHE[key]
+
 
 def gerar_termo_responsabilidade(nome_escola: str = "ESCOLA MUNICIPAL PROFª. NADIR NASCIMENTO MORAES",
                                  inep: str = "21008485",
@@ -27,10 +45,13 @@ def gerar_termo_responsabilidade(nome_escola: str = "ESCOLA MUNICIPAL PROFª. NA
     doc, buffer = create_pdf_buffer()
     elements = []
 
-    # Cabeçalho
+    # Cabeçalho com cache
+    img_inf = _get_cached_image(figura_inferior, 3 * inch, 0.7 * inch)
+    header_style = _get_cached_style('Header', fontSize=12, alignment=1)
+    
     data = [
-        [Image(figura_inferior, width=3 * inch, height=0.7 * inch)],
-        [Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1))]
+        [img_inf],
+        [Paragraph('<br/>'.join(cabecalho), header_style)]
     ]
     table = Table(data, colWidths=[5 * inch])
     table_style = TableStyle([
@@ -41,8 +62,8 @@ def gerar_termo_responsabilidade(nome_escola: str = "ESCOLA MUNICIPAL PROFª. NA
     elements.append(table)
     elements.append(Spacer(1, 0.5 * inch))
 
-    elements.append(Paragraph('<b>TERMO DE RESPONSABILIDADE E CONFIDENCIALIDADE</b>',
-                              ParagraphStyle(name='Titulo', fontSize=14, alignment=1)))
+    titulo_style = _get_cached_style('Titulo', fontSize=14, alignment=1)
+    elements.append(Paragraph('<b>TERMO DE RESPONSABILIDADE E CONFIDENCIALIDADE</b>', titulo_style))
     elements.append(Spacer(1, 0.2 * inch))
 
     corpo = (
@@ -63,24 +84,31 @@ def gerar_termo_responsabilidade(nome_escola: str = "ESCOLA MUNICIPAL PROFª. NA
         f"decorrente da finalidade acima descrita."
     )
 
-    elements.append(Paragraph(corpo, ParagraphStyle(name='Corpo', fontSize=11, leading=16, alignment=4)))
+    corpo_style = _get_cached_style('Corpo', fontSize=11, leading=16, alignment=4)
+    elements.append(Paragraph(corpo, corpo_style))
     elements.append(Spacer(1, 0.4 * inch))
 
     # Rodapé com data
     hoje = datetime.datetime.now().strftime('%d/%m/%Y')
-    elements.append(Paragraph(f"Paco do Lumiar/MA, {hoje}.", ParagraphStyle(name='Data', fontSize=11, alignment=2)))
+    data_style = _get_cached_style('Data', fontSize=11, alignment=2)
+    elements.append(Paragraph(f"Paco do Lumiar/MA, {hoje}.", data_style))
     elements.append(Spacer(1, 0.8 * inch))
 
-    # Linhas de assinatura
+    # Linhas de assinatura usando estilos em cache
+    ass_titulo_style = _get_cached_style('AssTitulo', fontSize=10, alignment=1)
+    linha_style = _get_cached_style('Linha', fontSize=10, alignment=1)
+    ass_nome_style = _get_cached_style('AssNome', fontSize=10, alignment=1)
+    ass_doc_style = _get_cached_style('AssDoc', fontSize=9, alignment=1)
+    
     assinatura_data = [
-        [Paragraph('<b>ESCOLA</b>', ParagraphStyle(name='AssTitulo', fontSize=10, alignment=1)),
-         Paragraph('<b>EMPRESA</b>', ParagraphStyle(name='AssTitulo', fontSize=10, alignment=1))],
-        [Paragraph('__________________________________________', ParagraphStyle(name='Linha', fontSize=10, alignment=1)),
-         Paragraph('__________________________________________', ParagraphStyle(name='Linha', fontSize=10, alignment=1))],
-        [Paragraph(nome_escola, ParagraphStyle(name='AssNome', fontSize=10, alignment=1)),
-         Paragraph(razao_social_empresa, ParagraphStyle(name='AssNome', fontSize=10, alignment=1))],
-        [Paragraph(f'CNPJ: {cnpj_escola}', ParagraphStyle(name='AssDoc', fontSize=9, alignment=1)),
-         Paragraph(f'CNPJ: {cnpj_empresa}', ParagraphStyle(name='AssDoc', fontSize=9, alignment=1))]
+        [Paragraph('<b>ESCOLA</b>', ass_titulo_style),
+         Paragraph('<b>EMPRESA</b>', ass_titulo_style)],
+        [Paragraph('__________________________________________', linha_style),
+         Paragraph('__________________________________________', linha_style)],
+        [Paragraph(nome_escola, ass_nome_style),
+         Paragraph(razao_social_empresa, ass_nome_style)],
+        [Paragraph(f'CNPJ: {cnpj_escola}', ass_doc_style),
+         Paragraph(f'CNPJ: {cnpj_empresa}', ass_doc_style)]
     ]
     assinatura_table = Table(assinatura_data, colWidths=[3.5 * inch, 3.5 * inch])
     assinatura_style = TableStyle([
