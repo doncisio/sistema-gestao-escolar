@@ -149,7 +149,7 @@ class TableManager:
             fg=self.colors['co0']
         )
         
-        logger.info(f"Tabela criada com {len(self.colunas)} colunas e {len(self.df)} registros")
+        logger.debug(f"Tabela criada com {len(self.colunas)} colunas e {len(self.df)} registros")
     
     def _setup_style(self):
         """Configura o estilo da Treeview."""
@@ -237,7 +237,7 @@ class TableManager:
         self.df = df
         self._populate_data()
         
-        logger.info(f"Tabela atualizada: {len(self.df)} registros")
+        logger.debug(f"Tabela atualizada: {len(self.df)} registros")
     
     def get_selected_item(self) -> Optional[Dict[str, Any]]:
         """

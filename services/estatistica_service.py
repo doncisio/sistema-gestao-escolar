@@ -25,7 +25,7 @@ def obter_estatisticas_alunos(escola_id: int = 60, ano_letivo: Optional[str] = N
         dict: Estatísticas ou None em caso de erro
     """
     try:
-        logger.info(f"Iniciando obter_estatisticas_alunos OTIMIZADO para escola_id={escola_id}, ano_letivo={ano_letivo}")
+        logger.debug(f"Iniciando obter_estatisticas_alunos OTIMIZADO para escola_id={escola_id}, ano_letivo={ano_letivo}")
         
         with get_cursor() as cursor:
             if cursor is None:
@@ -37,10 +37,10 @@ def obter_estatisticas_alunos(escola_id: int = 60, ano_letivo: Optional[str] = N
                 cursor.execute("SELECT ano_letivo FROM AnosLetivos WHERE CURDATE() BETWEEN data_inicio AND data_fim LIMIT 1")
                 resultado = cursor.fetchone()
                 ano_letivo = resultado['ano_letivo'] if resultado else str(__import__('datetime').datetime.now().year)
-                logger.info(f"Ano letivo: {ano_letivo}")
+                logger.debug(f"Ano letivo: {ano_letivo}")
             
             # QUERY OTIMIZADA: Uma única query com todas as agregações
-            logger.info("Executando query otimizada única...")
+            logger.debug("Executando query otimizada única...")
             cursor.execute("""
                 WITH base_alunos AS (
                     SELECT 
@@ -81,7 +81,7 @@ def obter_estatisticas_alunos(escola_id: int = 60, ano_letivo: Optional[str] = N
                 'alunos_ativos': resultado_base['alunos_ativos'] if isinstance(resultado_base, dict) else resultado_base[1]
             }
             
-            logger.info(f"Total: {estatisticas['total_alunos']}, Ativos: {estatisticas['alunos_ativos']}")
+            logger.debug(f"Total: {estatisticas['total_alunos']}, Ativos: {estatisticas['alunos_ativos']}")
             
             # Agora buscar agregações por série e turma (queries menores)
             cursor.execute("""
@@ -108,7 +108,7 @@ def obter_estatisticas_alunos(escola_id: int = 60, ano_letivo: Optional[str] = N
                     alunos_por_serie = [{'serie': r[0], 'quantidade': r[1]} for r in resultados]
             
             estatisticas['alunos_por_serie'] = alunos_por_serie
-            logger.info(f"Séries: {len(alunos_por_serie)}")
+            logger.debug(f"Séries: {len(alunos_por_serie)}")
             
             # Alunos por série E turma
             cursor.execute("""
@@ -136,7 +136,7 @@ def obter_estatisticas_alunos(escola_id: int = 60, ano_letivo: Optional[str] = N
                     alunos_por_turma = [{'serie': r[0], 'turma': r[1], 'quantidade': r[2]} for r in resultados]
             
             estatisticas['alunos_por_serie_turma'] = alunos_por_turma
-            logger.info(f"Turmas: {len(alunos_por_turma)}")
+            logger.debug(f"Turmas: {len(alunos_por_turma)}")
             
             # Alunos por turno (apenas ativos, sem transferidos)
             cursor.execute("""
@@ -187,7 +187,7 @@ def obter_estatisticas_alunos(escola_id: int = 60, ano_letivo: Optional[str] = N
                 total_cadastrados - estatisticas['total_alunos']
             )
             
-            logger.info(f"Estatísticas calculadas com sucesso: {estatisticas['total_alunos']} alunos total, {len(alunos_por_serie)} séries")
+            logger.debug(f"Estatísticas calculadas com sucesso: {estatisticas['total_alunos']} alunos total, {len(alunos_por_serie)} séries")
             return estatisticas
             
     except MySQLError as e:

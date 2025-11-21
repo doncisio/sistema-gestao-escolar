@@ -43,7 +43,7 @@ def inicializar_pool():
                 auth_plugin='mysql_native_password'
             )
             
-            logger.info(f"[OK] Connection Pool inicializado: {pool_name} (size={pool_size})")
+            logger.debug(f"[OK] Connection Pool inicializado: {pool_name} (size={pool_size})")
             
         except Error as e:
             logger.exception(f"✗ Erro ao criar connection pool: {e}")
@@ -124,7 +124,7 @@ def fechar_pool():
             # MySQL Connector não tem método close() no pool
             # As conexões são fechadas automaticamente quando o pool é destruído
             _connection_pool = None
-            logger.info("[OK] Connection Pool encerrado")
+            logger.debug("[OK] Connection Pool encerrado")
         except Exception as e:
             logger.exception(f"⚠ Erro ao fechar pool: {e}")
 

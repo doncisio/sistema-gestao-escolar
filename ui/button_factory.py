@@ -788,7 +788,7 @@ class ButtonFactory:
         menu_bar = self.criar_menu_bar()
         self.janela.config(menu=menu_bar)
         
-        logger.info("Interface de ações configurada (botões + menus)")
+        logger.debug("Interface de ações configurada (botões + menus)")
     
     # ========== WRAPPERS PARA MENU GERENCIAMENTO DE NOTAS ==========
     
