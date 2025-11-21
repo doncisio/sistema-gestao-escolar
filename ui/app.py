@@ -408,12 +408,12 @@ class Application:
                 co_accent=self.colors['co4']
             )
             
-            logger.info("✓ DashboardManager instanciado com sucesso")
+            logger.debug("✓ DashboardManager instanciado com sucesso")
             
             # Criar o dashboard apenas se solicitado
             if criar_agora:
                 self.dashboard_manager.criar_dashboard()
-                logger.info("✓ Dashboard criado e exibido")
+                logger.debug("✓ Dashboard criado e exibido")
             else:
                 logger.info("✓ Dashboard configurado para carregamento sob demanda")
             
@@ -433,7 +433,7 @@ class Application:
     
     def on_close(self):
         """Handler para o fechamento da janela."""
-        logger.info("Fechando aplicação...")
+        logger.debug("Fechando aplicação...")
         
         # Fechar dashboard manager se existir
         if self.dashboard_manager:
@@ -446,14 +446,14 @@ class Application:
         # Fechar connection pool
         try:
             fechar_pool()
-            logger.info("Connection pool fechado")
+            logger.debug("Connection pool fechado")
         except Exception as e:
             logger.error(f"Erro ao fechar connection pool: {e}")
         
         # Destruir janela (assegurar que 'janela' foi inicializada)
         assert self.janela is not None, "Janela não inicializada ao fechar"
         self.janela.destroy()
-        logger.info("Aplicação encerrada")
+        logger.debug("Aplicação encerrada")
     
     def run(self):
         """

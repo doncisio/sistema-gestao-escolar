@@ -50,7 +50,7 @@ class CacheManager:
             'sets': 0,
             'invalidations': 0
         }
-        logger.info(f"CacheManager inicializado com TTL={ttl_seconds}s")
+        logger.debug(f"CacheManager inicializado com TTL={ttl_seconds}s")
     
     def get(self, key: str) -> Optional[Any]:
         """

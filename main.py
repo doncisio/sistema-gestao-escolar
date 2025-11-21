@@ -25,7 +25,7 @@ import Seguranca
 logger = get_logger(__name__)
 
 # TEST_MODE: Usar variável de ambiente para controlar modo de teste
-TEST_MODE = os.environ.get('GESTAO_TEST_MODE', 'false').lower() == 'false'
+TEST_MODE = os.environ.get('GESTAO_TEST_MODE', 'false').lower() == 'true'
 
 if TEST_MODE:
     logger.warning("⚠️ SISTEMA EM MODO DE TESTE - Backups automáticos desabilitados")
@@ -254,7 +254,7 @@ def main():
                 logger.error(f"Erro ao iniciar backup automático: {e}")
         
         # Mensagem de sucesso (resumida)
-        logger.info("Sistema inicializado com sucesso - Sprint 16")
+        logger.info("Sistema inicializado com sucesso")
         
         # Iniciar mainloop
         app.run()
