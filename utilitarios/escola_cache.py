@@ -1,10 +1,11 @@
+from typing import Dict, Optional
 from conexao import conectar_bd
 from config_logs import get_logger
 
 _logger = get_logger(__name__)
 
 # Cache em nível de processo para evitar consultas repetidas a escolas
-_escola_municipio_cache = {}
+_escola_municipio_cache: Dict[str, Optional[str]] = {}
 
 
 def get_escola_municipio(escola_nome):

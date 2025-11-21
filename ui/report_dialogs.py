@@ -92,10 +92,11 @@ def abrir_relatorio_avancado(janela_pai, status_label, gerar_func):
         preencher_com_zeros = preencher_zeros.get()
         
         # Configurar status de matrícula
+        status: list[str]
         if incluir_transferidos.get():
             status = ["Ativo", "Transferido"]
         else:
-            status = status_var.get()
+            status = [status_var.get()]
         
         # Fechar a janela
         janela_relatorio.destroy()

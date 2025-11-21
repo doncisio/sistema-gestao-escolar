@@ -85,17 +85,17 @@ def extrair_informacoes_html(html_path):
                                         nota_float = float(valor_nota)
                                         notas.append(nota_float)
                                     except ValueError:
-                                        notas.append('')
+                                        notas.append(0.0)
                                 else:
-                                    notas.append('')
+                                    notas.append(0.0)
                             
                             # Calcula média das notas disponíveis e multiplica por 10
-                            notas_validas = [n for n in notas if isinstance(n, (int, float))]
+                            notas_validas = [n for n in notas if isinstance(n, float) and n > 0]
                             if notas_validas:
                                 media = sum(notas_validas) / len(notas_validas)
-                                nota_final = media * 10  # Multiplica por 10
+                                nota_final: float = media * 10  # Multiplica por 10
                             else:
-                                nota_final = ''
+                                nota_final = 0.0
                             
                             alunos_notas.append({
                                 'ordem': int(ordem_text),
