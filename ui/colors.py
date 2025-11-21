@@ -58,7 +58,8 @@ def get_color(name: str) -> str:
     Raises:
         AttributeError: Se a cor não existir
     """
-    return getattr(COLORS, name)
+    color = getattr(COLORS, name)
+    return str(color)
 
 
 def get_colors_dict() -> Dict[str, str]:

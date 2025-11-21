@@ -1,0 +1,45 @@
+{
+  "flags": {
+    "cache_enabled": {
+      "enabled": true,
+      "description": "Habilita cache de estatísticas e queries",
+      "category": "performance"
+    },
+    "pydantic_validation": {
+      "enabled": true,
+      "description": "Habilita validação Pydantic em services",
+      "category": "validation"
+    },
+    "json_logs": {
+      "enabled": false,
+      "description": "Usa formato JSON para logs",
+      "category": "logging"
+    },
+    "backup_automatico": {
+      "enabled": true,
+      "description": "Habilita backup automático do banco",
+      "category": "backup"
+    },
+    "dashboard_avancado": {
+      "enabled": true,
+      "description": "Mostra dashboard com estatísticas avançadas",
+      "category": "ui"
+    },
+    "modo_debug": {
+      "enabled": false,
+      "description": "Ativa logs de debug e informações extras",
+      "category": "debug"
+    },
+    "relatorios_pdf": {
+      "enabled": true,
+      "description": "Permite geração de relatórios em PDF",
+      "category": "features"
+    },
+    "integracao_drive": {
+      "enabled": false,
+      "description": "Habilita integração com Google Drive",
+      "category": "integration"
+    }
+  },
+  "last_updated": "2025-11-21T10:50:57.997113"
+}

@@ -212,9 +212,11 @@ class TableManager:
         try:
             if isinstance(date_value, str):
                 # Tenta converter string para data
-                data = datetime.strptime(date_value, '%Y-%m-%d')
-            elif isinstance(date_value, (datetime, date)):
+                data: datetime = datetime.strptime(date_value, '%Y-%m-%d')
+            elif isinstance(date_value, datetime):
                 data = date_value
+            elif isinstance(date_value, date):
+                data = datetime.combine(date_value, datetime.min.time())
             else:
                 return str(date_value)
             

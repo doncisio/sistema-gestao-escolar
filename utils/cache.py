@@ -153,8 +153,7 @@ class CacheManager:
                 
                 return result
             
-            # Adiciona método para invalidar cache da função
-            # type: ignore é necessário pois estamos adicionando atributo dinamicamente
+            # Adiciona método para invalidar cache da função (atributo dinâmico)
             setattr(wrapper, 'invalidate_cache', lambda: self.invalidate_pattern(f"{func.__name__}:"))
             
             return wrapper

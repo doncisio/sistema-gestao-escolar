@@ -2,7 +2,7 @@ import io
 import os
 import tempfile
 import logging
-from typing import Tuple
+from typing import Tuple, Optional
 
 from reportlab.platypus import SimpleDocTemplate
 from reportlab.lib.pagesizes import letter, landscape
@@ -27,7 +27,7 @@ def create_pdf_buffer(pagesize=letter) -> Tuple[SimpleDocTemplate, io.BytesIO]:
         raise
 
 
-def salvar_e_abrir_pdf(buffer: io.BytesIO, filename: str = None) -> str:
+def salvar_e_abrir_pdf(buffer: io.BytesIO, filename: Optional[str] = None) -> str:
     """Salva o buffer em disco e retorna o caminho do arquivo.
 
     Se `filename` não for informado, cria um arquivo temporário em
