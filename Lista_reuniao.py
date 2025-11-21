@@ -15,6 +15,31 @@ from config_logs import get_logger
 
 logger = get_logger(__name__)
 
+# Cache global para imagens e estilos
+_IMAGE_CACHE = {}
+_STYLE_CACHE = {}
+
+def _get_cached_image(path, width, height):
+    """Retorna uma imagem em cache para evitar recarregamento."""
+    key = (path, width, height)
+    if key not in _IMAGE_CACHE:
+        try:
+            if path and os.path.exists(path):
+                _IMAGE_CACHE[key] = Image(path, width=width, height=height)
+            else:
+                _IMAGE_CACHE[key] = Spacer(width, height)
+        except Exception as e:
+            logger.warning("Não foi possível carregar imagem '%s': %s", path, e)
+            _IMAGE_CACHE[key] = Spacer(width, height)
+    return _IMAGE_CACHE[key]
+
+def _get_cached_style(name, **kwargs):
+    """Retorna um estilo em cache para evitar recriação."""
+    key = (name, tuple(sorted(kwargs.items())))
+    if key not in _STYLE_CACHE:
+        _STYLE_CACHE[key] = ParagraphStyle(name=name, **kwargs)
+    return _STYLE_CACHE[key]
+
 def lista_reuniao():
     ano_letivo = 2025
     dados_aluno = fetch_student_data(ano_letivo)
@@ -43,21 +68,21 @@ def lista_reuniao():
     # Debug: logar caminhos resolvidos para as imagens
     logger.info("DEBUG imagens - figura_superior_path=%s figura_inferior_path=%s", figura_superior_path, figura_inferior_path)
 
-    def maybe_image(path, w, h):
-        try:
-            if path and os.path.exists(path):
-                return Image(path, width=w, height=h)
-        except Exception as e:
-            logger.warning("Não foi possível carregar imagem '%s': %s", path, e)
-        # retornar Spacer com tamanho aproximado para manter layout quando imagem ausente
-        return Spacer(w, h)
-
+    # Carregar imagens em cache
+    img_sup = _get_cached_image(figura_superior_path, 1 * inch, 1 * inch)
+    img_inf = _get_cached_image(figura_inferior_path, 1.5 * inch, 1 * inch)
+    header_style = _get_cached_style('Header', fontSize=12, alignment=1)
+    capa_style = _get_cached_style('Capa', fontSize=24, alignment=1)
+    ano_style = _get_cached_style('Ano', fontSize=18, alignment=1)
+    turma_style = _get_cached_style('TurmaTitulo', fontSize=12, alignment=1)
+    pauta_style = _get_cached_style('PautaTitulo', fontSize=14, alignment=1)
+    item_style = _get_cached_style('PautaItem', fontSize=11, leftIndent=20)
 
     # Adicionar a capa
     data = [
-        [maybe_image(figura_superior_path, 1 * inch, 1 * inch),
-         Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1)),
-         maybe_image(figura_inferior_path, 1.5 * inch, 1 * inch)]
+        [img_sup,
+         Paragraph('<br/>'.join(cabecalho), header_style),
+         img_inf]
     ]
     table = Table(data, colWidths=[1.32 * inch, 4 * inch, 1.32 * inch])
     table_style = TableStyle([
@@ -66,9 +91,9 @@ def lista_reuniao():
     table.setStyle(table_style)
     elements.append(table)
     elements.append(Spacer(1, 3.3 * inch))
-    elements.append(Paragraph("<b>LISTA PARA REUNIÃO</b>", ParagraphStyle(name='Capa', fontSize=24, alignment=1)))
+    elements.append(Paragraph("<b>LISTA PARA REUNIÃO</b>", capa_style))
     elements.append(Spacer(1, 4 * inch))
-    elements.append(Paragraph(f"<b>{datetime.datetime.now().year}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
+    elements.append(Paragraph(f"<b>{datetime.datetime.now().year}</b>", ano_style))
     elements.append(PageBreak())
 
     # Função para formatar os números de telefone
@@ -95,9 +120,9 @@ def lista_reuniao():
 
         # Adicionar o cabeçalho antes de cada tabela
         data = [
-            [maybe_image(figura_superior_path, 1 * inch, 1 * inch),
-             Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=11, alignment=1)),
-             maybe_image(figura_inferior_path, 1.5 * inch, 1 * inch)]
+            [img_sup,
+             Paragraph('<br/>'.join(cabecalho), _get_cached_style('Header', fontSize=11, alignment=1)),
+             img_inf]
         ]
         table = Table(data, colWidths=[1.32 * inch, 4 * inch, 1.32 * inch])
         table_style = TableStyle([
@@ -109,15 +134,15 @@ def lista_reuniao():
         elements.append(Spacer(1, 0.125 * inch))
 
         # Adicionar o título da turma
-        elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno} - {datetime.datetime.now().year}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=12, alignment=1)))
+        elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno} - {datetime.datetime.now().year}</b>", turma_style))
         elements.append(Spacer(1, 0.1 * inch))
 
         # Adicionar a pauta da reunião
-        elements.append(Paragraph("<b>PAUTA DA REUNIÃO</b>", ParagraphStyle(name='PautaTitulo', fontSize=14, alignment=1)))
+        elements.append(Paragraph("<b>PAUTA DA REUNIÃO</b>", pauta_style))
         elements.append(Spacer(1, 0.2 * inch))
         
         for item in pauta_items:
-            elements.append(Paragraph(f"• {item}", ParagraphStyle(name='PautaItem', fontSize=11, leftIndent=20)))
+            elements.append(Paragraph(f"• {item}", item_style))
             elements.append(Spacer(1, 0.1 * inch))
         
         elements.append(Spacer(1, 0.2 * inch))

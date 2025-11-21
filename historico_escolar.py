@@ -19,6 +19,33 @@ from config_logs import get_logger
 logger = get_logger(__name__)
 from utilitarios.conversoes import to_safe_int, to_safe_float
 
+# Cache global para imagens e estilos
+_IMAGE_CACHE = {}
+_STYLE_CACHE = {}
+_PARAGRAPH_CACHE = {}
+
+def _get_cached_image(path, width, height):
+    """Retorna uma imagem em cache para evitar recarregamento."""
+    key = (path, width, height)
+    if key not in _IMAGE_CACHE:
+        _IMAGE_CACHE[key] = Image(path, width=width, height=height)
+    return _IMAGE_CACHE[key]
+
+def _get_cached_style(name, **kwargs):
+    """Retorna um estilo em cache para evitar recriação."""
+    key = (name, tuple(sorted(kwargs.items())))
+    if key not in _STYLE_CACHE:
+        _STYLE_CACHE[key] = ParagraphStyle(name=name, **kwargs)
+    return _STYLE_CACHE[key]
+
+def _get_cached_paragraph(text, style_name, **style_kwargs):
+    """Retorna um parágrafo em cache para textos estáticos."""
+    key = (text, style_name, tuple(sorted(style_kwargs.items())))
+    if key not in _PARAGRAPH_CACHE:
+        style = _get_cached_style(style_name, **style_kwargs)
+        _PARAGRAPH_CACHE[key] = Paragraph(text, style)
+    return _PARAGRAPH_CACHE[key]
+
 # Mapeamento entre nomes antigos e novos das disciplinas
 mapeamento_disciplinas = {
     "PORTUGUÊS": "LÍNGUA PORTUGUESA",
@@ -43,9 +70,10 @@ def quebra_linha(texto):
         fontSize = 5
     else:
         fontSize = 7
-        
-    style = ParagraphStyle(
-        'header',
+    
+    # Cache do estilo baseado no fontSize
+    style = _get_cached_style(
+        f'header_{fontSize}',
         fontName='Helvetica-BoldOblique',
         fontSize=fontSize,
         alignment=1,
@@ -58,7 +86,8 @@ def quebra_linha(texto):
     return Paragraph(texto.upper(), style)
 
 def titulo(texto):
-    return Paragraph(texto, ParagraphStyle('header', fontName='Helvetica-Bold', fontSize=7.5, alignment=1))
+    style = _get_cached_style('titulo_header', fontName='Helvetica-Bold', fontSize=7.5, alignment=1)
+    return Paragraph(texto, style)
 
 def obter_disciplinas_do_historico(aluno_id):
     conn = conectar_bd()
@@ -206,8 +235,9 @@ def criar_tabela_estudos_realizados(data_tabela_estudos_realizados):
     # Cria a tabela com os dados fornecidos
     tabela_estudos_realizados = Table(data_tabela_estudos_realizados, colWidths=[1.17 * inch] + [0.477 * inch, 0.282 * inch] * 9, rowHeights=12)
     
-    # Define o estilo da tabela
-    table_style_tabela3 = TableStyle([
+    # Define o estilo da tabela usando cache
+    if 'estudos_realizados' not in _STYLE_CACHE:
+        _STYLE_CACHE['estudos_realizados'] = TableStyle([
         # Estilos gerais
         ('TEXTCOLOR', (0, 0), (-1, -1), 'black'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -263,8 +293,9 @@ def criar_tabela_estudos_realizados(data_tabela_estudos_realizados):
         
         # Estilo para as últimas duas linhas (SITUAÇÃO FINAL e TOTAL/CH)
         ('FONTNAME', (1, -2), (-1, -1), 'Helvetica-BoldOblique'),
-    ])
+        ])
     
+    table_style_tabela3 = _STYLE_CACHE['estudos_realizados']
     # Aplica o estilo à tabela
     tabela_estudos_realizados.setStyle(table_style_tabela3)
     return tabela_estudos_realizados
@@ -300,34 +331,31 @@ def criar_tabela_caminho_escolar(resultados):
             data_tabela_caminho_escolar[serie_idx][3] = escola_municipio
             data_tabela_caminho_escolar[serie_idx][4] = situacao_final
     tabela_caminho_escolar = Table(data_tabela_caminho_escolar, colWidths=[1.17 * inch, 0.76 * inch, 2.28 * inch, 2.28 * inch, 1.52 * inch], rowHeights=14)
-    table_style_tabela4 = TableStyle([
-        ('TEXTCOLOR', (0, 0), (-1, -1), 'black'),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 6),
-        ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTNAME', (1, 1), (1, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (2, 1), (3, -1), 'Helvetica-Oblique'),
-        ('FONTNAME', (4, 1), (4, -1), 'Helvetica-BoldOblique'),
-    ])
-    tabela_caminho_escolar.setStyle(table_style_tabela4)
+    
+    if 'caminho_escolar' not in _STYLE_CACHE:
+        _STYLE_CACHE['caminho_escolar'] = TableStyle([
+            ('TEXTCOLOR', (0, 0), (-1, -1), 'black'),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 1), (1, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (2, 1), (3, -1), 'Helvetica-Oblique'),
+            ('FONTNAME', (4, 1), (4, -1), 'Helvetica-BoldOblique'),
+        ])
+    
+    tabela_caminho_escolar.setStyle(_STYLE_CACHE['caminho_escolar'])
     return tabela_caminho_escolar
 
 def criar_tabela_observacoes(resultados, num_disciplinas_desconhecidas=0):
     # Texto base da observação
     texto_base = "Observação: Documento expedido em época legal, sem emendas ou rasuras."
     
-    # Buscar observações do banco de dados
-    conn = conectar_bd()
-    if not conn:
-        logger.error("Erro: Não foi possível conectar ao banco de dados para buscar observações")
-        # Retorna tabela apenas com observação base
-        paragrafo_obs = Paragraph(texto_base, ParagraphStyle(name='Title', fontSize=8, alignment=4, leading=10))
-        data_tabela_observacoes = [[paragrafo_obs, ""]]
-        tabela_observacoes = Table(data_tabela_observacoes, colWidths=[4.21 * inch, 3.78 * inch])
-        table_style_tabela5 = TableStyle([
+    # Cache do estilo de tabela de observações
+    if 'observacoes_table' not in _STYLE_CACHE:
+        _STYLE_CACHE['observacoes_table'] = TableStyle([
             ('TEXTCOLOR', (0, 0), (-1, -1), 'black'),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -335,7 +363,17 @@ def criar_tabela_observacoes(resultados, num_disciplinas_desconhecidas=0):
             ('FONTSIZE', (0, 0), (-1, -1), 6),
             ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
         ])
-        tabela_observacoes.setStyle(table_style_tabela5)
+    
+    # Buscar observações do banco de dados
+    conn = conectar_bd()
+    if not conn:
+        logger.error("Erro: Não foi possível conectar ao banco de dados para buscar observações")
+        # Retorna tabela apenas com observação base
+        obs_style = _get_cached_style('obs_title', fontSize=8, alignment=4, leading=10)
+        paragrafo_obs = Paragraph(texto_base, obs_style)
+        data_tabela_observacoes = [[paragrafo_obs, ""]]
+        tabela_observacoes = Table(data_tabela_observacoes, colWidths=[4.21 * inch, 3.78 * inch])
+        tabela_observacoes.setStyle(_STYLE_CACHE['observacoes_table'])
         return tabela_observacoes
     
     cursor = conn.cursor()
@@ -397,20 +435,13 @@ def criar_tabela_observacoes(resultados, num_disciplinas_desconhecidas=0):
     if observacoes_adicionais:
         texto_completo += "<br/><b>Observações por escola:</b><br/>" + "<br/>".join(observacoes_adicionais)
 
-    paragrafo_obs = Paragraph(texto_completo, ParagraphStyle(name='Title', fontSize=8, alignment=4, leading=10))
+    obs_style = _get_cached_style('obs_title', fontSize=8, alignment=4, leading=10)
+    paragrafo_obs = Paragraph(texto_completo, obs_style)
 
     data_tabela_observacoes = [[paragrafo_obs, ""]]
     # Sem rowHeights: o ReportLab calcula a altura exata conforme o conteúdo
     tabela_observacoes = Table(data_tabela_observacoes, colWidths=[4.21 * inch, 3.78 * inch])
-    table_style_tabela5 = TableStyle([
-        ('TEXTCOLOR', (0, 0), (-1, -1), 'black'),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'), 
-        ('FONTSIZE', (0, 0), (-1, -1), 6),
-        ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
-    ])
-    tabela_observacoes.setStyle(table_style_tabela5)
+    tabela_observacoes.setStyle(_STYLE_CACHE['observacoes_table'])
     return tabela_observacoes
 
 def criar_tabela_informacoes():
@@ -422,19 +453,22 @@ def criar_tabela_informacoes():
         ["RT: Retido", ""]
     ]
     tabela_informacoes = Table(data_tabela_informacoes, colWidths=[4.21 * inch, 3.78 * inch], rowHeights=9)
-    table_style_tabela6 = TableStyle([
-        ('TEXTCOLOR', (0, 0), (-1, -1), 'black'),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 5),
-        ('BOX', (0, 0), (0, -1), 0.5, 'black'),
-        ('BOX', (1, 0), (1, -1), 0.5, 'black'),
-        ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('TOPPADDING', (0, 0), (-1, -1), 7),
-    ])
-    tabela_informacoes.setStyle(table_style_tabela6)
+    
+    if 'informacoes' not in _STYLE_CACHE:
+        _STYLE_CACHE['informacoes'] = TableStyle([
+            ('TEXTCOLOR', (0, 0), (-1, -1), 'black'),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 5),
+            ('BOX', (0, 0), (0, -1), 0.5, 'black'),
+            ('BOX', (1, 0), (1, -1), 0.5, 'black'),
+            ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('TOPPADDING', (0, 0), (-1, -1), 7),
+        ])
+    
+    tabela_informacoes.setStyle(_STYLE_CACHE['informacoes'])
     return tabela_informacoes
 
 def criar_tabela_legenda(data_documento):
@@ -443,31 +477,36 @@ def criar_tabela_legenda(data_documento):
         ["TABELA DE CONVERSÃO","ED - Em Desenvolvimento - 6.0 a 7.0 / ND - Não desenvolveu - 5.0",f"Paço do Lumiar - MA, {data_documento}."]
     ]
     tabela_legenda = Table(data_tabela_legenda, colWidths=[1.17 * inch, 3.8 * inch, 3.02 * inch], rowHeights=10)
-    table_style_tabela7 = TableStyle([
-        ('TEXTCOLOR', (0, 0), (-1, -1), 'black'),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 5),
-        ('TOPPADDING', (0, 0), (-1, -1), 7),
-        ('BOX', (0, 0), (0, -1), 0.5, 'black'),
-        ('BOX', (1, 0), (1, -1), 0.5, 'black'),
-        ('BOX', (2, 0), (2, -1), 0.5, 'black'),
-        ('SPAN', (0, 0), (0, 1)),
-        ('SPAN', (2, 0), (2, 1)),
-    ])
-    tabela_legenda.setStyle(table_style_tabela7)
+    
+    if 'legenda' not in _STYLE_CACHE:
+        _STYLE_CACHE['legenda'] = TableStyle([
+            ('TEXTCOLOR', (0, 0), (-1, -1), 'black'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 5),
+            ('TOPPADDING', (0, 0), (-1, -1), 7),
+            ('BOX', (0, 0), (0, -1), 0.5, 'black'),
+            ('BOX', (1, 0), (1, -1), 0.5, 'black'),
+            ('BOX', (2, 0), (2, -1), 0.5, 'black'),
+            ('SPAN', (0, 0), (0, 1)),
+            ('SPAN', (2, 0), (2, 1)),
+        ])
+    
+    tabela_legenda.setStyle(_STYLE_CACHE['legenda'])
     return tabela_legenda
 
 def criar_tabela_assinatura():
-    estilo_centro = ParagraphStyle(name='centro', fontSize=8, alignment=1)
+    estilo_centro = _get_cached_style('centro_assinatura', fontSize=8, alignment=1)
     paragrafo_secretario = Paragraph("______________________________________________________________<br/>Responsável pelo Preenchimento", estilo_centro)
     paragrafo_gestor = Paragraph("______________________________________________________________<br/>Gestor(a)", estilo_centro)
     dados_tabela_assinatura = [[paragrafo_secretario, paragrafo_gestor]]
     tabela_assinatura = Table(dados_tabela_assinatura, colWidths=[4 * inch, 4 * inch], rowHeights=13)
-    tabela_assinatura.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
-    ]))
+    
+    if 'assinatura' not in _STYLE_CACHE:
+        _STYLE_CACHE['assinatura'] = TableStyle([('VALIGN', (0, 0), (-1, -1), 'BOTTOM')])
+    
+    tabela_assinatura.setStyle(_STYLE_CACHE['assinatura'])
     return tabela_assinatura
 
 def historico_escolar(aluno_id,
@@ -795,11 +834,15 @@ def historico_escolar(aluno_id,
     )
     elements = []
 
-    # Criar uma tabela para o cabeçalho
+    # Criar uma tabela para o cabeçalho usando cache de imagens
+    img_sup = _get_cached_image(figura_superior, 0.75 * inch, 0.75 * inch)
+    img_inf = _get_cached_image(figura_inferior, 1.5 * inch, 1 * inch)
+    header_style = _get_cached_style('hist_header', fontSize=8, alignment=1)
+    
     data = [
-        [Image(figura_superior, width=0.75 * inch, height=0.75 * inch),
-         Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=8, alignment=1)),
-         Image(figura_inferior, width=1.5 * inch, height=1 * inch)]
+        [img_sup,
+         Paragraph('<br/>'.join(cabecalho), header_style),
+         img_inf]
     ]
     table = Table(data, colWidths=[1.32 * inch, 4 * inch, 1.32 * inch], rowHeights=9)
     table_style = TableStyle([
@@ -809,18 +852,25 @@ def historico_escolar(aluno_id,
     elements.append(table)
     elements.append(Spacer(1, 0.3 * inch))
 
+    # Cache de estilos para tabela de identificação
+    title_style = _get_cached_style('id_title', fontSize=8, alignment=1)
+    address_style = _get_cached_style('id_address', fontSize=8, alignment=1)
+    data_title_style = _get_cached_style('id_data_title', fontSize=8, alignment=1)
+    label_left_style = _get_cached_style('id_label_left', fontSize=8, alignment=0)
+    label_center_style = _get_cached_style('id_label_center', fontSize=8, alignment=1)
+    
     data_tabela1 = [
-        [Paragraph(f'<b>"{nome_escola}"</b>', ParagraphStyle(name='Title', fontSize=8, alignment=1))],
-        [Paragraph(f'<i>{endereco_escola}, {municipio_escola}</i>', ParagraphStyle(name='Address', fontSize=8, alignment=1))],
-        [Paragraph('<b>DADOS ALUNO</b>', ParagraphStyle(name='DataTitle', fontSize=8, alignment=1))],
-        [Paragraph(f'<b>NOME:</b> {nome_aluno}', ParagraphStyle(name='Label', fontSize=8, alignment=0))],
+        [Paragraph(f'<b>"{nome_escola}"</b>', title_style)],
+        [Paragraph(f'<i>{endereco_escola}, {municipio_escola}</i>', address_style)],
+        [Paragraph('<b>DADOS ALUNO</b>', data_title_style)],
+        [Paragraph(f'<b>NOME:</b> {nome_aluno}', label_left_style)],
         [
-            Paragraph(f'<b>NATURAL DE:</b> {localn or ""}', ParagraphStyle(name='Label', fontSize=8, alignment=0)),
-            Paragraph(f'<b>UF:</b>', ParagraphStyle(name='Label', fontSize=8, alignment=1)),
-            Paragraph(f'{uf or ""}', ParagraphStyle(name='Data', fontSize=8, alignment=1)),
-            Paragraph(f'<b>DATA DE NASCIMENTO:</b> {data_nascimento}', ParagraphStyle(name='Label', fontSize=8, alignment=0))
+            Paragraph(f'<b>NATURAL DE:</b> {localn or ""}', label_left_style),
+            Paragraph(f'<b>UF:</b>', label_center_style),
+            Paragraph(f'{uf or ""}', label_center_style),
+            Paragraph(f'<b>DATA DE NASCIMENTO:</b> {data_nascimento}', label_left_style)
         ],
-        [Paragraph(filho_de_texto, ParagraphStyle(name='Label', fontSize=8, alignment=0))]
+        [Paragraph(filho_de_texto, label_left_style)]
     ]
     table_style_tabela1 = TableStyle([
         ('SPAN', (0, 0), (-1, 0)),
@@ -837,16 +887,20 @@ def historico_escolar(aluno_id,
     elements.append(Spacer(1, 0.1 * inch))
     elements.append(tabela_identificacao)
 
+    estudos_title_style = _get_cached_style('estudos_title', fontSize=7, alignment=1)
     data_tabela1 = [
-        [Paragraph('<b>ESTUDOS REALIZADOS</b>', ParagraphStyle(name='Title', fontSize=7, alignment=1))]
+        [Paragraph('<b>ESTUDOS REALIZADOS</b>', estudos_title_style)]
     ]
-    table_style_tabela2 = TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('GRID', (0, 0), (-1, -1),0.5, 'black'),
-    ])
+    
+    if 'estudos_inicio' not in _STYLE_CACHE:
+        _STYLE_CACHE['estudos_inicio'] = TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1),0.5, 'black'),
+        ])
+    
     tabela_inicio = Table(data_tabela1, colWidths=[8 * inch], rowHeights=9)
-    tabela_inicio.setStyle(table_style_tabela2)
+    tabela_inicio.setStyle(_STYLE_CACHE['estudos_inicio'])
     elements.append(Spacer(1, 0.1 * inch))
     elements.append(tabela_inicio)
     elements.append(Spacer(1, 0.1 * inch))
@@ -937,4 +991,4 @@ def historico_escolar(aluno_id,
     
     salvar_e_abrir_pdf(buffer)
 
-# historico_escolar(942)
+historico_escolar(942)

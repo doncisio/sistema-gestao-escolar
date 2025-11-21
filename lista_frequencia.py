@@ -9,6 +9,24 @@ import datetime
 from gerarPDF import salvar_e_abrir_pdf
 from Lista_atualizada import fetch_student_data
 from gerarPDF import create_pdf_buffer
+
+# Cache global para imagens e estilos
+_IMAGE_CACHE = {}
+_STYLE_CACHE = {}
+
+def _get_cached_image(path, width, height):
+    """Retorna uma imagem em cache para evitar recarregamento."""
+    key = (path, width, height)
+    if key not in _IMAGE_CACHE:
+        _IMAGE_CACHE[key] = Image(path, width=width, height=height)
+    return _IMAGE_CACHE[key]
+
+def _get_cached_style(name, **kwargs):
+    """Retorna um estilo em cache para evitar recriação."""
+    key = (name, tuple(sorted(kwargs.items())))
+    if key not in _STYLE_CACHE:
+        _STYLE_CACHE[key] = ParagraphStyle(name=name, **kwargs)
+    return _STYLE_CACHE[key]
 def lista_frequencia():
     ano_letivo = 2025
     dados_aluno = fetch_student_data(ano_letivo)
@@ -34,23 +52,16 @@ def lista_frequencia():
     doc, buffer = create_pdf_buffer()
     elements = []
     # Estilo para o texto "TOTAL" com quebra de linha
-    style_total = ParagraphStyle(
-        name='TotalStyle',
-        parent=None,
-        fontSize=10,
-        alignment=1,  # Alinhamento centralizado
-        wordWrap='CJK',  # Permite quebra de linha em palavras longas
-    )
+    style_total = _get_cached_style('TotalStyle', fontSize=10, alignment=1, wordWrap='CJK')
+    style_transferencia = _get_cached_style('TransferenciaStyle', fontSize=10, alignment=1, textColor=colors.red, wordWrap='CJK')
+    header_style = _get_cached_style('Header', fontSize=12, alignment=1)
+    turma_style = _get_cached_style('TurmaTitulo', fontSize=14, alignment=1)
+    prof_style = _get_cached_style('ProfessoraTitulo', fontSize=14, alignment=0)
+    totais_style = _get_cached_style('TotaisAlunos', fontSize=12, alignment=0)
 
-    # Estilo para o texto de transferência
-    style_transferencia = ParagraphStyle(
-        name='TransferenciaStyle',
-        parent=None,
-        fontSize=10,
-        alignment=1,
-        textColor=colors.red,
-        wordWrap='CJK',
-    )
+    # Carregar imagens em cache
+    img_sup = _get_cached_image(figura_superior, 1.5 * inch, 1 * inch)
+    img_inf = _get_cached_image(figura_inferior, 1.25 * inch, .75 * inch)
 
     # Agrupar os dados por nome_serie, nome_turma e turno
     for (nome_serie, nome_turma, turno), turma_df in df.groupby(['NOME_SERIE', 'NOME_TURMA', 'TURNO']):
@@ -61,9 +72,9 @@ def lista_frequencia():
 
         # Adicionar o cabeçalho
         data = [
-            [Image(figura_inferior, width=1.25 * inch, height=.75 * inch),
-             Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1)),
-             Image(figura_superior, width=1.5 * inch, height=1 * inch)]
+            [img_inf,
+             Paragraph('<br/>'.join(cabecalho), header_style),
+             img_sup]
         ]
         table = Table(data, colWidths=[1.32 * inch, 4 * inch, 1.32 * inch])
         table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'MIDDLE')]))
@@ -71,17 +82,22 @@ def lista_frequencia():
         elements.append(Spacer(1, 0.25 * inch))
 
         # Adicionar o título da turma
-        elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno} - {datetime.datetime.now().year}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=14, alignment=1)))
+        elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno} - {datetime.datetime.now().year}</b>", turma_style))
         elements.append(Spacer(1, 0.1 * inch))
 
         # Adicionar informações sobre a professora e totais de alunos por sexo
-        elements.append(Paragraph(f"<b>PROFESSOR(A): {nome_professor} </b>", ParagraphStyle(name='ProfessoraTitulo', fontSize=14, alignment=0)))
+        elements.append(Paragraph(f"<b>PROFESSOR(A): {nome_professor} </b>", prof_style))
         elements.append(Spacer(1, 0.15 * inch))
 
-        total_masculino = turma_df[turma_df['SEXO'] == 'M'].shape[0]
-        total_feminino = turma_df[turma_df['SEXO'] == 'F'].shape[0]
-        total_transferidos = turma_df[turma_df['SITUAÇÃO'].isin(['Transferido', 'Transferida'])].shape[0]
-        elements.append(Paragraph(f"TOTAIS: MASCULINO ({total_masculino}) FEMININO ({total_feminino}) - TRANSFERIDOS: {total_transferidos}", ParagraphStyle(name='TotaisAlunos', fontSize=12, alignment=0)))
+        # Usar máscaras booleanas para cálculos mais eficientes
+        mask_masculino = turma_df['SEXO'] == 'M'
+        mask_feminino = turma_df['SEXO'] == 'F'
+        mask_transferidos = turma_df['SITUAÇÃO'].isin(['Transferido', 'Transferida'])
+        
+        total_masculino = mask_masculino.sum()
+        total_feminino = mask_feminino.sum()
+        total_transferidos = mask_transferidos.sum()
+        elements.append(Paragraph(f"TOTAIS: MASCULINO ({total_masculino}) FEMININO ({total_feminino}) - TRANSFERIDOS: {total_transferidos}", totais_style))
         elements.append(Spacer(1, 0.15 * inch))
 
         # Criar a tabela de frequência

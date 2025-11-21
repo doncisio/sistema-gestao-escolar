@@ -11,6 +11,24 @@ from gerarPDF import salvar_e_abrir_pdf
 import io
 from reportlab.platypus import SimpleDocTemplate
 
+# Cache global para imagens e estilos
+_IMAGE_CACHE = {}
+_STYLE_CACHE = {}
+
+def _get_cached_image(path, width, height):
+    """Retorna uma imagem em cache para evitar recarregamento."""
+    key = (path, width, height)
+    if key not in _IMAGE_CACHE:
+        _IMAGE_CACHE[key] = Image(path, width=width, height=height)
+    return _IMAGE_CACHE[key]
+
+def _get_cached_style(name, **kwargs):
+    """Retorna um estilo em cache para evitar recriação."""
+    key = (name, tuple(sorted(kwargs.items())))
+    if key not in _STYLE_CACHE:
+        _STYLE_CACHE[key] = ParagraphStyle(name=name, **kwargs)
+    return _STYLE_CACHE[key]
+
 def buscar_docentes(cursor, escola_id=60):
     """Busca todos os professores da escola"""
     query = """
@@ -108,30 +126,34 @@ def gerar_tabela_docentes():
         "<b>CNPJ: 01.394.462/0001-01</b>"
     ]
     
-    # Adicionar o cabeçalho
+    # Adicionar o cabeçalho com cache
     figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
+    img_inf = _get_cached_image(figura_inferior, 3 * inch, 0.7 * inch)
+    header_style = _get_cached_style('Header', fontSize=12, alignment=1)
+    
     data = [
-        [Image(figura_inferior, width=3 * inch, height=0.7 * inch)],
-        [Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1))]
+        [img_inf],
+        [Paragraph('<br/>'.join(cabecalho), header_style)]
     ]
     table = Table(data, colWidths=[5 * inch])
     table_style = TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),  # Alinhamento vertical
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER')    # Alinhamento horizontal
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER')
     ])
     table.setStyle(table_style)
     elements.append(table)
     elements.append(Spacer(1, 0.25 * inch))
     
     # Adicionar título
+    title_style = _get_cached_style('Title', fontSize=14, alignment=1)
     elements.append(Paragraph("<b>QUADRO DE DOCENTES E DISCIPLINAS PENDENTES da EM Profª Nadir Nascimento Moraes</b>", 
-                            ParagraphStyle(name='Title', fontSize=14, alignment=1)))
+                            title_style))
     elements.append(Spacer(1, 0.3 * inch))
     
     # Definir estilos para os parágrafos
     styles = getSampleStyleSheet()
-    style_cell = ParagraphStyle(name='Cell', fontSize=8, alignment=1)
-    style_cell_left = ParagraphStyle(name='CellLeft', fontSize=8, alignment=0)
+    style_cell = _get_cached_style('Cell', fontSize=8, alignment=1)
+    style_cell_left = _get_cached_style('CellLeft', fontSize=8, alignment=0)
     
     # Preparar dados da tabela
     headers = ["Nº", "NOME DO SERVIDOR", "CARGO", "SITUAÇÃO FUNCIONAL", "HABILITAÇÃO", "CLASSE REGENTE", quebra_linha("CARGA\nHORÁRIA"), "LICENÇA"]
