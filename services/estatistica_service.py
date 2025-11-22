@@ -3,7 +3,7 @@ Serviço para cálculo de estatísticas de alunos.
 Extrai lógica de estatísticas do main.py.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from mysql.connector import Error as MySQLError
 import logging
 from db.connection import get_cursor
@@ -271,6 +271,111 @@ def obter_estatisticas_por_ano_letivo(ano_letivo_id: int, escola_id: int = 60) -
         return None
     except Exception as e:
         logger.exception(f"Erro inesperado ao calcular estatísticas do ano letivo {ano_letivo_id}")
+        return None
+
+
+@dashboard_cache.cached(ttl=600)  # Cache de 10 minutos
+def obter_movimento_mensal_resumo(escola_id: int = 60, ano_letivo: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Retorna resumo mensal (até o mês corrente) de movimento de matrículas.
+
+    Para cada mês do ano letivo (1..mês atual) retorna:
+      - ativos: quantidade de alunos ativos até o final daquele mês
+      - transferidos: quantidade acumulada de alunos cujo último status até o fim do mês é 'Transferido'/'Transferida'
+      - evadidos: quantidade acumulada de alunos cujo último status até o fim do mês é 'Evadido'
+
+    A query de transferidos/evadidos replica a lógica de `contar_movimentacao_mensal` em
+    `movimentomensal.py`, porém agregada no total da escola sem separar por série.
+
+    Args:
+        escola_id: ID da escola
+        ano_letivo: ano letivo (ex: '2025'); se None busca o corrente em AnosLetivos
+
+    Returns:
+        dict com chave 'meses': lista de dicts {mes, ativos, transferidos, evadidos}
+    """
+    try:
+        from datetime import datetime
+        with get_cursor() as cursor:
+            if ano_letivo is None:
+                cursor.execute("SELECT ano_letivo FROM AnosLetivos WHERE CURDATE() BETWEEN data_inicio AND data_fim LIMIT 1")
+                r = cursor.fetchone()
+                ano_letivo = r['ano_letivo'] if r else str(datetime.now().year)
+
+            # Obter id do ano letivo
+            cursor.execute("SELECT id FROM AnosLetivos WHERE ano_letivo = %s LIMIT 1", (ano_letivo,))
+            row = cursor.fetchone()
+            if not row:
+                logger.warning("Ano letivo %s não encontrado para movimento mensal", ano_letivo)
+                return None
+            ano_letivo_id = row['id'] if isinstance(row, dict) else row[0]
+
+            mes_atual = datetime.now().month
+            meses: List[Dict[str, Any]] = []
+
+            for mes in range(1, mes_atual + 1):
+                # Ativos até fim do mês (matrículas ativas com data de matrícula anterior ou igual ao último dia do mês)
+                cursor.execute(
+                    """
+                    SELECT COUNT(DISTINCT m.aluno_id) as total
+                    FROM matriculas m
+                    INNER JOIN alunos a ON m.aluno_id = a.id
+                    WHERE m.ano_letivo_id = %s
+                      AND a.escola_id = %s
+                      AND m.status = 'Ativo'
+                      AND m.data_matricula <= LAST_DAY(DATE(CONCAT(%s, '-', %s, '-01')))
+                    """,
+                    (ano_letivo_id, escola_id, ano_letivo, mes)
+                )
+                r_ativos = cursor.fetchone()
+                ativos = (r_ativos['total'] if isinstance(r_ativos, dict) else (r_ativos[0] if r_ativos else 0)) if r_ativos else 0
+
+                # Transferidos / Evadidos acumulados até fim do mês: último status não voltou para 'Ativo'
+                cursor.execute(
+                    """
+                    SELECT hm.status_novo as status,
+                           COUNT(DISTINCT m.aluno_id) as total
+                    FROM historico_matricula hm
+                    INNER JOIN matriculas m ON hm.matricula_id = m.id
+                    INNER JOIN alunos a ON m.aluno_id = a.id
+                    WHERE m.ano_letivo_id = %s
+                      AND a.escola_id = %s
+                      AND hm.data_mudanca <= LAST_DAY(DATE(CONCAT(%s, '-', %s, '-01')))
+                      AND hm.status_novo IN ('Evadido','Transferido','Transferida')
+                      AND NOT EXISTS (
+                        SELECT 1 FROM historico_matricula hm2
+                        WHERE hm2.matricula_id = hm.matricula_id
+                          AND hm2.data_mudanca > hm.data_mudanca
+                          AND hm2.status_novo = 'Ativo'
+                      )
+                    GROUP BY hm.status_novo
+                    """,
+                    (ano_letivo_id, escola_id, ano_letivo, mes)
+                )
+                rows = cursor.fetchall() or []
+                transferidos = 0
+                evadidos = 0
+                for rr in rows:
+                    status = rr['status'] if isinstance(rr, dict) else rr[0]
+                    total = rr['total'] if isinstance(rr, dict) else rr[1]
+                    if status in ('Transferido', 'Transferida'):
+                        transferidos += total
+                    elif status == 'Evadido':
+                        evadidos += total
+
+                meses.append({
+                    'mes': mes,
+                    'ativos': ativos,
+                    'transferidos': transferidos,
+                    'evadidos': evadidos
+                })
+
+        return {
+            'ano_letivo': ano_letivo,
+            'escola_id': escola_id,
+            'meses': meses
+        }
+    except Exception as e:
+        logger.exception(f"Erro ao obter movimento mensal resumo: {e}")
         return None
 
 

@@ -337,49 +337,190 @@ class DashboardManager:
                         labels.append(serie)
                         quantidades.append(qtd_total)
 
-                # Construir figura do matplotlib
+                # Construir figura do matplotlib (agora com 2 subplots: pizza + colunas mensais)
                 from matplotlib.figure import Figure
                 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-                fig = Figure(figsize=(11, 6.5), dpi=100, facecolor=self.co1)
-                ax = fig.add_subplot(111)
+                # Recuperar movimento mensal acumulado (pode falhar sem impactar o gráfico principal)
+                movimento_resumo = None
+                try:
+                    from services.estatistica_service import obter_movimento_mensal_resumo
+                    movimento_resumo = obter_movimento_mensal_resumo(escola_id=self.escola_id, ano_letivo=self.ano_letivo)
+                except Exception as e_mov:
+                    logger.warning(f"Falha ao obter movimento mensal resumo: {e_mov}")
+
+                # Figura 1: Gráfico de Pizza (figura independente)
+                fig_pie = Figure(figsize=(8, 5.5), dpi=100, facecolor=self.co1)
+                ax = fig_pie.add_subplot(111)
                 ax.set_facecolor(self.co1)
                 cores = ['#1976d2', '#388e3c', '#d32f2f', '#f57c00', '#7b1fa2', '#0097a7', '#5d4037', '#455a64', '#c2185b', '#afb42b', '#00897b', '#e64a19']
-                resultado_pie = ax.pie(
-                    quantidades,
-                    labels=labels,
-                    autopct='%1.1f%%',
-                    startangle=90,
-                    colors=cores[:len(labels)],
-                    textprops={'fontsize': 9, 'weight': 'bold', 'color': self.co0}
-                )
-
                 try:
+                    resultado_pie = ax.pie(
+                        quantidades,
+                        labels= labels,  
+                        autopct='%1.1f%%',
+                        startangle=90,
+                        colors=cores[:len(labels)],
+                        textprops={'fontsize': 10, 'weight': 'bold'}
+                    )
                     if len(resultado_pie) >= 3:
                         wedges, texts, autotexts = resultado_pie
                         for autotext in autotexts:
                             autotext.set_color('white')
                             autotext.set_fontsize(10)
                             autotext.set_fontweight('bold')
-                    else:
-                        wedges, texts = resultado_pie
+                        # guardar textos das fatias (labels ao redor/do lado do pie)
+                        pie_texts = texts
                 except Exception:
                     pass
 
-                ax.set_title('Distribuição de Alunos por Série', fontsize=14, weight='bold', pad=25, color=self.co0)
-                legendas = [f'{s}: {q} alunos' for s, q in zip(labels, quantidades)]
+                t1 = ax.set_title('Distribuição de Alunos por Série', fontsize=14, weight='bold', pad=10, color=self.co0, y=1.0)
                 try:
-                    legend = ax.legend(legendas, loc='center left', bbox_to_anchor=(1.15, 0.5), fontsize=9, frameon=True, facecolor=self.co1, edgecolor=self.co0)
+                    t1.set_wrap(True)
+                except Exception:
+                    pass
+                legendas = [f'{s}: {q}' for s, q in zip(labels, quantidades)]
+                try:
+                    # Legenda a esquerda antes do gráfico de pizza 
+                    legend = ax.legend(legendas, loc='center left', bbox_to_anchor=(-0.5, 0.5), 
+                                     ncol=1, fontsize=8, frameon=True, facecolor=self.co1, edgecolor=self.co0)
                     for text in legend.get_texts():
                         text.set_color(self.co0)
                 except Exception:
                     pass
+                # Reservar espaço para a legenda à esquerda e para o título no topo
+                try:
+                    fig_pie.subplots_adjust(top=0.82, bottom=0.12, left=0.36, right=0.98)
+                except Exception:
+                    pass
 
-                fig.tight_layout(rect=(0, 0, 0.85, 0.95))
+                # Guardar meta-informações para redimensionamento dinâmico de fontes
+                try:
+                    pie_autotexts = autotexts if 'autotexts' in locals() else []
+                except Exception:
+                    pie_autotexts = []
+                try:
+                    pie_texts = pie_texts if 'pie_texts' in locals() else []
+                except Exception:
+                    pie_texts = []
+                try:
+                    # incluir tamanhos-base em pixels para referência ao redimensionar
+                    base_w, base_h = fig_pie.get_figwidth(), fig_pie.get_figheight()
+                    setattr(fig_pie, '_dash_meta', {
+                        'title': t1,
+                        'legend': legend if 'legend' in locals() else None,
+                        'autotexts': pie_autotexts,
+                        'pie_texts': pie_texts,
+                        'base_title': 14,
+                        'base_legend': 8,
+                        'base_autotext': 10,
+                        'base_tick': 9,
+                        'base_fig_inches': (base_w, base_h),
+                        'base_fig_pixels_height': base_h * fig_pie.dpi
+                    })
+                except Exception:
+                    pass
+
+                # Figura 2: barras mensais empilhadas (figura independente)
+                try:
+                    fig_bars = Figure(figsize=(8, 5.5), dpi=100, facecolor=self.co1)
+                    ax2 = fig_bars.add_subplot(111)
+                    ax2.set_facecolor(self.co1)
+                    if movimento_resumo and movimento_resumo.get('meses'):
+                        meses_data = movimento_resumo['meses']
+                        labels_meses = [m['mes'] for m in meses_data]
+                        # Cada mês terá uma única coluna empilhada: ativos (base), transferidos (meio), evadidos (topo)
+                        base_ativos = [m['ativos'] for m in meses_data]
+                        seg_transferidos = [m['transferidos'] for m in meses_data]
+                        seg_evadidos = [m['evadidos'] for m in meses_data]
+
+                        import numpy as np
+                        x = np.arange(len(labels_meses))
+
+                        # Barras empilhadas (cores com melhor contraste no fundo azul)
+                        b_ativos = ax2.bar(x, base_ativos, label='Ativos', color='#4CAF50', edgecolor='#FFFFFF', linewidth=0.6)
+                        bottom_transferidos = base_ativos
+                        b_transferidos = ax2.bar(
+                            x, seg_transferidos, bottom=bottom_transferidos,
+                            label='Transferidos', color='#FFC107', edgecolor='#FFFFFF', linewidth=0.6
+                        )
+                        # calcular bottom para evadidos (ativos + transferidos)
+                        bottom_evadidos = [a + t for a, t in zip(base_ativos, seg_transferidos)]
+                        b_evadidos = ax2.bar(
+                            x, seg_evadidos, bottom=bottom_evadidos,
+                            label='Evadidos', color='#E53935', edgecolor='#FFFFFF', linewidth=0.6
+                        )
+
+                        ax2.set_xticks(x)
+                        nomes_meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+                        ax2.set_xticklabels([nomes_meses[m-1] for m in labels_meses], fontsize=9, color=self.co0)
+                        ax2.tick_params(axis='y', colors=self.co0)
+                        for spine in ax2.spines.values():
+                            spine.set_color(self.co0)
+                        ax2.set_ylabel('Quantidade', color=self.co0, fontsize=10)
+                        t2 = ax2.set_title('Movimento Mensal (Empilhado)', fontsize=14, weight='bold', color=self.co0, pad=10, y=1.0)
+                        try:
+                            t2.set_wrap(True)
+                        except Exception:
+                            pass
+                        # Legenda a direita depois do gráfico de barras
+                        legend2 = ax2.legend(loc='center left', bbox_to_anchor=(1.05, 0.5), ncol=1, fontsize=9, frameon=True)
+                        legend2.get_frame().set_facecolor(self.co1)
+                        legend2.get_frame().set_edgecolor(self.co0)
+                        for text in legend2.get_texts():
+                            text.set_color(self.co0)
+                        # Reservar espaço para a legenda à direita e para o título no topo
+                        try:
+                            fig_bars.subplots_adjust(top=0.82, bottom=0.12, left=0.08, right=0.78)
+                        except Exception:
+                            pass
+
+                        # Guardar meta para redimensionamento dinâmico
+                        try:
+                            base_w2, base_h2 = fig_bars.get_figwidth(), fig_bars.get_figheight()
+                            setattr(fig_bars, '_dash_meta', {
+                                'title': t2,
+                                'legend': legend2 if 'legend2' in locals() else None,
+                                'autotexts': [],
+                                'base_title': 14,
+                                'base_legend': 9,
+                                'base_autotext': 8,
+                                'base_tick': 9,
+                                'base_fig_inches': (base_w2, base_h2),
+                                'base_fig_pixels_height': base_h2 * fig_bars.dpi
+                            })
+                        except Exception:
+                            pass
+
+                        # Anotar totais no topo de cada coluna
+                        try:
+                            for i, (a, t, e) in enumerate(zip(base_ativos, seg_transferidos, seg_evadidos)):
+                                total = a + t + e
+                                if total > 0:
+                                    ax2.text(i, total + 0.5, str(total), ha='center', va='bottom', fontsize=8, color=self.co0)
+                        except Exception:
+                            pass
+                    else:
+                        ax2.text(0.5, 0.5, 'Sem dados mensais', ha='center', va='center', color=self.co0, fontsize=12, transform=ax2.transAxes)
+                        ax2.set_axis_off()
+                except Exception as e_cols:
+                    logger.warning(f"Falha ao gerar gráfico mensal (empilhado): {e_cols}")
+
+                # Lista de figuras para renderização em grade no frame
+                figures = []
+                try:
+                    figures.append(fig_pie)
+                except Exception:
+                    pass
+                try:
+                    if 'fig_bars' in locals():
+                        figures.append(fig_bars)
+                except Exception:
+                    pass
 
                 # Atualizar UI na thread principal
                 def _on_main():
-                    nonlocal fig
+                    nonlocal figures
                     # Antes de manipular o UI, verificar se os frames principais ainda existem.
                     try:
                         # Parar o progresso e remover o carregador, ignorando erros
@@ -448,16 +589,108 @@ class DashboardManager:
                         grafico_frame = Frame(dashboard_frame, bg=self.co1)
                         grafico_frame.pack(fill='both', expand=True)
 
+                        # Distribuir as figuras em uma matriz dinâmica (linhas x colunas)
                         try:
-                            canvas = FigureCanvasTkAgg(fig, master=grafico_frame)
-                            canvas.draw()
-                            canvas.get_tk_widget().pack(fill='both', expand=True)
-                            self.dashboard_canvas = canvas
+                            import math
+                            figs = figures if isinstance(figures, (list, tuple)) else [figures]
+                            n = len(figs)
+                            if n == 0:
+                                Label(grafico_frame, text="Sem gráficos para exibir", bg=self.co1, fg=self.co0).pack(pady=10)
+                            else:
+                                cols = int(math.ceil(math.sqrt(n)))
+                                rows = int(math.ceil(n / cols))
+
+                                for r in range(rows):
+                                    grafico_frame.grid_rowconfigure(r, weight=1, uniform='row')
+                                for c in range(cols):
+                                    grafico_frame.grid_columnconfigure(c, weight=1, uniform='col')
+
+                                canvases = []
+                                for idx, f in enumerate(figs):
+                                    r = idx // cols
+                                    c = idx % cols
+                                    cell = Frame(grafico_frame, bg=self.co1)
+                                    cell.grid(row=r, column=c, sticky='nsew', padx=8, pady=8)
+                                    cv = FigureCanvasTkAgg(f, master=cell)
+                                    cv.draw()
+                                    cv.get_tk_widget().pack(fill='both', expand=True)
+                                    canvases.append(cv)
+                                    # Bind resize handler to adjust figure size and font sizes proportionally
+                                    try:
+                                        def _make_resizer(fig_obj, canvas_obj):
+                                            def _on_resize(event):
+                                                meta = getattr(fig_obj, '_dash_meta', None)
+                                                try:
+                                                    dpi = fig_obj.dpi or 100
+                                                    # compute new figure size in inches and apply
+                                                    new_w_in = max(1.0, event.width / dpi)
+                                                    new_h_in = max(0.5, event.height / dpi)
+                                                    try:
+                                                        fig_obj.set_size_inches(new_w_in, new_h_in, forward=True)
+                                                    except Exception:
+                                                        pass
+
+                                                    # scale fonts based on height ratio vs base pixels
+                                                    if meta:
+                                                        base_h_px = meta.get('base_fig_pixels_height') or (fig_obj.get_figheight() * dpi)
+                                                        if base_h_px:
+                                                            scale = event.height / base_h_px
+                                                        else:
+                                                            scale = 1.0
+
+                                                        # Title
+                                                        title = meta.get('title')
+                                                        if title:
+                                                            try:
+                                                                title.set_fontsize(max(8, int(meta.get('base_title', 14) * scale)))
+                                                            except Exception:
+                                                                pass
+                                                        # Legend
+                                                        legend_obj = meta.get('legend')
+                                                        if legend_obj:
+                                                            for text in legend_obj.get_texts():
+                                                                try:
+                                                                    text.set_fontsize(max(6, int(meta.get('base_legend', 9) * scale)))
+                                                                except Exception:
+                                                                    pass
+                                                        # Autotexts (pie percents)
+                                                        for at in meta.get('autotexts', []):
+                                                            try:
+                                                                at.set_fontsize(max(6, int(meta.get('base_autotext', 10) * scale)))
+                                                            except Exception:
+                                                                pass
+                                                        # Pie slice labels (texts returned by ax.pie)
+                                                        for pt in meta.get('pie_texts', []):
+                                                            try:
+                                                                pt.set_fontsize(max(6, int(meta.get('base_legend', 8) * scale)))
+                                                            except Exception:
+                                                                pass
+                                                        # Tick labels
+                                                        ax_local = fig_obj.axes[0] if fig_obj.axes else None
+                                                        if ax_local:
+                                                            for lbl in ax_local.get_xticklabels() + ax_local.get_yticklabels():
+                                                                try:
+                                                                    lbl.set_fontsize(max(6, int(meta.get('base_tick', 9) * scale)))
+                                                                except Exception:
+                                                                    pass
+
+                                                    try:
+                                                        canvas_obj.draw_idle()
+                                                    except Exception:
+                                                        pass
+                                                except Exception:
+                                                    pass
+                                            return _on_resize
+                                        cv_widget = cv.get_tk_widget()
+                                        cv_widget.bind('<Configure>', _make_resizer(f, cv))
+                                    except Exception:
+                                        pass
+                                self.dashboard_canvas = canvases
                         except Exception as e:
                             try:
-                                Label(grafico_frame, text=f"Erro ao renderizar gráfico: {e}", bg=self.co1, fg='red').pack(pady=10)
+                                Label(grafico_frame, text=f"Erro ao renderizar gráficos: {e}", bg=self.co1, fg='red').pack(pady=10)
                             except Exception:
-                                logger.exception("Erro ao renderizar gráfico e também falha ao exibir mensagem")
+                                logger.exception("Erro ao renderizar gráficos e também falha ao exibir mensagem")
 
                         # Link the last created dashboard frame so future workers can
                         # verify they still target the correct instance.
