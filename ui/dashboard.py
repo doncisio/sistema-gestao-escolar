@@ -455,8 +455,19 @@ class DashboardManager:
                         nomes_meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
                         ax2.set_xticklabels([nomes_meses[m-1] for m in labels_meses], fontsize=9, color=self.co0)
                         ax2.tick_params(axis='y', colors=self.co0)
-                        for spine in ax2.spines.values():
-                            spine.set_color(self.co0)
+                        # Mostrar apenas as spines dos eixos (left e bottom).
+                        for loc, spine in ax2.spines.items():
+                            if loc in ('top', 'right'):
+                                try:
+                                    spine.set_visible(False)
+                                except Exception:
+                                    pass
+                            else:
+                                try:
+                                    spine.set_visible(True)
+                                    spine.set_color(self.co0)
+                                except Exception:
+                                    pass
                         ax2.set_ylabel('Quantidade', color=self.co0, fontsize=10)
                         t2 = ax2.set_title('Movimento Mensal (Empilhado)', fontsize=14, weight='bold', color=self.co0, pad=10, y=1.0)
                         try:
