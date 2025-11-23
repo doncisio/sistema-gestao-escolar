@@ -469,7 +469,7 @@ class DashboardManager:
                                 except Exception:
                                     pass
                         ax2.set_ylabel('Quantidade', color=self.co0, fontsize=10)
-                        t2 = ax2.set_title('Movimento Mensal (Empilhado)', fontsize=14, weight='bold', color=self.co0, pad=10, y=1.0)
+                        t2 = ax2.set_title('Movimento Mensal', fontsize=14, weight='bold', color=self.co0, pad=10, y=1.0)
                         try:
                             t2.set_wrap(True)
                         except Exception:
