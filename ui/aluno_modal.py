@@ -65,6 +65,9 @@ class AlunoModal:
             self.janela_edicao.focus_set()
             self.janela_edicao.grab_set()  # Modal
             
+            # Limpar frames da janela pai antes de esconder (evita sobreposição visual)
+            self._limpar_janela_pai()
+            
             # Esconder janela pai
             self.parent.withdraw()
             
@@ -116,11 +119,58 @@ class AlunoModal:
             logger.exception("Erro ao fechar interface de edição")
             self._restaurar_janela_pai()
     
+    def _limpar_janela_pai(self) -> None:
+        """Temporariamente limpa widgets da janela pai para evitar sobreposição."""
+        try:
+            # Esconder TODOS os widgets filhos da janela principal
+            # Isso garante que nada "vaze" para a janela de edição
+            for widget in self.parent.winfo_children():
+                try:
+                    # Tentar grid_remove primeiro (usado na maioria dos layouts)
+                    widget.grid_remove()
+                except Exception:
+                    try:
+                        # Se falhar, tentar pack_forget
+                        widget.pack_forget()
+                    except Exception:
+                        pass
+            
+            logger.debug("Janela pai limpa com sucesso")
+        except Exception as e:
+            logger.debug(f"Não foi possível limpar janela pai: {e}")
+    
     def _restaurar_janela_pai(self) -> None:
         """Restaura a visibilidade da janela pai."""
         try:
             if self.parent:
-                self.parent.deiconify()
+                # Usar after para garantir que a restauração aconteça após a destruição completa
+                # da janela de edição
+                def restaurar():
+                    try:
+                        # Reexibir todos os widgets usando grid (layout padrão da main)
+                        # A ordem correta será mantida pelos índices de grid configurados
+                        for widget in self.parent.winfo_children():
+                            try:
+                                # Tentar grid de volta
+                                grid_info = widget.grid_info()
+                                if grid_info:
+                                    widget.grid()
+                            except Exception:
+                                pass
+                        
+                        # Mostrar a janela
+                        self.parent.deiconify()
+                        self.parent.lift()
+                        self.parent.focus_force()
+                        
+                        logger.debug("Janela pai restaurada com sucesso")
+                    except Exception as e:
+                        logger.exception(f"Erro ao restaurar widgets: {e}")
+                        # Fallback: apenas mostrar a janela
+                        self.parent.deiconify()
+                
+                # Executar restauração com pequeno delay
+                self.parent.after(100, restaurar)
         except Exception as e:
             logger.exception("Erro ao restaurar janela pai")
 

@@ -188,10 +188,15 @@ def main():
                 if tipo == 'Aluno':
                     from InterfaceEdicaoAluno import InterfaceEdicaoAluno
                     
-                    # Destruir frames de detalhes/tabela
-                    if 'frame_detalhes' in app.frames:
-                        for widget in app.frames['frame_detalhes'].winfo_children():
-                            widget.destroy()
+                    # Limpar todos os widgets da janela para evitar sobreposição
+                    for widget in app.janela.winfo_children():
+                        try:
+                            widget.grid_remove()
+                        except Exception:
+                            try:
+                                widget.pack_forget()
+                            except Exception:
+                                pass
                     
                     # Abrir interface de edição
                     InterfaceEdicaoAluno(app.janela, item_id)
@@ -200,10 +205,15 @@ def main():
                 elif tipo == 'Funcionário':
                     from InterfaceEdicaoFuncionario import InterfaceEdicaoFuncionario
                     
-                    # Destruir frames de detalhes
-                    if 'frame_detalhes' in app.frames:
-                        for widget in app.frames['frame_detalhes'].winfo_children():
-                            widget.destroy()
+                    # Limpar todos os widgets da janela para evitar sobreposição
+                    for widget in app.janela.winfo_children():
+                        try:
+                            widget.grid_remove()
+                        except Exception:
+                            try:
+                                widget.pack_forget()
+                            except Exception:
+                                pass
                     
                     # Abrir interface de edição
                     InterfaceEdicaoFuncionario(app.janela, item_id)
