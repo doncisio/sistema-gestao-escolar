@@ -991,4 +991,4 @@ def historico_escolar(aluno_id,
     
     salvar_e_abrir_pdf(buffer)
 
-historico_escolar(942)
+# historico_escolar(942)
