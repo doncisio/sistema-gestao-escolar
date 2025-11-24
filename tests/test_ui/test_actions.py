@@ -198,7 +198,7 @@ class TestActionHandlerNavigacao:
     def test_abrir_historico_escolar_abre_janela(self):
         """Testa que abrir_historico_escolar abre a interface correta."""
         with patch('ui.actions.Toplevel') as mock_toplevel:
-            with patch('interface_historico_otimizada.InterfaceHistoricoOtimizada') as mock_interface:
+            with patch('interface_historico_escolar.InterfaceHistoricoEscolar') as mock_interface:
                 # Setup
                 app = Mock()
                 app.janela = Mock()

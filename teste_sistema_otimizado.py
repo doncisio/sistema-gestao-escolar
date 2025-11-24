@@ -6,11 +6,11 @@ Verifica se as correções de tipo funcionam adequadamente
 def teste_tipos_interface():
     """Testa a interface otimizada com verificação de tipos"""
     try:
-        from interface_historico_otimizada import InterfaceHistoricoOtimizada
+        from interface_historico_escolar import InterfaceHistoricoEscolar
         from config_logs import get_logger
         logger = get_logger(__name__)
 
-        logger.info("✅ Import da interface otimizada - OK")
+        logger.info("✅ Import da interface de histórico escolar - OK")
         
         # Testar se a classe pode ser instanciada sem erros de tipo
         # (não vamos executar a interface, só verificar se não há erros)

@@ -185,6 +185,10 @@ def main():
                 tipo = app.selected_item.get('tipo')
                 item_id = app.selected_item.get('id')
                 
+                if not app.janela:
+                    messagebox.showerror("Erro", "Janela principal não disponível")
+                    return
+                
                 if tipo == 'Aluno':
                     from InterfaceEdicaoAluno import InterfaceEdicaoAluno
                     

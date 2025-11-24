@@ -717,7 +717,8 @@ class DashboardManager:
 
                 self.janela.after(0, _on_main)
             except Exception as e:
-                def _on_error():
+                logger.exception("Erro crítico no worker do dashboard: %s", e)
+                def _on_error_inline():
                     try:
                         progress.stop()
                     except Exception:
@@ -727,11 +728,23 @@ class DashboardManager:
                     except Exception:
                         pass
                     messagebox.showerror("Dashboard", f"Falha ao gerar dashboard: {e}")
-                self.janela.after(0, _on_error)
+                self.janela.after(0, _on_error_inline)
+        
+        # Callback de erro para submit_background
+        def _on_error(exc):
+            try:
+                progress.stop()
+            except Exception:
+                pass
+            try:
+                loading_frame.destroy()
+            except Exception:
+                pass
+            messagebox.showerror("Dashboard", f"Falha ao gerar dashboard: {exc}")
 
         try:
             from utils.executor import submit_background
-            submit_background(_worker, janela=self.janela)
+            submit_background(_worker, on_error=_on_error, janela=self.janela)
         except Exception:
             try:
                 from utils.executor import submit_background

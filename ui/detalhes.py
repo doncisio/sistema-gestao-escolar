@@ -12,6 +12,16 @@ from utils.safe import converter_para_int_seguro, _safe_get, _safe_slice
 
 logger = get_logger(__name__)
 
+
+def _get_default_root():
+    """Retorna a janela principal do Tkinter de forma segura."""
+    import tkinter as tk
+    try:
+        return tk._get_default_root()  # type: ignore[attr-defined]
+    except AttributeError:
+        # Fallback para versões antigas ou uso não documentado
+        return getattr(tk, '_default_root', None)  # type: ignore[attr-defined]
+
 def obter_ano_letivo_atual() -> int:
     """Retorna o ID do ano letivo atual."""
     try:
@@ -491,8 +501,7 @@ def criar_menu_boletim(
         try:
             # Tentar usar executor em background
             from utils.executor import submit_background
-            import tkinter as tk
-            root = tk._default_root
+            root = _get_default_root()
             submit_background(_worker, on_done=_on_done, on_error=_on_error, janela=root)
         except Exception:
             # Fallback: executar em Thread
@@ -500,16 +509,14 @@ def criar_menu_boletim(
                 try:
                     res = _worker()
                     try:
-                        import tkinter as tk
-                        root = tk._default_root
+                        root = _get_default_root()
                         if root:
                             root.after(0, lambda: _on_done(res))
                     except Exception:
                         pass
                 except Exception as e:
                     try:
-                        import tkinter as tk
-                        root = tk._default_root
+                        root = _get_default_root()
                         if root:
                             root.after(0, lambda: _on_error(e))
                     except Exception:
@@ -588,9 +595,8 @@ def editar_aluno_wrapper(aluno_id):
     """Wrapper para editar aluno."""
     try:
         from InterfaceEdicaoAluno import InterfaceEdicaoAluno
-        import tkinter as tk
         # Obter janela principal (root)
-        root = tk._default_root
+        root = _get_default_root()
         if root:
             InterfaceEdicaoAluno(root, aluno_id)
     except Exception as e:
@@ -604,7 +610,7 @@ def excluir_aluno_wrapper(aluno_id):
         import aluno
         resposta = messagebox.askyesno("Confirmação", "Tem certeza que deseja excluir este aluno?")
         if resposta:
-            aluno.deletar_aluno(aluno_id)
+            aluno.deletar_aluno(aluno_id)  # type: ignore[attr-defined]
             messagebox.showinfo("Sucesso", "Aluno excluído com sucesso!")
     except Exception as e:
         logger.exception(f"Erro ao excluir aluno: {e}")
@@ -615,24 +621,12 @@ def abrir_historico_wrapper(aluno_id):
     """Wrapper para abrir histórico do aluno."""
     try:
         from integrar_historico_escolar import abrir_historico_aluno
-        import tkinter as tk
-        root = tk._default_root
+        root = _get_default_root()
         if root:
             abrir_historico_aluno(aluno_id, root)
     except Exception as e:
         logger.exception(f"Erro ao abrir histórico: {e}")
         messagebox.showerror("Erro", f"Erro ao abrir histórico: {e}")
-
-
-def boletim_wrapper(aluno_id):
-    """Wrapper para abrir boletim do aluno."""
-    try:
-        # Import do módulo de boletim
-        import boletim
-        boletim.boletim(aluno_id)
-    except Exception as e:
-        logger.exception(f"Erro ao abrir boletim: {e}")
-        messagebox.showerror("Erro", f"Erro ao abrir boletim: {e}")
 
 
 def gerar_declaracao_wrapper(aluno_id):
@@ -648,7 +642,7 @@ def gerar_declaracao_wrapper(aluno_id):
         co3 = colors.get('co3', '#e06636')
         co7 = colors.get('co7', '#FFFFFF')
         
-        root = tk._default_root
+        root = _get_default_root()
         if not root:
             messagebox.showerror("Erro", "Janela principal não encontrada.")
             return
@@ -729,7 +723,16 @@ def gerar_declaracao_wrapper(aluno_id):
                     pass
             
             from utils import executor
-            executor.submit_background(_worker, _on_done)
+
+            def _on_error(exc):
+                try:
+                    messagebox.showerror("Erro", f"Falha ao gerar declaração: {exc}")
+                except Exception:
+                    pass
+
+            # Submeter ao executor corretamente: passar callbacks como keyword
+            # e informar a `root` para que os callbacks sejam executados na thread principal
+            executor.submit_background(_worker, on_done=_on_done, on_error=_on_error, janela=root)
         
         # Botões de ação
         btn_frame = Frame(dialog, bg=co0)
@@ -751,9 +754,8 @@ def matricular_aluno_wrapper(aluno_id):
         from ui.matricula_modal import MatriculaModal
         from ui.colors import get_colors_dict
         from db.connection import get_connection
-        import tkinter as tk
         
-        root = tk._default_root
+        root = _get_default_root()
         
         if not root:
             logger.error("Janela principal não encontrada")
@@ -801,10 +803,9 @@ def editar_matricula_wrapper(aluno_id):
     try:
         from ui.matricula_modal import MatriculaModal
         from ui.colors import get_colors_dict
-        import tkinter as tk
         from db.connection import get_connection
         
-        root = tk._default_root
+        root = _get_default_root()
         
         if not root:
             logger.error("Janela principal não encontrada")
@@ -851,8 +852,7 @@ def editar_funcionario_wrapper(funcionario_id):
     """Wrapper para editar funcionário."""
     try:
         from InterfaceEdicaoFuncionario import InterfaceEdicaoFuncionario
-        import tkinter as tk
-        root = tk._default_root
+        root = _get_default_root()
         if root:
             InterfaceEdicaoFuncionario(root, funcionario_id)
     except Exception as e:
@@ -866,7 +866,7 @@ def excluir_funcionario_wrapper(funcionario_id):
         import Funcionario
         resposta = messagebox.askyesno("Confirmação", "Tem certeza que deseja excluir este funcionário?")
         if resposta:
-            Funcionario.deletar_funcionario(funcionario_id)
+            Funcionario.deletar_funcionario(funcionario_id)  # type: ignore[attr-defined]
             messagebox.showinfo("Sucesso", "Funcionário excluído com sucesso!")
     except Exception as e:
         logger.exception(f"Erro ao excluir funcionário: {e}")
@@ -890,7 +890,7 @@ class DetalhesManager:
         self,
         frame_detalhes: Frame,
         colors: Dict[str, str],
-        callbacks: Dict[str, Callable] = None
+        callbacks: Optional[Dict[str, Callable]] = None
     ):
         """Inicializa o gerenciador de detalhes."""
         self.frame = frame_detalhes
