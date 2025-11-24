@@ -24,6 +24,10 @@ class InterfaceEdicaoAluno:
         self.janela_principal = janela_principal
         self.aluno_id = aluno_id
         
+        # Se a janela principal foi fornecida, escondê-la
+        if self.janela_principal:
+            self.janela_principal.withdraw()
+        
         # Variáveis globais
         self.lista_frames_responsaveis = []
         self.contador_responsaveis = 0
