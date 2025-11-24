@@ -1,14 +1,3 @@
-"""
-Sistema de Gerenciamento Escolar - Main (Refatorado Sprint 16)
-
-Este arquivo foi completamente refatorado para usar a classe Application,
-eliminando variáveis globais e reduzindo significativamente o tamanho do código.
-
-Autor: Sistema de Gestão Escolar
-Data: 20 de novembro de 2025
-Sprint 16: Integração com Application Class
-"""
-
 import sys
 import os
 
