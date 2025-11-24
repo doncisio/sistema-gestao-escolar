@@ -703,4 +703,212 @@ def lista_atualizada():
         except Exception:
             pass
 
+def lista_matriculados_apos_inicio():
+    """
+    Gera uma lista de alunos matriculados após o início do ano letivo,
+    incluindo alunos transferidos.
+    """
+    ano_letivo = 2025
+    
+    # Busca os dados dos alunos
+    dados_aluno = fetch_student_data(ano_letivo)
+    if not dados_aluno:
+        logger.info("Nenhum dado de aluno encontrado.")
+        return
+
+    # Busca a data de início do ano letivo
+    data_ano = data_ano_letivo(ano_letivo)
+    if not data_ano:
+        logger.info("Ano letivo não encontrado.")
+        return
+    
+    data_inicio = data_ano['data_inicio']
+    logger.info(f"Data de início do ano letivo: {data_inicio}")
+
+    # Converte para DataFrame
+    df = pd.DataFrame(dados_aluno)
+    
+    # Filtra apenas alunos matriculados após a data de início
+    # Inclui alunos com status Ativo, Transferido ou Transferida
+    df_filtrado = df[
+        (df['DATA_MATRICULA'] > data_inicio) & 
+        (df['SITUAÇÃO'].isin(['Ativo', 'Transferido', 'Transferida']))
+    ].copy()
+    
+    if df_filtrado.empty:
+        logger.info("Nenhum aluno matriculado após o início do ano letivo.")
+        return
+    
+    logger.info(f"Total de alunos matriculados após o início: {len(df_filtrado)}")
+
+    # Configuração do PDF
+    cabecalho = [
+        "SECRETARIA MUNICIPAL DE EDUCAÇÃO",
+        "<b>ESCOLA MUNICIPAL PROFª. NADIR NASCIMENTO MORAES</b>",
+        "<b>INEP: 21008485</b>",
+        "<b>CNPJ: 01.394.462/0001-01</b>"
+    ]
+
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
+    doc, buffer = create_pdf_buffer()
+    elements = []
+
+    # Cabeçalho
+    img = _get_cached_image(figura_inferior, 3 * inch, 0.7 * inch)
+    header_style = _get_cached_style('Header', fontSize=12, alignment=1)
+    data = [
+        [img],
+        [Paragraph('<br/>'.join(cabecalho), header_style)]
+    ]
+    table = Table(data, colWidths=[5 * inch])
+    table_style = TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER')
+    ])
+    table.setStyle(table_style)
+    elements.append(table)
+
+    elements.append(Spacer(1, 0.25 * inch))
+    
+    # Título
+    titulo_style = _get_cached_style('TituloMatriculados', fontSize=16, alignment=1)
+    elements.append(Paragraph(
+        f"<b>ALUNOS MATRICULADOS APÓS {data_inicio.strftime('%d/%m/%Y')}</b>",
+        titulo_style
+    ))
+    elements.append(Spacer(1, 0.1 * inch))
+    
+    subtitulo_style = _get_cached_style('SubtituloMatriculados', fontSize=14, alignment=1)
+    elements.append(Paragraph(
+        f"<b>Ano Letivo: {ano_letivo}</b>",
+        subtitulo_style
+    ))
+    elements.append(Spacer(1, 0.15 * inch))
+
+    # Estatísticas
+    total = len(df_filtrado)
+    masculino = (df_filtrado['SEXO'] == 'M').sum()
+    feminino = (df_filtrado['SEXO'] == 'F').sum()
+    ativos = (df_filtrado['SITUAÇÃO'] == 'Ativo').sum()
+    transferidos = (df_filtrado['SITUAÇÃO'].isin(['Transferido', 'Transferida'])).sum()
+    
+    stats_style = _get_cached_style('StatsMatriculados', fontSize=12, alignment=0)
+    elements.append(Paragraph(
+        f"<b>TOTAL: {total} alunos | Masculino: {masculino} | Feminino: {feminino} | "
+        f"Ativos: {ativos} | Transferidos: {transferidos}</b>",
+        stats_style
+    ))
+    elements.append(Spacer(1, 0.2 * inch))
+
+    # Ordena por data de matrícula (mais recente primeiro) e depois por nome
+    df_filtrado = df_filtrado.sort_values(['DATA_MATRICULA', 'NOME DO ALUNO'], ascending=[False, True])
+
+    # Tabela de alunos
+    tel_style = _get_cached_style('Telefones', fontSize=9)
+    sit_style = _get_cached_style('Situacao', fontSize=9)
+    
+    data_table: list[list[Any]] = [
+        ['Nº', 'Nome', 'Série/Turma', 'Turno', 'Data Matrícula', 'Situação', 'Telefones']
+    ]
+    
+    for row_num, (index, row) in enumerate(df_filtrado.iterrows(), start=1):
+        nome = row['NOME DO ALUNO']
+        serie_turma = f"{row['NOME_SERIE']} {row['NOME_TURMA']}"
+        turno = row['TURNO']
+        data_matricula = row['DATA_MATRICULA'].strftime('%d/%m/%Y') if row['DATA_MATRICULA'] else "N/D"
+        
+        # Formata a situação
+        situacao = row['SITUAÇÃO']
+        if situacao in ['Transferido', 'Transferida']:
+            data_transf = row['DATA_TRANSFERENCIA'].strftime('%d/%m/%Y') if row['DATA_TRANSFERENCIA'] else "N/D"
+            situacao_texto = f"<font color='red'><b>{situacao}</b><br/>{data_transf}</font>"
+        else:
+            situacao_texto = f"<font color='green'><b>{situacao}</b></font>"
+        
+        # Formata telefones
+        telefones = format_phone_numbers(row['TELEFONES'])
+        
+        data_table.append([
+            row_num,
+            nome,
+            serie_turma,
+            turno,
+            data_matricula,
+            Paragraph(situacao_texto, sit_style),
+            Paragraph(telefones, tel_style)
+        ])
+
+    # Cria a tabela
+    table = Table(data_table, colWidths=[
+        0.3 * inch,  # Nº
+        2.2 * inch,  # Nome
+        0.8 * inch,  # Série/Turma
+        0.6 * inch,  # Turno
+        0.8 * inch,  # Data Matrícula
+        0.8 * inch,  # Situação
+        1.2 * inch   # Telefones
+    ])
+    table.setStyle(_get_common_table_style())
+    extra_style = TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (1, 1), (1, -1), 'LEFT'),  # Nome alinhado à esquerda
+        ('FONTSIZE', (0, 1), (-1, -1), 9),   # Fonte menor para o conteúdo
+    ])
+    table.setStyle(extra_style)
+    elements.append(table)
+
+    # Gera o PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    # Salva o PDF
+    try:
+        from gerarPDF import salvar_e_abrir_pdf as _salvar_helper
+    except Exception:
+        _salvar_helper = None
+
+    saved_path = None
+    try:
+        if _salvar_helper:
+            try:
+                saved_path = _salvar_helper(buffer)
+            except Exception:
+                saved_path = None
+
+        if not saved_path:
+            import tempfile
+            from utilitarios.gerenciador_documentos import salvar_documento_sistema
+            from utilitarios.tipos_documentos import TIPO_LISTA_ATUALIZADA
+
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+            try:
+                tmp.write(buffer.getvalue())
+                tmp.close()
+                descricao = f"Alunos Matriculados Após Início - {ano_letivo}"
+                try:
+                    salvar_documento_sistema(
+                        tmp.name, 
+                        TIPO_LISTA_ATUALIZADA, 
+                        funcionario_id=1, 
+                        finalidade='Secretaria', 
+                        descricao=descricao
+                    )
+                    saved_path = tmp.name
+                    logger.info(f"PDF salvo com sucesso: {saved_path}")
+                except Exception as e:
+                    logger.error(f"Erro ao salvar documento: {e}")
+                    if _salvar_helper:
+                        buffer.seek(0)
+                        _salvar_helper(buffer)
+            finally:
+                pass
+    finally:
+        try:
+            buffer.close()
+        except Exception:
+            pass
+
+    logger.info("Relatório de alunos matriculados após o início gerado com sucesso!")
+
 # lista_atualizada()
+# lista_matriculados_apos_inicio()

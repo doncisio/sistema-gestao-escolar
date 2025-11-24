@@ -1739,4 +1739,359 @@ def gerar_relatorio_mensal(mes, ano, cabecalho, figura_superior, figura_inferior
     # Adicionar cabeçalho em todas as páginas
     add_header(doc, elements, cabecalho, figura_superior, figura_inferior)
 
+def gerar_lista_alunos_transferidos():
+    """
+    Gera uma lista detalhada dos alunos transferidos (TRANSFERÊNCIAS EXPEDIDAS)
+    """
+    ano_letivo = 2025
+    
+    # Busca os dados dos alunos
+    dados_aluno = fetch_student_data(ano_letivo)
+    if not dados_aluno:
+        logger.info("Nenhum dado de aluno encontrado.")
+        return
+
+    # Converte para DataFrame
+    df = pd.DataFrame(dados_aluno)
+    
+    # Filtra apenas alunos transferidos usando a mesma lógica do movimento mensal
+    # Status Transferido/Transferida E DATA_TRANSFERENCIA não nula
+    df_transferidos = df[
+        (df['SITUAÇÃO'].isin(['Transferido', 'Transferida'])) &
+        (df['DATA_TRANSFERENCIA'].notna())
+    ].copy()
+    
+    if df_transferidos.empty:
+        logger.info("Nenhum aluno transferido encontrado.")
+        return
+    
+    logger.info(f"Total de alunos transferidos: {len(df_transferidos)}")
+
+    # Configuração do PDF
+    cabecalho = [
+        "SECRETARIA MUNICIPAL DE EDUCAÇÃO",
+        "<b>ESCOLA MUNICIPAL PROFª. NADIR NASCIMENTO MORAES</b>",
+        "<b>INEP: 21008485</b>",
+        "<b>CNPJ: 01.394.462/0001-01</b>"
+    ]
+
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
+    doc, buffer = create_pdf_buffer()
+    elements = []
+
+    # Cabeçalho
+    img = Image(figura_inferior, width=3 * inch, height=0.7 * inch)
+    header_style = ParagraphStyle(name='Header', fontSize=12, alignment=1)
+    data = [
+        [img],
+        [Paragraph('<br/>'.join(cabecalho), header_style)]
+    ]
+    table = Table(data, colWidths=[5 * inch])
+    table_style = TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER')
+    ])
+    table.setStyle(table_style)
+    elements.append(table)
+
+    elements.append(Spacer(1, 0.25 * inch))
+    
+    # Título
+    titulo_style = ParagraphStyle(name='TituloTransferidos', fontSize=16, alignment=1)
+    elements.append(Paragraph(
+        f"<b>TRANSFERÊNCIAS EXPEDIDAS - {ano_letivo}</b>",
+        titulo_style
+    ))
+    elements.append(Spacer(1, 0.1 * inch))
+    
+    subtitulo_style = ParagraphStyle(name='SubtituloTransferidos', fontSize=14, alignment=1)
+    elements.append(Paragraph(
+        "<b>Lista de Alunos Transferidos</b>",
+        subtitulo_style
+    ))
+    elements.append(Spacer(1, 0.15 * inch))
+
+    # Estatísticas
+    total = len(df_transferidos)
+    masculino = (df_transferidos['SEXO'] == 'M').sum()
+    feminino = (df_transferidos['SEXO'] == 'F').sum()
+    
+    stats_style = ParagraphStyle(name='StatsTransferidos', fontSize=12, alignment=0)
+    elements.append(Paragraph(
+        f"<b>TOTAL: {total} alunos | Masculino: {masculino} | Feminino: {feminino}</b>",
+        stats_style
+    ))
+    elements.append(Spacer(1, 0.2 * inch))
+
+    # Ordena por data de transferência (mais recente primeiro) e depois por nome
+    df_transferidos = df_transferidos.sort_values(['DATA_TRANSFERENCIA', 'NOME DO ALUNO'], ascending=[False, True])
+
+    # Tabela de alunos
+    from biblio_editor import formatar_telefone
+    tel_style = ParagraphStyle(name='Telefones', fontSize=9)
+    
+    data_table: list[list[Any]] = [
+        ['Nº', 'Nome', 'Série/Turma', 'Turno', 'Data Transferência', 'Telefones']
+    ]
+    
+    for row_num, (index, row) in enumerate(df_transferidos.iterrows(), start=1):
+        nome = row['NOME DO ALUNO']
+        serie_turma = f"{row['NOME_SERIE']} {row['NOME_TURMA']}"
+        turno = row['TURNO']
+        data_transf = row['DATA_TRANSFERENCIA'].strftime('%d/%m/%Y') if row['DATA_TRANSFERENCIA'] else "N/D"
+        
+        # Formata telefones
+        telefones = ""
+        if row['TELEFONES']:
+            telefones_lista = row['TELEFONES'].split('/')
+            telefones_formatados = [formatar_telefone(tel) for tel in telefones_lista]
+            telefones = '<br/>'.join(telefones_formatados)
+        
+        data_table.append([
+            row_num,
+            nome,
+            serie_turma,
+            turno,
+            data_transf,
+            Paragraph(telefones, tel_style)
+        ])
+
+    # Cria a tabela
+    table = Table(data_table, colWidths=[
+        0.3 * inch,  # Nº
+        2.5 * inch,  # Nome
+        0.8 * inch,  # Série/Turma
+        0.7 * inch,  # Turno
+        1.0 * inch,  # Data Transferência
+        1.5 * inch   # Telefones
+    ])
+    
+    cor_cabecalho = HexColor('#1B4F72')
+    table_style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), cor_cabecalho),
+        ('TEXTCOLOR', (0, 0), (-1, 0), 'white'),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), '#f0f0f0'),
+        ('GRID', (0, 0), (-1, -1), 1, black),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (1, 1), (1, -1), 'LEFT'),  # Nome alinhado à esquerda
+        ('FONTSIZE', (0, 1), (-1, -1), 9),   # Fonte menor para o conteúdo
+    ])
+    table.setStyle(table_style)
+    elements.append(table)
+
+    # Gera o PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    # Salva o PDF
+    salvar_e_abrir_pdf(buffer)
+    logger.info("Relatório de alunos transferidos gerado com sucesso!")
+
+def gerar_lista_alunos_matriculados_depois():
+    """
+    Gera uma lista detalhada dos alunos matriculados após o início do ano letivo (TRANSFERÊNCIAS RECEBIDAS)
+    Usa a MESMA query SQL do movimento mensal para garantir números exatos.
+    """
+    ano_letivo = 2025
+    
+    # Busca a data de início do ano letivo e o ID
+    with get_cursor() as cursor:
+        cursor.execute("SELECT id, data_inicio FROM anosletivos WHERE ano_letivo = %s", (ano_letivo,))
+        resultado = cursor.fetchone()
+        if not resultado:
+            logger.info("Ano letivo não encontrado.")
+            return
+        data_inicio = resultado['data_inicio']
+        ano_letivo_id = resultado['id']
+    
+    logger.info(f"Data de início do ano letivo: {data_inicio}")
+
+    # Usa a MESMA query do movimento mensal para buscar os dados
+    with get_cursor() as cursor:
+        query = """
+            SELECT
+                a.nome AS nome_aluno,
+                a.sexo,
+                s.nome AS serie,
+                t.nome AS turma,
+                t.turno,
+                m.data_matricula,
+                m.status,
+                GROUP_CONCAT(DISTINCT r.telefone ORDER BY r.id SEPARATOR '/') AS telefones,
+                CASE
+                    WHEN s.nome = '6º Ano' THEN CONCAT(s.nome, ' ', t.nome)
+                    ELSE s.nome
+                END as serie_completa
+            FROM turmas t
+            JOIN matriculas m ON t.id = m.turma_id
+            JOIN serie s ON t.serie_id = s.id
+            JOIN alunos a ON m.aluno_id = a.id
+            LEFT JOIN ResponsaveisAlunos ra ON a.id = ra.aluno_id
+            LEFT JOIN Responsaveis r ON ra.responsavel_id = r.id
+            WHERE m.ano_letivo_id = %s
+            AND a.escola_id = 60
+            AND (
+                (m.data_matricula > %s AND m.status IN ('Ativo', 'Transferido', 'Transferida'))
+                OR 
+                (m.data_matricula = %s AND m.status = 'Ativo')
+            )
+            GROUP BY a.id, a.nome, a.sexo, s.nome, t.nome, t.turno, m.data_matricula, m.status
+            ORDER BY m.data_matricula DESC, a.nome
+        """
+        cursor.execute(query, (ano_letivo_id, data_inicio, data_inicio))
+        alunos = cursor.fetchall()
+    
+    if not alunos:
+        logger.info("Nenhum aluno matriculado após o início do ano letivo.")
+        return
+    
+    # Converte para DataFrame
+    df_filtrado = pd.DataFrame(alunos)
+    
+    logger.info(f"Total de alunos matriculados após o início: {len(df_filtrado)}")
+    logger.info(f"Por turno - MAT: {len(df_filtrado[df_filtrado['turno'] == 'MAT'])}, VESP: {len(df_filtrado[df_filtrado['turno'] == 'VESP'])}")
+
+    # Configuração do PDF
+    cabecalho = [
+        "SECRETARIA MUNICIPAL DE EDUCAÇÃO",
+        "<b>ESCOLA MUNICIPAL PROFª. NADIR NASCIMENTO MORAES</b>",
+        "<b>INEP: 21008485</b>",
+        "<b>CNPJ: 01.394.462/0001-01</b>"
+    ]
+
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
+    doc, buffer = create_pdf_buffer()
+    elements = []
+
+    # Cabeçalho
+    img = Image(figura_inferior, width=3 * inch, height=0.7 * inch)
+    header_style = ParagraphStyle(name='Header', fontSize=12, alignment=1)
+    data = [
+        [img],
+        [Paragraph('<br/>'.join(cabecalho), header_style)]
+    ]
+    table = Table(data, colWidths=[5 * inch])
+    table_style = TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER')
+    ])
+    table.setStyle(table_style)
+    elements.append(table)
+
+    elements.append(Spacer(1, 0.25 * inch))
+    
+    # Título
+    titulo_style = ParagraphStyle(name='TituloMatriculados', fontSize=16, alignment=1)
+    elements.append(Paragraph(
+        f"<b>TRANSFERÊNCIAS RECEBIDAS - {ano_letivo}</b>",
+        titulo_style
+    ))
+    elements.append(Spacer(1, 0.1 * inch))
+    
+    subtitulo_style = ParagraphStyle(name='SubtituloMatriculados', fontSize=14, alignment=1)
+    elements.append(Paragraph(
+        f"<b>Alunos Matriculados Após {data_inicio.strftime('%d/%m/%Y')}</b>",
+        subtitulo_style
+    ))
+    elements.append(Spacer(1, 0.15 * inch))
+
+    # Estatísticas
+    total = len(df_filtrado)
+    masculino = (df_filtrado['sexo'] == 'M').sum()
+    feminino = (df_filtrado['sexo'] == 'F').sum()
+    ativos = (df_filtrado['status'] == 'Ativo').sum()
+    transferidos = (df_filtrado['status'].isin(['Transferido', 'Transferida'])).sum()
+    
+    stats_style = ParagraphStyle(name='StatsMatriculados', fontSize=12, alignment=0)
+    elements.append(Paragraph(
+        f"<b>TOTAL: {total} alunos | Masculino: {masculino} | Feminino: {feminino} | "
+        f"Ativos: {ativos} | Transferidos: {transferidos}</b>",
+        stats_style
+    ))
+    elements.append(Spacer(1, 0.2 * inch))
+
+    # Ordena por data de matrícula (mais recente primeiro) e depois por nome
+    df_filtrado = df_filtrado.sort_values(['data_matricula', 'nome_aluno'], ascending=[False, True])
+
+    # Tabela de alunos
+    from biblio_editor import formatar_telefone
+    tel_style = ParagraphStyle(name='Telefones', fontSize=9)
+    sit_style = ParagraphStyle(name='Situacao', fontSize=9)
+    
+    data_table: list[list[Any]] = [
+        ['Nº', 'Nome', 'Série/Turma', 'Turno', 'Data Matrícula', 'Situação', 'Telefones']
+    ]
+    
+    for row_num, (index, row) in enumerate(df_filtrado.iterrows(), start=1):
+        nome = row['nome_aluno']
+        serie_turma = f"{row['serie']} {row['turma']}"
+        turno = row['turno']
+        data_matricula = row['data_matricula'].strftime('%d/%m/%Y') if row['data_matricula'] else "N/D"
+        
+        # Formata a situação
+        situacao = row['status']
+        if situacao in ['Transferido', 'Transferida']:
+            situacao_texto = f"<font color='red'><b>{situacao}</b></font>"
+        else:
+            situacao_texto = f"<font color='green'><b>{situacao}</b></font>"
+        
+        # Formata telefones
+        telefones = ""
+        if row['telefones']:
+            telefones_lista = row['telefones'].split('/')
+            telefones_formatados = [formatar_telefone(tel) for tel in telefones_lista]
+            telefones = '<br/>'.join(telefones_formatados)
+        
+        data_table.append([
+            row_num,
+            nome,
+            serie_turma,
+            turno,
+            data_matricula,
+            Paragraph(situacao_texto, sit_style),
+            Paragraph(telefones, tel_style)
+        ])
+
+    # Cria a tabela
+    table = Table(data_table, colWidths=[
+        0.3 * inch,  # Nº
+        2.2 * inch,  # Nome
+        0.8 * inch,  # Série/Turma
+        0.6 * inch,  # Turno
+        0.8 * inch,  # Data Matrícula
+        0.8 * inch,  # Situação
+        1.2 * inch   # Telefones
+    ])
+    
+    cor_cabecalho = HexColor('#1B4F72')
+    table_style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), cor_cabecalho),
+        ('TEXTCOLOR', (0, 0), (-1, 0), 'white'),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), '#f0f0f0'),
+        ('GRID', (0, 0), (-1, -1), 1, black),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (1, 1), (1, -1), 'LEFT'),  # Nome alinhado à esquerda
+        ('FONTSIZE', (0, 1), (-1, -1), 9),   # Fonte menor para o conteúdo
+    ])
+    table.setStyle(table_style)
+    elements.append(table)
+
+    # Gera o PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    # Salva o PDF
+    salvar_e_abrir_pdf(buffer)
+    logger.info("Relatório de alunos matriculados após o início gerado com sucesso!")
+
 # relatorio_movimentacao_mensal()
+# gerar_lista_alunos_transferidos()
+# gerar_lista_alunos_matriculados_depois()

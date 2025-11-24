@@ -253,16 +253,26 @@ def exibir_detalhes_aluno(
                         Label(detalhes_info_frame, 
                               text=f"Série: {serie_nome}", 
                               bg=colors['co1'], fg=colors['co0'], font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
-                    
-                    if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
-                        Label(detalhes_info_frame, 
-                              text=f"Turma: {turma_nome}", 
-                              bg=colors['co1'], fg=colors['co0'], font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
-                    else:
-                        turma_texto = f"Turma: Turma {turma_id}" if turma_id else "Turma: Não definida"
-                        Label(detalhes_info_frame, 
-                              text=turma_texto, 
-                              bg=colors['co1'], fg=colors['co0'], font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
+
+                    # Mostrar um único rótulo "Turma:" que combina série + turma quando apropriado.
+                    # Se `nome_turma` estiver vazio ou apenas espaços, exibir apenas a série.
+                    try:
+                        if serie_nome and isinstance(serie_nome, str):
+                            if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
+                                turma_completa = f"{serie_nome} {turma_nome}".strip()
+                            else:
+                                turma_completa = serie_nome
+                        else:
+                            if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
+                                turma_completa = turma_nome
+                            else:
+                                turma_completa = f"Turma {turma_id}" if turma_id else "Não definida"
+                    except Exception:
+                        turma_completa = f"Turma {turma_id}" if turma_id else "Não definida"
+
+                    Label(detalhes_info_frame, 
+                          text=f"Turma: {turma_completa}", 
+                          bg=colors['co1'], fg=colors['co0'], font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
                 
                 elif status == 'Transferido' and data_transferencia:
                     # Formatar data de transferência
