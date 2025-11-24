@@ -308,7 +308,7 @@ class ActionHandler:
     def abrir_historico_escolar(self):
         """Abre a interface de gerenciamento de histórico escolar."""
         try:
-            from interface_historico_otimizada import InterfaceHistoricoOtimizada
+            from interface_historico_escolar import InterfaceHistoricoEscolar
             
             janela_historico = Toplevel(self.app.janela)
             janela_historico.title("Histórico Escolar")
@@ -320,8 +320,8 @@ class ActionHandler:
             # Esconder janela principal
             self.app.janela.withdraw()
             
-            # Criar interface de histórico
-            app_historico = InterfaceHistoricoOtimizada(janela_historico, janela_principal=self.app.janela)
+            # Criar interface de histórico (o parâmetro correto é janela_pai)
+            app_historico = InterfaceHistoricoEscolar(janela=janela_historico, janela_pai=self.app.janela)
             
             def ao_fechar_historico():
                 self.app.janela.deiconify()

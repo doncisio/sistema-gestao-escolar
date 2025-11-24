@@ -369,69 +369,77 @@ def abrir_interface_crachas(janela_pai):
 
     # Trabalho pesado em background
     def _worker():
-        success = False
-        error_msg = None
-        caminho = None
         try:
             # Usar o serviço centralizado para gerar crachás
             from services.report_service import gerar_crachas_para_todos_os_alunos as service_gerar
             caminho = service_gerar()
-            success = True
+            return caminho
         except Exception as e:
-            success = False
-            error_msg = e
+            raise e
 
-        # Atualizar UI no thread principal
-        def _on_done():
-            try:
-                progresso.stop()
-            except Exception:
-                pass
-            try:
-                janela_progresso.destroy()
-            except Exception:
-                pass
-            # Restaurar janela principal
-            try:
-                janela_pai.deiconify()
-            except Exception:
-                pass
+    # Callback de sucesso - executado na thread principal
+    def _on_done(caminho):
+        try:
+            progresso.stop()
+        except Exception:
+            pass
+        try:
+            janela_progresso.destroy()
+        except Exception:
+            pass
+        # Restaurar janela principal
+        try:
+            janela_pai.deiconify()
+        except Exception:
+            pass
 
-            if not success:
-                if isinstance(error_msg, ImportError):
-                    messagebox.showerror("Erro de Importação", 
-                                        f"Não foi possível importar o módulo de geração de crachás:\n{error_msg}")
-                else:
-                    messagebox.showerror("Erro", f"Erro ao gerar crachás:\n{error_msg}")
-                return
+        # Sucesso: avisar e abrir pasta
+        caminho_crachas = caminho or os.path.join(os.getcwd(), "Cracha_Anos_Iniciais")
+        messagebox.showinfo(
+            "Sucesso",
+            f"Crachás gerados com sucesso!\n\n"
+            f"Os arquivos foram salvos em:\n{caminho_crachas}\n\n"
+            f"A pasta será aberta automaticamente."
+        )
 
-            # Sucesso: avisar e abrir pasta
-            caminho_crachas = caminho or os.path.join(os.getcwd(), "Cracha_Anos_Iniciais")
-            messagebox.showinfo(
-                "Sucesso",
-                f"Crachás gerados com sucesso!\n\n"
-                f"Os arquivos foram salvos em:\n{caminho_crachas}\n\n"
-                f"A pasta será aberta automaticamente."
-            )
+        try:
+            import subprocess
+            import platform
+            if platform.system() == 'Windows':
+                os.startfile(caminho_crachas)
+            elif platform.system() == 'Darwin':
+                subprocess.Popen(['open', caminho_crachas])
+            else:
+                subprocess.Popen(['xdg-open', caminho_crachas])
+        except Exception:
+            # Problema ao abrir a pasta não é crítico
+            logger.warning(f"Não foi possível abrir a pasta dos crachás: {caminho_crachas}")
 
-            try:
-                import subprocess
-                import platform
-                if platform.system() == 'Windows':
-                    os.startfile(caminho_crachas)
-                elif platform.system() == 'Darwin':
-                    subprocess.Popen(['open', caminho_crachas])
-                else:
-                    subprocess.Popen(['xdg-open', caminho_crachas])
-            except Exception:
-                # Problema ao abrir a pasta não é crítico
-                logger.warning(f"Não foi possível abrir a pasta dos crachás: {caminho_crachas}")
-
-        janela_pai.after(0, _on_done)
+    # Callback de erro - executado na thread principal
+    def _on_error(exc):
+        try:
+            progresso.stop()
+        except Exception:
+            pass
+        try:
+            janela_progresso.destroy()
+        except Exception:
+            pass
+        # Restaurar janela principal
+        try:
+            janela_pai.deiconify()
+        except Exception:
+            pass
+        
+        if isinstance(exc, ImportError):
+            messagebox.showerror("Erro de Importação", 
+                                f"Não foi possível importar o módulo de geração de crachás:\n{exc}")
+        else:
+            messagebox.showerror("Erro", f"Erro ao gerar crachás:\n{exc}")
 
     try:
         from utils.executor import submit_background
-        submit_background(_worker, janela=janela_pai)
+        submit_background(_worker, on_done=_on_done, on_error=_on_error, janela=janela_pai)
     except Exception:
         from threading import Thread
         Thread(target=_worker, daemon=True).start()
