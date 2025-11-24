@@ -100,8 +100,9 @@ class InterfaceHistoricoEscolar:
         self.treeview_historico.tag_configure('reprovado', foreground='#dc3545')  # Vermelho
         self.treeview_historico.tag_configure('hover', background='#d1e7f7')  # Azul claro quando passa o mouse
         
-        # Preencher os comboboxes
-        self.carregar_dados()
+        # Carregar dados de forma assíncrona após a janela estar visível
+        # Isso permite que a interface apareça rapidamente
+        self.janela.after(100, self._carregar_dados_inicial)
         
         # Inicialmente, apenas a escola estará habilitada
         self.cb_serie.configure(state="disabled")
@@ -504,6 +505,15 @@ class InterfaceHistoricoEscolar:
         # Bind para cores alternadas nas linhas
         self.treeview_historico.bind("<Map>", self._configurar_cores_alternadas)
 
+    def _carregar_dados_inicial(self):
+        """Carrega dados iniciais de forma assíncrona após a interface estar visível"""
+        try:
+            # Carregar dados estáticos (anos letivos, séries, escolas, disciplinas)
+            self.carregar_dados()
+        except Exception as e:
+            _logger.exception(f"Erro ao carregar dados iniciais: {str(e)}")
+            messagebox.showerror("Erro", f"Erro ao carregar dados iniciais: {str(e)}")
+    
     def ajustar_largura_combobox(self, combobox, valores, largura_minima=10, largura_maxima=50, padding=3):
         """
         Ajusta a largura de um combobox com base no conteúdo mais longo.
@@ -553,13 +563,13 @@ class InterfaceHistoricoEscolar:
             return
         
         try:
+            # Usar threading para não bloquear a interface durante processamento
             # Processar anos letivos
             anos_letivos = dados['anos_letivos']
             anos_letivos.sort(key=lambda x: x[1], reverse=True)  # Ordenar por ano decrescente
             self.anos_letivos_map = {str(ano): id for id, ano in anos_letivos}
             anos_letivos_valores = [str(ano) for id, ano in anos_letivos]
             self.cb_ano_letivo['values'] = anos_letivos_valores
-            self.ajustar_largura_combobox(self.cb_ano_letivo, anos_letivos_valores)
             
             # Processar séries
             series = dados['series']
@@ -567,7 +577,6 @@ class InterfaceHistoricoEscolar:
             self.series_map = {nome: id for id, nome in series}
             series_valores = [nome for id, nome in series]
             self.cb_serie['values'] = series_valores
-            self.ajustar_largura_combobox(self.cb_serie, series_valores)
             
             # Processar escolas com melhor tratamento de duplicatas
             escolas = dados['escolas']
@@ -600,7 +609,6 @@ class InterfaceHistoricoEscolar:
                     self.escolas_map[nome] = id
             
             self.cb_escola['values'] = escolas_valores
-            self.ajustar_largura_combobox(self.cb_escola, escolas_valores)
             
             # Processar disciplinas
             disciplinas = dados['disciplinas']
@@ -611,17 +619,45 @@ class InterfaceHistoricoEscolar:
                                        for id, nome, escola_id, nivel_id in disciplinas}
             disciplinas_valores = [nome for id, nome, escola_id, nivel_id in disciplinas]
             self.cb_disciplina['values'] = disciplinas_valores
-            self.ajustar_largura_combobox(self.cb_disciplina, disciplinas_valores)
             
-            # Carregar alunos em separado (pode ser paginado)
-            self.carregar_alunos_otimizado()
+            # Ajustar larguras após carregamento (não bloqueia muito)
+            self.janela.after(50, lambda: self._ajustar_larguras_comboboxes(
+                anos_letivos_valores, series_valores, escolas_valores, disciplinas_valores))
+            
+            # Carregar alunos em separado (pode ser lazy loaded)
+            # Não carregar na inicialização, apenas quando necessário
+            # self.carregar_alunos_otimizado()
             
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao processar dados: {str(e)}")
             _logger.exception(f"Erro ao processar dados: {str(e)}")
+    
+    def _ajustar_larguras_comboboxes(self, anos_valores, series_valores, escolas_valores, disciplinas_valores):
+        """Ajusta larguras de comboboxes de forma não bloqueante"""
+        try:
+            self.ajustar_largura_combobox(self.cb_ano_letivo, anos_valores)
+            self.ajustar_largura_combobox(self.cb_serie, series_valores)
+            self.ajustar_largura_combobox(self.cb_escola, escolas_valores)
+            self.ajustar_largura_combobox(self.cb_disciplina, disciplinas_valores)
+        except Exception as e:
+            _logger.exception(f"Erro ao ajustar larguras: {str(e)}")
 
     def carregar_alunos_otimizado(self):
         """Carrega a lista de alunos para a combobox de forma otimizada"""
+        # Não carregar automaticamente, será carregado quando o usuário focar no campo
+        # Isso economiza tempo na inicialização
+        
+        # Configurar binding para carregar alunos quando necessário
+        if not hasattr(self, '_alunos_carregados'):
+            self._alunos_carregados = False
+            # Adicionar binding para carregar apenas quando o usuário focar no campo
+            self.cb_pesquisa_aluno.bind("<FocusIn>", self._carregar_alunos_lazy, add="+")
+    
+    def _carregar_alunos_lazy(self, event=None):
+        """Carrega alunos apenas quando necessário (lazy loading)"""
+        if self._alunos_carregados:
+            return
+        
         # Conectar ao banco
         conn = self.validar_conexao_bd()
         if conn is None:
@@ -660,6 +696,8 @@ class InterfaceHistoricoEscolar:
             # Atualizar combobox com valores
             self.cb_pesquisa_aluno['values'] = alunos_valores
             self.ajustar_largura_combobox(self.cb_pesquisa_aluno, alunos_valores)
+            
+            self._alunos_carregados = True
             
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar alunos: {str(e)}")
