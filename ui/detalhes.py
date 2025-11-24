@@ -595,10 +595,13 @@ def editar_aluno_wrapper(aluno_id):
     """Wrapper para editar aluno."""
     try:
         from InterfaceEdicaoAluno import InterfaceEdicaoAluno
+        import tkinter as tk
         # Obter janela principal (root)
         root = _get_default_root()
         if root:
-            InterfaceEdicaoAluno(root, aluno_id)
+            # Criar janela Toplevel para edição
+            janela_edicao = tk.Toplevel(root)
+            InterfaceEdicaoAluno(janela_edicao, aluno_id, janela_principal=root)
     except Exception as e:
         logger.exception(f"Erro ao abrir edição de aluno: {e}")
         messagebox.showerror("Erro", f"Erro ao abrir edição: {e}")
@@ -852,9 +855,12 @@ def editar_funcionario_wrapper(funcionario_id):
     """Wrapper para editar funcionário."""
     try:
         from InterfaceEdicaoFuncionario import InterfaceEdicaoFuncionario
+        import tkinter as tk
         root = _get_default_root()
         if root:
-            InterfaceEdicaoFuncionario(root, funcionario_id)
+            # Criar janela Toplevel para edição
+            janela_edicao = tk.Toplevel(root)
+            InterfaceEdicaoFuncionario(janela_edicao, funcionario_id, janela_principal=root)
     except Exception as e:
         logger.exception(f"Erro ao abrir edição de funcionário: {e}")
         messagebox.showerror("Erro", f"Erro ao abrir edição: {e}")

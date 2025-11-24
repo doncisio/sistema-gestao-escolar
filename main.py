@@ -191,37 +191,25 @@ def main():
                 
                 if tipo == 'Aluno':
                     from InterfaceEdicaoAluno import InterfaceEdicaoAluno
+                    from tkinter import Toplevel
                     
-                    # Limpar todos os widgets da janela para evitar sobreposição
-                    for widget in app.janela.winfo_children():
-                        try:
-                            widget.grid_remove()
-                        except Exception:
-                            try:
-                                widget.pack_forget()
-                            except Exception:
-                                pass
+                    # Criar janela Toplevel para edição
+                    janela_edicao = Toplevel(app.janela)
                     
                     # Abrir interface de edição
-                    InterfaceEdicaoAluno(app.janela, item_id)
-                    logger.info(f"Aluno {item_id} editado")
+                    InterfaceEdicaoAluno(janela_edicao, item_id, janela_principal=app.janela)
+                    logger.info(f"Interface de edição aberta para aluno {item_id}")
                         
                 elif tipo == 'Funcionário':
                     from InterfaceEdicaoFuncionario import InterfaceEdicaoFuncionario
+                    from tkinter import Toplevel
                     
-                    # Limpar todos os widgets da janela para evitar sobreposição
-                    for widget in app.janela.winfo_children():
-                        try:
-                            widget.grid_remove()
-                        except Exception:
-                            try:
-                                widget.pack_forget()
-                            except Exception:
-                                pass
+                    # Criar janela Toplevel para edição
+                    janela_edicao = Toplevel(app.janela)
                     
                     # Abrir interface de edição
-                    InterfaceEdicaoFuncionario(app.janela, item_id)
-                    logger.info(f"Funcionário {item_id} editado")
+                    InterfaceEdicaoFuncionario(janela_edicao, item_id, janela_principal=app.janela)
+                    logger.info(f"Interface de edição aberta para funcionário {item_id}")
                         
             except Exception as e:
                 logger.exception(f"Erro ao editar item: {e}")
