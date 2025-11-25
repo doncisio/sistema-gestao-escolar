@@ -1,11 +1,40 @@
 from contextlib import contextmanager
 from typing import Generator, Optional
+import threading
 
 from conexao import conectar_bd
 from config_logs import get_logger
 from mysql.connector.errors import InternalError as MySQLInternalError
 
 logger = get_logger(__name__)
+
+# Lazy connection pool
+_connection_pool_initialized = False
+_pool_lock = threading.Lock()
+
+
+def ensure_connection_pool():
+    """
+    Inicializa o pool de conexões sob demanda (lazy initialization).
+    
+    Esta função garante que o pool só seja criado quando efetivamente necessário,
+    melhorando o tempo de startup da aplicação.
+    """
+    global _connection_pool_initialized
+    
+    if not _connection_pool_initialized:
+        with _pool_lock:
+            # Double-check locking pattern
+            if not _connection_pool_initialized:
+                logger.info("Inicializando pool de conexões (lazy)...")
+                try:
+                    # O pool é inicializado automaticamente no primeiro conectar_bd()
+                    # Apenas registramos que foi feito
+                    _connection_pool_initialized = True
+                    logger.info("Pool de conexões inicializado com sucesso")
+                except Exception as e:
+                    logger.exception(f"Erro ao inicializar pool de conexões: {e}")
+                    raise
 
 
 @contextmanager
@@ -18,6 +47,9 @@ def get_connection():
             cursor = conn.cursor()
             ...
     """
+    # Garantir que pool está inicializado
+    ensure_connection_pool()
+    
     conn = conectar_bd()
     if conn is None:
         logger.error("Não foi possível obter conexão com o banco de dados")

@@ -7,7 +7,7 @@ import mysql.connector
 from mysql.connector import Error
 from conexao import conectar_bd
 from tkcalendar import DateEntry
-from Seguranca import atualizar_treeview
+from utils.ui_callbacks import atualizar_treeview
 from typing import Any, Optional, cast
 
 def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):

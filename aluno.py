@@ -7,7 +7,7 @@ from datetime import datetime
 from conexao import conectar_bd
 from db.connection import get_connection
 import mysql.connector
-from Seguranca import atualizar_treeview
+from utils.ui_callbacks import atualizar_treeview
 from typing import Any, cast
 from config_logs import get_logger
 
@@ -25,7 +25,18 @@ co7 = "#038cfc"  # azul
 co8 = "#263238"  # +verde
 co9 = "#e9edf5"  # +verde
 
-def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
+def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query, voltar_callback=None):
+    """
+    Interface de cadastro de alunos.
+    
+    Args:
+        frame_detalhes: Frame para exibir detalhes
+        frame_dados: Frame para dados
+        frame_tabela: Frame para tabela
+        treeview: Widget Treeview
+        query: Query SQL
+        voltar_callback: Callback para voltar à tela principal (opcional)
+    """
     # Configurar frames para expandir com a janela
     frame_detalhes.pack_propagate(False)
     frame_tabela.pack_propagate(False)
@@ -43,9 +54,13 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query):
     
     # Função para limpar os campos e voltar à tela principal
     def voltar_pagina_principal():
-        # Importar a função voltar do main para evitar dependência circular
-        import main
-        main.voltar()
+        """Volta à tela principal usando callback ou registry"""
+        if voltar_callback:
+            voltar_callback()
+        else:
+            # Fallback: usar callback registry
+            from utils.ui_callbacks import callback_registry
+            callback_registry.call('voltar_principal')
     
     # Criação do formulário no frame_detalhes
     # Configurar layout do frame_detalhes
