@@ -278,6 +278,17 @@ class ButtonFactory:
         )
         listas_menu.add_separator()
         listas_menu.add_command(
+            label="Transferências Expedidas",
+            command=self.callbacks.reports.relatorio_lista_transferidos,
+            font=menu_font
+        )
+        listas_menu.add_command(
+            label="Transferências Recebidas",
+            command=self.callbacks.reports.relatorio_lista_matriculados_depois,
+            font=menu_font
+        )
+        listas_menu.add_separator()
+        listas_menu.add_command(
             label="Termo de Responsabilidade",
             command=self.callbacks.reports.relatorio_termo_responsabilidade,
             font=menu_font

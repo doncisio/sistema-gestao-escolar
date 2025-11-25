@@ -168,6 +168,24 @@ class ReportCallbacks:
             logger.exception(f"Erro ao gerar relatório mensal: {e}")
             messagebox.showerror("Erro", f"Não foi possível gerar o relatório: {e}")
     
+    def relatorio_lista_transferidos(self):
+        """Gera lista de alunos transferidos (Transferências Expedidas)."""
+        try:
+            from movimentomensal import gerar_lista_alunos_transferidos
+            gerar_lista_alunos_transferidos()
+        except Exception as e:
+            logger.exception(f"Erro ao gerar lista de transferidos: {e}")
+            messagebox.showerror("Erro", f"Não foi possível gerar a lista: {e}")
+    
+    def relatorio_lista_matriculados_depois(self):
+        """Gera lista de alunos matriculados após início do ano letivo (Transferências Recebidas)."""
+        try:
+            from movimentomensal import gerar_lista_alunos_matriculados_depois
+            gerar_lista_alunos_matriculados_depois()
+        except Exception as e:
+            logger.exception(f"Erro ao gerar lista de matriculados: {e}")
+            messagebox.showerror("Erro", f"Não foi possível gerar a lista: {e}")
+    
     def abrir_cadastro_notas(self):
         """Abre interface de cadastro/edição de notas."""
         try:

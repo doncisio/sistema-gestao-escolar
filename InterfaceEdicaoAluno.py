@@ -934,124 +934,64 @@ class InterfaceEdicaoAluno:
                  font=('Arial 11'), bg=self.co1, fg="red").pack(anchor=W, pady=5)
 
     def editar_matricula(self):
-        # Implementação da função para editar matrícula
-        if not hasattr(self, 'matricula_id') or not self.matricula_id:
-            messagebox.showwarning("Aviso", "Não há matrícula ativa para editar")
-            return
-            
-        # Janela para editar matrícula
-        janela_edicao = Toplevel(self.master)
-        janela_edicao.title("Editar Matrícula")
-        janela_edicao.geometry("400x250")
-        janela_edicao.configure(background=self.co1)
-        janela_edicao.transient(self.master)
-        janela_edicao.focus_force()
-        janela_edicao.grab_set()
-        
-        # Frame principal
-        frame_principal = Frame(janela_edicao, bg=self.co1, padx=20, pady=20)
-        frame_principal.pack(fill=BOTH, expand=True)
-        
-        # Título
-        Label(frame_principal, text="Alterar Status da Matrícula", 
-              font=("Arial", 14, "bold"), bg=self.co1, fg=self.co5).pack(pady=(0, 20))
-        
-        # Obter o status atual
+        # Usar interface unificada de matrícula
         try:
-            cast(Any, self.cursor).execute("SELECT status FROM matriculas WHERE id = %s", (self.matricula_id,))
-            status_atual = cast(Any, self.cursor).fetchone()[0]
-        except:
-            status_atual = "Desconhecido"
-        
-        # Mostrar status atual
-        Label(frame_principal, text=f"Status Atual: {status_atual}", 
-              font=("Arial", 12), bg=self.co1, fg=self.co4).pack(anchor=W, pady=10)
-        
-        # Opções de status
-        status_opcoes = ['Ativo', 'Evadido', 'Cancelado', 'Transferido', 'Concluído']
-        
-        # Variável para o novo status
-        novo_status = StringVar(frame_principal)
-        novo_status.set(status_atual)
-        
-        # Combobox para selecionar o novo status
-        Label(frame_principal, text="Novo Status:", bg=self.co1, fg=self.co4).pack(anchor=W)
-        cb_status = ttk.Combobox(frame_principal, textvariable=novo_status, values=status_opcoes, width=30)
-        cb_status.pack(fill=X, pady=5)
-        
-        # Botões
-        frame_botoes = Frame(frame_principal, bg=self.co1)
-        frame_botoes.pack(fill=X, pady=20)
-        
-        # Função para salvar a alteração
-        def salvar_alteracao():
-            if novo_status.get() == status_atual:
-                messagebox.showinfo("Aviso", "Nenhuma alteração foi feita")
-                janela_edicao.destroy()
-                return
-                
-            try:
-                # Atualizar o status da matrícula
-                cast(Any, self.cursor).execute(
-                    "UPDATE matriculas SET status = %s WHERE id = %s", 
-                    (novo_status.get(), self.matricula_id)
-                )
-                
-                # Registrar histórico da alteração de status
-                try:
-                    cast(Any, self.cursor).execute(
-                        """
-                        INSERT INTO historico_matricula (matricula_id, status_anterior, status_novo, data_mudanca)
-                        VALUES (%s, %s, %s, %s)
-                        """,
-                        (self.matricula_id, status_atual, novo_status.get(), datetime.today().date())
-                    )
-                except Exception as hist_err:
-                    # Não interromper o fluxo principal, mas informar o usuário
-                    logger.error(f"Falha ao registrar histórico da matrícula: {hist_err}")
-                
-                # Confirmar a operação
-                if hasattr(self, 'conn') and self.conn:
-                    cast(Any, self.conn).commit()
-                
-                messagebox.showinfo("Sucesso", "Status da matrícula alterado com sucesso!")
-                
-                # Atualizar o status na tela
+            from interface_matricula_unificada import abrir_interface_matricula
+            
+            # Obter nome do aluno
+            cast(Any, self.cursor).execute("SELECT nome FROM alunos WHERE id = %s", (self.aluno_id,))
+            nome_aluno = cast(Any, self.cursor).fetchone()[0]
+            
+            # Callback para recarregar dados após salvar
+            def ao_salvar():
                 self.carregar_dados_matricula()
-                
-                # Fechar a janela
-                janela_edicao.destroy()
-                
-            except Exception as e:
-                messagebox.showerror("Erro", f"Não foi possível alterar o status: {str(e)}")
-                if hasattr(self, 'conn') and self.conn:
-                    cast(Any, self.conn).rollback()
-        
-        # Botão salvar
-        Button(frame_botoes, text="Salvar", command=salvar_alteracao,
-              font=('Ivy 10 bold'), bg=self.co3, fg=self.co1, width=10).pack(side=LEFT, padx=5)
-        
-        # Botão cancelar
-        Button(frame_botoes, text="Cancelar", command=janela_edicao.destroy,
-              font=('Ivy 10'), bg=self.co6, fg=self.co1, width=10).pack(side=RIGHT, padx=5)
+            
+            # Abrir interface unificada
+            abrir_interface_matricula(
+                parent=self.master,
+                aluno_id=self.aluno_id,
+                nome_aluno=nome_aluno,
+                colors={
+                    'co0': self.co0, 'co1': self.co1, 'co2': self.co2, 'co3': self.co3,
+                    'co4': self.co4, 'co5': self.co5, 'co6': self.co6, 'co7': self.co7
+                },
+                conn=self.conn,
+                cursor=self.cursor,
+                callback_sucesso=ao_salvar
+            )
+            
+        except Exception as e:
+            logger.exception(f"Erro ao abrir edição de matrícula: {e}")
+            messagebox.showerror("Erro", f"Erro ao abrir edição: {str(e)}")
 
     def nova_matricula(self):
-        # Esta função seria implementada para criar uma nova matrícula
+        # Usar interface unificada de matrícula
         try:
-            # Importar a função de matrícula do módulo principal
-            from main import matricular_aluno
+            from interface_matricula_unificada import abrir_interface_matricula
             
-            # Fechar temporariamente a janela de edição
-            self.master.withdraw()
+            # Obter nome do aluno
+            cast(Any, self.cursor).execute("SELECT nome FROM alunos WHERE id = %s", (self.aluno_id,))
+            nome_aluno = cast(Any, self.cursor).fetchone()[0]
             
-            # Chamar a função de matrícula
-            matricular_aluno(self.aluno_id)
+            # Callback para recarregar dados após salvar
+            def ao_salvar():
+                self.carregar_dados_matricula()
             
-            # Reexibir a janela após a matrícula
-            self.master.deiconify()
+            # Abrir interface unificada
+            abrir_interface_matricula(
+                parent=self.master,
+                aluno_id=self.aluno_id,
+                nome_aluno=nome_aluno,
+                colors={
+                    'co0': self.co0, 'co1': self.co1, 'co2': self.co2, 'co3': self.co3,
+                    'co4': self.co4, 'co5': self.co5, 'co6': self.co6, 'co7': self.co7
+                },
+                conn=self.conn,
+                cursor=self.cursor,
+                callback_sucesso=ao_salvar
+            )
             
-            # Atualizar o status da matrícula
-            self.carregar_dados_matricula()
         except Exception as e:
+            logger.exception(f"Erro ao abrir nova matrícula: {e}")
             messagebox.showerror("Erro", f"Não foi possível realizar a matrícula: {str(e)}")
-            self.master.deiconify()
+            return

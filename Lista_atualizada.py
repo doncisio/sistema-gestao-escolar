@@ -108,6 +108,8 @@ def fetch_student_data(ano_letivo):
                 WHERE hm.matricula_id = m.id 
                 AND hm.status_novo IN ('Transferido', 'Transferida')
             ) AS 'HISTORICO_TRANSFERENCIA',
+            e_origem.nome AS 'ESCOLA_ORIGEM',
+            e_destino.nome AS 'ESCOLA_DESTINO',
             GROUP_CONCAT(DISTINCT r.telefone ORDER BY r.id SEPARATOR '/') AS 'TELEFONES'
         FROM 
             Alunos a
@@ -123,6 +125,10 @@ def fetch_student_data(ano_letivo):
             Responsaveis r ON ra.responsavel_id = r.id
         LEFT JOIN
             Funcionarios f ON f.turma = t.id AND f.cargo = 'Professor@'
+        LEFT JOIN
+            escolas e_origem ON m.escola_origem_id = e_origem.id
+        LEFT JOIN
+            escolas e_destino ON m.escola_destino_id = e_destino.id
         WHERE 
             m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
         AND 
@@ -131,7 +137,8 @@ def fetch_student_data(ano_letivo):
             (m.status = 'Ativo' OR m.status = 'Transferido' OR m.status = 'Transferida')
         GROUP BY 
             a.id, a.nome, a.sexo, a.data_nascimento, a.descricao_transtorno,
-            s.nome, s.id, t.nome, t.turno, m.status, f.nome, m.data_matricula, m.id
+            s.nome, s.id, t.nome, t.turno, m.status, f.nome, m.data_matricula, m.id,
+            e_origem.nome, e_destino.nome
         ORDER BY
             CASE 
                 WHEN m.data_matricula < %s THEN 1  -- Alunos matriculados antes da data_inicio
