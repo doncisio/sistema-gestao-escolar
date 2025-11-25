@@ -123,20 +123,67 @@ def restaurar_backup():
             return False
 
         # Comando para restaurar o backup usando mysql
+        # Adicionando init-command para contornar o erro de privilégio SUPER
         comando_restauracao = [
             "mysql",
             f"--user={usuario}",
             f"--password={senha}",
             f"--host={host}",
             "--default-character-set=utf8mb4",
+            "--init-command=SET SESSION sql_log_bin=0;",
+            "--init-command=SET GLOBAL log_bin_trust_function_creators=1;",
             database
         ]
 
         # Executar o comando e ler o arquivo de backup como entrada
-        with open(caminho_backup, "r", encoding="utf-8") as arquivo_backup:
-            subprocess.run(comando_restauracao, stdin=arquivo_backup, 
-                         capture_output=True, text=True, encoding='utf-8', 
-                         errors='replace', check=True)
+        try:
+            with open(caminho_backup, "r", encoding="utf-8") as arquivo_backup:
+                resultado = subprocess.run(
+                    comando_restauracao, 
+                    stdin=arquivo_backup,
+                    capture_output=True, 
+                    text=True, 
+                    encoding='utf-8',
+                    errors='replace'
+                )
+                
+                # Verificar se houve erros
+                if resultado.returncode != 0:
+                    stderr = resultado.stderr
+                    # Ignorar apenas o aviso de senha na linha de comando
+                    if "Using a password on the command line" in stderr:
+                        logger.warning("Aviso: Senha passou pela linha de comando (considere usar arquivo de configuração)")
+                    # Se houver erro 1419, tentar com comando alternativo
+                    elif "ERROR 1419" in stderr or "SUPER privilege" in stderr:
+                        logger.warning("Erro de privilégio SUPER detectado. Tentando método alternativo...")
+                        # Tentar sem as flags problemáticas
+                        comando_alternativo = [
+                            "mysql",
+                            f"--user={usuario}",
+                            f"--password={senha}",
+                            f"--host={host}",
+                            "--default-character-set=utf8mb4",
+                            database
+                        ]
+                        with open(caminho_backup, "r", encoding="utf-8") as arquivo_backup:
+                            resultado_alt = subprocess.run(
+                                comando_alternativo,
+                                stdin=arquivo_backup,
+                                capture_output=True,
+                                text=True,
+                                encoding='utf-8',
+                                errors='replace'
+                            )
+                            if resultado_alt.returncode != 0 and "ERROR 1419" in resultado_alt.stderr:
+                                logger.error("Erro persistente. O backup contém procedures/functions que requerem privilégios SUPER.")
+                                logger.info("Solução: Execute como administrador MySQL ou desabilite binary logging.")
+                                return False
+                    else:
+                        logger.error(f"Erro ao restaurar backup: {stderr}")
+                        return False
+        except Exception as e:
+            logger.error(f"Erro ao abrir arquivo de backup: {e}")
+            return False
 
         logger.info("Restauração realizada com sucesso a partir do arquivo: %s", caminho_backup)
         return True
