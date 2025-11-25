@@ -3,7 +3,7 @@ from tkinter import messagebox, Label, Entry, Button, END, NW
 import tkinter.ttk as ttk
 import mysql.connector
 from mysql.connector import Error
-from Seguranca import atualizar_treeview
+from utils.ui_callbacks import atualizar_treeview
 from conexao import conectar_bd
 from PIL import ImageTk, Image
 from tkcalendar import DateEntry

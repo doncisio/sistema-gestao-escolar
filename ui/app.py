@@ -431,6 +431,149 @@ class Application:
             self.status_label.config(text=message)
             logger.debug(f"Status atualizado: {message}")
     
+    def _pesquisar_callback(self, event=None):
+        """
+        Callback de pesquisa integrado.
+        
+        Args:
+            event: Evento Tkinter (opcional)
+        """
+        from ui.search import pesquisar_alunos_funcionarios
+        
+        # Obter referência ao Entry de pesquisa
+        e_nome_pesquisa = self.e_nome_pesquisa
+        if e_nome_pesquisa:
+            texto = e_nome_pesquisa.get()
+            
+            # Executar pesquisa
+            pesquisar_alunos_funcionarios(
+                texto_pesquisa=texto,
+                get_treeview_func=lambda: self.table_manager.treeview if self.table_manager else None,
+                get_tabela_frame_func=lambda: self.table_manager.tabela_frame if self.table_manager else None,
+                frame_tabela=self.frames.get('frame_tabela'),
+                criar_tabela_func=lambda: self.setup_table(on_select_callback=self._on_select_callback),
+                criar_dashboard_func=lambda: self.dashboard_manager.criar_dashboard() if self.dashboard_manager else None
+            )
+    
+    def _on_select_callback(self, event):
+        """
+        Callback de seleção na tabela.
+        
+        Args:
+            event: Evento Tkinter de seleção
+        """
+        try:
+            from ui.detalhes import exibir_detalhes_item
+            from tkinter import Frame, Label, LEFT, BOTH, TRUE, X
+            from PIL import Image, ImageTk
+            
+            if not self.table_manager or not self.table_manager.treeview:
+                return
+            
+            treeview = self.table_manager.treeview
+            selected = treeview.selection()
+            
+            if not selected:
+                return
+            
+            item = selected[0]
+            values = treeview.item(item, 'values')
+            
+            if not values or len(values) < 3:
+                return
+            
+            # Estrutura Sprint 15: (id, nome, tipo, cargo, data_nascimento)
+            item_id = values[0]
+            tipo = values[2]
+            
+            # Atualizar selected_item na aplicação
+            self.selected_item = {'tipo': tipo, 'id': item_id, 'values': values}
+            
+            logger.debug(f"Item selecionado: {tipo} ID={item_id}")
+            
+            # Atualizar logo/título
+            if 'frame_logo' in self.frames:
+                frame_logo = self.frames['frame_logo']
+                for widget in frame_logo.winfo_children():
+                    widget.destroy()
+                
+                # Criar frame para o título
+                titulo_frame = Frame(frame_logo, bg=self.colors['co0'])
+                titulo_frame.pack(fill=BOTH, expand=TRUE)
+                
+                try:
+                    # Tentar carregar ícone
+                    app_lp = Image.open('icon/learning.png')
+                    app_lp = app_lp.resize((30, 30))
+                    app_lp = ImageTk.PhotoImage(app_lp)
+                    app_logo = Label(titulo_frame, image=app_lp, text=f"Detalhes: {values[1]}", 
+                                    compound=LEFT, anchor='w', font=('Ivy 15 bold'), 
+                                    bg=self.colors['co0'], fg=self.colors['co1'], padx=10, pady=5)
+                    # Manter referência à imagem
+                    setattr(app_logo, '_image_ref', app_lp)
+                    app_logo.pack(fill=X, expand=TRUE)
+                except:
+                    # Fallback sem ícone
+                    app_logo = Label(titulo_frame, text=f"Detalhes: {values[1]}", 
+                                    anchor='w', font=('Ivy 15 bold'), 
+                                    bg=self.colors['co0'], fg=self.colors['co1'], padx=10, pady=5)
+                    app_logo.pack(fill=X, expand=TRUE)
+            
+            # Exibir detalhes no frame_detalhes
+            if 'frame_detalhes' in self.frames:
+                exibir_detalhes_item(
+                    frame_detalhes=self.frames['frame_detalhes'],
+                    tipo=tipo,
+                    item_id=item_id,
+                    values=values,
+                    colors=self.colors
+                )
+            
+        except Exception as e:
+            logger.exception(f"Erro ao processar seleção: {e}")
+    
+    def _editar_callback(self):
+        """
+        Callback de edição via menu contextual.
+        """
+        from tkinter import messagebox, Toplevel
+        
+        try:
+            if not self.selected_item:
+                messagebox.showwarning("Aviso", "Nenhum item selecionado")
+                return
+            
+            tipo = self.selected_item.get('tipo')
+            item_id = self.selected_item.get('id')
+            
+            if not self.janela:
+                messagebox.showerror("Erro", "Janela principal não disponível")
+                return
+            
+            if tipo == 'Aluno':
+                from InterfaceEdicaoAluno import InterfaceEdicaoAluno
+                
+                # Criar janela Toplevel para edição
+                janela_edicao = Toplevel(self.janela)
+                
+                # Abrir interface de edição
+                InterfaceEdicaoAluno(janela_edicao, item_id, janela_principal=self.janela)
+                logger.info(f"Interface de edição aberta para aluno {item_id}")
+                    
+            elif tipo == 'Funcionário':
+                from InterfaceEdicaoFuncionario import InterfaceEdicaoFuncionario
+                
+                # Criar janela Toplevel para edição
+                janela_edicao = Toplevel(self.janela)
+                
+                # Abrir interface de edição
+                InterfaceEdicaoFuncionario(janela_edicao, item_id, janela_principal=self.janela)
+                logger.info(f"Interface de edição aberta para funcionário {item_id}")
+                    
+        except Exception as e:
+            logger.exception(f"Erro ao editar item: {e}")
+            messagebox.showerror("Erro", f"Erro ao editar: {e}")
+    
     def on_close(self):
         """Handler para o fechamento da janela."""
         logger.debug("Fechando aplicação...")
@@ -454,6 +597,110 @@ class Application:
         assert self.janela is not None, "Janela não inicializada ao fechar"
         self.janela.destroy()
         logger.debug("Aplicação encerrada")
+    
+    def setup_backup(self, test_mode: bool = False):
+        """
+        Configura e inicia o sistema de backup automático.
+        
+        Args:
+            test_mode: Se True, não inicia o backup automático
+        """
+        if test_mode:
+            logger.warning("⚠️ SISTEMA EM MODO DE TESTE - Backups automáticos desabilitados")
+            return
+        
+        try:
+            import Seguranca
+            logger.debug("Iniciando sistema de backup automático...")
+            Seguranca.iniciar_backup_automatico()
+            logger.debug("Sistema de backup iniciado (14:05 e 17:00)")
+        except Exception as e:
+            logger.error(f"Erro ao iniciar backup automático: {e}")
+    
+    def on_close_with_backup(self, test_mode: bool = False):
+        """
+        Handler de fechamento que inclui backup automático.
+        
+        Args:
+            test_mode: Se True, não executa backup final
+        """
+        try:
+            # Parar o sistema de backup automático e executar backup final
+            if not test_mode:
+                import Seguranca
+                logger.info("Executando backup final antes de fechar...")
+                Seguranca.parar_backup_automatico(executar_backup_final=True)
+        except Exception as e:
+            logger.error(f"Erro ao executar backup final: {e}")
+        finally:
+            # Chamar o handler padrão de fechamento
+            self.on_close()
+    
+    def initialize(self):
+        """
+        Inicializa todos os componentes da aplicação em sequência.
+        
+        Este método orquestra toda a configuração da interface:
+        - Frames principais
+        - Logo e cabeçalho
+        - Callbacks de ações
+        - Botões e menus
+        - Barra de pesquisa
+        - Tabela principal
+        - Rodapé
+        - Dashboard
+        - Menu contextual
+        
+        Este método deve ser chamado após a criação da instância Application
+        e antes de run().
+        """
+        logger.debug("Inicializando componentes da aplicação...")
+        
+        # Adicionar referência ao app na janela para acesso pelos callbacks
+        if self.janela:
+            setattr(self.janela, '_app_instance', self)  # type: ignore
+        
+        # 1. Configurar frames principais
+        logger.debug("Configurando frames...")
+        self.setup_frames()
+        
+        # 2. Configurar logo
+        logger.debug("Configurando logo...")
+        self.setup_logo()
+        
+        # 3. Configurar callbacks de ações
+        logger.debug("Configurando action callbacks...")
+        self.setup_action_callbacks(atualizar_tabela_callback=None)
+        
+        # 4. Configurar botões e menus usando ButtonFactory
+        logger.debug("Configurando botões e menus...")
+        self.setup_action_buttons_and_menus()
+        
+        # 5. Configurar barra de pesquisa
+        logger.debug("Configurando pesquisa...")
+        self.setup_search(callback_pesquisa=self._pesquisar_callback)
+        
+        # 6. Configurar tabela principal
+        logger.debug("Configurando tabela...")
+        self.setup_table(
+            on_select_callback=self._on_select_callback,
+            on_keyboard_callback=None
+        )
+        
+        # 7. Configurar rodapé
+        logger.debug("Configurando rodapé...")
+        self.setup_footer()
+        
+        # 8. Configurar e exibir dashboard automaticamente (otimizado)
+        logger.debug("Configurando dashboard...")
+        self.setup_dashboard(criar_agora=True)
+        
+        # 9. Configurar menu contextual
+        logger.debug("Configurando menu contextual...")
+        self.setup_context_menu(editar_callback=self._editar_callback)
+        
+        # Mensagem de sucesso (resumida)
+        logger.info("Sistema inicializado com sucesso")
     
     def run(self):
         """

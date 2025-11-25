@@ -196,24 +196,22 @@ def restaurar_backup():
         return False
 
 # Função para atualizar o Treeview
+# DEPRECATED: Use utils.ui_callbacks.atualizar_treeview para evitar dependências circulares
 def atualizar_treeview(treeview, cursor, query):
-    try:
-        # Verificar se o Treeview ainda existe
-        if not treeview or not treeview.winfo_exists():
-            logger.error("Erro: O Treeview não está mais ativo.")
-            return
-
-        # Limpar os itens existentes no Treeview
-        for item in treeview.get_children():
-            treeview.delete(item)
-
-        # Executar a consulta SQL e preencher o Treeview
-        cursor.execute(query)
-        rows = cursor.fetchall()
-        for row in rows:
-            treeview.insert("", "end", values=row)
-    except Exception as e:
-        logger.error("Erro ao atualizar o Treeview: %s", e)
+    """
+    DEPRECATED: Esta função está obsoleta e será removida em versões futuras.
+    Use utils.ui_callbacks.atualizar_treeview em vez disso.
+    """
+    import warnings
+    warnings.warn(
+        "Seguranca.atualizar_treeview está deprecated. "
+        "Use utils.ui_callbacks.atualizar_treeview",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
+    from utils.ui_callbacks import atualizar_treeview as new_atualizar_treeview
+    return new_atualizar_treeview(treeview, cursor, query)
 
 
 # ============================================================================
