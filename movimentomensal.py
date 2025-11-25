@@ -14,7 +14,7 @@ from conexao import conectar_bd
 from db.connection import get_connection, get_cursor
 import pymysql
 import re
-from reportlab.lib.pagesizes import landscape
+from reportlab.lib.pagesizes import landscape, letter, letter
 from PyPDF2 import PdfReader, PdfWriter
 import io
 from typing import Any, cast
@@ -1776,7 +1776,7 @@ def gerar_lista_alunos_transferidos():
     ]
 
     figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
-    doc, buffer = create_pdf_buffer()
+    doc, buffer = create_pdf_buffer(pagesize=landscape(letter))
     elements = []
 
     # Cabeçalho
@@ -1786,7 +1786,7 @@ def gerar_lista_alunos_transferidos():
         [img],
         [Paragraph('<br/>'.join(cabecalho), header_style)]
     ]
-    table = Table(data, colWidths=[5 * inch])
+    table = Table(data, colWidths=[7 * inch])
     table_style = TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER')
@@ -1829,9 +1829,10 @@ def gerar_lista_alunos_transferidos():
     # Tabela de alunos
     from biblio_editor import formatar_telefone
     tel_style = ParagraphStyle(name='Telefones', fontSize=9)
+    escola_style = ParagraphStyle(name='Escola', fontSize=8)
     
     data_table: list[list[Any]] = [
-        ['Nº', 'Nome', 'Série/Turma', 'Turno', 'Data Transferência', 'Telefones']
+        ['Nº', 'Nome', 'Série/Turma', 'Turno', 'Data Transferência', 'Escola Destino', 'Telefones']
     ]
     
     for row_num, (index, row) in enumerate(df_transferidos.iterrows(), start=1):
@@ -1839,6 +1840,10 @@ def gerar_lista_alunos_transferidos():
         serie_turma = f"{row['NOME_SERIE']} {row['NOME_TURMA']}"
         turno = row['TURNO']
         data_transf = row['DATA_TRANSFERENCIA'].strftime('%d/%m/%Y') if row['DATA_TRANSFERENCIA'] else "N/D"
+        
+        # Escola destino
+        escola_destino = row.get('ESCOLA_DESTINO', None)
+        escola_destino_texto = escola_destino if escola_destino else "N/I"
         
         # Formata telefones
         telefones = ""
@@ -1853,17 +1858,19 @@ def gerar_lista_alunos_transferidos():
             serie_turma,
             turno,
             data_transf,
+            Paragraph(escola_destino_texto, escola_style),
             Paragraph(telefones, tel_style)
         ])
 
     # Cria a tabela
     table = Table(data_table, colWidths=[
-        0.3 * inch,  # Nº
+        0.4 * inch,  # Nº
         2.5 * inch,  # Nome
-        0.8 * inch,  # Série/Turma
+        1.0 * inch,  # Série/Turma
         0.7 * inch,  # Turno
-        1.0 * inch,  # Data Transferência
-        1.5 * inch   # Telefones
+        1.1 * inch,  # Data Transferência
+        2.2 * inch,  # Escola Destino
+        1.8 * inch   # Telefones
     ])
     
     cor_cabecalho = HexColor('#1B4F72')
@@ -1921,6 +1928,7 @@ def gerar_lista_alunos_matriculados_depois():
                 t.turno,
                 m.data_matricula,
                 m.status,
+                e_origem.nome AS escola_origem,
                 GROUP_CONCAT(DISTINCT r.telefone ORDER BY r.id SEPARATOR '/') AS telefones,
                 CASE
                     WHEN s.nome = '6º Ano' THEN CONCAT(s.nome, ' ', t.nome)
@@ -1932,6 +1940,7 @@ def gerar_lista_alunos_matriculados_depois():
             JOIN alunos a ON m.aluno_id = a.id
             LEFT JOIN ResponsaveisAlunos ra ON a.id = ra.aluno_id
             LEFT JOIN Responsaveis r ON ra.responsavel_id = r.id
+            LEFT JOIN escolas e_origem ON m.escola_origem_id = e_origem.id
             WHERE m.ano_letivo_id = %s
             AND a.escola_id = 60
             AND (
@@ -1939,7 +1948,7 @@ def gerar_lista_alunos_matriculados_depois():
                 OR 
                 (m.data_matricula = %s AND m.status = 'Ativo')
             )
-            GROUP BY a.id, a.nome, a.sexo, s.nome, t.nome, t.turno, m.data_matricula, m.status
+            GROUP BY a.id, a.nome, a.sexo, s.nome, t.nome, t.turno, m.data_matricula, m.status, e_origem.nome
             ORDER BY m.data_matricula DESC, a.nome
         """
         cursor.execute(query, (ano_letivo_id, data_inicio, data_inicio))
@@ -1964,7 +1973,7 @@ def gerar_lista_alunos_matriculados_depois():
     ]
 
     figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
-    doc, buffer = create_pdf_buffer()
+    doc, buffer = create_pdf_buffer(pagesize=landscape(letter))
     elements = []
 
     # Cabeçalho
@@ -1974,7 +1983,7 @@ def gerar_lista_alunos_matriculados_depois():
         [img],
         [Paragraph('<br/>'.join(cabecalho), header_style)]
     ]
-    table = Table(data, colWidths=[5 * inch])
+    table = Table(data, colWidths=[7 * inch])
     table_style = TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER')
@@ -2021,9 +2030,10 @@ def gerar_lista_alunos_matriculados_depois():
     from biblio_editor import formatar_telefone
     tel_style = ParagraphStyle(name='Telefones', fontSize=9)
     sit_style = ParagraphStyle(name='Situacao', fontSize=9)
+    escola_style = ParagraphStyle(name='Escola', fontSize=8)
     
     data_table: list[list[Any]] = [
-        ['Nº', 'Nome', 'Série/Turma', 'Turno', 'Data Matrícula', 'Situação', 'Telefones']
+        ['Nº', 'Nome', 'Série/Turma', 'Turno', 'Data Matrícula', 'Escola Origem', 'Situação', 'Telefones']
     ]
     
     for row_num, (index, row) in enumerate(df_filtrado.iterrows(), start=1):
@@ -2031,6 +2041,10 @@ def gerar_lista_alunos_matriculados_depois():
         serie_turma = f"{row['serie']} {row['turma']}"
         turno = row['turno']
         data_matricula = row['data_matricula'].strftime('%d/%m/%Y') if row['data_matricula'] else "N/D"
+        
+        # Escola origem
+        escola_origem = row.get('escola_origem', None)
+        escola_origem_texto = escola_origem if escola_origem else "N/I"
         
         # Formata a situação
         situacao = row['status']
@@ -2052,19 +2066,21 @@ def gerar_lista_alunos_matriculados_depois():
             serie_turma,
             turno,
             data_matricula,
+            Paragraph(escola_origem_texto, escola_style),
             Paragraph(situacao_texto, sit_style),
             Paragraph(telefones, tel_style)
         ])
 
     # Cria a tabela
     table = Table(data_table, colWidths=[
-        0.3 * inch,  # Nº
+        0.4 * inch,  # Nº
         2.2 * inch,  # Nome
-        0.8 * inch,  # Série/Turma
-        0.6 * inch,  # Turno
-        0.8 * inch,  # Data Matrícula
+        0.9 * inch,  # Série/Turma
+        0.7 * inch,  # Turno
+        1.0 * inch,  # Data Matrícula
+        2.0 * inch,  # Escola Origem
         0.8 * inch,  # Situação
-        1.2 * inch   # Telefones
+        1.6 * inch   # Telefones
     ])
     
     cor_cabecalho = HexColor('#1B4F72')

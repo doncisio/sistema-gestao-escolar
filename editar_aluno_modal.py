@@ -371,7 +371,7 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
                     # Criar janela de edição
                     janela_edicao_matricula = Toplevel(janela_edicao)
                     janela_edicao_matricula.title("Editar Matrícula")
-                    janela_edicao_matricula.geometry("400x300")
+                    janela_edicao_matricula.geometry("500x650")
                     janela_edicao_matricula.configure(background=co1)
                     janela_edicao_matricula.transient(janela_edicao)
                     janela_edicao_matricula.focus_force()
@@ -412,9 +412,28 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
                     cb_turma = ttk.Combobox(turma_frame, textvariable=turma_var, width=40)
                     cb_turma.pack(fill=X, pady=(5, 0))
                     
+                    # Escola de Origem (para alunos transferidos recebidos)
+                    escola_origem_frame = Frame(frame_edicao, bg=co1)
+                    escola_origem_frame.pack(fill=X, pady=10)
+                    
+                    Label(escola_origem_frame, text="Escola de Origem (se transferido):", bg=co1, fg=co7).pack(anchor=W)
+                    escola_origem_var = StringVar()
+                    cb_escola_origem = ttk.Combobox(escola_origem_frame, textvariable=escola_origem_var, width=40)
+                    cb_escola_origem.pack(fill=X, pady=(5, 0))
+                    
+                    # Escola de Destino (para alunos transferidos expedidos)
+                    escola_destino_frame = Frame(frame_edicao, bg=co1)
+                    escola_destino_frame.pack(fill=X, pady=10)
+                    
+                    Label(escola_destino_frame, text="Escola de Destino (se transferindo):", bg=co1, fg=co7).pack(anchor=W)
+                    escola_destino_var = StringVar()
+                    cb_escola_destino = ttk.Combobox(escola_destino_frame, textvariable=escola_destino_var, width=40)
+                    cb_escola_destino.pack(fill=X, pady=(5, 0))
+                    
                     # Dicionários para mapear nomes para IDs
                     series_map = {}
                     turmas_map = {}
+                    escolas_map = {}
                     
                     # Carregar séries
                     cursor.execute("""
@@ -436,6 +455,43 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
                         series_map[serie[1]] = serie[0]
                     
                     cb_serie['values'] = list(series_map.keys())
+                    
+                    # Carregar escolas
+                    cursor.execute("""
+                        SELECT id, nome 
+                        FROM escolas
+                        ORDER BY nome
+                    """)
+                    escolas = cursor.fetchall()
+                    
+                    escolas_map.clear()
+                    escolas_map[''] = None  # Opção vazia
+                    for escola in escolas:
+                        escolas_map[escola[1]] = escola[0]
+                    
+                    cb_escola_origem['values'] = [''] + list([e[1] for e in escolas])
+                    cb_escola_destino['values'] = [''] + list([e[1] for e in escolas])
+                    
+                    # Carregar valores atuais de escola origem/destino
+                    cursor.execute("""
+                        SELECT escola_origem_id, escola_destino_id
+                        FROM matriculas
+                        WHERE id = %s
+                    """, (matricula_id,))
+                    escola_data = cursor.fetchone()
+                    
+                    if escola_data:
+                        if escola_data[0]:  # escola_origem_id
+                            cursor.execute("SELECT nome FROM escolas WHERE id = %s", (escola_data[0],))
+                            origem = cursor.fetchone()
+                            if origem:
+                                escola_origem_var.set(origem[0])
+                        
+                        if escola_data[1]:  # escola_destino_id
+                            cursor.execute("SELECT nome FROM escolas WHERE id = %s", (escola_data[1],))
+                            destino = cursor.fetchone()
+                            if destino:
+                                escola_destino_var.set(destino[0])
                     
                     # Carregar turmas da série atual
                     if serie_atual:
@@ -486,6 +542,99 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
                     # Vincular evento ao combobox de série
                     cb_serie.bind("<<ComboboxSelected>>", carregar_turmas)
                     
+                    # Função para adicionar nova escola
+                    def adicionar_nova_escola():
+                        nonlocal cursor, conn
+                        try:
+                            # Criar janela de diálogo para adicionar escola
+                            dialog_escola = Toplevel(janela_edicao_matricula)
+                            dialog_escola.title("Adicionar Nova Escola")
+                            dialog_escola.geometry("400x450")
+                            dialog_escola.configure(background=co1)
+                            dialog_escola.transient(janela_edicao_matricula)
+                            dialog_escola.focus_force()
+                            dialog_escola.grab_set()
+
+                            # Frame principal
+                            form_frame = Frame(dialog_escola, padx=20, pady=10, bg=co1)
+                            form_frame.pack(fill=BOTH, expand=True)
+
+                            # Título
+                            Label(form_frame, text="Adicionar Nova Escola", 
+                                  font=("Arial", 12, "bold"), bg=co1, fg=co7).pack(pady=(5, 15))
+
+                            # Campos do formulário
+                            Label(form_frame, text="Nome:", bg=co1, fg=co7).pack(anchor=W, pady=(5, 2))
+                            nome_entry = Entry(form_frame, width=40, bg=co0)
+                            nome_entry.pack(fill=X, pady=(0, 10))
+
+                            Label(form_frame, text="Endereço:", bg=co1, fg=co7).pack(anchor=W, pady=(5, 2))
+                            endereco_entry = Entry(form_frame, width=40, bg=co0)
+                            endereco_entry.pack(fill=X, pady=(0, 10))
+
+                            Label(form_frame, text="INEP:", bg=co1, fg=co7).pack(anchor=W, pady=(5, 2))
+                            inep_entry = Entry(form_frame, width=40, bg=co0)
+                            inep_entry.pack(fill=X, pady=(0, 10))
+
+                            Label(form_frame, text="CNPJ:", bg=co1, fg=co7).pack(anchor=W, pady=(5, 2))
+                            cnpj_entry = Entry(form_frame, width=40, bg=co0)
+                            cnpj_entry.pack(fill=X, pady=(0, 10))
+
+                            Label(form_frame, text="Município:", bg=co1, fg=co7).pack(anchor=W, pady=(5, 2))
+                            municipio_entry = Entry(form_frame, width=40, bg=co0)
+                            municipio_entry.pack(fill=X, pady=(0, 10))
+
+                            def salvar_nova_escola():
+                                try:
+                                    nome = nome_entry.get().strip()
+                                    if not nome:
+                                        messagebox.showwarning("Aviso", "O nome da escola é obrigatório.")
+                                        return
+                                    
+                                    # Inserir nova escola no banco de dados
+                                    cursor.execute("""
+                                        INSERT INTO escolas (nome, endereco, inep, cnpj, municipio)
+                                        VALUES (%s, %s, %s, %s, %s)
+                                    """, (
+                                        nome,
+                                        endereco_entry.get().strip(),
+                                        inep_entry.get().strip(),
+                                        cnpj_entry.get().strip(),
+                                        municipio_entry.get().strip()
+                                    ))
+                                    conn.commit()
+                                    
+                                    # Obter o ID da escola recém-criada
+                                    novo_id = cursor.lastrowid
+                                    
+                                    # Atualizar os comboboxes
+                                    escolas_map[nome] = novo_id
+                                    cb_escola_origem['values'] = [''] + list([e for e in escolas_map.keys() if e != ''])
+                                    cb_escola_destino['values'] = [''] + list([e for e in escolas_map.keys() if e != ''])
+                                    
+                                    messagebox.showinfo("Sucesso", "Escola adicionada com sucesso!")
+                                    dialog_escola.destroy()
+                                except Exception as e:
+                                    conn.rollback()
+                                    messagebox.showerror("Erro", f"Erro ao adicionar escola: {str(e)}")
+
+                            # Frame para botões
+                            botoes_frame = Frame(form_frame, bg=co1)
+                            botoes_frame.pack(fill=X, pady=10)
+
+                            Button(botoes_frame, text="Salvar",
+                                   command=salvar_nova_escola,
+                                   bg=co3, fg=co1, width=15,
+                                   font=('Ivy', 9, 'bold')).pack(side=LEFT, padx=5)
+                            
+                            Button(botoes_frame, text="Cancelar",
+                                   command=dialog_escola.destroy,
+                                   bg=co6, fg=co1, width=15,
+                                   font=('Ivy', 9, 'bold')).pack(side=RIGHT, padx=5)
+
+                        except Exception as e:
+                            messagebox.showerror("Erro", f"Erro ao abrir formulário: {str(e)}")
+                    
                     # Função para salvar alterações
                     def salvar_alteracoes_matricula():
                         nonlocal conn, cursor
@@ -503,6 +652,13 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
                             
                             nova_turma_id = turmas_map[turma_nome]
                             
+                            # Obter IDs das escolas selecionadas
+                            escola_origem_nome = escola_origem_var.get()
+                            escola_destino_nome = escola_destino_var.get()
+                            
+                            escola_origem_id = escolas_map.get(escola_origem_nome) if escola_origem_nome else None
+                            escola_destino_id = escolas_map.get(escola_destino_nome) if escola_destino_nome else None
+                            
                             # Registrar no histórico
                             cursor.execute("""
                                 INSERT INTO historico_matricula 
@@ -513,9 +669,11 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
                             # Atualizar a matrícula
                             cursor.execute("""
                                 UPDATE matriculas 
-                                SET turma_id = %s
+                                SET turma_id = %s,
+                                    escola_origem_id = %s,
+                                    escola_destino_id = %s
                                 WHERE id = %s
-                            """, (nova_turma_id, matricula_id))
+                            """, (nova_turma_id, escola_origem_id, escola_destino_id, matricula_id))
                             
                             conn.commit()
                             messagebox.showinfo("Sucesso", "Matrícula atualizada com sucesso!")
@@ -534,6 +692,11 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
                     # Botões
                     botoes_frame = Frame(frame_edicao, bg=co1)
                     botoes_frame.pack(fill=X, pady=20)
+                    
+                    # Botão para adicionar nova escola
+                    Button(botoes_frame, text="➕ Nova Escola", 
+                          command=adicionar_nova_escola,
+                          font=('Ivy 9'), bg=co4, fg=co1, width=15).pack(side=LEFT, padx=5)
                     
                     Button(botoes_frame, text="Salvar", 
                           command=salvar_alteracoes_matricula,

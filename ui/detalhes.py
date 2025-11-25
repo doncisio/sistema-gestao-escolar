@@ -802,9 +802,9 @@ def matricular_aluno_wrapper(aluno_id):
 
 
 def editar_matricula_wrapper(aluno_id):
-    """Wrapper para editar matrícula do aluno."""
+    """Wrapper para editar matrícula do aluno usando interface unificada."""
     try:
-        from ui.matricula_modal import MatriculaModal
+        from interface_matricula_unificada import abrir_interface_matricula
         from ui.colors import get_colors_dict
         from db.connection import get_connection
         
@@ -829,16 +829,15 @@ def editar_matricula_wrapper(aluno_id):
         
         nome_aluno = resultado_nome[0]
         
-        # Callback para atualizar interface após edição (Sprint 15)
+        # Callback para atualizar interface após edição
         def ao_editar_sucesso():
             try:
                 logger.info(f"Matrícula do aluno {nome_aluno} editada com sucesso")
-                messagebox.showinfo("Sucesso", f"Matrícula de {nome_aluno} atualizada com sucesso!")
             except Exception as e:
                 logger.exception(f"Erro no callback de sucesso: {e}")
         
-        # Criar e mostrar modal de matrícula (funciona para criar e editar)
-        MatriculaModal(
+        # Abrir interface unificada
+        abrir_interface_matricula(
             parent=root,
             aluno_id=aluno_id,
             nome_aluno=nome_aluno,
