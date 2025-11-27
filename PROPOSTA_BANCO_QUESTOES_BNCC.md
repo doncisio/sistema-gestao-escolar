@@ -22,6 +22,7 @@ Sistema para criação, armazenamento, busca e aplicação de questões (avalia�
 - ✅ Geração automática de provas com critérios pedagógicos
 - ✅ Relatórios de desempenho por competência/habilidade
 - ✅ Integração com planejamento de aulas
+- ✅ **Sistema offline-first**: funciona sem necessidade de dispositivos móveis dos alunos
 
 ---
 
@@ -916,38 +917,64 @@ Resultados: 23 questões encontradas
 
 ### 4. **Aplicação de Avaliações**
 
-**Modos de aplicação**:
+**Modo de aplicação: IMPRESSO (offline)**
 
-**a) Digital (online)**:
-- Alunos respondem via sistema (web/app)
-- Correção automática para múltipla escolha
-- Controle de tempo
-- Registro de tempo por questão
-- Geração automática de relatórios
+> ⚠️ **Importante**: Considerando a política da rede de ensino que proíbe uso de celular/tablet na escola, o sistema foi projetado para funcionar 100% no formato impresso, com gestão e análise feitas pelos professores via sistema web.
 
-**b) Impressa (offline)**:
-- Geração de PDF formatado para impressão
-- Versões embaralhadas (A, B, C, D)
-- Folha de respostas para leitura ótica (opcional)
-- Lançamento manual de resultados no sistema
+**Fluxo de aplicação**:
+1. **Professor**: monta avaliação no sistema (via computador)
+2. **Sistema**: gera PDF formatado e otimizado para impressão
+3. **Secretaria/Coordenação**: imprime avaliações
+4. **Alunos**: respondem em papel (formato tradicional)
+5. **Professor**: lança resultados no sistema
+6. **Sistema**: gera relatórios automáticos de desempenho
+
+**Recursos do modo impresso**:
+- ✅ Geração de PDF formatado profissionalmente (A4)
+- ✅ Versões embaralhadas (A, B, C, D) para evitar cópia
+- ✅ Folha de respostas para leitura ótica (opcional, futuro)
+- ✅ Cabeçalho personalizado (escola, turma, data, instruções)
+- ✅ Espaço adequado para respostas dissertativas
+- ✅ Gabarito do professor em arquivo separado
+- ✅ Layout responsivo (adapta questões longas)
+- ✅ Qualidade de impressão otimizada (economia de tinta)
 
 ---
 
-### 5. **Correção e Feedback**
+### 5. **Correção e Lançamento de Resultados**
+
+**Fluxo de correção (formato impresso)**:
 
 **Múltipla escolha**:
-- Correção 100% automática
-- Feedback imediato (configurável)
-- Estatísticas por alternativa (quantos escolheram cada uma)
+1. Professor corrige provas com gabarito impresso
+2. Lança respostas dos alunos no sistema via interface web
+3. Sistema calcula automaticamente:
+   - Pontuação por questão
+   - Nota final
+   - Estatísticas por alternativa (quantos escolheram A, B, C, D, E)
+   - Desempenho por habilidade BNCC
+
+**Interface de lançamento de notas (múltipla escolha)**:
+- ✅ Tela otimizada: digita-se apenas a letra marcada por cada aluno
+- ✅ Atalhos de teclado para agilizar (A, B, C, D, E + Enter)
+- ✅ Validação automática (alertas para questões não preenchidas)
+- ✅ Progresso visual (quantos alunos faltam)
+- ✅ Salvamento automático a cada aluno
 
 **Dissertativas**:
-- Interface de correção com:
-  - Gabarito sugerido ao lado
-  - Campo para pontuação parcial
-  - Campo para feedback individualizado
-  - Opção de usar rubrica/critérios
-- Correção em lote (todas as respostas de uma questão)
-- Salvar comentários padrão para reutilização
+1. Professor corrige provas fisicamente (escrita em papel)
+2. Lança pontuações no sistema via interface web:
+   - Gabarito sugerido exibido ao lado
+   - Campo para pontuação parcial
+   - Campo para feedback individualizado (opcional)
+   - Opção de usar rubrica/critérios pré-definidos
+3. Sistema registra e gera estatísticas
+
+**Recursos para agilizar correção**:
+- ✅ Correção em lote (lançar notas de toda a turma)
+- ✅ Comentários padrão salvos (reutilização de feedbacks comuns)
+- ✅ Correção por questão (corrigir questão 1 de todos os alunos, depois questão 2, etc.)
+- ✅ Modo offline: lançar notas mesmo sem internet (sincroniza depois)
 
 ---
 
@@ -1028,15 +1055,16 @@ Turma: 7º Ano B | Professor: Maria Santos | Matemática
 - **Detecção de plágio**: entre respostas de alunos
 - **Análise de dificuldade**: predição de taxa de acerto antes da aplicação
 
-### 3. **Gamificação**
-- Badges por habilidades dominadas
-- Ranking de desempenho (opcional, configurável)
-- Desafios semanais
-- Progressão visual por competências
+### 3. **Relatórios Visuais e Certificados**
+- Certificados de conquista de habilidades para alunos (impressos)
+- Gráficos de progressão individual (para reuniões com pais)
+- Relatórios comparativos de turmas
+- Mapas de calor de desempenho por habilidade
 
-### 4. **Adaptabilidade**
-- Testes adaptativos: dificuldade ajusta conforme acertos/erros
-- Trilhas personalizadas de estudo baseadas em dificuldades
+### 4. **Personalização e Recuperação**
+- Geração automática de listas de exercícios personalizadas para recuperação
+- Sugestão de questões baseadas em dificuldades identificadas nas avaliações
+- Banco de exercícios extras por habilidade para impressão
 
 ### 5. **Colaboração**
 - Banco compartilhado entre escolas da rede
@@ -1228,20 +1256,21 @@ banco_questoes/
 ✅ Relatórios avançados (por habilidade)  
 
 ### Fase 3 - Avançado (4-6 meses)
-✅ Aplicação digital (alunos respondem online)  
-✅ Correção automática múltipla escolha  
+✅ Interface otimizada para lançamento rápido de notas  
+✅ Leitura ótica de folhas de resposta (OMR) via scanner  
 ✅ Dashboard interativo com gráficos  
 ✅ Sistema de revisão de questões  
 ✅ Banco compartilhado entre escolas  
 ✅ Exportação de relatórios (Excel, PDF)  
+✅ Geração de certificados e relatórios visuais para alunos  
 
-### Fase 4 - IA e Inovação (6+ meses)
-✅ Sugestão inteligente de questões  
-✅ Análise preditiva de desempenho  
-✅ Geração automática de questões (IA)  
-✅ Testes adaptativos  
-✅ Gamificação  
+### Fase 4 - Inteligência e Integração (6+ meses)
+✅ Sugestão inteligente de questões baseada em histórico  
+✅ Análise preditiva de desempenho (identificar alunos em risco)  
+✅ Importação automática de questões via OCR (scanear provas em papel)  
+✅ Geração de listas de recuperação personalizadas  
 ✅ Integração com planejamento de aulas  
+✅ Sistema de recomendação de intervenções pedagógicas  
 
 ---
 
@@ -1251,8 +1280,10 @@ banco_questoes/
 2. **Análise Pedagógica Profunda**: relatórios por habilidade, não apenas por nota
 3. **Banco Colaborativo Local**: professores da rede compartilham conhecimento
 4. **Integração com Sistema Existente**: aproveita cadastros, turmas, notas já existentes
-5. **Offline-First**: funciona mesmo sem internet (modo impresso)
-6. **Gratuito e Customizável**: software livre, adaptável às necessidades da rede
+5. **100% Compatível com Política da Rede**: sistema projetado para formato impresso, sem necessidade de dispositivos móveis dos alunos
+6. **Offline-First**: professores podem trabalhar sem internet, sincroniza depois
+7. **Economia de Tempo**: mesmo no formato impresso, reduz tempo de elaboração em 50-70%
+8. **Gratuito e Customizável**: software livre, adaptável às necessidades da rede
 
 ---
 
@@ -1290,12 +1321,14 @@ banco_questoes/
 **Contexto**: Aluno com dificuldade em habilidade específica.
 
 **Fluxo**:
-1. Coordenador identifica no relatório: "João tem 30% de acerto em EF07MA10"
+1. Sistema identifica automaticamente no relatório: "João tem 30% de acerto em EF07MA10"
 2. Professor busca questões: EF07MA10 + dificuldade "fácil" + tipo "exercício"
-3. Monta lista de 10 exercícios progressivos
-4. Aplica individualmente para João (versão impressa ou online)
-5. Após refazer, sistema registra melhoria: 70% de acerto
-6. Professor marca habilidade como "em recuperação bem-sucedida"
+3. Sistema gera PDF com lista de 10 exercícios progressivos
+4. Imprime e aplica individualmente para João
+5. João resolve em papel, professor corrige
+6. Professor lança resultado no sistema: 7/10 acertos (70%)
+7. Sistema registra melhoria e atualiza relatório individual
+8. Professor marca habilidade como "em recuperação bem-sucedida"
 
 ---
 
@@ -1413,9 +1446,8 @@ Antes de iniciarmos a implementação, **gostaríamos muito de ouvir a opinião 
 - [ ] Cadastro de questões com vinculação à BNCC
 - [ ] Busca de questões por habilidade/ano/componente
 - [ ] Geração automática de avaliações (sistema monta a prova)
-- [ ] Aplicação digital (alunos respondem online)
-- [ ] Aplicação impressa (geração de PDF formatado)
-- [ ] Correção automática de múltipla escolha
+- [ ] Geração de PDF formatado para impressão (versões A, B, C, D)
+- [ ] Interface rápida para lançamento de notas
 - [ ] Relatórios de desempenho por aluno
 - [ ] Relatórios de desempenho por turma
 - [ ] Análise por habilidade BNCC (quais habilidades a turma domina/não domina)
@@ -1423,6 +1455,7 @@ Antes de iniciarmos a implementação, **gostaríamos muito de ouvir a opinião 
 - [ ] Upload de imagens nas questões
 - [ ] Banco de questões dissertativas
 - [ ] Estatísticas de uso (taxa de acerto, tempo médio)
+- [ ] Leitura óptica de folhas de resposta (futuro)
 - [ ] Outro: _________________________________
 
 ---
@@ -1456,17 +1489,27 @@ Antes de iniciarmos a implementação, **gostaríamos muito de ouvir a opinião 
 
 ---
 
-### 6. **Aplicação Digital vs. Impressa**
+### 6. **Formato de Aplicação (Impressa)**
 
-**Questão**: Em sua opinião, qual o **melhor formato** para aplicar avaliações considerando a realidade da nossa rede?
+> **Nota**: Considerando a política da rede que proíbe uso de celular/tablet, o sistema foi desenvolvido para **formato 100% impresso**.
 
-- [ ] **Digital (online)**: alunos respondem no computador/tablet
-- [ ] **Impressa (PDF)**: questões impressas, respostas em papel
-- [ ] **Híbrido**: oferecer ambas as opções conforme necessidade
+**Questão**: Quais recursos você considera essenciais na geração de provas impressas?
+
+- [ ] Versões embaralhadas (A, B, C, D) para evitar cópia
+- [ ] Cabeçalho personalizado com informações da escola/turma
+- [ ] Espaço adequado para respostas dissertativas
+- [ ] Folha de respostas separada (tipo gabarito óptico)
+- [ ] Gabarito do professor em arquivo separado
+- [ ] Layout otimizado (economia de papel/tinta)
+- [ ] Instruções claras no topo da prova
 - [ ] Outro: _________________________________
 
-**Considerações práticas (infraestrutura, acesso à tecnologia, etc.):**
-___________________________________________
+**Você teria interesse em sistema de leitura óptica (scanner) para agilizar lançamento de notas futuramente?**
+
+- [ ] Sim, seria muito útil
+- [ ] Sim, mas depende do custo
+- [ ] Não vejo necessidade
+- [ ] Não sei o que é leitura óptica
 
 ---
 
