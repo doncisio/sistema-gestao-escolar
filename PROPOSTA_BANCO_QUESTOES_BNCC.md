@@ -1362,3 +1362,248 @@ O **Sistema de Banco de Questões baseado na BNCC** é uma ferramenta estratégi
 5. **Tomar decisões baseadas em dados**: relatórios precisos guiam intervenções
 
 **Próximo passo**: Validar escopo com equipe pedagógica e iniciar Fase 1 (MVP).
+
+---
+
+---
+
+# 💬 CONSULTA À EQUIPE PEDAGÓGICA
+
+## Prezados Professores e Coordenadores,
+
+Estamos desenvolvendo um **Sistema de Banco de Questões baseado na BNCC** para nossa rede de ensino, com o objetivo de facilitar a elaboração de avaliações, compartilhar conhecimento entre docentes e acompanhar com precisão o desenvolvimento de competências e habilidades dos nossos alunos.
+
+Antes de iniciarmos a implementação, **gostaríamos muito de ouvir a opinião de vocês**, que são os principais usuários deste sistema. Sua experiência prática e suas necessidades diárias são fundamentais para garantir que o sistema realmente atenda às demandas da nossa rede.
+
+---
+
+## 📋 QUESTÕES PARA REFLEXÃO E FEEDBACK
+
+### 1. **Sobre a Proposta Geral**
+
+**Questão**: Considerando sua experiência atual na elaboração de avaliações, quais são as **principais dificuldades** que você enfrenta no dia a dia?
+
+- [ ] Falta de tempo para criar questões originais
+- [ ] Dificuldade em alinhar questões com habilidades BNCC específicas
+- [ ] Falta de um repositório organizado de questões
+- [ ] Dificuldade em variar o nível de dificuldade
+- [ ] Retrabalho (criar questões semelhantes repetidamente)
+- [ ] Dificuldade em analisar resultados por habilidade/competência
+- [ ] Outro: _________________________________
+
+---
+
+### 2. **Banco Colaborativo de Questões**
+
+**Questão**: Você estaria disposto(a) a **compartilhar questões criadas por você** com outros professores da rede, sabendo que também teria acesso a questões criadas por colegas?
+
+- [ ] **Sim, totalmente**. Acredito que a colaboração enriquece o trabalho de todos.
+- [ ] **Sim, mas com restrições**. Por exemplo: apenas após revisão, ou só com professores da mesma escola.
+- [ ] **Talvez**. Preciso entender melhor como funcionaria (autoria, créditos, qualidade).
+- [ ] **Não**. Prefiro manter minhas questões privadas.
+
+**Comentários adicionais**: ___________________________________________
+
+---
+
+### 3. **Funcionalidades Prioritárias**
+
+**Questão**: Das funcionalidades propostas abaixo, quais você considera **ESSENCIAIS** para o seu trabalho? (Marque até 5)
+
+- [ ] Cadastro de questões com vinculação à BNCC
+- [ ] Busca de questões por habilidade/ano/componente
+- [ ] Geração automática de avaliações (sistema monta a prova)
+- [ ] Aplicação digital (alunos respondem online)
+- [ ] Aplicação impressa (geração de PDF formatado)
+- [ ] Correção automática de múltipla escolha
+- [ ] Relatórios de desempenho por aluno
+- [ ] Relatórios de desempenho por turma
+- [ ] Análise por habilidade BNCC (quais habilidades a turma domina/não domina)
+- [ ] Sistema de favoritos (salvar questões preferidas)
+- [ ] Upload de imagens nas questões
+- [ ] Banco de questões dissertativas
+- [ ] Estatísticas de uso (taxa de acerto, tempo médio)
+- [ ] Outro: _________________________________
+
+---
+
+### 4. **Tipos de Questões**
+
+**Questão**: Quais **tipos de questões** você mais utiliza em suas avaliações atualmente?
+
+- [ ] Múltipla escolha
+- [ ] Verdadeiro ou Falso
+- [ ] Dissertativas longas (com desenvolvimento de raciocínio)
+- [ ] Dissertativas curtas (respostas objetivas)
+- [ ] Associação (ligar colunas)
+- [ ] Preencher lacunas
+- [ ] Outro: _________________________________
+
+**Qual desses tipos você gostaria de priorizar no sistema?** _________________
+
+---
+
+### 5. **Geração Automática de Avaliações**
+
+**Questão**: Você utilizaria uma funcionalidade que **gera automaticamente uma avaliação** baseada em critérios que você define (ex: "10 questões de Matemática do 7º ano, 50% média e 50% difícil, cobrindo habilidades do 2º bimestre")?
+
+- [ ] **Sim, com certeza!** Isso economizaria muito tempo.
+- [ ] **Sim, mas gostaria de revisar e ajustar** antes de aplicar.
+- [ ] **Talvez**. Preciso ver como funciona na prática.
+- [ ] **Não**. Prefiro selecionar manualmente questão por questão.
+
+**Por quê?** ___________________________________________
+
+---
+
+### 6. **Aplicação Digital vs. Impressa**
+
+**Questão**: Em sua opinião, qual o **melhor formato** para aplicar avaliações considerando a realidade da nossa rede?
+
+- [ ] **Digital (online)**: alunos respondem no computador/tablet
+- [ ] **Impressa (PDF)**: questões impressas, respostas em papel
+- [ ] **Híbrido**: oferecer ambas as opções conforme necessidade
+- [ ] Outro: _________________________________
+
+**Considerações práticas (infraestrutura, acesso à tecnologia, etc.):**
+___________________________________________
+
+---
+
+### 7. **Análise de Desempenho por Habilidade BNCC**
+
+**Questão**: Atualmente, você consegue identificar com precisão **quais habilidades da BNCC** seus alunos dominam e quais precisam ser retrabalhadas?
+
+- [ ] **Sim, facilmente**. Tenho controle detalhado.
+- [ ] **Parcialmente**. Faço algum acompanhamento, mas é trabalhoso.
+- [ ] **Não**. Analiso apenas a nota geral, não por habilidade.
+
+**Você considera importante ter relatórios automáticos mostrando desempenho por habilidade?**
+
+- [ ] Sim, seria extremamente útil
+- [ ] Sim, mas não é prioridade
+- [ ] Não acho necessário
+
+---
+
+### 8. **Tempo de Elaboração de Avaliações**
+
+**Questão**: Quanto tempo, em média, você leva para **elaborar uma avaliação completa** (buscar/criar questões, formatar, revisar)?
+
+- [ ] Menos de 1 hora
+- [ ] 1 a 2 horas
+- [ ] 2 a 4 horas
+- [ ] 4 a 6 horas
+- [ ] Mais de 6 horas
+
+**Com um banco de questões organizado e ferramentas automáticas, quanto tempo você acredita que poderia economizar?**
+
+- [ ] Até 30%
+- [ ] 30% a 50%
+- [ ] 50% a 70%
+- [ ] Mais de 70%
+
+---
+
+### 9. **Capacitação e Treinamento**
+
+**Questão**: Para utilizar um sistema novo como este, você se sentiria confortável com:
+
+- [ ] **Tutorial em vídeo** (5-10 minutos por funcionalidade)
+- [ ] **Manual em PDF** (passo a passo com imagens)
+- [ ] **Treinamento presencial** (2-4 horas em grupo)
+- [ ] **Suporte online** (chat, e-mail, WhatsApp)
+- [ ] **Aprendo sozinho(a)** explorando o sistema
+
+**Quanto tempo você estaria disposto(a) a investir em capacitação inicial?**
+
+- [ ] 1 hora
+- [ ] 2-3 horas
+- [ ] 4-6 horas
+- [ ] Mais de 6 horas
+
+---
+
+### 10. **Preocupações e Desafios**
+
+**Questão**: Quais são suas **principais preocupações** em relação à implementação deste sistema?
+
+- [ ] Dificuldade de uso / curva de aprendizado
+- [ ] Tempo necessário para cadastrar questões inicialmente
+- [ ] Qualidade das questões compartilhadas por outros professores
+- [ ] Dependência de tecnologia / internet
+- [ ] Privacidade e segurança das informações
+- [ ] Resistência à mudança de rotina
+- [ ] Outro: _________________________________
+
+**Como o sistema poderia minimizar essas preocupações?**
+___________________________________________
+
+---
+
+### 11. **Sugestões e Ideias**
+
+**Questão aberta**: Existe alguma **funcionalidade, recurso ou característica** que você gostaria de ver no sistema e que não foi mencionada nesta proposta?
+
+___________________________________________
+___________________________________________
+___________________________________________
+
+---
+
+### 12. **Comprometimento com o Projeto**
+
+**Questão**: Você estaria disposto(a) a participar como **usuário piloto** (testador) do sistema nas fases iniciais, fornecendo feedback para melhorias?
+
+- [ ] Sim, tenho interesse em participar ativamente
+- [ ] Sim, mas com disponibilidade limitada
+- [ ] Talvez, dependendo da demanda de tempo
+- [ ] Não tenho disponibilidade no momento
+
+---
+
+## 📝 INFORMAÇÕES DO RESPONDENTE (OPCIONAL)
+
+Para contextualizarmos melhor as respostas:
+
+- **Nome**: ___________________________________
+- **Função**: 
+  - [ ] Professor(a)
+  - [ ] Coordenador(a) Pedagógico(a)
+  - [ ] Diretor(a)
+  - [ ] Outro: _________________________________
+- **Componente(s) Curricular(es)**: ___________________________________
+- **Ano(s) que leciona/coordena**: ___________________________________
+- **Escola**: ___________________________________
+- **Tempo de experiência na rede**: 
+  - [ ] Menos de 1 ano
+  - [ ] 1-3 anos
+  - [ ] 3-5 anos
+  - [ ] 5-10 anos
+  - [ ] Mais de 10 anos
+
+---
+
+## 🙏 AGRADECIMENTO
+
+**Muito obrigado pela sua participação!**
+
+Seu feedback é essencial para construirmos um sistema que realmente atenda às necessidades da nossa rede de ensino. Todas as sugestões serão cuidadosamente analisadas e consideradas no planejamento e desenvolvimento do projeto.
+
+**Prazo para envio das respostas**: _____________
+
+**Enviar para**: _______________ (e-mail/formulário/coordenação)
+
+---
+
+## 📊 PRÓXIMOS PASSOS
+
+Após a coleta e análise dos feedbacks:
+
+1. **Consolidação das respostas** (1 semana)
+2. **Ajuste da proposta** com base nas sugestões (1 semana)
+3. **Apresentação da proposta revisada** para validação final
+4. **Início do desenvolvimento** da Fase 1 (MVP)
+5. **Seleção de usuários piloto** para testes iniciais
+
+**Contamos com vocês para construir juntos esta ferramenta!** 🚀
