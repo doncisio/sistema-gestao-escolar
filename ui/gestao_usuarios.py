@@ -601,9 +601,11 @@ class GestaoUsuariosWindow:
     def _registrar_log(self, acao: str, detalhes: str):
         """Registra uma ação no log de acesso."""
         try:
-            usuario_atual = UsuarioLogado.get_usuario_id()
-            if not usuario_atual:
+            # Obter usuário logado e seu ID
+            usuario = UsuarioLogado.get_usuario()
+            if not usuario:
                 return
+            usuario_atual = usuario.id
             
             with get_connection() as conn:
                 cursor = conn.cursor()

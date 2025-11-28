@@ -3,9 +3,9 @@ Script para gerar um arquivo contendo o código fonte de todos os
 .py do projeto (exceto __pycache__ e o próprio arquivo de saída).
 
 Uso:
-  cd c:\gestao; python .\scripts\gerar_todos_codigos.py
+    cd c:/gestao; python ./scripts/gerar_todos_codigos.py
 
-Gera: c:\gestao\todos_codigos_sistema.txt
+Gera: c:/gestao/todos_codigos_sistema.txt
 """
 import os
 from pathlib import Path

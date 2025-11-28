@@ -6,7 +6,7 @@ Gerencia login, logout, verificação de credenciais e permissões.
 
 import socket
 from datetime import datetime, timedelta
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 from config_logs import get_logger
 from conexao import conectar_bd
@@ -76,7 +76,7 @@ class AuthService:
                 WHERE u.username = %s
             """, (username,))
             
-            row = cursor.fetchone()
+            row = cast(Optional[Dict[str, Any]], cursor.fetchone())
             
             if not row:
                 # Registrar tentativa com usuário inexistente
@@ -239,8 +239,8 @@ class AuthService:
         return list(permissoes)
     
     @staticmethod
-    def _registrar_log(cursor, usuario_id: Optional[int], username: str, 
-                       acao: str, detalhes: str = None):
+    def _registrar_log(cursor: Any, usuario_id: Optional[int], username: str, 
+                       acao: str, detalhes: Optional[str] = None) -> None:
         """Registra log de acesso no banco."""
         try:
             ip = socket.gethostbyname(socket.gethostname())
@@ -309,7 +309,7 @@ class AuthService:
                 "SELECT senha_hash, username FROM usuarios WHERE id = %s",
                 (usuario_id,)
             )
-            row = cursor.fetchone()
+            row = cast(Optional[Dict[str, Any]], cursor.fetchone())
             
             if not row:
                 cursor.close()
@@ -379,7 +379,7 @@ class AuthService:
                 "SELECT username FROM usuarios WHERE id = %s",
                 (usuario_id,)
             )
-            row = cursor.fetchone()
+            row = cast(Optional[Dict[str, Any]], cursor.fetchone())
             
             if not row:
                 cursor.close()
@@ -419,7 +419,7 @@ class AuthService:
     
     @staticmethod
     def criar_usuario(funcionario_id: int, username: str, perfil: str, 
-                      senha: str = None, admin_id: int = None) -> Tuple[bool, str, Optional[str]]:
+                      senha: Optional[str] = None, admin_id: Optional[int] = None) -> Tuple[bool, str, Optional[str]]:
         """
         Cria um novo usuário no sistema.
         
@@ -445,7 +445,7 @@ class AuthService:
                 "SELECT id, nome FROM funcionarios WHERE id = %s",
                 (funcionario_id,)
             )
-            func = cursor.fetchone()
+            func = cast(Optional[Dict[str, Any]], cursor.fetchone())
             if not func:
                 cursor.close()
                 conn.close()
@@ -539,7 +539,7 @@ class AuthService:
                 "SELECT perfil FROM usuarios WHERE id = %s AND ativo = TRUE",
                 (usuario_id,)
             )
-            row = cursor.fetchone()
+            row = cast(Optional[Dict[str, Any]], cursor.fetchone())
             
             if not row:
                 cursor.close()
@@ -568,7 +568,7 @@ class AuthService:
                 WHERE up.usuario_id = %s AND p.codigo = %s
             """, (usuario_id, codigo_permissao))
             
-            personalizada = cursor.fetchone()
+            personalizada = cast(Optional[Dict[str, Any]], cursor.fetchone())
             
             cursor.close()
             conn.close()
@@ -583,7 +583,7 @@ class AuthService:
             return False
     
     @staticmethod
-    def listar_usuarios() -> List[dict]:
+    def listar_usuarios() -> List[Dict[str, Any]]:
         """
         Lista todos os usuários do sistema.
         
@@ -613,7 +613,7 @@ class AuthService:
                 ORDER BY f.nome
             """)
             
-            usuarios = cursor.fetchall()
+            usuarios = cast(List[Dict[str, Any]], cursor.fetchall())
             
             cursor.close()
             conn.close()
@@ -654,7 +654,7 @@ class AuthService:
                 "SELECT username FROM usuarios WHERE id = %s",
                 (usuario_id,)
             )
-            row = cursor.fetchone()
+            row = cast(Optional[Dict[str, Any]], cursor.fetchone())
             
             if not row:
                 cursor.close()
@@ -706,7 +706,7 @@ class AuthService:
                 "SELECT username FROM usuarios WHERE id = %s",
                 (usuario_id,)
             )
-            row = cursor.fetchone()
+            row = cast(Optional[Dict[str, Any]], cursor.fetchone())
             
             if not row:
                 cursor.close()

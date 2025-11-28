@@ -96,7 +96,10 @@ def main():
             return
 
         logger.info(f"Foram encontrados {len(rows)} funcionários com escola_id = 60:\n")
+        # Garantir ao analisador de tipos que `rows` é uma lista de dicionários
+        assert isinstance(rows, list)
         for r in rows:
+            assert isinstance(r, dict)
             logger.info(f"ID: {r['id']:>5} | Nome: {r['nome'][:60]:60} | Cargo: {r.get('cargo')} | Vinculo: {r.get('vinculo')}")
 
         if not args.apply:
@@ -109,7 +112,11 @@ def main():
             logger.info('Operação cancelada pelo usuário.')
             return
 
-        ids = [r['id'] for r in rows]
+        ids = []
+        for r in rows:
+            # já garantido acima que `r` é dict, mas repetir para o analisador no escopo local
+            assert isinstance(r, dict)
+            ids.append(r['id'])
         aplicar_desvinculo(conn, ids)
         logger.info(f'Operação concluída. {len(ids)} registros atualizados.')
 

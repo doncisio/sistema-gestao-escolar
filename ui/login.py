@@ -47,6 +47,9 @@ class LoginWindow:
             Usuario autenticado ou None se cancelado/fechado
         """
         self._criar_janela()
+        # Garantir ao analisador de tipos que `self.janela` foi criado
+        if self.janela is None:
+            return None
         self.janela.mainloop()
         return self.usuario
     
@@ -222,6 +225,9 @@ class LoginWindow:
     
     def _toggle_senha(self):
         """Alterna visibilidade da senha."""
+        # Garantir que as variáveis de controle foram inicializadas
+        assert self.var_mostrar_senha is not None
+        assert hasattr(self, 'entry_senha')
         if self.var_mostrar_senha.get():
             self.entry_senha.configure(show="")
         else:
@@ -237,6 +243,11 @@ class LoginWindow:
     
     def _fazer_login(self):
         """Processa tentativa de login."""
+        # Garantir que variáveis de formulário e janela foram inicializadas
+        assert self.var_username is not None
+        assert self.var_senha is not None
+        assert self.janela is not None
+
         username = self.var_username.get().strip()
         senha = self.var_senha.get()
         
@@ -288,11 +299,12 @@ class LoginWindow:
         """Processa login bem-sucedido."""
         if self.on_success and self.usuario:
             self.on_success(self.usuario)
-        
+        assert self.janela is not None
         self.janela.destroy()
     
     def _solicitar_troca_senha(self, usuario: Usuario):
         """Abre janela para trocar senha no primeiro acesso."""
+        assert self.janela is not None
         self.janela.withdraw()  # Esconde janela de login
         
         troca = TrocaSenhaWindow(
@@ -305,6 +317,7 @@ class LoginWindow:
             self._login_sucesso()
         else:
             # Usuário cancelou, mostrar login novamente
+            assert self.janela is not None
             self.janela.deiconify()
             self.usuario = None
             UsuarioLogado.limpar()
@@ -313,7 +326,8 @@ class LoginWindow:
     def _on_fechar(self):
         """Handler para fechamento da janela."""
         self.usuario = None
-        self.janela.destroy()
+        if self.janela is not None:
+            self.janela.destroy()
 
 
 class TrocaSenhaWindow:

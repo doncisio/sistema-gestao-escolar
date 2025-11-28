@@ -16,13 +16,16 @@ conn = mysql.connector.connect(
 c = conn.cursor()
 
 c.execute('SELECT COUNT(*) FROM bncc_habilidades')
-print(f'Total habilidades: {c.fetchone()[0]}')
+r = c.fetchone()
+print(f'Total habilidades: {r[0] if r and r[0] is not None else 0}')
 
 c.execute('SELECT COUNT(*) FROM bncc_prerequisitos')
-print(f'Total pré-requisitos: {c.fetchone()[0]}')
+r = c.fetchone()
+print(f'Total pré-requisitos: {r[0] if r and r[0] is not None else 0}')
 
 c.execute('SELECT COUNT(*) FROM bncc_habilidades WHERE conhecimento_previo IS NOT NULL AND conhecimento_previo != ""')
-print(f'Habilidades com conhecimento_previo preenchido: {c.fetchone()[0]}')
+r = c.fetchone()
+print(f'Habilidades com conhecimento_previo preenchido: {r[0] if r and r[0] is not None else 0}')
 
 c.execute('''
     SELECT etapa_sigla, componente_codigo, COUNT(*) as cnt 
@@ -37,7 +40,8 @@ for row in c.fetchall():
 c.execute('''
     SELECT COUNT(*) FROM bncc_prerequisitos WHERE prereq_bncc_id IS NOT NULL
 ''')
-print(f'\nPré-requisitos com ID resolvido: {c.fetchone()[0]}')
+r = c.fetchone()
+print(f'\nPré-requisitos com ID resolvido: {r[0] if r and r[0] is not None else 0}')
 
 conn.close()
 print('\n✓ Verificação concluída.')

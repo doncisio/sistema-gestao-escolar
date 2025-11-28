@@ -159,7 +159,12 @@ def main():
     # Contar permissões
     try:
         cursor.execute("SELECT COUNT(*) FROM permissoes")
-        total_permissoes = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        if result:
+            # result is typically a sequence like (count,)
+            total_permissoes = result[0]
+        else:
+            total_permissoes = 0
         print(f"\n📋 Total de permissões cadastradas: {total_permissoes}")
         
         cursor.execute("""
@@ -169,7 +174,10 @@ def main():
         """)
         print("\n📋 Permissões por perfil:")
         for row in cursor.fetchall():
-            print(f"   • {row[0]}: {row[1]} permissões")
+            # row can be a sequence; format accordingly
+            nome_perfil = row[0] if isinstance(row, (list, tuple)) else row.get('perfil')
+            quantidade = row[1] if isinstance(row, (list, tuple)) else row.get('COUNT(*)')
+            print(f"   • {nome_perfil}: {quantidade} permissões")
     except Exception as e:
         print(f"⚠️  Não foi possível contar permissões: {e}")
     

@@ -349,180 +349,180 @@ class ButtonFactory:
                 font=menu_font
             )
         
-        # Adicionar os bimestres - Anos Iniciais (1º ao 5º ano)
-        notas_menu.add_separator()
-        notas_menu.add_command(
-            label="1º bimestre",
-            command=lambda: self._nota_bimestre("1º bimestre"),
-            font=menu_font
-        )
-        notas_menu.add_command(
-            label="2º bimestre",
-            command=lambda: self._nota_bimestre("2º bimestre"),
-            font=menu_font
-        )
-        notas_menu.add_command(
-            label="3º bimestre",
-            command=lambda: self._nota_bimestre("3º bimestre"),
-            font=menu_font
-        )
-        notas_menu.add_command(
-            label="4º bimestre",
-            command=lambda: self._nota_bimestre("4º bimestre"),
-            font=menu_font
-        )
-        
-        # Adicionar os bimestres - Anos Finais (6º ao 9º ano)
-        notas_menu.add_separator()
-        notas_menu.add_command(
-            label="1º bimestre (6º ao 9º ano)",
-            command=lambda: self._nota_bimestre2("1º bimestre"),
-            font=menu_font
-        )
-        notas_menu.add_command(
-            label="2º bimestre (6º ao 9º ano)",
-            command=lambda: self._nota_bimestre2("2º bimestre"),
-            font=menu_font
-        )
-        notas_menu.add_command(
-            label="3º bimestre (6º ao 9º ano)",
-            command=lambda: self._nota_bimestre2("3º bimestre"),
-            font=menu_font
-        )
-        notas_menu.add_command(
-            label="4º bimestre (6º ao 9º ano)",
-            command=lambda: self._nota_bimestre2("4º bimestre"),
-            font=menu_font
-        )
-        
-        notas_menu.add_separator()
-        notas_menu.add_command(
-            label="Relatório Avançado",
-            command=lambda: self._abrir_relatorio_avancado(),
-            font=menu_font
-        )
-        
-        # Submenu: Relatórios com Assinatura
-        notas_menu.add_separator()
-        relatorios_assinatura_menu = Menu(notas_menu, tearoff=0, font=menu_font)
-        relatorios_assinatura_menu.add_command(
-            label="1º bimestre",
-            command=lambda: self._nota_bimestre_com_assinatura("1º bimestre"),
-            font=menu_font
-        )
-        relatorios_assinatura_menu.add_command(
-            label="2º bimestre",
-            command=lambda: self._nota_bimestre_com_assinatura("2º bimestre"),
-            font=menu_font
-        )
-        relatorios_assinatura_menu.add_command(
-            label="3º bimestre",
-            command=lambda: self._nota_bimestre_com_assinatura("3º bimestre"),
-            font=menu_font
-        )
-        relatorios_assinatura_menu.add_command(
-            label="4º bimestre",
-            command=lambda: self._nota_bimestre_com_assinatura("4º bimestre"),
-            font=menu_font
-        )
-        relatorios_assinatura_menu.add_separator()
-        relatorios_assinatura_menu.add_command(
-            label="1º bimestre (6º ao 9º ano)",
-            command=lambda: self._nota_bimestre2_com_assinatura("1º bimestre"),
-            font=menu_font
-        )
-        relatorios_assinatura_menu.add_command(
-            label="2º bimestre (6º ao 9º ano)",
-            command=lambda: self._nota_bimestre2_com_assinatura("2º bimestre"),
-            font=menu_font
-        )
-        relatorios_assinatura_menu.add_command(
-            label="3º bimestre (6º ao 9º ano)",
-            command=lambda: self._nota_bimestre2_com_assinatura("3º bimestre"),
-            font=menu_font
-        )
-        relatorios_assinatura_menu.add_command(
-            label="4º bimestre (6º ao 9º ano)",
-            command=lambda: self._nota_bimestre2_com_assinatura("4º bimestre"),
-            font=menu_font
-        )
-        relatorios_assinatura_menu.add_separator()
-        relatorios_assinatura_menu.add_command(
-            label="Relatório Avançado",
-            command=lambda: self._abrir_relatorio_avancado_com_assinatura(),
-            font=menu_font
-        )
-        notas_menu.add_cascade(
-            label="Relatórios com Assinatura",
-            menu=relatorios_assinatura_menu,
-            font=menu_font
-        )
-        
-        notas_menu.add_separator()
-        notas_menu.add_command(
-            label="Ata Geral",
-            command=lambda: self._abrir_interface_ata(),
-            font=menu_font
-        )
-        
-        notas_menu.add_separator()
-        
-        # Submenu: Relatórios de Pendências
-        pendencias_menu = Menu(notas_menu, tearoff=0, font=menu_font)
-        pendencias_menu.add_command(
-            label="1º bimestre",
-            command=lambda: self._gerar_pendencias_em_bg("1º bimestre", "iniciais"),
-            font=menu_font
-        )
-        pendencias_menu.add_command(
-            label="2º bimestre",
-            command=lambda: self._gerar_pendencias_em_bg("2º bimestre", "iniciais"),
-            font=menu_font
-        )
-        pendencias_menu.add_command(
-            label="3º bimestre",
-            command=lambda: self._gerar_pendencias_em_bg("3º bimestre", "iniciais"),
-            font=menu_font
-        )
-        pendencias_menu.add_command(
-            label="4º bimestre",
-            command=lambda: self._gerar_pendencias_em_bg("4º bimestre", "iniciais"),
-            font=menu_font
-        )
-        pendencias_menu.add_separator()
-        pendencias_menu.add_command(
-            label="1º bimestre (6º ao 9º ano)",
-            command=lambda: self._gerar_pendencias_em_bg("1º bimestre", "finais"),
-            font=menu_font
-        )
-        pendencias_menu.add_command(
-            label="2º bimestre (6º ao 9º ano)",
-            command=lambda: self._gerar_pendencias_em_bg("2º bimestre", "finais"),
-            font=menu_font
-        )
-        pendencias_menu.add_command(
-            label="3º bimestre (6º ao 9º ano)",
-            command=lambda: self._gerar_pendencias_em_bg("3º bimestre", "finais"),
-            font=menu_font
-        )
-        pendencias_menu.add_command(
-            label="4º bimestre (6º ao 9º ano)",
-            command=lambda: self._gerar_pendencias_em_bg("4º bimestre", "finais"),
-            font=menu_font
-        )
-        pendencias_menu.add_separator()
-        pendencias_menu.add_command(
-            label="Abrir interface",
-            command=lambda: self._abrir_relatorio_pendencias(),
-            font=menu_font
-        )
-        notas_menu.add_cascade(
-            label="Relatórios de Pendências",
-            menu=pendencias_menu,
-            font=menu_font
-        )
-        
-        menu_bar.add_cascade(label="Gerenciamento de Notas", menu=notas_menu, font=menu_font)
+            # Adicionar os bimestres - Anos Iniciais (1º ao 5º ano)
+            notas_menu.add_separator()
+            notas_menu.add_command(
+                label="1º bimestre",
+                command=lambda: self._nota_bimestre("1º bimestre"),
+                font=menu_font
+            )
+            notas_menu.add_command(
+                label="2º bimestre",
+                command=lambda: self._nota_bimestre("2º bimestre"),
+                font=menu_font
+            )
+            notas_menu.add_command(
+                label="3º bimestre",
+                command=lambda: self._nota_bimestre("3º bimestre"),
+                font=menu_font
+            )
+            notas_menu.add_command(
+                label="4º bimestre",
+                command=lambda: self._nota_bimestre("4º bimestre"),
+                font=menu_font
+            )
+            
+            # Adicionar os bimestres - Anos Finais (6º ao 9º ano)
+            notas_menu.add_separator()
+            notas_menu.add_command(
+                label="1º bimestre (6º ao 9º ano)",
+                command=lambda: self._nota_bimestre2("1º bimestre"),
+                font=menu_font
+            )
+            notas_menu.add_command(
+                label="2º bimestre (6º ao 9º ano)",
+                command=lambda: self._nota_bimestre2("2º bimestre"),
+                font=menu_font
+            )
+            notas_menu.add_command(
+                label="3º bimestre (6º ao 9º ano)",
+                command=lambda: self._nota_bimestre2("3º bimestre"),
+                font=menu_font
+            )
+            notas_menu.add_command(
+                label="4º bimestre (6º ao 9º ano)",
+                command=lambda: self._nota_bimestre2("4º bimestre"),
+                font=menu_font
+            )
+            
+            notas_menu.add_separator()
+            notas_menu.add_command(
+                label="Relatório Avançado",
+                command=lambda: self._abrir_relatorio_avancado(),
+                font=menu_font
+            )
+            
+            # Submenu: Relatórios com Assinatura
+            notas_menu.add_separator()
+            relatorios_assinatura_menu = Menu(notas_menu, tearoff=0, font=menu_font)
+            relatorios_assinatura_menu.add_command(
+                label="1º bimestre",
+                command=lambda: self._nota_bimestre_com_assinatura("1º bimestre"),
+                font=menu_font
+            )
+            relatorios_assinatura_menu.add_command(
+                label="2º bimestre",
+                command=lambda: self._nota_bimestre_com_assinatura("2º bimestre"),
+                font=menu_font
+            )
+            relatorios_assinatura_menu.add_command(
+                label="3º bimestre",
+                command=lambda: self._nota_bimestre_com_assinatura("3º bimestre"),
+                font=menu_font
+            )
+            relatorios_assinatura_menu.add_command(
+                label="4º bimestre",
+                command=lambda: self._nota_bimestre_com_assinatura("4º bimestre"),
+                font=menu_font
+            )
+            relatorios_assinatura_menu.add_separator()
+            relatorios_assinatura_menu.add_command(
+                label="1º bimestre (6º ao 9º ano)",
+                command=lambda: self._nota_bimestre2_com_assinatura("1º bimestre"),
+                font=menu_font
+            )
+            relatorios_assinatura_menu.add_command(
+                label="2º bimestre (6º ao 9º ano)",
+                command=lambda: self._nota_bimestre2_com_assinatura("2º bimestre"),
+                font=menu_font
+            )
+            relatorios_assinatura_menu.add_command(
+                label="3º bimestre (6º ao 9º ano)",
+                command=lambda: self._nota_bimestre2_com_assinatura("3º bimestre"),
+                font=menu_font
+            )
+            relatorios_assinatura_menu.add_command(
+                label="4º bimestre (6º ao 9º ano)",
+                command=lambda: self._nota_bimestre2_com_assinatura("4º bimestre"),
+                font=menu_font
+            )
+            relatorios_assinatura_menu.add_separator()
+            relatorios_assinatura_menu.add_command(
+                label="Relatório Avançado",
+                command=lambda: self._abrir_relatorio_avancado_com_assinatura(),
+                font=menu_font
+            )
+            notas_menu.add_cascade(
+                label="Relatórios com Assinatura",
+                menu=relatorios_assinatura_menu,
+                font=menu_font
+            )
+            
+            notas_menu.add_separator()
+            notas_menu.add_command(
+                label="Ata Geral",
+                command=lambda: self._abrir_interface_ata(),
+                font=menu_font
+            )
+            
+            notas_menu.add_separator()
+            
+            # Submenu: Relatórios de Pendências
+            pendencias_menu = Menu(notas_menu, tearoff=0, font=menu_font)
+            pendencias_menu.add_command(
+                label="1º bimestre",
+                command=lambda: self._gerar_pendencias_em_bg("1º bimestre", "iniciais"),
+                font=menu_font
+            )
+            pendencias_menu.add_command(
+                label="2º bimestre",
+                command=lambda: self._gerar_pendencias_em_bg("2º bimestre", "iniciais"),
+                font=menu_font
+            )
+            pendencias_menu.add_command(
+                label="3º bimestre",
+                command=lambda: self._gerar_pendencias_em_bg("3º bimestre", "iniciais"),
+                font=menu_font
+            )
+            pendencias_menu.add_command(
+                label="4º bimestre",
+                command=lambda: self._gerar_pendencias_em_bg("4º bimestre", "iniciais"),
+                font=menu_font
+            )
+            pendencias_menu.add_separator()
+            pendencias_menu.add_command(
+                label="1º bimestre (6º ao 9º ano)",
+                command=lambda: self._gerar_pendencias_em_bg("1º bimestre", "finais"),
+                font=menu_font
+            )
+            pendencias_menu.add_command(
+                label="2º bimestre (6º ao 9º ano)",
+                command=lambda: self._gerar_pendencias_em_bg("2º bimestre", "finais"),
+                font=menu_font
+            )
+            pendencias_menu.add_command(
+                label="3º bimestre (6º ao 9º ano)",
+                command=lambda: self._gerar_pendencias_em_bg("3º bimestre", "finais"),
+                font=menu_font
+            )
+            pendencias_menu.add_command(
+                label="4º bimestre (6º ao 9º ano)",
+                command=lambda: self._gerar_pendencias_em_bg("4º bimestre", "finais"),
+                font=menu_font
+            )
+            pendencias_menu.add_separator()
+            pendencias_menu.add_command(
+                label="Abrir interface",
+                command=lambda: self._abrir_relatorio_pendencias(),
+                font=menu_font
+            )
+            notas_menu.add_cascade(
+                label="Relatórios de Pendências",
+                menu=pendencias_menu,
+                font=menu_font
+            )
+            
+            menu_bar.add_cascade(label="Gerenciamento de Notas", menu=notas_menu, font=menu_font)
         
         # ========== MENU 3: SERVIÇOS ==========
         servicos_menu = Menu(menu_bar, tearoff=0, font=menu_font)
@@ -708,8 +708,16 @@ class ButtonFactory:
     def _abrir_troca_senha(self):
         """Abre janela para trocar senha."""
         try:
-            from ui.login import abrir_troca_senha
-            abrir_troca_senha(self.janela)
+            from ui.login import TrocaSenhaWindow
+            from auth.usuario_logado import UsuarioLogado
+
+            usuario = UsuarioLogado.get_usuario()
+            if not usuario:
+                messagebox.showwarning("Atenção", "Nenhum usuário logado para trocar senha.")
+                return
+
+            # abrir janela de troca de senha para o usuário atual
+            TrocaSenhaWindow(self.janela, usuario)
         except Exception as e:
             logger.exception(f"Erro ao abrir troca de senha: {e}")
             messagebox.showerror("Erro", f"Erro ao abrir troca de senha: {e}")
@@ -735,8 +743,12 @@ class ButtonFactory:
             )
             
             if resposta:
-                # Fazer logout
-                AuthService.logout()
+                # Fazer logout (registrar com usuário atual)
+                from auth.usuario_logado import UsuarioLogado
+                usuario = UsuarioLogado.get_usuario()
+                if usuario:
+                    AuthService.logout(usuario)
+                UsuarioLogado.limpar()
                 
                 # Fechar janela principal
                 self.janela.quit()

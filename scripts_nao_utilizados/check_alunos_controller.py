@@ -1,7 +1,19 @@
+import os
+import sys
 from config_logs import get_logger
 logger = get_logger(__name__)
-from controllers.aluno_controller import AlunoController
-from controllers.frequencia_controller import FrequenciaController
+
+# Garantir que a raiz do projeto esteja no `sys.path` para resolver imports locais
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# As importações abaixo podem não ser resolvidas pelo Pylance em scripts fora
+# da raiz do projeto. O comentário `# type: ignore` suprime o aviso de
+# "reportMissingImports" no editor; ao mesmo tempo, o `sys.path` acima
+# permite que a importação funcione em tempo de execução.
+from controllers.aluno_controller import AlunoController  # type: ignore
+from controllers.frequencia_controller import FrequenciaController  # type: ignore
 
 def test_get_alunos_por_turma():
     # Testando o método diretamente da classe AlunoController

@@ -71,7 +71,13 @@ def main():
     try:
         cursor.execute("SELECT COUNT(*) as total FROM usuarios")
         result = cursor.fetchone()
-        total_usuarios = result['total']
+        # Garantir que `result` não é None antes de acessar chave
+        if not result:
+            total_usuarios = 0
+        else:
+            # Informar ao analisador de tipos que `result` é um dict
+            assert isinstance(result, dict)
+            total_usuarios = result['total']
         print(f"\n📊 Usuários existentes: {total_usuarios}")
         
         if total_usuarios > 0:

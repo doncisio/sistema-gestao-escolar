@@ -32,6 +32,8 @@ cursor.execute('''
 row = cursor.fetchone()
 
 if row:
+    # Informar ao analisador de tipos que `row` é um dicionário
+    assert isinstance(row, dict)
     print(f"Código: {row['codigo']}")
     print(f"Descrição ({row['len']} caracteres):")
     print(row['descricao'])

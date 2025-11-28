@@ -56,13 +56,17 @@ def criar_usuario_teste(perfil: str, senha: str):
         from db.connection import get_cursor
         with get_cursor() as cursor:
             cursor.execute("SELECT id FROM usuarios WHERE username = %s", (username,))
-            if cursor.fetchone():
-                print(f"\n⚠️  Usuário '{username}' já existe!")
-                
+            existing = cursor.fetchone()
+            if existing:
+                # obter id do usuário existente
+                user_id = existing['id'] if isinstance(existing, dict) else existing[0]
+                print(f"\n⚠️  Usuário '{username}' já existe! (ID: {user_id})")
+
                 # Perguntar se deseja resetar
                 resposta = input("   Deseja resetar a senha? (s/n): ")
                 if resposta.lower() == 's':
-                    sucesso, msg, _ = AuthService.resetar_senha(username, senha)
+                    # executar reset de senha -- admin_id=0 (script)
+                    sucesso, msg, _ = AuthService.resetar_senha(int(user_id), 0)
                     if sucesso:
                         print(f"✅ Senha resetada com sucesso!")
                         return True

@@ -1,7 +1,33 @@
+import os
+import sys
 from config_logs import get_logger
 logger = get_logger(__name__)
-from utils.db_config import get_db_config
+
+# Garantir que a raiz do projeto esteja em sys.path para que imports locais
+# (como `utils.db_config`) resolvam corretamente tanto em tempo de execução
+# quanto para ferramentas de análise estática quando o script é executado
+# a partir da pasta `scripts_nao_utilizados`.
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# Import protegido: o comentário `# type: ignore` suprime o aviso do
+# Pylance quando ele não consegue resolver o import estático.
+try:
+    from utils.db_config import get_db_config  # type: ignore
+except Exception:
+    # Fallback simples caso o módulo não exista no ambiente de execução
+    def get_db_config():
+        return {
+            'host': os.environ.get('DB_HOST', 'localhost'),
+            'user': os.environ.get('DB_USER', 'root'),
+            'password': os.environ.get('DB_PASSWORD', ''),
+            'database': os.environ.get('DB_NAME', 'gestao'),
+            'port': int(os.environ.get('DB_PORT', 3306)),
+        }
+
 import mysql.connector
+from typing import Any, Dict, Optional
 
 def count_students():
     db_config = get_db_config()
@@ -23,9 +49,13 @@ def count_students():
             WHERE t.id = %s
         ''', (turma_id,))
         turma = cursor.fetchone()
-        if turma:
-            total_alunos_mencionadas += turma['total']
-            logger.info(f"Turma ID={turma['id']}, Série={turma['serie_nome']}, Nome={turma['turma_nome'] or '-'}, Turno={turma['turno']}, Total Alunos={turma['total']}")
+        # cursor.fetchone() com `dictionary=True` deve retornar um dict, mas
+        # verificamos o tipo explicitamente para suprimir avisos do Pylance
+        # e evitar erros caso a API retorne outro formato.
+        if turma and isinstance(turma, dict):
+            total = int(turma.get('total') or 0)
+            total_alunos_mencionadas += total
+            logger.info(f"Turma ID={turma.get('id')}, Série={turma.get('serie_nome')}, Nome={turma.get('turma_nome') or '-'}, Turno={turma.get('turno')}, Total Alunos={total}")
     
     logger.info(f"\nTotal de alunos nas turmas mencionadas: {total_alunos_mencionadas}")
 
@@ -46,16 +76,19 @@ def count_students():
     
     total_geral = 0
     for turma in turmas:
-        total_alunos = turma['total']
+        if not isinstance(turma, dict):
+            continue
+        total_alunos = int(turma.get('total') or 0)
         total_geral += total_alunos
-        logger.info(f"Turma ID={turma['id']}, Série={turma['serie_nome']}, Nome={turma['turma_nome'] or '-'}, Turno={turma['turno']}, Total Alunos={total_alunos}")
+        logger.info(f"Turma ID={turma.get('id')}, Série={turma.get('serie_nome')}, Nome={turma.get('turma_nome') or '-'}, Turno={turma.get('turno')}, Total Alunos={total_alunos}")
     
     logger.info(f"\nTotal de alunos em todas as turmas com matrícula ativa: {total_geral}")
     
     # Verificar total geral de alunos ativos
     cursor.execute("SELECT COUNT(*) as total FROM matriculas WHERE status = 'Ativo'")
     result = cursor.fetchone()
-    logger.info(f"Total geral de alunos ativos de acordo com a tabela de matrículas: {result['total']}")
+    total_ativos = int(result.get('total') or 0) if isinstance(result, dict) else 0
+    logger.info(f"Total geral de alunos ativos de acordo com a tabela de matrículas: {total_ativos}")
     
     cursor.close()
     conn.close()

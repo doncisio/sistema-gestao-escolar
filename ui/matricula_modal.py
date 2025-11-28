@@ -282,6 +282,11 @@ class MatriculaModal:
         """Carrega turmas da série selecionada."""
         turmas = []
         try:
+            # Garantir para o analisador de tipos que as variáveis foram inicializadas
+            assert self.serie_var is not None
+            assert self.turma_var is not None
+            assert self.ano_letivo_id is not None, "ano_letivo_id não definido"
+
             serie_nome = self.serie_var.get()
             if not serie_nome:
                 return
@@ -336,6 +341,12 @@ class MatriculaModal:
     def _preencher_matricula_existente(self):
         """Preenche os campos se já existir matrícula para o aluno."""
         try:
+            # Garantir que variáveis essenciais foram inicializadas
+            assert self.ano_letivo_id is not None, "ano_letivo_id não definido"
+            assert self.serie_var is not None
+            assert self.turma_var is not None
+            assert self.data_matricula_var is not None
+            assert self.status_var is not None
             from services.matricula_service import obter_matricula_aluno
             from datetime import datetime
             
@@ -400,6 +411,11 @@ class MatriculaModal:
         """Seleciona primeira série que tenha turmas cadastradas."""
         try:
             from db.connection import get_connection
+
+            # Garantir que a combobox, variáveis e o ano letivo foram inicializados
+            assert hasattr(self, 'cb_serie')
+            assert self.serie_var is not None
+            assert self.ano_letivo_id is not None, "ano_letivo_id não definido"
             
             # Percorrer séries até encontrar uma com turmas
             for serie_nome in self.cb_serie['values']:
@@ -439,6 +455,12 @@ class MatriculaModal:
     def _confirmar_matricula(self):
         """Confirma e executa a matrícula."""
         try:
+            # Garantir que variáveis de formulário foram inicializadas
+            assert self.serie_var is not None
+            assert self.turma_var is not None
+            assert self.data_matricula_var is not None
+            assert self.status_var is not None
+            assert hasattr(self, 'turmas_map')
             from datetime import datetime
             
             # Validar campos

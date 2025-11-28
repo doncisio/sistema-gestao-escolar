@@ -2,7 +2,7 @@
 """Cleanup .bak files after tests.
 
 Usage:
-  python .\scripts\cleanup_bak_after_tests.py [--dry-run] [--root PATH]
+    python ./scripts/cleanup_bak_after_tests.py [--dry-run] [--root PATH]
 
 Behavior:
 - Runs `pytest -q` in the repository root (or `--root` if provided).
