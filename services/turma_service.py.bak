@@ -56,10 +56,13 @@ def listar_turmas(
                     t.id,
                     t.nome,
                     t.turno,
+                    t.capacidade_maxima,
                     t.ano_letivo_id,
                     t.serie_id,
                     t.escola_id,
+                    t.professor_id,
                     s.nome as serie_nome,
+                    s.ciclo as serie_ciclo,
                     al.ano_letivo as ano_letivo,
                     COALESCE(COUNT(DISTINCT m.id), 0) as total_alunos
                 FROM turmas t
@@ -100,10 +103,10 @@ def listar_turmas(
                 params.extend(filtro_perfil_params)
             
             query += """
-                GROUP BY t.id, t.nome, t.turno,
-                         t.ano_letivo_id, t.serie_id, t.escola_id,
-                         s.nome, al.ano_letivo
-                ORDER BY s.nome, t.turno, t.nome
+                GROUP BY t.id, t.nome, t.turno, t.capacidade_maxima, 
+                         t.ano_letivo_id, t.serie_id, t.escola_id, t.professor_id,
+                         s.nome, s.ciclo, al.ano_letivo
+                ORDER BY s.ciclo, s.nome, t.turno, t.nome
             """
             
             cursor.execute(query, tuple(params))
@@ -136,20 +139,25 @@ def obter_turma_por_id(turma_id: int) -> Optional[Dict[str, Any]]:
                     t.id,
                     t.nome,
                     t.turno,
+                    t.capacidade_maxima,
                     t.ano_letivo_id,
                     t.serie_id,
                     t.escola_id,
+                    t.professor_id,
                     s.nome as serie_nome,
+                    s.ciclo as serie_ciclo,
                     al.ano_letivo as ano_letivo,
+                    f.nome as professor_nome,
                     COALESCE(COUNT(DISTINCT m.id), 0) as total_alunos
                 FROM turmas t
                 LEFT JOIN serie s ON t.serie_id = s.id
                 LEFT JOIN anosletivos al ON t.ano_letivo_id = al.id
+                LEFT JOIN Funcionarios f ON t.professor_id = f.id
                 LEFT JOIN Matriculas m ON m.turma_id = t.id AND m.status = 'Ativo'
                 WHERE t.id = %s
-                GROUP BY t.id, t.nome, t.turno,
-                         t.ano_letivo_id, t.serie_id, t.escola_id,
-                         s.nome, al.ano_letivo
+                GROUP BY t.id, t.nome, t.turno, t.capacidade_maxima, 
+                         t.ano_letivo_id, t.serie_id, t.escola_id, t.professor_id,
+                         s.nome, s.ciclo, al.ano_letivo, f.nome
             """, (turma_id,))
             
             turma = cursor.fetchone()
@@ -198,9 +206,6 @@ def verificar_capacidade_turma(turma_id: int) -> Tuple[bool, int, int]:
     """
     Verifica se a turma tem vagas disponíveis.
     
-    NOTA: A tabela turmas não tem coluna capacidade_maxima.
-    Esta função retorna sempre True (vaga disponível) e capacidade ilimitada.
-    
     Args:
         turma_id: ID da turma
     
@@ -215,12 +220,11 @@ def verificar_capacidade_turma(turma_id: int) -> Tuple[bool, int, int]:
             return False, 0, 0
         
         total_alunos = turma.get('total_alunos', 0)
-        # A tabela turmas não tem coluna capacidade_maxima
-        # Consideramos capacidade ilimitada (sempre tem vaga)
-        capacidade_maxima = 999
-        tem_vaga = True
+        capacidade_maxima = turma.get('capacidade_maxima', 0)
         
-        logger.debug(f"Capacidade turma {turma_id}: {total_alunos} alunos (capacidade ilimitada)")
+        tem_vaga = total_alunos < capacidade_maxima
+        
+        logger.debug(f"Capacidade turma {turma_id}: {total_alunos}/{capacidade_maxima}, vaga={tem_vaga}")
         
         return tem_vaga, total_alunos, capacidade_maxima
         
@@ -232,21 +236,23 @@ def verificar_capacidade_turma(turma_id: int) -> Tuple[bool, int, int]:
 def criar_turma(
     nome: str,
     turno: str,
+    capacidade_maxima: int,
     ano_letivo_id: int,
     serie_id: int,
     escola_id: int,
-    capacidade_maxima: int = 999,  # Ignorado - coluna não existe
+    professor_id: Optional[int] = None
 ) -> Tuple[bool, str, Optional[int]]:
     """
     Cria uma nova turma.
     
     Args:
         nome: Nome da turma (ex: "A", "B", "Turma 1")
-        turno: Turno ('Matutino', 'Vespertino', 'Noturno', 'MAT', 'VESP')
+        turno: Turno ('Matutino', 'Vespertino', 'Noturno')
+        capacidade_maxima: Capacidade máxima de alunos
         ano_letivo_id: ID do ano letivo
         serie_id: ID da série
         escola_id: ID da escola
-        capacidade_maxima: Ignorado (coluna não existe na tabela)
+        professor_id: ID do professor responsável (opcional)
     
     Returns:
         Tupla (sucesso, mensagem, id_turma)
@@ -256,23 +262,23 @@ def criar_turma(
         if not nome or not nome.strip():
             return False, "Nome da turma é obrigatório", None
         
-        valid_turnos = ['Matutino', 'Vespertino', 'Noturno', 'MAT', 'VESP', 'NOT']
-        if turno not in valid_turnos:
+        if turno not in ['Matutino', 'Vespertino', 'Noturno']:
             return False, f"Turno inválido: {turno}", None
+        
+        if capacidade_maxima <= 0:
+            return False, "Capacidade máxima deve ser maior que zero", None
         
         # Verificar se já existe turma com mesmo nome, série e turno
         turmas_existentes = listar_turmas(
             ano_letivo_id=ano_letivo_id,
             serie_id=serie_id,
             turno=turno,
-            escola_id=escola_id,
-            aplicar_filtro_perfil=False
+            escola_id=escola_id
         )
         
-        if turmas_existentes:
-            for turma in turmas_existentes:
-                if turma['nome'] and turma['nome'].strip().upper() == nome.strip().upper():
-                    return False, f"Já existe uma turma '{nome}' nesta série e turno", None
+        for turma in turmas_existentes:
+            if turma['nome'].strip().upper() == nome.strip().upper():
+                return False, f"Já existe uma turma '{nome}' nesta série e turno", None
         
         # Criar turma
         with get_connection() as conn:
@@ -280,9 +286,9 @@ def criar_turma(
             
             cursor.execute("""
                 INSERT INTO turmas 
-                (nome, turno, ano_letivo_id, serie_id, escola_id)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (nome.strip(), turno, ano_letivo_id, serie_id, escola_id))
+                (nome, turno, capacidade_maxima, ano_letivo_id, serie_id, escola_id, professor_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (nome.strip(), turno, capacidade_maxima, ano_letivo_id, serie_id, escola_id, professor_id))
             
             conn.commit()
             turma_id = cursor.lastrowid
@@ -299,7 +305,9 @@ def criar_turma(
 def atualizar_turma(
     turma_id: int,
     nome: Optional[str] = None,
-    turno: Optional[str] = None
+    turno: Optional[str] = None,
+    capacidade_maxima: Optional[int] = None,
+    professor_id: Optional[int] = None
 ) -> Tuple[bool, str]:
     """
     Atualiza dados de uma turma existente.
@@ -308,6 +316,8 @@ def atualizar_turma(
         turma_id: ID da turma
         nome: Novo nome (None = manter)
         turno: Novo turno (None = manter)
+        capacidade_maxima: Nova capacidade (None = manter)
+        professor_id: Novo professor (None = manter, -1 = remover)
     
     Returns:
         Tupla (sucesso, mensagem)
@@ -319,9 +329,17 @@ def atualizar_turma(
             return False, f"Turma {turma_id} não encontrada"
         
         # Validações
-        valid_turnos = ['Matutino', 'Vespertino', 'Noturno', 'MAT', 'VESP', 'NOT']
-        if turno and turno not in valid_turnos:
+        if turno and turno not in ['Matutino', 'Vespertino', 'Noturno']:
             return False, f"Turno inválido: {turno}"
+        
+        if capacidade_maxima is not None and capacidade_maxima <= 0:
+            return False, "Capacidade máxima deve ser maior que zero"
+        
+        # Verificar se nova capacidade é menor que total de alunos
+        if capacidade_maxima is not None:
+            total_alunos = turma.get('total_alunos', 0)
+            if capacidade_maxima < total_alunos:
+                return False, f"Capacidade não pode ser menor que o total de alunos ({total_alunos})"
         
         # Construir query de atualização
         campos = []
@@ -334,6 +352,17 @@ def atualizar_turma(
         if turno is not None:
             campos.append("turno = %s")
             valores.append(turno)
+        
+        if capacidade_maxima is not None:
+            campos.append("capacidade_maxima = %s")
+            valores.append(capacidade_maxima)
+        
+        if professor_id is not None:
+            if professor_id == -1:
+                campos.append("professor_id = NULL")
+            else:
+                campos.append("professor_id = %s")
+                valores.append(professor_id)
         
         if not campos:
             return True, "Nenhuma alteração foi solicitada"
@@ -427,9 +456,11 @@ def buscar_turmas(termo: str, ano_letivo_id: Optional[int] = None, aplicar_filtr
                     t.id,
                     t.nome,
                     t.turno,
+                    t.capacidade_maxima,
                     t.ano_letivo_id,
                     t.serie_id,
                     s.nome as serie_nome,
+                    s.ciclo as serie_ciclo,
                     al.ano_letivo as ano_letivo,
                     COALESCE(COUNT(DISTINCT m.id), 0) as total_alunos
                 FROM turmas t
@@ -451,9 +482,9 @@ def buscar_turmas(termo: str, ano_letivo_id: Optional[int] = None, aplicar_filtr
                 params.extend(filtro_perfil_params)
             
             query += """
-                GROUP BY t.id, t.nome, t.turno, 
-                         t.ano_letivo_id, t.serie_id, s.nome, al.ano_letivo
-                ORDER BY s.nome, t.turno, t.nome
+                GROUP BY t.id, t.nome, t.turno, t.capacidade_maxima, 
+                         t.ano_letivo_id, t.serie_id, s.nome, s.ciclo, al.ano_letivo
+                ORDER BY s.ciclo, s.nome, t.turno, t.nome
             """
             
             cursor.execute(query, tuple(params))

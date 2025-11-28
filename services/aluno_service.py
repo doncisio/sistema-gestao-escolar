@@ -342,13 +342,14 @@ def obter_aluno_por_id(aluno_id: int) -> Optional[Dict]:
         return None
 
 
-def buscar_alunos(termo_busca: str, escola_id: int = 60) -> List[Dict]:
+def buscar_alunos(termo_busca: str, escola_id: int = 60, aplicar_filtro_perfil: bool = True) -> List[Dict]:
     """
     Busca alunos por nome, CPF ou matrícula.
     
     Args:
         termo_busca: Termo para buscar (nome parcial, CPF, etc.)
         escola_id: ID da escola (padrão: 60)
+        aplicar_filtro_perfil: Se True, filtra alunos baseado no perfil do usuário
         
     Returns:
         list: Lista de dicionários com dados dos alunos encontrados
@@ -358,10 +359,21 @@ def buscar_alunos(termo_busca: str, escola_id: int = 60) -> List[Dict]:
         return []
     
     try:
+        # Obter filtro de turmas baseado no perfil (se aplicável)
+        filtro_perfil_sql = ""
+        filtro_perfil_params = []
+        
+        if aplicar_filtro_perfil:
+            try:
+                from services.perfil_filter_service import get_sql_filtro_turmas
+                filtro_perfil_sql, filtro_perfil_params = get_sql_filtro_turmas("t")
+            except ImportError:
+                pass  # Módulo não disponível, ignora filtro
+        
         termo_formatado = f"%{termo_busca.strip()}%"
         
         with get_cursor() as cursor:
-            cursor.execute("""
+            query = """
                 SELECT DISTINCT a.id, a.nome, a.data_nascimento, 
                        COALESCE(m.status, 'Sem matrícula') as status,
                        COALESCE(s.nome, 'N/A') as serie
@@ -372,9 +384,18 @@ def buscar_alunos(termo_busca: str, escola_id: int = 60) -> List[Dict]:
                 LEFT JOIN serie s ON t.serie_id = s.id
                 WHERE a.escola_id = %s
                 AND (a.nome LIKE %s OR a.cpf LIKE %s)
-                ORDER BY a.nome
-                LIMIT 50
-            """, (escola_id, termo_formatado, termo_formatado))
+            """
+            
+            params = [escola_id, termo_formatado, termo_formatado]
+            
+            # Aplicar filtro de perfil do usuário (professor vê apenas seus alunos)
+            if filtro_perfil_sql:
+                query += filtro_perfil_sql
+                params.extend(filtro_perfil_params)
+            
+            query += " ORDER BY a.nome LIMIT 50"
+            
+            cursor.execute(query, tuple(params))
             
             resultados = cursor.fetchall()
             
@@ -406,18 +427,30 @@ def buscar_alunos(termo_busca: str, escola_id: int = 60) -> List[Dict]:
         return []
 
 
-def listar_alunos_ativos(escola_id: int = 60, ano_letivo_id: Optional[int] = None) -> List[Dict]:
+def listar_alunos_ativos(escola_id: int = 60, ano_letivo_id: Optional[int] = None, aplicar_filtro_perfil: bool = True) -> List[Dict]:
     """
     Lista todos os alunos com matrícula ativa.
     
     Args:
         escola_id: ID da escola (padrão: 60)
         ano_letivo_id: ID do ano letivo (se None, usa ano atual)
+        aplicar_filtro_perfil: Se True, filtra alunos baseado no perfil do usuário
         
     Returns:
         list: Lista de dicionários com dados dos alunos ativos
     """
     try:
+        # Obter filtro de turmas baseado no perfil (se aplicável)
+        filtro_perfil_sql = ""
+        filtro_perfil_params = []
+        
+        if aplicar_filtro_perfil:
+            try:
+                from services.perfil_filter_service import get_sql_filtro_turmas
+                filtro_perfil_sql, filtro_perfil_params = get_sql_filtro_turmas("t")
+            except ImportError:
+                pass  # Módulo não disponível, ignora filtro
+        
         with get_cursor() as cursor:
             # Obter ano letivo atual se não especificado
             if ano_letivo_id is None:
@@ -429,7 +462,7 @@ def listar_alunos_ativos(escola_id: int = 60, ano_letivo_id: Optional[int] = Non
                     logger.warning("Ano letivo atual não encontrado")
                     return []
             
-            cursor.execute("""
+            query = """
                 SELECT DISTINCT a.id, a.nome, a.data_nascimento, 
                        m.status, s.nome as serie, t.nome as turma
                 FROM alunos a
@@ -439,8 +472,18 @@ def listar_alunos_ativos(escola_id: int = 60, ano_letivo_id: Optional[int] = Non
                 WHERE a.escola_id = %s
                 AND m.ano_letivo_id = %s
                 AND m.status = 'Ativo'
-                ORDER BY a.nome
-            """, (escola_id, ano_letivo_id))
+            """
+            
+            params = [escola_id, ano_letivo_id]
+            
+            # Aplicar filtro de perfil do usuário (professor vê apenas seus alunos)
+            if filtro_perfil_sql:
+                query += filtro_perfil_sql
+                params.extend(filtro_perfil_params)
+            
+            query += " ORDER BY a.nome"
+            
+            cursor.execute(query, tuple(params))
             
             resultados = cursor.fetchall()
             

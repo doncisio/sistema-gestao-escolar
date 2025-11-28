@@ -46,9 +46,17 @@ class Application:
         label_rodape (Optional[Any]): Label adicional no rodapé
     """
     
-    def __init__(self):
-        """Inicializa a aplicação e seus componentes."""
+    def __init__(self, usuario=None):
+        """
+        Inicializa a aplicação e seus componentes.
+        
+        Args:
+            usuario: Usuário logado (opcional, quando sistema de perfis está ativo)
+        """
         logger.debug("Inicializando aplicação...")
+        
+        # Usuário logado (None se perfis desabilitados)
+        self.usuario = usuario
         
         # Estado da aplicação
         self.selected_item: Optional[Any] = None

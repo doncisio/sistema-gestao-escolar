@@ -10,6 +10,8 @@ from tkinter import messagebox
 from PIL import Image, ImageTk
 from typing import Optional, Callable, Dict, Any
 from config_logs import get_logger
+from config import perfis_habilitados
+from auth.decorators import ControleAcesso
 
 logger = get_logger(__name__)
 
@@ -114,6 +116,9 @@ class ButtonFactory:
         """
         Cria os botões principais da aplicação.
         
+        Os botões são criados apenas se o usuário tem permissão para
+        a ação correspondente (quando perfis estão habilitados).
+        
         Returns:
             Frame contendo os botões
         """
@@ -125,77 +130,103 @@ class ButtonFactory:
         for i in range(7):  # 7 colunas para acomodar todos os botões
             botoes_frame.grid_columnconfigure(i, weight=1)
         
-        # Botão Novo Aluno
-        btn_aluno = self._create_button(
-            botoes_frame,
-            text="Novo Aluno",
-            command=self.callbacks.cadastrar_novo_aluno,
-            icon_path='icon/plus.png',
-            bg_color=self.colors['co2']
-        )
-        btn_aluno.grid(row=0, column=0, padx=5, pady=5, sticky=EW)
+        # Controle de acesso para verificar permissões
+        acesso = ControleAcesso()
+        coluna = 0
+        botoes_criados = 0
         
-        # Botão Novo Funcionário
-        btn_funcionario = self._create_button(
-            botoes_frame,
-            text="Novo Funcionário",
-            command=self.callbacks.cadastrar_novo_funcionario,
-            icon_path='icon/video-conference.png',
-            bg_color=self.colors['co3']
-        )
-        btn_funcionario.grid(row=0, column=1, padx=5, pady=5, sticky=EW)
+        # Botão Novo Aluno (requer permissão alunos.criar)
+        if acesso.pode('alunos.criar'):
+            btn_aluno = self._create_button(
+                botoes_frame,
+                text="Novo Aluno",
+                command=self.callbacks.cadastrar_novo_aluno,
+                icon_path='icon/plus.png',
+                bg_color=self.colors['co2']
+            )
+            btn_aluno.grid(row=0, column=coluna, padx=5, pady=5, sticky=EW)
+            coluna += 1
+            botoes_criados += 1
         
-        # Botão Histórico Escolar
-        btn_historico = self._create_button(
-            botoes_frame,
-            text="Histórico Escolar",
-            command=self.callbacks.abrir_historico_escolar,
-            icon_path='icon/notebook.png',
-            bg_color=self.colors['co4']
-        )
-        btn_historico.grid(row=0, column=2, padx=5, pady=5, sticky=EW)
+        # Botão Novo Funcionário (requer permissão funcionarios.criar)
+        if acesso.pode('funcionarios.criar'):
+            btn_funcionario = self._create_button(
+                botoes_frame,
+                text="Novo Funcionário",
+                command=self.callbacks.cadastrar_novo_funcionario,
+                icon_path='icon/video-conference.png',
+                bg_color=self.colors['co3']
+            )
+            btn_funcionario.grid(row=0, column=coluna, padx=5, pady=5, sticky=EW)
+            coluna += 1
+            botoes_criados += 1
         
-        # Botão Administração
-        btn_admin = self._create_button(
-            botoes_frame,
-            text="Administração",
-            command=self.callbacks.abrir_interface_administrativa,
-            icon_path='icon/learning.png',
-            bg_color=self.colors['co5']
-        )
-        btn_admin.grid(row=0, column=3, padx=5, pady=5, sticky=EW)
+        # Botão Histórico Escolar (requer permissão alunos.documentos)
+        if acesso.pode('alunos.documentos'):
+            btn_historico = self._create_button(
+                botoes_frame,
+                text="Histórico Escolar",
+                command=self.callbacks.abrir_historico_escolar,
+                icon_path='icon/notebook.png',
+                bg_color=self.colors['co4']
+            )
+            btn_historico.grid(row=0, column=coluna, padx=5, pady=5, sticky=EW)
+            coluna += 1
+            botoes_criados += 1
         
-        # Botão Backup
-        btn_backup = self._create_button(
-            botoes_frame,
-            text="Backup",
-            command=lambda: self._fazer_backup(),
-            icon_path='icon/book.png',
-            bg_color=self.colors['co6']
-        )
-        btn_backup.grid(row=0, column=4, padx=5, pady=5, sticky=EW)
+        # Botão Administração (requer perfil administrador ou coordenador)
+        if acesso.is_admin_ou_coordenador():
+            btn_admin = self._create_button(
+                botoes_frame,
+                text="Administração",
+                command=self.callbacks.abrir_interface_administrativa,
+                icon_path='icon/learning.png',
+                bg_color=self.colors['co5']
+            )
+            btn_admin.grid(row=0, column=coluna, padx=5, pady=5, sticky=EW)
+            coluna += 1
+            botoes_criados += 1
         
-        # Botão Restaurar
-        btn_restaurar = self._create_button(
-            botoes_frame,
-            text="Restaurar",
-            command=lambda: self._restaurar_backup(),
-            icon_path='icon/update.png',
-            bg_color=self.colors['co9']
-        )
-        btn_restaurar.grid(row=0, column=5, padx=5, pady=5, sticky=EW)
+        # Botão Backup (requer permissão sistema.backup)
+        if acesso.pode('sistema.backup'):
+            btn_backup = self._create_button(
+                botoes_frame,
+                text="Backup",
+                command=lambda: self._fazer_backup(),
+                icon_path='icon/book.png',
+                bg_color=self.colors['co6']
+            )
+            btn_backup.grid(row=0, column=coluna, padx=5, pady=5, sticky=EW)
+            coluna += 1
+            botoes_criados += 1
         
-        # Botão Horários
-        btn_horarios = self._create_button(
-            botoes_frame,
-            text="Horários",
-            command=self.callbacks.abrir_horarios_escolares,
-            icon_path='icon/video-conference.png',
-            bg_color=self.colors['co3']
-        )
-        btn_horarios.grid(row=0, column=6, padx=5, pady=5, sticky=EW)
+        # Botão Restaurar (requer permissão sistema.backup)
+        if acesso.pode('sistema.backup'):
+            btn_restaurar = self._create_button(
+                botoes_frame,
+                text="Restaurar",
+                command=lambda: self._restaurar_backup(),
+                icon_path='icon/update.png',
+                bg_color=self.colors['co9']
+            )
+            btn_restaurar.grid(row=0, column=coluna, padx=5, pady=5, sticky=EW)
+            coluna += 1
+            botoes_criados += 1
         
-        logger.debug("Botões principais criados (7 botões)")
+        # Botão Horários (todos podem visualizar horários)
+        if acesso.pode('turmas.visualizar'):
+            btn_horarios = self._create_button(
+                botoes_frame,
+                text="Horários",
+                command=self.callbacks.abrir_horarios_escolares,
+                icon_path='icon/video-conference.png',
+                bg_color=self.colors['co3']
+            )
+            btn_horarios.grid(row=0, column=coluna, padx=5, pady=5, sticky=EW)
+            coluna += 1
+            botoes_criados += 1
+        
+        logger.debug(f"Botões principais criados ({botoes_criados} botões)")
         return botoes_frame
     
     def _fazer_backup(self):
@@ -218,95 +249,105 @@ class ButtonFactory:
     
     def criar_menu_bar(self) -> Menu:
         """
-        Cria a barra de menus completa da aplicação (restaurado do backup 20/11/2025).
+        Cria a barra de menus completa da aplicação.
+        
+        Os menus e itens são criados baseados nas permissões do usuário
+        quando o sistema de perfis está habilitado.
         
         Returns:
             Menu configurado
         """
         menu_font = ('Ivy', 12)
+        acesso = ControleAcesso()
         
         # Barra de menu principal
         menu_bar = Menu(self.janela)
         
-        # ========== MENU 1: LISTAS ==========
-        listas_menu = Menu(menu_bar, tearoff=0, font=menu_font)
-        listas_menu.add_command(
-            label="Lista Atualizada",
-            command=self.callbacks.lista_atualizada,
-            font=menu_font
-        )
-        listas_menu.add_command(
-            label="Lista Atualizada SEMED",
-            command=self.callbacks.lista_atualizada_semed,
-            font=menu_font
-        )
-        listas_menu.add_command(
-            label="Lista de Reunião",
-            command=self.callbacks.lista_reuniao,
-            font=menu_font
-        )
-        listas_menu.add_command(
-            label="Lista de Notas",
-            command=self.callbacks.lista_notas,
-            font=menu_font
-        )
-        listas_menu.add_command(
-            label="Lista de Frequências",
-            command=self.callbacks.reports.lista_frequencia,
-            font=menu_font
-        )
-        listas_menu.add_separator()
-        listas_menu.add_command(
-            label="Contatos de Responsáveis",
-            command=self.callbacks.relatorio_contatos_responsaveis,
-            font=menu_font
-        )
-        listas_menu.add_command(
-            label="Levantamento de Necessidades",
-            command=self.callbacks.reports.relatorio_levantamento_necessidades,
-            font=menu_font
-        )
-        listas_menu.add_command(
-            label="Lista Alfabética",
-            command=self.callbacks.reports.relatorio_lista_alfabetica,
-            font=menu_font
-        )
-        listas_menu.add_command(
-            label="Alunos com Transtornos",
-            command=self.callbacks.reports.relatorio_alunos_transtornos,
-            font=menu_font
-        )
-        listas_menu.add_separator()
-        listas_menu.add_command(
-            label="Transferências Expedidas",
-            command=self.callbacks.reports.relatorio_lista_transferidos,
-            font=menu_font
-        )
-        listas_menu.add_command(
-            label="Transferências Recebidas",
-            command=self.callbacks.reports.relatorio_lista_matriculados_depois,
-            font=menu_font
-        )
-        listas_menu.add_separator()
-        listas_menu.add_command(
-            label="Termo de Responsabilidade",
-            command=self.callbacks.reports.relatorio_termo_responsabilidade,
-            font=menu_font
-        )
-        menu_bar.add_cascade(label="Listas", menu=listas_menu, font=menu_font)
+        # ========== MENU 1: LISTAS (todos podem ver relatórios) ==========
+        if acesso.pode('relatorios.visualizar'):
+            listas_menu = Menu(menu_bar, tearoff=0, font=menu_font)
+            listas_menu.add_command(
+                label="Lista Atualizada",
+                command=self.callbacks.lista_atualizada,
+                font=menu_font
+            )
+            listas_menu.add_command(
+                label="Lista Atualizada SEMED",
+                command=self.callbacks.lista_atualizada_semed,
+                font=menu_font
+            )
+            listas_menu.add_command(
+                label="Lista de Reunião",
+                command=self.callbacks.lista_reuniao,
+                font=menu_font
+            )
+            listas_menu.add_command(
+                label="Lista de Notas",
+                command=self.callbacks.lista_notas,
+                font=menu_font
+            )
+            listas_menu.add_command(
+                label="Lista de Frequências",
+                command=self.callbacks.reports.lista_frequencia,
+                font=menu_font
+            )
+            listas_menu.add_separator()
+            listas_menu.add_command(
+                label="Contatos de Responsáveis",
+                command=self.callbacks.relatorio_contatos_responsaveis,
+                font=menu_font
+            )
+            listas_menu.add_command(
+                label="Levantamento de Necessidades",
+                command=self.callbacks.reports.relatorio_levantamento_necessidades,
+                font=menu_font
+            )
+            listas_menu.add_command(
+                label="Lista Alfabética",
+                command=self.callbacks.reports.relatorio_lista_alfabetica,
+                font=menu_font
+            )
+            listas_menu.add_command(
+                label="Alunos com Transtornos",
+                command=self.callbacks.reports.relatorio_alunos_transtornos,
+                font=menu_font
+            )
+            listas_menu.add_separator()
+            listas_menu.add_command(
+                label="Transferências Expedidas",
+                command=self.callbacks.reports.relatorio_lista_transferidos,
+                font=menu_font
+            )
+            listas_menu.add_command(
+                label="Transferências Recebidas",
+                command=self.callbacks.reports.relatorio_lista_matriculados_depois,
+                font=menu_font
+            )
+            listas_menu.add_separator()
+            listas_menu.add_command(
+                label="Termo de Responsabilidade",
+                command=self.callbacks.reports.relatorio_termo_responsabilidade,
+                font=menu_font
+            )
+            menu_bar.add_cascade(label="Listas", menu=listas_menu, font=menu_font)
         
-        # ========== MENU 2: GERENCIAMENTO DE NOTAS ==========
-        notas_menu = Menu(menu_bar, tearoff=0, font=menu_font)
-        notas_menu.add_command(
-            label="Cadastrar/Editar Notas",
-            command=self.callbacks.abrir_cadastro_notas,
-            font=menu_font
-        )
-        notas_menu.add_command(
-            label="Relatório Estatístico de Notas",
-            command=lambda: self._abrir_relatorio_analise(),
-            font=menu_font
-        )
+        # ========== MENU 2: GERENCIAMENTO DE NOTAS (requer permissão notas) ==========
+        if acesso.pode_alguma(['notas.visualizar', 'notas.lancar']):
+            notas_menu = Menu(menu_bar, tearoff=0, font=menu_font)
+            
+            # Cadastrar/Editar Notas só aparece se pode lançar notas
+            if acesso.pode('notas.lancar'):
+                notas_menu.add_command(
+                    label="Cadastrar/Editar Notas",
+                    command=self.callbacks.abrir_cadastro_notas,
+                    font=menu_font
+                )
+            
+            notas_menu.add_command(
+                label="Relatório Estatístico de Notas",
+                command=lambda: self._abrir_relatorio_analise(),
+                font=menu_font
+            )
         
         # Adicionar os bimestres - Anos Iniciais (1º ao 5º ano)
         notas_menu.add_separator()
@@ -486,87 +527,114 @@ class ButtonFactory:
         # ========== MENU 3: SERVIÇOS ==========
         servicos_menu = Menu(menu_bar, tearoff=0, font=menu_font)
         
-        # Dashboard
-        servicos_menu.add_command(
-            label="📊 Ver Dashboard",
-            command=lambda: self._mostrar_dashboard(),
-            font=menu_font
-        )
-        servicos_menu.add_separator()
+        # Dashboard (todos podem ver)
+        if acesso.pode('dashboard.completo') or acesso.pode('dashboard.pedagogico') or acesso.pode('dashboard.proprio'):
+            servicos_menu.add_command(
+                label="📊 Ver Dashboard",
+                command=lambda: self._mostrar_dashboard(),
+                font=menu_font
+            )
+            servicos_menu.add_separator()
         
-        # Submenu: Movimento Mensal
-        movimento_mensal_menu = Menu(servicos_menu, tearoff=0, font=menu_font)
-        movimento_mensal_menu.add_command(
-            label="Gerar Relatório",
-            command=lambda: self._selecionar_mes_movimento(),
-            font=menu_font
-        )
-        servicos_menu.add_cascade(
-            label="Movimento Mensal",
-            menu=movimento_mensal_menu,
-            font=menu_font
-        )
+        # Submenu: Movimento Mensal (apenas admin/coordenador)
+        if acesso.is_admin_ou_coordenador():
+            movimento_mensal_menu = Menu(servicos_menu, tearoff=0, font=menu_font)
+            movimento_mensal_menu.add_command(
+                label="Gerar Relatório",
+                command=lambda: self._selecionar_mes_movimento(),
+                font=menu_font
+            )
+            servicos_menu.add_cascade(
+                label="Movimento Mensal",
+                menu=movimento_mensal_menu,
+                font=menu_font
+            )
         
-        servicos_menu.add_command(
-            label="Solicitação de Professores e Coordenadores",
-            command=self.callbacks.abrir_solicitacao_professores,
-            font=menu_font
-        )
-        servicos_menu.add_command(
-            label="Gerenciador de Documentos de Funcionários",
-            command=self.callbacks.abrir_gerenciador_documentos,
-            font=menu_font
-        )
-        servicos_menu.add_command(
-            label="Gerenciador de Documentos do Sistema",
-            command=lambda: self._abrir_gerenciador_documentos_sistema(),
-            font=menu_font
-        )
-        servicos_menu.add_command(
-            label="Declaração de Comparecimento (Responsável)",
-            command=self.callbacks.declaracao_comparecimento,
-            font=menu_font
-        )
-        servicos_menu.add_command(
-            label="Crachás Alunos/Responsáveis",
-            command=lambda: self._abrir_crachas(),
-            font=menu_font
-        )
-        servicos_menu.add_command(
-            label="Importar Notas do GEDUC (HTML → Excel)",
-            command=lambda: self._abrir_importacao_notas_html(),
-            font=menu_font
-        )
-        servicos_menu.add_separator()
-        servicos_menu.add_command(
-            label="🔄 Transição de Ano Letivo",
-            command=self.callbacks.abrir_transicao_ano_letivo,
-            font=menu_font
-        )
+        # Solicitação de Professores (apenas admin)
+        if acesso.is_admin():
+            servicos_menu.add_command(
+                label="Solicitação de Professores e Coordenadores",
+                command=self.callbacks.abrir_solicitacao_professores,
+                font=menu_font
+            )
+        
+        # Gerenciador de Documentos de Funcionários (admin/coordenador)
+        if acesso.is_admin_ou_coordenador():
+            servicos_menu.add_command(
+                label="Gerenciador de Documentos de Funcionários",
+                command=self.callbacks.abrir_gerenciador_documentos,
+                font=menu_font
+            )
+        
+        # Gerenciador de Documentos do Sistema (admin)
+        if acesso.is_admin():
+            servicos_menu.add_command(
+                label="Gerenciador de Documentos do Sistema",
+                command=lambda: self._abrir_gerenciador_documentos_sistema(),
+                font=menu_font
+            )
+        
+        # Declaração de Comparecimento (todos podem gerar)
+        if acesso.pode('alunos.documentos'):
+            servicos_menu.add_command(
+                label="Declaração de Comparecimento (Responsável)",
+                command=self.callbacks.declaracao_comparecimento,
+                font=menu_font
+            )
+            servicos_menu.add_command(
+                label="Crachás Alunos/Responsáveis",
+                command=lambda: self._abrir_crachas(),
+                font=menu_font
+            )
+        
+        # Importar Notas (admin/coordenador)
+        if acesso.is_admin_ou_coordenador():
+            servicos_menu.add_command(
+                label="Importar Notas do GEDUC (HTML → Excel)",
+                command=lambda: self._abrir_importacao_notas_html(),
+                font=menu_font
+            )
+        
+        # Transição de Ano Letivo (apenas admin)
+        if acesso.pode('sistema.transicao_ano'):
+            servicos_menu.add_separator()
+            servicos_menu.add_command(
+                label="🔄 Transição de Ano Letivo",
+                command=self.callbacks.abrir_transicao_ano_letivo,
+                font=menu_font
+            )
         
         menu_bar.add_cascade(label="Serviços", menu=servicos_menu, font=menu_font)
         
         # ========== MENU 4: GERENCIAMENTO DE FALTAS ==========
-        faltas_menu = Menu(menu_bar, tearoff=0, font=menu_font)
-        faltas_menu.add_command(
-            label="Cadastrar/Editar Faltas",
-            command=self.callbacks.abrir_cadastro_faltas,
-            font=menu_font
-        )
-        faltas_menu.add_separator()
-        faltas_menu.add_command(
-            label="Gerar Folhas de Ponto",
-            command=lambda: self._abrir_dialogo_folhas_ponto(),
-            font=menu_font
-        )
-        faltas_menu.add_command(
-            label="Gerar Resumo de Ponto",
-            command=lambda: self._abrir_dialogo_resumo_ponto(),
-            font=menu_font
-        )
-        menu_bar.add_cascade(label="Gerenciamento de Faltas", menu=faltas_menu, font=menu_font)
+        if acesso.pode_alguma(['frequencia.visualizar', 'frequencia.lancar']):
+            faltas_menu = Menu(menu_bar, tearoff=0, font=menu_font)
+            
+            # Cadastrar/Editar Faltas só aparece se pode lançar
+            if acesso.pode('frequencia.lancar'):
+                faltas_menu.add_command(
+                    label="Cadastrar/Editar Faltas",
+                    command=self.callbacks.abrir_cadastro_faltas,
+                    font=menu_font
+                )
+                faltas_menu.add_separator()
+            
+            # Folhas e Resumo de Ponto (admin)
+            if acesso.is_admin():
+                faltas_menu.add_command(
+                    label="Gerar Folhas de Ponto",
+                    command=lambda: self._abrir_dialogo_folhas_ponto(),
+                    font=menu_font
+                )
+                faltas_menu.add_command(
+                    label="Gerar Resumo de Ponto",
+                    command=lambda: self._abrir_dialogo_resumo_ponto(),
+                    font=menu_font
+                )
+            
+            menu_bar.add_cascade(label="Gerenciamento de Faltas", menu=faltas_menu, font=menu_font)
         
-        # ========== MENU 5: DOCUMENTOS DA ESCOLA ==========
+        # ========== MENU 5: DOCUMENTOS DA ESCOLA (todos podem ver) ==========
         documentos_menu = Menu(menu_bar, tearoff=0, font=menu_font)
         documentos_menu.add_command(
             label="Estatuto da Escola",
@@ -585,8 +653,99 @@ class ButtonFactory:
         )
         menu_bar.add_cascade(label="Documentos da Escola", menu=documentos_menu, font=menu_font)
         
-        logger.debug("Barra de menus criada (5 menus principais - backup 20/11/2025)")
+        # ========== MENU 6: USUÁRIO (quando perfis habilitados) ==========
+        if perfis_habilitados():
+            usuario_menu = Menu(menu_bar, tearoff=0, font=menu_font)
+            
+            # Info do usuário
+            nome_usuario = acesso.get_nome_usuario()
+            perfil_atual = acesso.get_perfil_atual()
+            perfil_display = perfil_atual.title() if perfil_atual else "N/A"
+            
+            usuario_menu.add_command(
+                label=f"👤 {nome_usuario}",
+                command=lambda: None,
+                font=menu_font,
+                state='disabled'
+            )
+            usuario_menu.add_command(
+                label=f"📋 Perfil: {perfil_display}",
+                command=lambda: None,
+                font=menu_font,
+                state='disabled'
+            )
+            usuario_menu.add_separator()
+            
+            # Trocar senha
+            usuario_menu.add_command(
+                label="🔑 Trocar Senha",
+                command=lambda: self._abrir_troca_senha(),
+                font=menu_font
+            )
+            usuario_menu.add_separator()
+            
+            # Gestão de Usuários (apenas admin)
+            if acesso.pode('sistema.usuarios'):
+                usuario_menu.add_command(
+                    label="⚙️ Gestão de Usuários",
+                    command=lambda: self._abrir_gestao_usuarios(),
+                    font=menu_font
+                )
+                usuario_menu.add_separator()
+            
+            # Logout
+            usuario_menu.add_command(
+                label="🚪 Sair",
+                command=lambda: self._fazer_logout(),
+                font=menu_font
+            )
+            
+            menu_bar.add_cascade(label="👤 Usuário", menu=usuario_menu, font=menu_font)
+        
+        logger.debug(f"Barra de menus criada (perfis_habilitados={perfis_habilitados()})")
         return menu_bar
+    
+    def _abrir_troca_senha(self):
+        """Abre janela para trocar senha."""
+        try:
+            from ui.login import abrir_troca_senha
+            abrir_troca_senha(self.janela)
+        except Exception as e:
+            logger.exception(f"Erro ao abrir troca de senha: {e}")
+            messagebox.showerror("Erro", f"Erro ao abrir troca de senha: {e}")
+    
+    def _abrir_gestao_usuarios(self):
+        """Abre interface de gestão de usuários."""
+        try:
+            from ui.gestao_usuarios import abrir_gestao_usuarios
+            abrir_gestao_usuarios(self.janela)
+        except Exception as e:
+            logger.exception(f"Erro ao abrir gestão de usuários: {e}")
+            messagebox.showerror("Erro", f"Erro ao abrir gestão de usuários: {e}")
+    
+    def _fazer_logout(self):
+        """Realiza logout e fecha a aplicação."""
+        try:
+            from auth.auth_service import AuthService
+            from auth.usuario_logado import UsuarioLogado
+            
+            resposta = messagebox.askyesno(
+                "Confirmar Logout",
+                "Deseja realmente sair do sistema?"
+            )
+            
+            if resposta:
+                # Fazer logout
+                AuthService.logout()
+                
+                # Fechar janela principal
+                self.janela.quit()
+                self.janela.destroy()
+                
+                logger.info("Logout realizado com sucesso")
+        except Exception as e:
+            logger.exception(f"Erro ao fazer logout: {e}")
+            messagebox.showerror("Erro", f"Erro ao fazer logout: {e}")
     
     def _gerar_relatorio_notas_wrapper(self):
         """Wrapper para gerar relatório de notas"""
@@ -747,9 +906,8 @@ class ButtonFactory:
     def _abrir_dialogo_folhas_ponto(self):
         """Wrapper para abrir diálogo de folhas de ponto"""
         try:
-            # As funções de ponto agora estão em action_callbacks
-            # TODO: Implementar diálogo de seleção de mês/ano
-            messagebox.showinfo("Info", "Use o menu 'Serviços' para acessar esta funcionalidade")
+            from ui.dialogs_extended import abrir_dialogo_folhas_ponto
+            abrir_dialogo_folhas_ponto(self.janela)
         except Exception as e:
             logger.exception(f"Erro ao abrir diálogo de folhas de ponto: {e}")
             messagebox.showerror("Erro", f"Erro: {e}")
@@ -757,9 +915,8 @@ class ButtonFactory:
     def _abrir_dialogo_resumo_ponto(self):
         """Wrapper para abrir diálogo de resumo de ponto"""
         try:
-            # As funções de ponto agora estão em action_callbacks
-            # TODO: Implementar diálogo de seleção de mês/ano
-            messagebox.showinfo("Info", "Use o menu 'Serviços' para acessar esta funcionalidade")
+            from ui.dialogs_extended import abrir_dialogo_resumo_ponto
+            abrir_dialogo_resumo_ponto(self.janela)
         except Exception as e:
             logger.exception(f"Erro ao abrir diálogo de resumo de ponto: {e}")
             messagebox.showerror("Erro", f"Erro: {e}")

@@ -1,5 +1,34 @@
 # 📋 Plano de Implementação de Perfis de Usuário
 
+> **📅 Última atualização**: 28 de Novembro de 2025  
+> **🎯 Status Geral**: Fases 1-6 CONCLUÍDAS ✅ | Fase 7 em andamento
+
+---
+
+## 📊 RESUMO DO PROGRESSO
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                    STATUS DA IMPLEMENTAÇÃO                              │
+├────────────────────────────────────────────────────────────────────────┤
+│  ✅ Fase 0 - Feature Flag                    CONCLUÍDA                 │
+│  ✅ Fase 1 - Infraestrutura de Autenticação  CONCLUÍDA                 │
+│  ✅ Fase 2 - Tela de Login                   CONCLUÍDA                 │
+│  ✅ Fase 3 - Controle de Acesso              CONCLUÍDA                 │
+│  ✅ Fase 4 - Filtro de Dados por Perfil      CONCLUÍDA                 │
+│  ✅ Fase 5 - Interface de Gestão de Usuários CONCLUÍDA                 │
+│  ✅ Fase 6 - Testes e Ajustes                CONCLUÍDA                 │
+│  🔄 Fase 7 - Ativação em Produção            EM ANDAMENTO              │
+├────────────────────────────────────────────────────────────────────────┤
+│  📁 Arquivos Criados: 15+ arquivos no módulo auth/ e ui/               │
+│  🗄️ Tabelas Criadas: usuarios, permissoes, perfil_permissoes,          │
+│                       usuario_permissoes, logs_acesso                   │
+│  👤 Usuários de Teste: admin, coord_teste, prof_teste                  │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## 🎯 Objetivo
 
 Adicionar ao Sistema de Gestão Escolar a capacidade de suportar múltiplos perfis de usuário (Administrador/Secretário, Coordenador, Professor), cada um com suas funções e permissões específicas.
@@ -42,90 +71,18 @@ Adicionar ao Sistema de Gestão Escolar a capacidade de suportar múltiplos perf
 ### Arquivo de Controle: `feature_flags.json`
 ```json
 {
-    "PERFIS_HABILITADOS": false,
+    "perfis_habilitados": true,
     "BANCO_QUESTOES_HABILITADO": false,
     "DASHBOARD_BNCC_HABILITADO": false
 }
 ```
 
-### Implementação no código
-```python
-# config.py ou feature_flags.py
-import json
-from pathlib import Path
-
-def carregar_feature_flags():
-    arquivo = Path(__file__).parent / 'feature_flags.json'
-    if arquivo.exists():
-        with open(arquivo, 'r') as f:
-            return json.load(f)
-    return {"PERFIS_HABILITADOS": False}
-
-FLAGS = carregar_feature_flags()
-
-def perfis_habilitados() -> bool:
-    return FLAGS.get("PERFIS_HABILITADOS", False)
-```
-
-### Uso no main.py (após implementação completa)
-```python
-from feature_flags import perfis_habilitados
-
-def main():
-    if perfis_habilitados():
-        # Novo fluxo: exige login
-        login_window = LoginWindow()
-        usuario = login_window.mostrar()
-        if not usuario:
-            return
-        app = Application(usuario=usuario)
-    else:
-        # Fluxo atual: abre direto (você continua usando assim)
-        app = Application()
-    
-    app.run()
-```
-
-### Benefícios desta abordagem
-- ✅ **Zero interrupção**: Sistema funciona 100% durante desenvolvimento
-- ✅ **Testes seguros**: Pode testar login/perfis sem afetar uso diário
-- ✅ **Rollback fácil**: Se algo der errado, basta desativar a flag
-- ✅ **Ativação controlada**: Você decide quando ativar cada recurso
-- ✅ **Desenvolvimento incremental**: Implementa aos poucos sem pressa
-
 ---
 
-## 📊 Situação Atual
+## 🎭 Perfis de Usuário Implementados
 
-### Como o sistema funciona hoje:
-- **Perfil único**: O sistema atualmente opera como um aplicativo desktop monousuário
-- **Sem autenticação**: Não há tela de login ou verificação de credenciais
-- **Acesso total**: Todas as funcionalidades estão disponíveis para qualquer usuário
-- **Tabela `funcionarios`**: Contém campo `cargo` que identifica a função do profissional
-- **Cargos existentes**: Administrador do Sistema, Gestor Escolar, Professor@, Especialista (Coordenadora), etc.
-
-### Estrutura de cargos atual (banco de dados):
-```
-- Administrador do Sistemas
-- Gestor Escolar
-- Professor@
-- Auxiliar administrativo
-- Agente de Portaria
-- Merendeiro
-- Auxiliar de serviços gerais
-- Técnico em Administração Escolar
-- Especialista (Coordenadora)
-- Tutor/Cuidador
-- Vigia Noturno
-- Interprete de Libras
-```
-
----
-
-## 🎭 Perfis de Usuário Propostos
-
-### 1. **Administrador/Secretário** (Acesso Total)
-**Funções atuais do sistema que permanecem:**
+### 1. **Administrador/Secretário** (Acesso Total) ✅
+**Permissões implementadas:**
 - ✅ Cadastro, edição e exclusão de alunos
 - ✅ Cadastro, edição e exclusão de funcionários
 - ✅ Gestão de turmas e matrículas
@@ -134,15 +91,15 @@ def main():
 - ✅ Backup e manutenção do sistema
 - ✅ Transição de ano letivo
 - ✅ Configurações gerais
+- ✅ **Gestão de usuários do sistema**
 
-### 2. **Coordenador Pedagógico** (Acesso Pedagógico)
-**Funções propostas:**
+### 2. **Coordenador Pedagógico** (Acesso Pedagógico) ✅
+**Permissões implementadas:**
 - ✅ Visualizar todos os alunos e turmas
 - ✅ Visualizar funcionários (sem edição)
 - ✅ Dashboard pedagógico completo
 - ✅ Relatórios de desempenho por turma/aluno
 - ✅ Relatórios de frequência
-- ✅ Relatórios por habilidades BNCC (quando implementado)
 - ✅ Visualizar e gerar atas de resultados
 - ✅ Acompanhar lançamento de notas dos professores
 - ❌ Cadastrar/editar/excluir alunos
@@ -150,15 +107,13 @@ def main():
 - ❌ Transição de ano letivo
 - ❌ Backup do sistema
 
-### 3. **Professor** (Acesso Restrito)
-**Funções propostas:**
-- ✅ Visualizar **apenas suas turmas** vinculadas
+### 3. **Professor** (Acesso Restrito) ✅
+**Permissões implementadas:**
+- ✅ Visualizar **apenas suas turmas** vinculadas (via `funcionario_disciplinas`)
 - ✅ Visualizar alunos das suas turmas
 - ✅ Lançar/editar notas e frequência (suas turmas)
 - ✅ Gerar boletins dos seus alunos
 - ✅ Relatórios das suas turmas
-- ✅ Cadastrar questões no banco (quando implementado)
-- ✅ Gerar avaliações (quando implementado)
 - ❌ Ver outras turmas/professores
 - ❌ Funções administrativas
 - ❌ Cadastrar alunos/funcionários
@@ -166,13 +121,382 @@ def main():
 
 ---
 
-## 🛠️ Etapas de Implementação
+## ✅ FASES CONCLUÍDAS
 
-### **FASE 1: Infraestrutura de Autenticação** (Prioridade Alta)
-*Estimativa: 2-3 dias*
+### **FASE 0: Feature Flag** ✅ CONCLUÍDA
+- [x] Arquivo `feature_flags.json` criado
+- [x] Função `perfis_habilitados()` em `config.py`
+- [x] Sistema funciona normalmente com flag desativada
 
-#### Etapa 1.1: Criar tabela de usuários
+### **FASE 1: Infraestrutura de Autenticação** ✅ CONCLUÍDA
+
+#### Arquivos Criados:
+```
+auth/
+├── __init__.py
+├── auth_service.py      # Serviço de autenticação com bcrypt
+├── decorators.py        # @requer_permissao, @requer_login, @requer_perfil
+├── models.py            # Usuario, Perfil, Permissao
+├── password_utils.py    # Hash e verificação de senhas
+└── usuario_logado.py    # Singleton da sessão atual
+```
+
+#### Tabelas SQL Criadas:
+- `usuarios` - Usuários do sistema com hash bcrypt
+- `permissoes` - 58 permissões cadastradas
+- `perfil_permissoes` - Mapeamento perfil → permissões
+- `usuario_permissoes` - Permissões personalizadas por usuário
+- `logs_acesso` - Logs de login/logout/ações
+
+### **FASE 2: Tela de Login** ✅ CONCLUÍDA
+
+#### Arquivos Criados:
+```
+ui/
+└── login.py             # Interface de login com validação
+```
+
+#### Funcionalidades:
+- [x] Interface Tkinter com campos usuário/senha
+- [x] Validação de credenciais via AuthService
+- [x] Exibição de mensagens de erro
+- [x] Bloqueio após 5 tentativas (15 min)
+- [x] Registro de logs de acesso
+
+### **FASE 3: Controle de Acesso na Interface** ✅ CONCLUÍDA
+
+#### Implementações:
+- [x] Decorator `@requer_permissao(permissao)`
+- [x] Decorator `@requer_login`
+- [x] Decorator `@requer_perfil(perfis)`
+- [x] `ControleAcesso` - Classe utilitária para verificações
+- [x] Integração com `ButtonFactory` - Botões filtrados por perfil
+- [x] Integração com Menu - Menus adaptados por perfil
+
+### **FASE 4: Filtro de Dados por Perfil** ✅ CONCLUÍDA
+
+#### Arquivos Criados/Modificados:
+```
+services/
+├── perfil_filter_service.py  # NOVO - Filtro central por perfil
+└── turma_service.py          # MODIFICADO - Suporte a filtro
+```
+
+#### Funcionalidades:
+- [x] Professor vê apenas suas turmas (via `funcionario_disciplinas`)
+- [x] Professor vê apenas alunos das suas turmas
+- [x] Coordenador vê todas as turmas
+- [x] Admin vê todas as turmas
+- [x] `listar_turmas(aplicar_filtro_perfil=True)`
+
+### **FASE 5: Interface de Gestão de Usuários** ✅ CONCLUÍDA
+
+#### Arquivos Criados:
+```
+ui/
+└── gestao_usuarios.py        # Interface CRUD de usuários
+
+services/
+└── logs_acesso_service.py    # Serviço de logs de acesso
+```
+
+#### Funcionalidades:
+- [x] Listar usuários existentes
+- [x] Criar novo usuário (vinculado a funcionário)
+- [x] Editar perfil de usuário
+- [x] Ativar/Desativar usuário
+- [x] Resetar senha (manual ou aleatória)
+- [x] Busca por nome/username/perfil
+- [x] Logs de todas as ações
+
+### **FASE 6: Testes e Ajustes** ✅ CONCLUÍDA
+
+#### Usuários de Teste Criados:
+| Username | Perfil | Senha | Funcionário |
+|----------|--------|-------|-------------|
+| admin | Administrador | Admin@123 | Tarcisio Sousa de Almeida |
+| coord_teste | Coordenador | Coord@123 | Laise de Laine Rabelo Viegas |
+| prof_teste | Professor | Prof@123 | Fernanda Carneiro Leite |
+
+#### Testes Automatizados:
+```
+tests/
+├── test_fase6_completo.py    # Testes de todas as funcionalidades
+└── check_permissoes.py       # Verificação de permissões no BD
+```
+
+#### Resultados dos Testes (28/11/2025):
+- ✅ Login válido/inválido
+- ✅ Permissões por perfil (Admin: 58, Coord: 21, Prof: 17)
+- ✅ Filtro de turmas (Admin: 37, Prof: 1)
+- ✅ Coordenador somente leitura
+- ✅ Admin acesso total
+- ✅ Logout e troca de usuário
+
+---
+
+## 🔄 FASE 7: ATIVAÇÃO EM PRODUÇÃO (EM ANDAMENTO)
+
+### Checklist de Ativação:
+- [x] Backup completo do banco de dados
+- [x] Flag `perfis_habilitados` = true
+- [x] Usuários de teste funcionando
+- [ ] Criar usuário administrador definitivo (seu usuário)
+- [ ] Criar usuários para coordenadores reais
+- [ ] Criar usuários para professores reais
+- [ ] Testar em ambiente de produção
+- [ ] Monitorar primeiros dias de uso
+- [ ] Treinar usuários (se necessário)
+
+---
+
+## 🚧 FUNCIONALIDADES PENDENTES / FUTURAS
+
+### 📌 Prioridade Alta - Implementar em Breve
+
+#### 1. Integração com Lançamento de Notas
+**Status**: 🔲 Não Iniciado  
+**Arquivo**: `ui/lancamento_notas.py` (modificar)
+
+```python
+# TODO: Aplicar filtro de turmas para professor
+# Professor só pode lançar notas nas suas turmas
+# Coordenador pode visualizar mas não editar
+```
+
+**Tarefas**:
+- [ ] Filtrar turmas por perfil no combo de seleção
+- [ ] Bloquear edição para coordenador
+- [ ] Aplicar decorator `@requer_permissao('notas.lancar_proprias')`
+
+---
+
+#### 2. Integração com Lançamento de Frequência
+**Status**: 🔲 Não Iniciado  
+**Arquivo**: `ui/lancamento_frequencia.py` (modificar)
+
+```python
+# TODO: Aplicar filtro de turmas para professor
+# Professor só pode lançar frequência nas suas turmas
+```
+
+**Tarefas**:
+- [ ] Filtrar turmas por perfil no combo de seleção
+- [ ] Aplicar decorator `@requer_permissao('frequencia.lancar_proprias')`
+
+---
+
+#### 3. Dashboard Adaptado por Perfil
+**Status**: 🔲 Não Iniciado  
+**Arquivo**: `ui/dashboard.py` (criar/modificar)
+
+```python
+# TODO: Dashboard diferente para cada perfil
+class DashboardManager:
+    def carregar_dados(self, usuario):
+        if usuario.is_professor():
+            self._dashboard_professor()  # Apenas suas turmas
+        elif usuario.is_coordenador():
+            self._dashboard_pedagogico()  # Visão pedagógica
+        else:
+            self._dashboard_completo()   # Visão geral
+```
+
+**Tarefas**:
+- [ ] Criar `_dashboard_professor()` - métricas das próprias turmas
+- [ ] Criar `_dashboard_pedagogico()` - métricas pedagógicas
+- [ ] Manter `_dashboard_completo()` - visão administrativa
+
+---
+
+#### 4. Troca de Senha pelo Próprio Usuário
+**Status**: 🔲 Não Iniciado  
+**Arquivo**: `ui/trocar_senha.py` (criar)
+
+```python
+# TODO: Interface para usuário trocar própria senha
+class TrocarSenhaWindow:
+    def __init__(self, usuario_logado):
+        # Campos: senha atual, nova senha, confirmar
+        pass
+    
+    def validar_e_trocar(self):
+        # Usar AuthService.alterar_senha()
+        pass
+```
+
+**Tarefas**:
+- [ ] Criar interface Tkinter
+- [ ] Validar senha atual antes de trocar
+- [ ] Exigir troca no primeiro acesso (`primeiro_acesso = True`)
+- [ ] Adicionar botão no menu do usuário
+
+---
+
+#### 5. Timeout de Sessão
+**Status**: 🔲 Não Iniciado  
+**Arquivo**: `auth/session_manager.py` (criar)
+
+```python
+# TODO: Deslogar usuário após período de inatividade
+class SessionManager:
+    TIMEOUT_MINUTOS = 30
+    
+    def verificar_timeout(self):
+        # Comparar último_acesso com agora
+        # Se > TIMEOUT_MINUTOS, fazer logout
+        pass
+```
+
+**Tarefas**:
+- [ ] Criar gerenciador de sessão
+- [ ] Atualizar `ultimo_acesso` em cada ação
+- [ ] Verificar timeout periodicamente (timer)
+- [ ] Mostrar aviso antes de expirar
+
+---
+
+### 📌 Prioridade Média - Melhorias
+
+#### 6. Relatórios Filtrados por Perfil
+**Status**: 🔲 Não Iniciado
+
+```python
+# TODO: Relatórios respeitam perfil do usuário
+# Professor: apenas relatórios das suas turmas
+# Coordenador: relatórios pedagógicos
+# Admin: todos os relatórios
+```
+
+**Arquivos a modificar**:
+- [ ] `ui/relatorios.py`
+- [ ] `gerar_lista_reuniao.py`
+- [ ] `gerarPDF.py`
+- [ ] Todos os geradores de relatório
+
+---
+
+#### 7. Histórico de Ações do Usuário
+**Status**: 🔲 Não Iniciado  
+**Arquivo**: `ui/historico_acoes.py` (criar)
+
+```python
+# TODO: Visualizar logs de ações por usuário
+class HistoricoAcoesWindow:
+    def __init__(self, admin_user):
+        # TreeView com logs
+        # Filtros: data, usuário, ação
+        pass
+```
+
+**Tarefas**:
+- [ ] Interface para visualizar `logs_acesso`
+- [ ] Filtros por data, usuário, tipo de ação
+- [ ] Exportar para Excel/PDF
+- [ ] Restrito a administradores
+
+---
+
+#### 8. Permissões Personalizadas por Usuário
+**Status**: 🔲 Não Iniciado  
+**Arquivo**: `ui/gestao_usuarios.py` (expandir)
+
+```python
+# TODO: Permitir adicionar/remover permissões específicas
+# Usa tabela usuario_permissoes (tipo: 'adicionar' ou 'remover')
+```
+
+**Tarefas**:
+- [ ] Interface para selecionar permissões extras
+- [ ] Usar tabela `usuario_permissoes`
+- [ ] Tipo 'adicionar' para dar permissão extra
+- [ ] Tipo 'remover' para retirar permissão do perfil
+
+---
+
+### 📌 Prioridade Baixa - Futuro
+
+#### 9. Integração com Banco de Questões BNCC
+**Status**: 🔲 Aguardando módulo de questões
+
+```python
+# Permissões já cadastradas:
+# - questoes.criar
+# - questoes.editar_proprias
+# - questoes.editar_todas
+# - questoes.aprovar
+# - avaliacoes.criar
+# - avaliacoes.aplicar
+```
+
+---
+
+#### 10. Autenticação de Dois Fatores (2FA)
+**Status**: 🔲 Futuro
+
+```python
+# TODO: Implementar 2FA opcional para admins
+# - TOTP (Google Authenticator)
+# - Email de confirmação
+```
+
+---
+
+#### 11. Recuperação de Senha por Email
+**Status**: 🔲 Futuro
+
+```python
+# TODO: Enviar link de recuperação por email
+# Requer configuração de SMTP
+```
+
+---
+
+## 📁 Estrutura de Arquivos Atual
+
+```
+gestao/
+├── auth/                          # ✅ IMPLEMENTADO
+│   ├── __init__.py
+│   ├── auth_service.py            # Serviço de autenticação
+│   ├── decorators.py              # Decorators de permissão
+│   ├── models.py                  # Usuario, Perfil, Permissao
+│   ├── password_utils.py          # Hash bcrypt
+│   └── usuario_logado.py          # Singleton do usuário atual
+│
+├── services/
+│   ├── perfil_filter_service.py   # ✅ Filtro central por perfil
+│   ├── turma_service.py           # ✅ Modificado com filtro
+│   └── logs_acesso_service.py     # ✅ Serviço de logs
+│
+├── ui/
+│   ├── login.py                   # ✅ Tela de login
+│   ├── gestao_usuarios.py         # ✅ CRUD de usuários
+│   ├── button_factory.py          # ✅ Modificado com filtro
+│   ├── trocar_senha.py            # 🔲 TODO: Criar
+│   └── historico_acoes.py         # 🔲 TODO: Criar
+│
+├── db/migrations/
+│   ├── criar_tabelas_perfis.sql   # ✅ Script SQL completo
+│   └── criar_tabela_logs.sql      # ✅ Script SQL logs
+│
+├── tests/
+│   ├── test_fase6_completo.py     # ✅ Testes automatizados
+│   └── check_permissoes.py        # ✅ Verificação de permissões
+│
+├── feature_flags.json             # ✅ Flag de controle
+├── config.py                      # ✅ perfis_habilitados()
+└── main.py                        # ✅ Integrado com login
+```
+
+---
+
+## 🗄️ Estrutura do Banco de Dados
+
+### Tabelas Implementadas:
+
 ```sql
+-- ✅ usuarios
 CREATE TABLE usuarios (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     funcionario_id BIGINT UNSIGNED NOT NULL,
@@ -180,587 +504,122 @@ CREATE TABLE usuarios (
     senha_hash VARCHAR(255) NOT NULL,
     perfil ENUM('administrador', 'coordenador', 'professor') NOT NULL,
     ativo BOOLEAN DEFAULT TRUE,
+    primeiro_acesso BOOLEAN DEFAULT TRUE,
+    tentativas_login INT DEFAULT 0,
+    bloqueado_ate DATETIME NULL,
     ultimo_acesso DATETIME,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (funcionario_id) REFERENCES funcionarios(id),
-    INDEX idx_username (username),
-    INDEX idx_perfil (perfil)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-```
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
 
-#### Etapa 1.2: Criar tabela de permissões
-```sql
+-- ✅ permissoes (58 cadastradas)
 CREATE TABLE permissoes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     codigo VARCHAR(50) UNIQUE NOT NULL,
     descricao VARCHAR(200),
     modulo VARCHAR(50) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+);
 
+-- ✅ perfil_permissoes
 CREATE TABLE perfil_permissoes (
     perfil ENUM('administrador', 'coordenador', 'professor') NOT NULL,
     permissao_id INT NOT NULL,
-    PRIMARY KEY (perfil, permissao_id),
-    FOREIGN KEY (permissao_id) REFERENCES permissoes(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-```
+    PRIMARY KEY (perfil, permissao_id)
+);
 
-#### Etapa 1.3: Inserir permissões base
-```sql
-INSERT INTO permissoes (codigo, descricao, modulo) VALUES
--- Módulo Alunos
-('alunos.visualizar', 'Visualizar lista de alunos', 'alunos'),
-('alunos.criar', 'Cadastrar novos alunos', 'alunos'),
-('alunos.editar', 'Editar dados de alunos', 'alunos'),
-('alunos.excluir', 'Excluir alunos', 'alunos'),
-('alunos.documentos', 'Gerar documentos de alunos', 'alunos'),
+-- ✅ usuario_permissoes (para personalizações)
+CREATE TABLE usuario_permissoes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id BIGINT UNSIGNED NOT NULL,
+    permissao_id INT NOT NULL,
+    tipo ENUM('adicionar', 'remover') NOT NULL
+);
 
--- Módulo Funcionários
-('funcionarios.visualizar', 'Visualizar funcionários', 'funcionarios'),
-('funcionarios.criar', 'Cadastrar funcionários', 'funcionarios'),
-('funcionarios.editar', 'Editar funcionários', 'funcionarios'),
-('funcionarios.excluir', 'Excluir funcionários', 'funcionarios'),
-
--- Módulo Turmas
-('turmas.visualizar', 'Visualizar turmas', 'turmas'),
-('turmas.visualizar_proprias', 'Visualizar apenas turmas próprias', 'turmas'),
-('turmas.gerenciar', 'Gerenciar turmas', 'turmas'),
-
--- Módulo Notas
-('notas.visualizar', 'Visualizar notas', 'notas'),
-('notas.lancar', 'Lançar notas', 'notas'),
-('notas.lancar_proprias', 'Lançar notas apenas das próprias turmas', 'notas'),
-('notas.editar_todas', 'Editar notas de qualquer turma', 'notas'),
-
--- Módulo Frequência
-('frequencia.visualizar', 'Visualizar frequência', 'frequencia'),
-('frequencia.lancar', 'Lançar frequência', 'frequencia'),
-('frequencia.lancar_proprias', 'Lançar frequência apenas das próprias turmas', 'frequencia'),
-
--- Módulo Relatórios
-('relatorios.visualizar', 'Visualizar relatórios', 'relatorios'),
-('relatorios.gerar_todos', 'Gerar relatórios de toda escola', 'relatorios'),
-('relatorios.gerar_proprios', 'Gerar relatórios apenas das próprias turmas', 'relatorios'),
-
--- Módulo Sistema
-('sistema.backup', 'Realizar backup', 'sistema'),
-('sistema.transicao_ano', 'Executar transição de ano letivo', 'sistema'),
-('sistema.configuracoes', 'Acessar configurações', 'sistema'),
-('sistema.usuarios', 'Gerenciar usuários', 'sistema'),
-
--- Módulo Dashboard
-('dashboard.completo', 'Visualizar dashboard completo', 'dashboard'),
-('dashboard.pedagogico', 'Visualizar dashboard pedagógico', 'dashboard'),
-('dashboard.proprio', 'Visualizar dashboard das próprias turmas', 'dashboard');
-```
-
-#### Etapa 1.4: Criar módulo de autenticação
-**Arquivo:** `auth/auth_service.py`
-```python
-# Estrutura proposta
-class AuthService:
-    @staticmethod
-    def hash_senha(senha: str) -> str: ...
-    
-    @staticmethod
-    def verificar_senha(senha: str, hash: str) -> bool: ...
-    
-    @staticmethod
-    def login(username: str, senha: str) -> Optional[Usuario]: ...
-    
-    @staticmethod
-    def tem_permissao(usuario: Usuario, permissao: str) -> bool: ...
-    
-    @staticmethod
-    def logout(): ...
-```
-
-**Arquivo:** `auth/usuario_logado.py`
-```python
-# Singleton para armazenar usuário da sessão atual
-class UsuarioLogado:
-    _instance = None
-    usuario: Optional[Usuario] = None
-    permissoes: List[str] = []
-    
-    @classmethod
-    def get_instance(cls): ...
-    
-    @classmethod
-    def set_usuario(cls, usuario): ...
-    
-    @classmethod
-    def tem_permissao(cls, permissao: str) -> bool: ...
-```
-
----
-
-### **FASE 2: Tela de Login** (Prioridade Alta)
-*Estimativa: 1-2 dias*
-
-#### Etapa 2.1: Criar interface de login
-**Arquivo:** `ui/login.py`
-```python
-class LoginWindow:
-    """Janela de login do sistema"""
-    
-    def __init__(self):
-        self.janela = Tk()
-        self.janela.title("Login - Sistema de Gestão Escolar")
-        # ... interface com campos usuário e senha
-    
-    def validar_login(self): ...
-    def on_login_sucesso(self, usuario): ...
-    def mostrar_erro(self, mensagem): ...
-```
-
-#### Etapa 2.2: Modificar ponto de entrada (main.py)
-```python
-def main():
-    # Mostrar tela de login primeiro
-    login_window = LoginWindow()
-    usuario = login_window.mostrar()
-    
-    if usuario:
-        # Armazenar usuário logado
-        UsuarioLogado.set_usuario(usuario)
-        
-        # Iniciar aplicação principal
-        app = Application(usuario=usuario)
-        app.run()
-```
-
----
-
-### **FASE 3: Controle de Acesso na Interface** (Prioridade Alta)
-*Estimativa: 3-4 dias*
-
-#### Etapa 3.1: Criar decorator de permissão
-**Arquivo:** `auth/decorators.py`
-```python
-def requer_permissao(permissao: str):
-    """Decorator para verificar permissão antes de executar função"""
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            if not UsuarioLogado.tem_permissao(permissao):
-                messagebox.showerror(
-                    "Acesso Negado",
-                    f"Você não tem permissão para esta ação.\n"
-                    f"Permissão necessária: {permissao}"
-                )
-                return None
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
-```
-
-#### Etapa 3.2: Modificar MenuManager para filtrar menus
-**Arquivo:** `ui/menu.py` (modificação)
-```python
-class MenuManager:
-    def criar_menu_principal(self, perfil: str):
-        """Cria menu baseado no perfil do usuário"""
-        
-        if perfil == 'administrador':
-            self._criar_menu_completo()
-        elif perfil == 'coordenador':
-            self._criar_menu_coordenador()
-        elif perfil == 'professor':
-            self._criar_menu_professor()
-```
-
-#### Etapa 3.3: Modificar ButtonFactory para filtrar botões
-**Arquivo:** `ui/button_factory.py` (modificação)
-```python
-class ButtonFactory:
-    def criar_botoes(self, usuario: Usuario):
-        """Cria botões baseados nas permissões do usuário"""
-        botoes = []
-        
-        if UsuarioLogado.tem_permissao('alunos.criar'):
-            botoes.append(self._btn_novo_aluno())
-        
-        if UsuarioLogado.tem_permissao('funcionarios.criar'):
-            botoes.append(self._btn_novo_funcionario())
-        
-        # ... continua para cada botão
-```
-
-#### Etapa 3.4: Aplicar decorators nas funções de ação
-**Arquivo:** `ui/action_callbacks.py` (modificação)
-```python
-class ActionCallbacksManager:
-    
-    @requer_permissao('alunos.criar')
-    def novo_aluno(self):
-        """Cadastrar novo aluno"""
-        ...
-    
-    @requer_permissao('alunos.editar')
-    def editar_aluno(self):
-        """Editar aluno selecionado"""
-        ...
-    
-    @requer_permissao('sistema.transicao_ano')
-    def abrir_transicao_ano(self):
-        """Abre interface de transição de ano letivo"""
-        ...
-```
-
----
-
-### **FASE 4: Filtro de Dados por Perfil** (Prioridade Média)
-*Estimativa: 2-3 dias*
-
-#### Etapa 4.1: Professor vê apenas suas turmas
-**Modificar:** `db/queries.py`
-```python
-def get_turmas_usuario(usuario_id: int, perfil: str) -> List[Dict]:
-    """Retorna turmas baseado no perfil"""
-    if perfil == 'professor':
-        # Apenas turmas vinculadas ao professor
-        return query_turmas_professor(usuario_id)
-    else:
-        # Todas as turmas
-        return query_todas_turmas()
-```
-
-#### Etapa 4.2: Filtrar alunos por turmas do professor
-**Modificar:** `services/aluno_service.py`
-```python
-def listar_alunos(usuario: Usuario) -> List[Dict]:
-    """Lista alunos baseado no perfil do usuário"""
-    if usuario.perfil == 'professor':
-        turmas_professor = get_turmas_professor(usuario.funcionario_id)
-        return query_alunos_por_turmas(turmas_professor)
-    else:
-        return query_todos_alunos()
-```
-
-#### Etapa 4.3: Adaptar dashboard por perfil
-**Modificar:** `ui/dashboard.py`
-```python
-class DashboardManager:
-    def carregar_dados(self, usuario: Usuario):
-        if usuario.perfil == 'professor':
-            self._carregar_dashboard_professor(usuario.funcionario_id)
-        elif usuario.perfil == 'coordenador':
-            self._carregar_dashboard_coordenador()
-        else:
-            self._carregar_dashboard_completo()
-```
-
----
-
-### **FASE 5: Interface de Gestão de Usuários** (Prioridade Média)
-*Estimativa: 2-3 dias*
-
-#### Etapa 5.1: Criar tela de cadastro de usuários
-**Arquivo:** `ui/gestao_usuarios.py`
-```python
-class InterfaceGestaoUsuarios:
-    """Interface para administradores gerenciarem usuários do sistema"""
-    
-    def __init__(self, root):
-        self.root = root
-        # Lista de funcionários
-        # Formulário para criar usuário
-        # Opções de perfil
-        # Botões: Criar, Editar, Desativar, Resetar Senha
-```
-
-#### Etapa 5.2: CRUD de usuários
-- Criar usuário (vincular a funcionário existente)
-- Editar perfil/permissões
-- Desativar/ativar usuário
-- Resetar senha
-
-#### Etapa 5.3: Logs de acesso
-```sql
+-- ✅ logs_acesso
 CREATE TABLE logs_acesso (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    usuario_id BIGINT UNSIGNED NOT NULL,
+    usuario_id BIGINT UNSIGNED NULL,
+    username_tentativa VARCHAR(50),
     acao VARCHAR(100) NOT NULL,
     detalhes TEXT,
     ip_address VARCHAR(45),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
 ---
 
-### **FASE 6: Testes e Ajustes** (Prioridade Alta)
-*Estimativa: 2-3 dias*
+## 📊 Permissões por Perfil
 
-#### Etapa 6.1: Criar usuários de teste
-- 1 Administrador
-- 1 Coordenador
-- 2 Professores (com turmas diferentes)
+### Resumo:
+| Perfil | Total de Permissões | Acesso a Turmas |
+|--------|---------------------|-----------------|
+| Administrador | 58 (todas) | Todas |
+| Coordenador | 21 | Todas (visualização) |
+| Professor | 17 | Apenas vinculadas |
 
-#### Etapa 6.2: Testar cenários
-- [ ] Login com credenciais válidas/inválidas
-- [ ] Acesso a funções permitidas/bloqueadas por perfil
-- [ ] Professor vê apenas suas turmas
-- [ ] Coordenador vê todas turmas mas não edita alunos
-- [ ] Administrador tem acesso total
-- [ ] Logout e troca de usuário
-
-#### Etapa 6.3: Documentar
-- Manual do usuário por perfil
-- Documentação técnica das APIs de autenticação
-
----
-
-## 📁 Estrutura de Arquivos Proposta
-
+### Permissões do Professor:
 ```
-gestao/
-├── auth/                          # NOVO - Módulo de autenticação
-│   ├── __init__.py
-│   ├── auth_service.py            # Serviço de autenticação
-│   ├── decorators.py              # Decorators de permissão
-│   ├── usuario_logado.py          # Singleton do usuário atual
-│   └── models.py                  # Models de Usuario/Permissao
-│
-├── ui/
-│   ├── login.py                   # NOVO - Tela de login
-│   ├── gestao_usuarios.py         # NOVO - CRUD de usuários
-│   ├── app.py                     # MODIFICAR - Receber usuario
-│   ├── menu.py                    # MODIFICAR - Filtrar por perfil
-│   ├── button_factory.py          # MODIFICAR - Filtrar por permissão
-│   └── action_callbacks.py        # MODIFICAR - Aplicar decorators
-│
-├── db/
-│   └── migrations/                # NOVO - Migrações SQL
-│       ├── 001_criar_usuarios.sql
-│       ├── 002_criar_permissoes.sql
-│       └── 003_criar_logs_acesso.sql
-│
-├── main.py                        # MODIFICAR - Login antes da app
-└── ...
+alunos.visualizar_proprios       - Visualizar alunos das próprias turmas
+avaliacoes.aplicar              - Aplicar avaliações nas turmas
+avaliacoes.criar                - Criar avaliações
+bncc.visualizar                 - Visualizar habilidades BNCC
+dashboard.proprio               - Visualizar dashboard das próprias turmas
+dashboard.visualizar            - Visualizar dashboard
+frequencia.lancar_proprias      - Lançar frequência nas próprias turmas
+frequencia.visualizar_proprias  - Visualizar frequência das próprias turmas
+notas.editar_proprias           - Editar notas das próprias turmas
+notas.lancar_proprias           - Lançar notas nas próprias turmas
+notas.visualizar_proprias       - Visualizar notas das próprias turmas
+questoes.criar                  - Criar questões no banco
+questoes.editar_proprias        - Editar apenas questões próprias
+relatorios.boletins             - Gerar boletins de alunos
+relatorios.gerar_proprios       - Gerar relatórios das próprias turmas
+relatorios.visualizar           - Acessar módulo de relatórios
+turmas.visualizar_proprias      - Visualizar apenas turmas próprias
 ```
 
 ---
 
-## ⏱️ Cronograma Estimado
+## 🔄 Como Testar
 
-| Fase | Descrição | Duração | Dependências |
-|------|-----------|---------|--------------|
-| 1 | Infraestrutura de Autenticação | 2-3 dias | - |
-| 2 | Tela de Login | 1-2 dias | Fase 1 |
-| 3 | Controle de Acesso na Interface | 3-4 dias | Fase 2 |
-| 4 | Filtro de Dados por Perfil | 2-3 dias | Fase 3 |
-| 5 | Interface de Gestão de Usuários | 2-3 dias | Fase 3 |
-| 6 | Testes e Ajustes | 2-3 dias | Todas |
-
-**Total estimado: 12-18 dias úteis**
-
----
-
-## ⚠️ Considerações Importantes
-
-### Segurança
-1. **Senhas**: Usar bcrypt ou argon2 para hash de senhas
-2. **Sessão**: Implementar timeout de sessão
-3. **Logs**: Registrar todas as ações críticas
-4. **Backup**: Incluir tabelas de usuários no backup
-
-### Migração
-1. **Usuário inicial**: Criar pelo menos 1 admin no primeiro deploy
-2. **Funcionários existentes**: Não criar usuários automaticamente
-3. **Compatibilidade**: Manter sistema funcionando sem login durante transição (feature flag)
-
-### UX
-1. **Mensagens claras**: Informar quando ação está bloqueada e por quê
-2. **Interface adaptada**: Não mostrar botões/menus que usuário não pode usar
-3. **Perfil visível**: Mostrar nome e perfil do usuário logado na interface
-
----
-
-## 🔗 Integração com Banco de Questões BNCC
-
-Quando o módulo de Banco de Questões for implementado, os perfis terão:
-
-### Professor
-- ✅ Criar questões próprias
-- ✅ Editar questões próprias
-- ✅ Visualizar questões públicas/escola
-- ✅ Gerar avaliações para suas turmas
-- ✅ Lançar resultados das suas avaliações
-
-### Coordenador
-- ✅ Revisar e aprovar questões
-- ✅ Visualizar todas as questões
-- ✅ Relatórios de desempenho por habilidade
-- ✅ Dashboard pedagógico BNCC
-- ❌ Criar questões (opcional)
-
-### Administrador
-- ✅ Tudo acima
-- ✅ Gerenciar visibilidade de questões
-- ✅ Importar/exportar banco de questões
-- ✅ Configurar parâmetros do módulo
-
----
-
-## ✅ Checklist de Implementação
-
-### Fase 0 - Preparação (Feature Flag)
-- [ ] Atualizar `feature_flags.json` com `PERFIS_HABILITADOS: false`
-- [ ] Criar função `perfis_habilitados()` em `config.py`
-- [ ] Garantir que sistema abre normalmente com flag desativada
-
-### Fase 1 - Infraestrutura
-- [ ] Criar script SQL das tabelas de usuários
-- [ ] Criar script SQL das tabelas de permissões
-- [ ] Inserir permissões base
-- [ ] Criar módulo `auth/`
-- [ ] Implementar `AuthService`
-- [ ] Implementar `UsuarioLogado`
-- [ ] Criar testes unitários básicos
-- [ ] **Verificar**: Sistema continua funcionando normalmente? ✓
-
-### Fase 2 - Login
-- [ ] Criar `ui/login.py`
-- [ ] Design da interface de login
-- [ ] Integrar com `AuthService`
-- [ ] Modificar `main.py` (com verificação de feature flag)
-- [ ] Testar fluxo de login (ativando flag temporariamente)
-- [ ] **Verificar**: Sistema continua funcionando normalmente? ✓
-
-### Fase 3 - Controle de Acesso
-- [ ] Criar decorator `@requer_permissao`
-- [ ] Aplicar em `action_callbacks.py` (com bypass quando flag desativada)
-- [ ] Modificar `MenuManager` (com bypass quando flag desativada)
-- [ ] Modificar `ButtonFactory` (com bypass quando flag desativada)
-- [ ] Testar bloqueios (ativando flag temporariamente)
-- [ ] **Verificar**: Sistema continua funcionando normalmente? ✓
-
-### Fase 4 - Filtro de Dados
-- [ ] Modificar queries de turmas (com bypass quando flag desativada)
-- [ ] Modificar queries de alunos (com bypass quando flag desativada)
-- [ ] Adaptar dashboard (com bypass quando flag desativada)
-- [ ] Testar visualização por perfil
-- [ ] **Verificar**: Sistema continua funcionando normalmente? ✓
-
-### Fase 5 - Gestão de Usuários
-- [ ] Criar interface de gestão
-- [ ] Implementar CRUD
-- [ ] Implementar logs de acesso
-- [ ] Testar funcionalidades admin
-- [ ] **Verificar**: Sistema continua funcionando normalmente? ✓
-
-### Fase 6 - Testes Finais (com Feature Flag ATIVADA)
-- [ ] Criar usuários de teste (Admin, Coordenador, Professor)
-- [ ] Ativar flag `PERFIS_HABILITADOS = true`
-- [ ] Testar login com cada perfil
-- [ ] Testar todas as restrições de acesso
-- [ ] Testar fluxos completos de cada perfil
-- [ ] Documentar comportamentos
-
-### Fase 7 - Ativação em Produção
-- [ ] Backup completo do banco de dados
-- [ ] Criar usuário administrador definitivo (seu usuário)
-- [ ] Criar usuários para coordenadores e professores
-- [ ] Ativar flag permanentemente
-- [ ] Monitorar primeiros dias de uso
-- [ ] Treinar usuários (se necessário)
-
----
-
-## 🔄 Como Testar Durante o Desenvolvimento
-
-### Teste rápido de perfis (sem afetar uso diário)
-
-```python
-# No terminal Python ou em um script de teste:
-import json
-
-# Ativar temporariamente para testar
-with open('feature_flags.json', 'w') as f:
-    json.dump({"PERFIS_HABILITADOS": True}, f)
-
-# Executar testes...
-
-# Desativar para voltar ao normal
-with open('feature_flags.json', 'w') as f:
-    json.dump({"PERFIS_HABILITADOS": False}, f)
-```
-
-### Script auxiliar: `testar_perfis.py`
-```python
-"""Script para alternar feature flag de perfis"""
-import json
-import sys
-
-ARQUIVO = 'feature_flags.json'
-
-def ler_flags():
-    try:
-        with open(ARQUIVO, 'r') as f:
-            return json.load(f)
-    except:
-        return {}
-
-def salvar_flags(flags):
-    with open(ARQUIVO, 'w') as f:
-        json.dump(flags, f, indent=4)
-
-if __name__ == '__main__':
-    flags = ler_flags()
-    atual = flags.get('PERFIS_HABILITADOS', False)
-    
-    if len(sys.argv) > 1:
-        if sys.argv[1] == 'on':
-            flags['PERFIS_HABILITADOS'] = True
-            print("✅ Perfis ATIVADOS - Sistema vai exigir login")
-        elif sys.argv[1] == 'off':
-            flags['PERFIS_HABILITADOS'] = False
-            print("⭕ Perfis DESATIVADOS - Sistema abre direto")
-        salvar_flags(flags)
-    else:
-        status = "ATIVADO ✅" if atual else "DESATIVADO ⭕"
-        print(f"Status atual: {status}")
-        print("Uso: python testar_perfis.py [on|off]")
-```
-
-### Uso no dia a dia
+### Script de alternância:
 ```bash
 # Ver status atual
 python testar_perfis.py
 
-# Ativar para testar novos recursos
+# Ativar para testar
 python testar_perfis.py on
 
-# Desativar para usar sistema normalmente
+# Desativar
 python testar_perfis.py off
+```
+
+### Executar testes automatizados:
+```bash
+cd c:\gestao
+python tests\test_fase6_completo.py
 ```
 
 ---
 
-## 📝 Notas Finais
+## 📝 Notas de Implementação
 
-Este plano foi desenhado para permitir **desenvolvimento contínuo sem interrupção do uso diário** do sistema.
+### Correções Importantes Realizadas:
+1. **`turma_service.py`**: Removidas colunas inexistentes (`s.ciclo`, `capacidade_maxima`, `professor_id`)
+2. **`perfil_filter_service.py`**: Removida referência a `t.professor_id`, usa apenas `funcionario_disciplinas`
+3. **`gestao_usuarios.py`**: Removido filtro por `f.status` (coluna não existe em `funcionarios`)
+4. **`logs_acesso`**: Coluna `username_tentativa` para registrar tentativas de login inválidas
 
-### Regras de ouro durante o desenvolvimento:
-1. **Sempre** mantenha `PERFIS_HABILITADOS = false` como padrão
-2. **Teste** novas funcionalidades ativando a flag temporariamente
-3. **Desative** a flag após cada sessão de testes
-4. **Só ative** permanentemente quando TUDO estiver testado e aprovado
-
-### Recomendação de implementação:
-1. Comece pela **Fase 0 e 1** (infraestrutura)
-2. Implemente **Fase 2** (login) e teste isoladamente
-3. Vá adicionando **Fases 3-5** gradualmente
-4. Faça **Fase 6** (testes completos) com calma
-5. Só execute **Fase 7** (ativação) quando tiver confiança total
+### Vinculação Professor-Turma:
+O sistema usa a tabela `funcionario_disciplinas` para determinar quais turmas um professor pode acessar:
+```sql
+SELECT DISTINCT fd.turma_id 
+FROM funcionario_disciplinas fd
+WHERE fd.funcionario_id = ?
+```
 
 ---
 
-*Documento criado em: Novembro de 2025*  
+*Documento atualizado em: 28 de Novembro de 2025*  
 *Sistema de Gestão Escolar - Desenvolvimento Voluntário*

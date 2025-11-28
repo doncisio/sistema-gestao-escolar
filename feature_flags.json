@@ -2,12 +2,12 @@
   "flags": {
     "cache_enabled": {
       "enabled": true,
-      "description": "Habilita cache de estatísticas e queries",
+      "description": "Habilita cache de estat\u00c3\u00adsticas e queries",
       "category": "performance"
     },
     "pydantic_validation": {
       "enabled": true,
-      "description": "Habilita validação Pydantic em services",
+      "description": "Habilita valida\u00c3\u00a7\u00c3\u00a3o Pydantic em services",
       "category": "validation"
     },
     "json_logs": {
@@ -17,29 +17,44 @@
     },
     "backup_automatico": {
       "enabled": true,
-      "description": "Habilita backup automático do banco",
+      "description": "Habilita backup autom\u00c3\u00a1tico do banco",
       "category": "backup"
     },
     "dashboard_avancado": {
       "enabled": true,
-      "description": "Mostra dashboard com estatísticas avançadas",
+      "description": "Mostra dashboard com estat\u00c3\u00adsticas avan\u00c3\u00a7adas",
       "category": "ui"
     },
     "modo_debug": {
       "enabled": false,
-      "description": "Ativa logs de debug e informações extras",
+      "description": "Ativa logs de debug e informa\u00c3\u00a7\u00c3\u00b5es extras",
       "category": "debug"
     },
     "relatorios_pdf": {
       "enabled": true,
-      "description": "Permite geração de relatórios em PDF",
+      "description": "Permite gera\u00c3\u00a7\u00c3\u00a3o de relat\u00c3\u00b3rios em PDF",
       "category": "features"
     },
     "integracao_drive": {
       "enabled": false,
-      "description": "Habilita integração com Google Drive",
+      "description": "Habilita integra\u00c3\u00a7\u00c3\u00a3o com Google Drive",
       "category": "integration"
+    },
+    "perfis_habilitados": {
+      "enabled": false,
+      "description": "Habilita sistema de perfis de usu\u00c3\u00a1rio com login",
+      "category": "auth"
+    },
+    "banco_questoes_habilitado": {
+      "enabled": false,
+      "description": "Habilita m\u00c3\u00b3dulo de banco de quest\u00c3\u00b5es BNCC",
+      "category": "features"
+    },
+    "dashboard_bncc_habilitado": {
+      "enabled": false,
+      "description": "Habilita dashboard pedag\u00c3\u00b3gico BNCC",
+      "category": "features"
     }
   },
-  "last_updated": "2025-11-21T10:50:57.997113"
+  "last_updated": "2025-11-28T09:10:00.000000"
 }

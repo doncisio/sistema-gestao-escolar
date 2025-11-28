@@ -8,6 +8,7 @@ na função criar_acoes() do main.py, organizando-os por categoria.
 from tkinter import Toplevel, messagebox
 from typing import Callable, Optional, Any
 from config_logs import get_logger
+from auth.decorators import requer_permissao, requer_login, requer_perfil
 
 logger = get_logger(__name__)
 
@@ -186,6 +187,7 @@ class ReportCallbacks:
             logger.exception(f"Erro ao gerar lista de matriculados: {e}")
             messagebox.showerror("Erro", f"Não foi possível gerar a lista: {e}")
     
+    @requer_permissao('notas.lancar')
     def abrir_cadastro_notas(self):
         """Abre interface de cadastro/edição de notas."""
         try:
@@ -211,6 +213,7 @@ class ReportCallbacks:
             messagebox.showerror("Erro", f"Falha ao abrir interface de notas: {e}")
             self.janela.deiconify()
     
+    @requer_permissao('relatorios.visualizar')
     def abrir_relatorio_analise(self):
         """Abre relatório estatístico de análise de notas."""
         try:
@@ -220,6 +223,7 @@ class ReportCallbacks:
             logger.exception(f"Erro ao abrir relatório de análise: {e}")
             messagebox.showerror("Erro", f"Não foi possível abrir o relatório: {e}")
     
+    @requer_permissao('frequencia.lancar')
     def abrir_cadastro_faltas(self):
         """Abre interface de cadastro/edição de faltas."""
         try:
@@ -275,6 +279,7 @@ class CadastroCallbacks:
         self.janela = janela
         self.atualizar_tabela_callback = atualizar_tabela_callback
     
+    @requer_permissao('alunos.criar')
     def cadastrar_novo_aluno(self):
         """Abre interface de cadastro de novo aluno."""
         try:
@@ -306,6 +311,7 @@ class CadastroCallbacks:
             logger.exception(f"Erro ao abrir cadastro de aluno: {e}")
             messagebox.showerror("Erro", f"Erro ao abrir cadastro de aluno: {str(e)}")
     
+    @requer_permissao('funcionarios.criar')
     def cadastrar_novo_funcionario(self):
         """Abre interface de cadastro de novo funcionário."""
         try:
@@ -392,6 +398,7 @@ class AdministrativoCallbacks:
             logger.exception(f"Erro ao abrir horários escolares: {e}")
             messagebox.showerror("Erro", f"Erro ao abrir horários escolares: {str(e)}")
     
+    @requer_permissao('sistema.transicao_ano')
     def abrir_transicao_ano_letivo(self):
         """Abre interface de transição de ano letivo com autenticação."""
         try:

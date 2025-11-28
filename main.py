@@ -6,6 +6,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Imports essenciais
 from config_logs import get_logger
+from config import perfis_habilitados
 from ui.app import Application
 
 # Logger
@@ -19,12 +20,34 @@ def main():
     """
     Função principal da aplicação.
     
-    Cria a Application, inicializa todos os componentes e inicia o mainloop.
+    Se perfis estiverem habilitados, exibe tela de login primeiro.
+    Caso contrário, abre a aplicação diretamente (comportamento atual).
     """
     try:
-        # Criar instância da aplicação
-        logger.debug("Criando instância da Application...")
-        app = Application()
+        # Verificar se sistema de perfis está habilitado
+        if perfis_habilitados():
+            logger.info("🔐 Sistema de perfis habilitado - Exibindo tela de login")
+            
+            # Importar e exibir tela de login
+            from ui.login import LoginWindow
+            from auth import UsuarioLogado
+            
+            login_window = LoginWindow()
+            usuario = login_window.mostrar()
+            
+            if not usuario:
+                # Usuário cancelou ou fechou a janela
+                logger.info("Login cancelado pelo usuário")
+                sys.exit(0)
+            
+            logger.info(f"✅ Usuário autenticado: {usuario.username} ({usuario.perfil_display})")
+            
+            # Criar aplicação passando o usuário logado
+            app = Application(usuario=usuario)
+        else:
+            # Fluxo normal - sem login (comportamento atual)
+            logger.debug("Sistema de perfis desabilitado - Abrindo direto")
+            app = Application()
         
         # Inicializar todos os componentes (método único que orquestra tudo)
         logger.debug("Inicializando componentes...")
