@@ -4,7 +4,7 @@ Contém interfaces para configuração de relatórios avançados.
 Extraído do main.py (Sprint 15 Fase 2).
 """
 
-from tkinter import (Toplevel, Frame, Label, Button, StringVar, IntVar, BooleanVar,
+from tkinter import (Toplevel, Frame, Label, StringVar, IntVar, BooleanVar,
                      Radiobutton, Checkbutton, messagebox, BOTH, X, W, RIGHT)
 from tkinter import ttk
 from ui.colors import COLORS
@@ -26,6 +26,25 @@ def abrir_relatorio_avancado(janela_pai, status_label, gerar_func):
     janela_relatorio.resizable(False, False)
     janela_relatorio.transient(janela_pai)  # Torna a janela dependente da principal
     janela_relatorio.grab_set()  # Torna a janela modal
+    janela_relatorio.configure(bg=COLORS.co0)
+
+    # Configurar estilos ttk para tema moderno e consistente
+    try:
+        style = ttk.Style()
+        # tentar um tema mais moderno quando disponível
+        for th in ("clam", "alt", "default"):
+            try:
+                style.theme_use(th)
+                break
+            except Exception:
+                pass
+    except Exception:
+        style = ttk.Style()
+
+    style.configure("Primary.TButton", background=COLORS.co5, foreground=COLORS.co0, font=("Segoe UI", 10, "bold"))
+    style.map("Primary.TButton", background=[('active', COLORS.co4)])
+    style.configure("Secondary.TButton", background="#EEEEEE", foreground="#333333", font=("Segoe UI", 10))
+    style.configure("TLabel", background=COLORS.co0, foreground=COLORS.co7, font=("Segoe UI", 10))
     
     # Variáveis para armazenar as opções
     bimestre_var = StringVar(value="1º bimestre")
@@ -81,7 +100,7 @@ def abrir_relatorio_avancado(janela_pai, status_label, gerar_func):
                 variable=preencher_zeros).pack(anchor=W)
     
     # Frame para botões
-    frame_botoes = Frame(janela_relatorio, padx=20, pady=15)
+    frame_botoes = Frame(janela_relatorio, padx=20, pady=15, bg=COLORS.co0)
     frame_botoes.pack(fill=X)
     
     # Função para gerar o relatório
@@ -129,7 +148,6 @@ def abrir_relatorio_avancado(janela_pai, status_label, gerar_func):
             if status_label is not None:
                 status_label.config(text="")
     
-    # Botões
-    Button(frame_botoes, text="Cancelar", command=janela_relatorio.destroy, width=10).pack(side=RIGHT, padx=5)
-    Button(frame_botoes, text="Gerar", command=gerar_relatorio, width=10, 
-           bg=COLORS.co5, fg=COLORS.co0).pack(side=RIGHT, padx=5)
+    # Botões (usando ttk para consistência)
+    ttk.Button(frame_botoes, text="Cancelar", command=janela_relatorio.destroy, style="Secondary.TButton").pack(side=RIGHT, padx=5)
+    ttk.Button(frame_botoes, text="Gerar", command=gerar_relatorio, style="Primary.TButton").pack(side=RIGHT, padx=5)

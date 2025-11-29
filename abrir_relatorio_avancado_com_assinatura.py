@@ -1,4 +1,4 @@
-from tkinter import Toplevel, StringVar, IntVar, BooleanVar, Frame, BOTH, W, Label, Radiobutton, Checkbutton, LEFT, X, Button, RIGHT
+from tkinter import Toplevel, StringVar, IntVar, BooleanVar, Frame, BOTH, W, Label, Radiobutton, Checkbutton, LEFT, X, RIGHT
 from tkinter import ttk, messagebox
 from NotaAta import gerar_relatorio_notas_com_assinatura
 
@@ -7,10 +7,26 @@ def abrir_relatorio_avancado_com_assinatura(janela, status_label=None, co5="#003
     # Criar janela para configuração de relatório avançado
     janela_relatorio = Toplevel(janela)
     janela_relatorio.title("Relatório de Notas com Assinatura - Opções Avançadas")
-    janela_relatorio.geometry("550x350")
+    # Padronizar tamanho com as outras interfaces de relatório avançado
+    janela_relatorio.geometry("550x480")
     janela_relatorio.resizable(False, False)
     janela_relatorio.transient(janela)  # Torna a janela dependente da principal
     janela_relatorio.grab_set()  # Torna a janela modal
+    try:
+        from ui.colors import COLORS
+        janela_relatorio.configure(bg=COLORS.co0)
+        style = ttk.Style()
+        for th in ("clam", "alt", "default"):
+            try:
+                style.theme_use(th)
+                break
+            except Exception:
+                pass
+        style.configure("Primary.TButton", background=co5, foreground=co0, font=("Segoe UI", 10, "bold"))
+        style.map("Primary.TButton", background=[('active', "#4A86E8")])
+        style.configure("Secondary.TButton", background="#EEEEEE", foreground="#333333", font=("Segoe UI", 10))
+    except Exception:
+        pass
     
     # Variáveis para armazenar as opções
     bimestre_var = StringVar(value="1º bimestre")
@@ -113,6 +129,6 @@ def abrir_relatorio_avancado_com_assinatura(janela, status_label=None, co5="#003
             if status_label is not None:
                 status_label.config(text="")
     
-    # Botões
-    Button(frame_botoes, text="Cancelar", command=janela_relatorio.destroy, width=10).pack(side=RIGHT, padx=5)
-    Button(frame_botoes, text="Gerar", command=gerar_relatorio, width=10, bg=co5, fg=co0).pack(side=RIGHT, padx=5) 
+    # Botões (ttk para consistência)
+    ttk.Button(frame_botoes, text="Cancelar", command=janela_relatorio.destroy, style="Secondary.TButton").pack(side=RIGHT, padx=5)
+    ttk.Button(frame_botoes, text="Gerar", command=gerar_relatorio, style="Primary.TButton").pack(side=RIGHT, padx=5)

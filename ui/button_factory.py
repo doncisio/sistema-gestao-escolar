@@ -350,58 +350,60 @@ class ButtonFactory:
             )
         
             # Adicionar os bimestres - Anos Iniciais (1º ao 5º ano)
-            notas_menu.add_separator()
-            notas_menu.add_command(
+            # Submenu: Relatório Avançado (padronizado com assinaturas/pendências)
+            relatorio_avancado_menu = Menu(notas_menu, tearoff=0, font=menu_font)
+            relatorio_avancado_menu.add_command(
                 label="1º bimestre",
                 command=lambda: self._nota_bimestre("1º bimestre"),
                 font=menu_font
             )
-            notas_menu.add_command(
+            relatorio_avancado_menu.add_command(
                 label="2º bimestre",
                 command=lambda: self._nota_bimestre("2º bimestre"),
                 font=menu_font
             )
-            notas_menu.add_command(
+            relatorio_avancado_menu.add_command(
                 label="3º bimestre",
                 command=lambda: self._nota_bimestre("3º bimestre"),
                 font=menu_font
             )
-            notas_menu.add_command(
+            relatorio_avancado_menu.add_command(
                 label="4º bimestre",
                 command=lambda: self._nota_bimestre("4º bimestre"),
                 font=menu_font
             )
-            
-            # Adicionar os bimestres - Anos Finais (6º ao 9º ano)
-            notas_menu.add_separator()
-            notas_menu.add_command(
+            relatorio_avancado_menu.add_separator()
+            relatorio_avancado_menu.add_command(
                 label="1º bimestre (6º ao 9º ano)",
                 command=lambda: self._nota_bimestre2("1º bimestre"),
                 font=menu_font
             )
-            notas_menu.add_command(
+            relatorio_avancado_menu.add_command(
                 label="2º bimestre (6º ao 9º ano)",
                 command=lambda: self._nota_bimestre2("2º bimestre"),
                 font=menu_font
             )
-            notas_menu.add_command(
+            relatorio_avancado_menu.add_command(
                 label="3º bimestre (6º ao 9º ano)",
                 command=lambda: self._nota_bimestre2("3º bimestre"),
                 font=menu_font
             )
-            notas_menu.add_command(
+            relatorio_avancado_menu.add_command(
                 label="4º bimestre (6º ao 9º ano)",
                 command=lambda: self._nota_bimestre2("4º bimestre"),
                 font=menu_font
             )
-            
-            notas_menu.add_separator()
-            notas_menu.add_command(
-                label="Relatório Avançado",
+            relatorio_avancado_menu.add_separator()
+            relatorio_avancado_menu.add_command(
+                label="Abrir interface",
                 command=lambda: self._abrir_relatorio_avancado(),
                 font=menu_font
             )
-            
+            notas_menu.add_cascade(
+                label="Relatório Avançado",
+                menu=relatorio_avancado_menu,
+                font=menu_font
+            )
             # Submenu: Relatórios com Assinatura
             notas_menu.add_separator()
             relatorios_assinatura_menu = Menu(notas_menu, tearoff=0, font=menu_font)
@@ -448,7 +450,7 @@ class ButtonFactory:
             )
             relatorios_assinatura_menu.add_separator()
             relatorios_assinatura_menu.add_command(
-                label="Relatório Avançado",
+                label="Abrir interface",
                 command=lambda: self._abrir_relatorio_avancado_com_assinatura(),
                 font=menu_font
             )
@@ -813,8 +815,9 @@ class ButtonFactory:
     def _abrir_relatorio_avancado(self):
         """Wrapper para abrir relatório avançado"""
         try:
-            from abrir_relatorio_avancado_com_assinatura import main as abrir_relatorio_avancado  # type: ignore
-            abrir_relatorio_avancado()
+            from ui.report_dialogs import abrir_relatorio_avancado
+            from services.report_service import gerar_relatorio_notas
+            abrir_relatorio_avancado(janela_pai=self.janela, status_label=None, gerar_func=gerar_relatorio_notas)
         except Exception as e:
             logger.exception(f"Erro ao abrir relatório avançado: {e}")
             messagebox.showerror("Erro", f"Erro ao abrir relatório: {e}")
@@ -822,10 +825,16 @@ class ButtonFactory:
     def _abrir_relatorio_pendencias(self):
         """Wrapper para abrir relatório de pendências"""
         try:
+            from ui.report_dialogs import abrir_relatorio_avancado
             from services.report_service import gerar_relatorio_pendencias
-            # TODO: Adicionar parâmetros apropriados
-            logger.warning("Relatório de pendências precisa de implementação dos parâmetros")
-            messagebox.showinfo("Info", "Função em implementação - parâmetros necessários")
+
+            # Adaptador: a interface de relatório avançado passa (bimestre, nivel_ensino, ano_letivo,
+            # status_matricula, preencher_nulos). O gerador de pendências espera (bimestre, nivel_ensino,
+            # ano_letivo, escola_id). Ignoramos os parâmetros extras e usamos escola padrão.
+            def _gerar_pendencias_adapter(bimestre, nivel_ensino, ano_letivo, status_matricula=None, preencher_nulos=False):
+                return gerar_relatorio_pendencias(bimestre=bimestre, nivel_ensino=nivel_ensino, ano_letivo=ano_letivo)
+
+            abrir_relatorio_avancado(janela_pai=self.janela, status_label=None, gerar_func=_gerar_pendencias_adapter)
         except Exception as e:
             logger.exception(f"Erro ao abrir relatório de pendências: {e}")
             messagebox.showerror("Erro", f"Erro ao abrir relatório: {e}")

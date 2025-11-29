@@ -8,7 +8,7 @@ from config_logs import get_logger
 logger = get_logger(__name__)
 import tkinter as tk
 from tkinter import ttk, messagebox
-from typing import Optional
+from typing import Optional, Any
 import config
 
 from config import perfis_habilitados
@@ -125,6 +125,134 @@ class InterfaceBancoQuestoes:
         return self.perfil in ['administrador', 'coordenador', 'professor']
     
     # =========================================================================
+    # MAPEAMENTOS PARA HABILIDADES BNCC
+    # =========================================================================
+    
+    def _get_componente_sigla(self, componente: str) -> Optional[str]:
+        """Retorna a sigla BNCC do componente curricular."""
+        mapa = {
+            "Língua Portuguesa": "LP",
+            "Matemática": "MA",
+            "Ciências": "CI",
+            "Geografia": "GE",
+            "História": "HI",
+            "Arte": "AR",
+            "Educação Física": "EDF",
+            "Língua Inglesa": "LI",
+            "Ensino Religioso": "ER",
+            "Computação": "CO"
+        }
+        return mapa.get(componente)
+    
+    def _get_ano_bloco(self, ano: str) -> list:
+        """Retorna os códigos de ano_bloco correspondentes ao ano escolar selecionado."""
+        # Mapeamento de ano escolar para possíveis valores de ano_bloco
+        # ano_bloco pode ser: '01', '02', ..., '09', '12', '15', '35', '67', '69', '89'
+        mapa = {
+            "1º ano": ["01", "12", "15"],
+            "2º ano": ["02", "12", "15"],
+            "3º ano": ["03", "35", "15"],
+            "4º ano": ["04", "35", "15"],
+            "5º ano": ["05", "35", "15"],
+            "6º ano": ["06", "67", "69"],
+            "7º ano": ["07", "67", "69"],
+            "8º ano": ["08", "89", "69"],
+            "9º ano": ["09", "89", "69"]
+        }
+        return mapa.get(ano, [])
+    
+    def _carregar_habilidades_bncc(self, componente_sigla: Optional[str] = None, anos_bloco: Optional[list] = None) -> list:
+        """Carrega habilidades BNCC do banco de dados filtradas por componente e ano."""
+        try:
+            from conexao import conectar_bd
+            conn = conectar_bd()
+            if not conn:
+                return []
+            
+            cursor: Any = conn.cursor(dictionary=True)
+            
+            # Construir query com filtros opcionais
+            query = "SELECT codigo, descricao FROM bncc_habilidades WHERE 1=1"
+            params = []
+            
+            if componente_sigla:
+                query += " AND componente_codigo = %s"
+                params.append(componente_sigla)
+            
+            if anos_bloco:
+                placeholders = ", ".join(["%s"] * len(anos_bloco))
+                query += f" AND ano_bloco IN ({placeholders})"
+                params.extend(anos_bloco)
+            
+            query += " ORDER BY codigo LIMIT 500"
+            
+            cursor.execute(query, params)
+            resultados = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            # Formatar como "CODIGO - Descrição resumida"
+            habilidades = []
+            for row in resultados:
+                codigo = row['codigo']
+                descricao = row['descricao'] or ''
+                # Truncar descrição se muito longa
+                if len(descricao) > 80:
+                    descricao = descricao[:77] + "..."
+                habilidades.append(f"{codigo} - {descricao}")
+            
+            return habilidades
+            
+        except Exception as e:
+            logger.error(f"Erro ao carregar habilidades BNCC: {e}")
+            return []
+    
+    def _atualizar_habilidades_busca(self, event=None):
+        """Atualiza o combobox de habilidades na aba de busca com base nos filtros."""
+        componente = self.cb_componente.get()
+        ano = self.cb_ano.get()
+        
+        componente_sigla = None
+        anos_bloco = None
+        
+        if componente != "Todos":
+            componente_sigla = self._get_componente_sigla(componente)
+        
+        if ano != "Todos":
+            anos_bloco = self._get_ano_bloco(ano)
+        
+        # Carregar habilidades filtradas
+        habilidades = self._carregar_habilidades_bncc(componente_sigla, anos_bloco)
+        
+        # Atualizar combobox
+        self.cb_habilidade_busca['values'] = ["Todas"] + habilidades
+        self.cb_habilidade_busca.current(0)
+    
+    def _atualizar_habilidades_cadastro(self, event=None):
+        """Atualiza o combobox de habilidades na aba de cadastro com base nos filtros."""
+        if not hasattr(self, 'cad_habilidade') or not hasattr(self, 'cad_componente') or not hasattr(self, 'cad_ano'):
+            return
+            
+        componente = self.cad_componente.get()
+        ano = self.cad_ano.get()
+        
+        componente_sigla = None
+        anos_bloco = None
+        
+        if componente:
+            componente_sigla = self._get_componente_sigla(componente)
+        
+        if ano:
+            anos_bloco = self._get_ano_bloco(ano)
+        
+        # Carregar habilidades filtradas
+        habilidades = self._carregar_habilidades_bncc(componente_sigla, anos_bloco)
+        
+        # Atualizar combobox
+        self.cad_habilidade['values'] = [""] + habilidades
+        self.cad_habilidade.set("")
+    
+    # =========================================================================
     # ABA: BUSCAR QUESTÕES
     # =========================================================================
     
@@ -145,10 +273,11 @@ class InterfaceBancoQuestoes:
         self.cb_componente['values'] = [
             "Todos", "Língua Portuguesa", "Matemática", "Ciências",
             "Geografia", "História", "Arte", "Educação Física",
-            "Língua Inglesa", "Ensino Religioso"
+            "Língua Inglesa", "Ensino Religioso", "Computação"
         ]
         self.cb_componente.current(0)
         self.cb_componente.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        self.cb_componente.bind("<<ComboboxSelected>>", self._atualizar_habilidades_busca)
         
         tk.Label(frame_filtros, text="Ano:", bg=self.co0).grid(
             row=0, column=2, padx=5, pady=5, sticky="w"
@@ -160,6 +289,7 @@ class InterfaceBancoQuestoes:
         ]
         self.cb_ano.current(0)
         self.cb_ano.grid(row=0, column=3, padx=5, pady=5, sticky="w")
+        self.cb_ano.bind("<<ComboboxSelected>>", self._atualizar_habilidades_busca)
         
         # Linha 2: Dificuldade e Tipo
         tk.Label(frame_filtros, text="Dificuldade:", bg=self.co0).grid(
@@ -184,14 +314,17 @@ class InterfaceBancoQuestoes:
         tk.Label(frame_filtros, text="Habilidade BNCC:", bg=self.co0).grid(
             row=2, column=0, padx=5, pady=5, sticky="w"
         )
-        self.entry_habilidade = ttk.Entry(frame_filtros, width=20)
-        self.entry_habilidade.grid(row=2, column=1, padx=5, pady=5, sticky="w")
+        self.cb_habilidade_busca = ttk.Combobox(frame_filtros, width=40, state="readonly")
+        self.cb_habilidade_busca['values'] = ["Todas"]
+        self.cb_habilidade_busca.current(0)
+        self.cb_habilidade_busca.grid(row=2, column=1, columnspan=2, padx=5, pady=5, sticky="w")
         
+        # Linha 4: Texto busca
         tk.Label(frame_filtros, text="Texto (busca):", bg=self.co0).grid(
-            row=2, column=2, padx=5, pady=5, sticky="w"
+            row=3, column=0, padx=5, pady=5, sticky="w"
         )
-        self.entry_texto = ttk.Entry(frame_filtros, width=30)
-        self.entry_texto.grid(row=2, column=3, padx=5, pady=5, sticky="w")
+        self.entry_texto = ttk.Entry(frame_filtros, width=50)
+        self.entry_texto.grid(row=3, column=1, columnspan=2, padx=5, pady=5, sticky="w")
         
         # Botão buscar
         btn_buscar = tk.Button(
@@ -199,7 +332,7 @@ class InterfaceBancoQuestoes:
             command=self.buscar_questoes,
             bg=self.co4, fg="white", font=("Arial", 10, "bold")
         )
-        btn_buscar.grid(row=2, column=4, padx=10, pady=5)
+        btn_buscar.grid(row=3, column=3, padx=10, pady=5)
         
         # Frame de resultados
         frame_resultados = tk.LabelFrame(
@@ -308,8 +441,13 @@ class InterfaceBancoQuestoes:
                 except ValueError:
                     pass
         
-        habilidade = self.entry_habilidade.get().strip()
-        if habilidade:
+        habilidade_selecionada = self.cb_habilidade_busca.get()
+        if habilidade_selecionada and habilidade_selecionada != "Todas":
+            # Extrair apenas o código da habilidade (antes do " - ")
+            if " - " in habilidade_selecionada:
+                habilidade = habilidade_selecionada.split(" - ")[0].strip()
+            else:
+                habilidade = habilidade_selecionada.strip()
             filtros.habilidade_bncc = habilidade
         
         texto = self.entry_texto.get().strip()
@@ -561,7 +699,7 @@ Status: {questao.status.value if questao.status else ''}"""
             if not conn:
                 return []
             
-            cursor = conn.cursor(dictionary=True)
+            cursor: Any = conn.cursor(dictionary=True)
             cursor.execute("""
                 SELECT qa.*, qalt.letra as alternativa_letra
                 FROM questoes_arquivos qa
@@ -747,9 +885,10 @@ Status: {questao.status.value if questao.status else ''}"""
         self.cad_componente['values'] = [
             "Língua Portuguesa", "Matemática", "Ciências",
             "Geografia", "História", "Arte", "Educação Física",
-            "Língua Inglesa", "Ensino Religioso"
+            "Língua Inglesa", "Ensino Religioso", "Computação"
         ]
         self.cad_componente.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        self.cad_componente.bind("<<ComboboxSelected>>", self._atualizar_habilidades_cadastro)
         
         # Ano
         tk.Label(frame_dados, text="Ano Escolar:*", bg=self.co0).grid(
@@ -761,15 +900,17 @@ Status: {questao.status.value if questao.status else ''}"""
             "6º ano", "7º ano", "8º ano", "9º ano"
         ]
         self.cad_ano.grid(row=0, column=3, padx=5, pady=5, sticky="w")
+        self.cad_ano.bind("<<ComboboxSelected>>", self._atualizar_habilidades_cadastro)
         
         # Habilidade BNCC
         tk.Label(frame_dados, text="Habilidade BNCC:*", bg=self.co0).grid(
             row=1, column=0, padx=5, pady=5, sticky="w"
         )
-        self.cad_habilidade = ttk.Entry(frame_dados, width=20)
-        self.cad_habilidade.grid(row=1, column=1, padx=5, pady=5, sticky="w")
-        tk.Label(frame_dados, text="Ex: EF07MA02", bg=self.co0, fg=self.co9).grid(
-            row=1, column=2, padx=5, pady=5, sticky="w"
+        self.cad_habilidade = ttk.Combobox(frame_dados, width=60, state="readonly")
+        self.cad_habilidade['values'] = [""]
+        self.cad_habilidade.grid(row=1, column=1, columnspan=3, padx=5, pady=5, sticky="w")
+        tk.Label(frame_dados, text="Selecione Componente e Ano para filtrar", bg=self.co0, fg=self.co9).grid(
+            row=1, column=4, padx=5, pady=5, sticky="w"
         )
         
         # Tipo
@@ -1255,6 +1396,13 @@ Status: {questao.status.value if questao.status else ''}"""
             messagebox.showwarning("Aviso", "Informe a habilidade BNCC.")
             return
         
+        # Extrair código da habilidade (antes de " - " se houver descrição)
+        habilidade_selecionada = self.cad_habilidade.get().strip()
+        if " - " in habilidade_selecionada:
+            habilidade_codigo = habilidade_selecionada.split(" - ")[0].strip().upper()
+        else:
+            habilidade_codigo = habilidade_selecionada.upper()
+        
         enunciado = self.cad_enunciado.get("1.0", "end").strip()
         if not enunciado:
             messagebox.showwarning("Aviso", "Informe o enunciado da questão.")
@@ -1275,7 +1423,7 @@ Status: {questao.status.value if questao.status else ''}"""
             questao = Questao(
                 componente_curricular=ComponenteCurricular(self.cad_componente.get()),
                 ano_escolar=AnoEscolar(self.cad_ano.get()),
-                habilidade_bncc_codigo=self.cad_habilidade.get().strip().upper(),
+                habilidade_bncc_codigo=habilidade_codigo,
                 tipo=TipoQuestao(self.cad_tipo.get()),
                 dificuldade=DificuldadeQuestao(self.cad_dificuldade.get()),
                 enunciado=enunciado,
@@ -1623,7 +1771,8 @@ Status: {questao.status.value if questao.status else ''}"""
         """Limpa todos os campos do cadastro."""
         self.cad_componente.set("")
         self.cad_ano.set("")
-        self.cad_habilidade.delete(0, "end")
+        self.cad_habilidade.set("")
+        self.cad_habilidade['values'] = [""]  # Resetar valores do combobox
         self.cad_tipo.current(0)
         self.cad_dificuldade.current(1)
         self.cad_enunciado.delete("1.0", "end")
