@@ -1,3 +1,11 @@
+"""
+Interface de Cadastro e Edição de Faltas de Funcionários.
+
+Permite registrar faltas (F), faltas justificadas (FJ) e observações
+para os funcionários por mês/ano. O campo P (presença) é calculado
+automaticamente: P = Total de Dias do Mês - (F + FJ)
+"""
+
 from config_logs import get_logger
 logger = get_logger(__name__)
 import tkinter as tk
@@ -6,7 +14,7 @@ from datetime import datetime
 import calendar
 from conexao import conectar_bd
 from db.connection import get_connection, get_cursor
-from typing import Any, cast
+from typing import Any, cast, Dict, Optional
 
 
 class InterfaceCadastroEdicaoFaltas:
@@ -17,7 +25,7 @@ class InterfaceCadastroEdicaoFaltas:
         if root is None:
             self.janela = tk.Toplevel()
             self.janela.title("Cadastro/Edição de Faltas de Funcionários")
-            self.janela.geometry("900x580")
+            self.janela.geometry("950x650")
             self.janela.grab_set()
             self.janela.focus_force()
             self.janela.protocol("WM_DELETE_WINDOW", self.ao_fechar_janela)
@@ -25,14 +33,14 @@ class InterfaceCadastroEdicaoFaltas:
             self.janela = root
 
         # Cores alinhadas ao main.py
-        self.co0 = "#F5F5F5"
-        self.co1 = "#003A70"
-        self.co2 = "#77B341"
-        self.co3 = "#E2418E"
-        self.co4 = "#4A86E8"
-        self.co7 = "#333333"
-        self.co8 = "#BF3036"
-        self.co9 = "#999999"
+        self.co0 = "#F5F5F5"  # Fundo claro
+        self.co1 = "#003A70"  # Azul escuro (cabeçalho)
+        self.co2 = "#77B341"  # Verde (sucesso)
+        self.co3 = "#E2418E"  # Rosa/Magenta
+        self.co4 = "#4A86E8"  # Azul claro (botões)
+        self.co7 = "#333333"  # Cinza escuro (texto)
+        self.co8 = "#BF3036"  # Vermelho (erro)
+        self.co9 = "#999999"  # Cinza claro
 
         self.janela.configure(bg=self.co0)
 
@@ -40,83 +48,171 @@ class InterfaceCadastroEdicaoFaltas:
         hoje = datetime.today()
         self.mes = tk.IntVar(value=hoje.month)
         self.ano = tk.IntVar(value=hoje.year)
-        self._ajuste_agendado = None
+        
+        # Dicionário para armazenar inputs: {func_id: {"p": Entry, "f": Entry, "fj": Entry, "obs": Entry}}
+        self.inputs_por_id: Dict[int, Dict[str, tk.Entry]] = {}
+        
+        # Dados dos funcionários
+        self.funcionarios_data: list = []
 
         # Construção UI
         self.criar_frames()
         self.criar_cabecalho("Cadastro e Edição de Faltas - Funcionários")
         self.criar_filtros()
-        self.criar_tabela()
+        self.criar_area_tabela()
         self.criar_botoes()
 
         # Carregar dados iniciais
         self.carregar_funcionarios()
         self.atualizar_dias_letivos()
 
-    # --- UI ---
     def criar_frames(self):
+        """Cria os frames principais da interface."""
+        # Frame superior para título
         self.frame_titulo = tk.Frame(self.janela, bg=self.co1)
         self.frame_titulo.pack(side="top", fill="x")
 
+        # Frame para filtros (mês/ano)
         self.frame_filtros = tk.Frame(self.janela, bg=self.co0)
         self.frame_filtros.pack(fill="x", padx=10, pady=8)
 
+        # Frame para tabela de funcionários
         self.frame_tabela = tk.Frame(self.janela, bg=self.co0)
         self.frame_tabela.pack(fill="both", expand=True, padx=10, pady=5)
 
+        # Frame para botões
         self.frame_botoes = tk.Frame(self.janela, bg=self.co0)
         self.frame_botoes.pack(fill="x", padx=10, pady=10)
 
     def criar_cabecalho(self, titulo: str):
+        """Cria o cabeçalho com título."""
         for w in self.frame_titulo.winfo_children():
             w.destroy()
-        tk.Label(self.frame_titulo, text=titulo, font=("Arial", 14, "bold"), bg=self.co1, fg="white").pack(fill="x", padx=10, pady=10)
+        tk.Label(
+            self.frame_titulo, text=titulo, 
+            font=("Arial", 14, "bold"), bg=self.co1, fg="white"
+        ).pack(fill="x", padx=10, pady=10)
 
     def criar_filtros(self):
-        tk.Label(self.frame_filtros, text="Mês:", bg=self.co0).grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        sp_mes = ttk.Spinbox(self.frame_filtros, from_=1, to=12, width=5, textvariable=self.mes, command=self.atualizar_dias_letivos)
+        """Cria a área de filtros (mês/ano) e informações."""
+        # Linha 1: Filtros
+        tk.Label(self.frame_filtros, text="Mês:", bg=self.co0, font=("Arial", 10)).grid(
+            row=0, column=0, padx=5, pady=5, sticky="w"
+        )
+        sp_mes = ttk.Spinbox(
+            self.frame_filtros, from_=1, to=12, width=5, 
+            textvariable=self.mes, command=self.atualizar_dias_letivos
+        )
         sp_mes.grid(row=0, column=1, sticky="w")
 
-        tk.Label(self.frame_filtros, text="Ano:", bg=self.co0).grid(row=0, column=2, padx=10, pady=5, sticky="w")
-        sp_ano = ttk.Spinbox(self.frame_filtros, from_=2020, to=2100, width=7, textvariable=self.ano, command=self.atualizar_dias_letivos)
+        tk.Label(self.frame_filtros, text="Ano:", bg=self.co0, font=("Arial", 10)).grid(
+            row=0, column=2, padx=10, pady=5, sticky="w"
+        )
+        sp_ano = ttk.Spinbox(
+            self.frame_filtros, from_=2020, to=2100, width=7, 
+            textvariable=self.ano, command=self.atualizar_dias_letivos
+        )
         sp_ano.grid(row=0, column=3, sticky="w")
 
-        ttk.Button(self.frame_filtros, text="Carregar", command=lambda: [self.carregar_funcionarios(), self.atualizar_dias_letivos()]).grid(row=0, column=4, padx=10)
-        self.lbl_dias = tk.Label(self.frame_filtros, text="Dias letivos: --", bg=self.co0, fg=self.co7)
+        btn_carregar = tk.Button(
+            self.frame_filtros, text="🔄 Carregar", 
+            command=lambda: [self.carregar_funcionarios(), self.atualizar_dias_letivos()],
+            bg=self.co4, fg="white", font=("Arial", 10, "bold")
+        )
+        btn_carregar.grid(row=0, column=4, padx=10)
+        
+        self.lbl_dias = tk.Label(
+            self.frame_filtros, text="Dias letivos: --", 
+            bg=self.co0, fg=self.co7, font=("Arial", 10, "bold")
+        )
         self.lbl_dias.grid(row=0, column=5, padx=10, sticky="w")
         
-        # Adicionar legenda explicativa
-        tk.Label(self.frame_filtros, text="💡 P (Presença) é calculado automaticamente: P = Total de Dias do Mês - (F + FJ)", 
-                bg=self.co0, fg="#0066CC", font=("Arial", 9, "italic")).grid(row=1, column=0, columnspan=6, padx=5, pady=5, sticky="w")
+        # Linha 2: Legenda explicativa
+        tk.Label(
+            self.frame_filtros, 
+            text="💡 P (Presença) é calculado automaticamente: P = Total de Dias do Mês - (F + FJ)", 
+            bg=self.co0, fg="#0066CC", font=("Arial", 9, "italic")
+        ).grid(row=1, column=0, columnspan=6, padx=5, pady=5, sticky="w")
 
-    def criar_tabela(self):
-        # Treeview com colunas: Nº, Matrícula, Nome, P, F, FJ, Observação
-        colunas = ("num", "matricula", "nome", "p", "f", "fj", "obs")
-        self.tabela = ttk.Treeview(self.frame_tabela, columns=colunas, show="headings", height=16)
-        self.tabela.heading("num", text="Nº")
-        self.tabela.heading("matricula", text="Matrícula")
-        self.tabela.heading("nome", text="Nome")
-        self.tabela.heading("p", text="P (Auto)")
-        self.tabela.heading("f", text="F")
-        self.tabela.heading("fj", text="FJ")
-        self.tabela.heading("obs", text="Observação")
+    def criar_area_tabela(self):
+        """Cria a área da tabela com scroll para os funcionários."""
+        # Limpar frame
+        for widget in self.frame_tabela.winfo_children():
+            widget.destroy()
+        
+        # Canvas com scrollbar para permitir scroll dos funcionários
+        self.canvas = tk.Canvas(self.frame_tabela, bg=self.co0, highlightthickness=0)
+        scrollbar_y = ttk.Scrollbar(self.frame_tabela, orient="vertical", command=self.canvas.yview)
+        scrollbar_x = ttk.Scrollbar(self.frame_tabela, orient="horizontal", command=self.canvas.xview)
+        
+        self.frame_scroll = tk.Frame(self.canvas, bg=self.co0)
+        
+        self.frame_scroll.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+        
+        self.canvas.create_window((0, 0), window=self.frame_scroll, anchor="nw")
+        self.canvas.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
+        
+        # Configurar scroll com mousewheel
+        def _on_mousewheel(event):
+            self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        # Layout
+        self.canvas.pack(side="left", fill="both", expand=True)
+        scrollbar_y.pack(side="right", fill="y")
+        scrollbar_x.pack(side="bottom", fill="x")
 
-        self.tabela.column("num", width=50, anchor="center")
-        self.tabela.column("matricula", width=110, anchor="center")
-        self.tabela.column("nome", width=360, anchor="w")
-        self.tabela.column("p", width=60, anchor="center")
-        self.tabela.column("f", width=60, anchor="center")
-        self.tabela.column("fj", width=60, anchor="center")
-        self.tabela.column("obs", width=180, anchor="w")
+    def criar_cabecalho_tabela(self):
+        """Cria o cabeçalho da tabela de funcionários."""
+        headers = [
+            ("Nº", 50),
+            ("Matrícula", 100),
+            ("Nome do Funcionário", 300),
+            ("P (Auto)", 70),
+            ("F", 70),
+            ("FJ", 70),
+            ("Observação", 200)
+        ]
+        
+        for col, (text, width) in enumerate(headers):
+            lbl = tk.Label(
+                self.frame_scroll, text=text, font=("Arial", 10, "bold"),
+                bg=self.co1, fg="white", padx=5, pady=8, width=width//8
+            )
+            lbl.grid(row=0, column=col, sticky="ew", padx=1, pady=1)
+        
+        # Configurar larguras das colunas
+        self.frame_scroll.columnconfigure(0, minsize=50)   # Nº
+        self.frame_scroll.columnconfigure(1, minsize=100)  # Matrícula
+        self.frame_scroll.columnconfigure(2, minsize=300)  # Nome
+        self.frame_scroll.columnconfigure(3, minsize=70)   # P
+        self.frame_scroll.columnconfigure(4, minsize=70)   # F
+        self.frame_scroll.columnconfigure(5, minsize=70)   # FJ
+        self.frame_scroll.columnconfigure(6, minsize=200)  # Obs
 
-        scroll_y = ttk.Scrollbar(self.frame_tabela, orient="vertical", command=self.tabela.yview)
-        self.tabela.configure(yscrollcommand=scroll_y.set)
-        self.tabela.pack(side="left", fill="both", expand=True)
-        scroll_y.pack(side="right", fill="y")
-
-        self.inputs_por_id = {}
+    def criar_botoes(self):
+        """Cria os botões de ação."""
+        btn_salvar = tk.Button(
+            self.frame_botoes, text="💾 Salvar", 
+            command=self.salvar,
+            bg=self.co2, fg="white", font=("Arial", 10, "bold"),
+            width=12
+        )
+        btn_salvar.pack(side="right", padx=5)
+        
+        btn_limpar = tk.Button(
+            self.frame_botoes, text="🧹 Limpar", 
+            command=self.limpar_campos,
+            bg=self.co9, fg="white", font=("Arial", 10, "bold"),
+            width=12
+        )
+        btn_limpar.pack(side="right", padx=5)
 
     def atualizar_dias_letivos(self):
+        """Atualiza o label com os dias letivos do mês/ano selecionado."""
         try:
             with get_cursor() as cur:
                 cur.execute(
@@ -135,12 +231,8 @@ class InterfaceCadastroEdicaoFaltas:
             if hasattr(self, 'lbl_dias') and self.lbl_dias.winfo_exists():
                 self.lbl_dias.config(text="Dias letivos: --")
 
-    def criar_botoes(self):
-        ttk.Button(self.frame_botoes, text="Salvar", command=self.salvar).pack(side="right", padx=5)
-        ttk.Button(self.frame_botoes, text="Limpar", command=self.limpar_campos).pack(side="right", padx=5)
-
-    # --- Dados ---
     def garantir_tabela(self, conn):
+        """Garante que a tabela de faltas existe no banco de dados."""
         cur = cast(Any, conn).cursor()
         cast(Any, cur).execute(
             """
@@ -160,6 +252,7 @@ class InterfaceCadastroEdicaoFaltas:
         cast(Any, cur).close()
 
     def carregar_funcionarios(self):
+        """Carrega os funcionários e suas faltas na interface."""
         try:
             with get_connection() as conn:
                 self.garantir_tabela(conn)
@@ -175,6 +268,7 @@ class InterfaceCadastroEdicaoFaltas:
                     (self.escola_id,),
                 )
                 funcionarios = cur.fetchall()
+                self.funcionarios_data = funcionarios
 
                 # Carregar faltas existentes do mês/ano selecionados
                 cur.execute(
@@ -187,54 +281,98 @@ class InterfaceCadastroEdicaoFaltas:
                 )
                 regs = {r["funcionario_id"]: r for r in cur.fetchall()}
 
-                # Reset tabela
-                for item in self.tabela.get_children():
-                    self.tabela.delete(item)
-                self.inputs_por_id.clear()
+                try:
+                    cur.close()
+                except Exception:
+                    pass
 
-                # Inserir linhas e inputs
-                for idx, f in enumerate(funcionarios, start=1):
-                    item_id = self.tabela.insert("", "end", values=(idx, f.get("matricula", ""), f["nome"], "", "", "", ""))
-                    bbox_p = self.tabela.bbox(item_id, "p")
-                    bbox_f = self.tabela.bbox(item_id, "f")
-                    bbox_fj = self.tabela.bbox(item_id, "fj")
-                    bbox_obs = self.tabela.bbox(item_id, "obs")
+            # Reconstruir a área da tabela
+            self.criar_area_tabela()
+            self.criar_cabecalho_tabela()
+            self.inputs_por_id.clear()
 
-                # Criar entradas editáveis (P é somente leitura)
-                entrada_p = tk.Entry(self.tabela, width=5, justify="center", state="readonly", 
-                                    readonlybackground="#E0E0E0", fg="#666666")
-                entrada_f = tk.Entry(self.tabela, width=5, justify="center")
-                entrada_fj = tk.Entry(self.tabela, width=5, justify="center")
-                entrada_obs = tk.Entry(self.tabela, width=25)
-
-                # Posicionar se bbox válido
-                def _place(entry, bbox):
-                    if bbox:
-                        x, y, w, h = bbox
-                        entry.place(x=x + 3, y=y + 2, width=w - 6, height=h - 4)
-
-                _place(entrada_p, bbox_p)
-                _place(entrada_f, bbox_f)
-                _place(entrada_fj, bbox_fj)
-                _place(entrada_obs, bbox_obs)
-
-                # Preencher se houver registro
-                reg = regs.get(f["id"]) if regs else None
-                if reg:
-                    if reg.get("p"):
-                        entrada_p.config(state="normal")
-                        entrada_p.delete(0, tk.END)
-                        entrada_p.insert(0, str(reg.get("p")))
-                        entrada_p.config(state="readonly")
-                    if reg.get("f"):
-                        entrada_f.insert(0, str(reg.get("f")))
-                    if reg.get("fj"):
-                        entrada_fj.insert(0, str(reg.get("fj")))
-                    if reg.get("observacao"):
-                        entrada_obs.insert(0, str(reg.get("observacao")))
-
-                # Guardar
-                self.inputs_por_id[f["id"]] = {
+            # Inserir linhas para cada funcionário
+            for idx, func in enumerate(funcionarios, start=1):
+                func_id = func["id"]
+                matricula = func.get("matricula", "")
+                nome = func["nome"]
+                
+                # Obter dados existentes
+                reg = regs.get(func_id)
+                p_val = str(reg.get("p", "")) if reg and reg.get("p") else ""
+                f_val = str(reg.get("f", "")) if reg and reg.get("f") else ""
+                fj_val = str(reg.get("fj", "")) if reg and reg.get("fj") else ""
+                obs_val = str(reg.get("observacao", "")) if reg and reg.get("observacao") else ""
+                
+                row = idx  # Linha na grid (0 é o cabeçalho)
+                
+                # Cor alternada para linhas
+                bg_color = "#FFFFFF" if idx % 2 == 1 else "#F0F0F0"
+                
+                # Coluna 0: Número
+                lbl_num = tk.Label(
+                    self.frame_scroll, text=str(idx), 
+                    bg=bg_color, font=("Arial", 9), 
+                    anchor="center", padx=5, pady=4
+                )
+                lbl_num.grid(row=row, column=0, sticky="ew", padx=1, pady=1)
+                
+                # Coluna 1: Matrícula
+                lbl_mat = tk.Label(
+                    self.frame_scroll, text=matricula, 
+                    bg=bg_color, font=("Arial", 9), 
+                    anchor="center", padx=5, pady=4
+                )
+                lbl_mat.grid(row=row, column=1, sticky="ew", padx=1, pady=1)
+                
+                # Coluna 2: Nome
+                lbl_nome = tk.Label(
+                    self.frame_scroll, text=nome, 
+                    bg=bg_color, font=("Arial", 9), 
+                    anchor="w", padx=5, pady=4
+                )
+                lbl_nome.grid(row=row, column=2, sticky="ew", padx=1, pady=1)
+                
+                # Coluna 3: P (readonly - calculado automaticamente)
+                entrada_p = tk.Entry(
+                    self.frame_scroll, width=8, justify="center", 
+                    state="readonly", readonlybackground="#E0E0E0", fg="#666666",
+                    font=("Arial", 9)
+                )
+                entrada_p.grid(row=row, column=3, sticky="ew", padx=2, pady=2)
+                if p_val:
+                    entrada_p.config(state="normal")
+                    entrada_p.insert(0, p_val)
+                    entrada_p.config(state="readonly")
+                
+                # Coluna 4: F (editável)
+                entrada_f = tk.Entry(
+                    self.frame_scroll, width=8, justify="center",
+                    font=("Arial", 9)
+                )
+                entrada_f.grid(row=row, column=4, sticky="ew", padx=2, pady=2)
+                if f_val:
+                    entrada_f.insert(0, f_val)
+                
+                # Coluna 5: FJ (editável)
+                entrada_fj = tk.Entry(
+                    self.frame_scroll, width=8, justify="center",
+                    font=("Arial", 9)
+                )
+                entrada_fj.grid(row=row, column=5, sticky="ew", padx=2, pady=2)
+                if fj_val:
+                    entrada_fj.insert(0, fj_val)
+                
+                # Coluna 6: Observação (editável)
+                entrada_obs = tk.Entry(
+                    self.frame_scroll, width=25, font=("Arial", 9)
+                )
+                entrada_obs.grid(row=row, column=6, sticky="ew", padx=2, pady=2)
+                if obs_val:
+                    entrada_obs.insert(0, obs_val)
+                
+                # Guardar referências
+                self.inputs_por_id[func_id] = {
                     "p": entrada_p,
                     "f": entrada_f,
                     "fj": entrada_fj,
@@ -242,66 +380,15 @@ class InterfaceCadastroEdicaoFaltas:
                 }
                 
                 # Bind para calcular P automaticamente ao digitar F ou FJ
-                entrada_f.bind("<KeyRelease>", lambda e, fid=f["id"]: self._calcular_presenca(fid))
-                entrada_fj.bind("<KeyRelease>", lambda e, fid=f["id"]: self._calcular_presenca(fid))
+                entrada_f.bind("<KeyRelease>", lambda e, fid=func_id: self._calcular_presenca(fid))
+                entrada_fj.bind("<KeyRelease>", lambda e, fid=func_id: self._calcular_presenca(fid))
 
-                try:
-                    cur.close()
-                except Exception:
-                    pass
+            # Atualizar scroll region após adicionar todos os widgets
+            self.frame_scroll.update_idletasks()
+            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
-            # Ajustar on scroll/movimento/redimensionamento
-            self.tabela.bind("<ButtonRelease-1>", self._ajustar_inputs)
-            self.tabela.bind("<Motion>", self._ajustar_inputs)
-            self.tabela.bind("<Configure>", self._ajustar_inputs)
-            self.janela.bind("<Configure>", self._ajustar_inputs)
-            self.frame_tabela.bind("<Configure>", self._ajustar_inputs)
-            self.janela.after(200, self._ajustar_inputs)
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar funcionários: {e}")
-
-    def _ajustar_inputs(self, event=None):
-        try:
-            # Cancela ajuste anterior agendado para evitar múltiplas chamadas
-            if self._ajuste_agendado:
-                self.janela.after_cancel(self._ajuste_agendado)
-                self._ajuste_agendado = None
-            
-            # Agenda ajuste para dar tempo da geometria atualizar
-            self._ajuste_agendado = self.janela.after(10, self._realizar_ajuste)
-        except Exception:
-            pass
-    
-    def _realizar_ajuste(self):
-        try:
-            self._ajuste_agendado = None
-            # Força atualização da geometria da tabela antes de pegar bbox
-            self.tabela.update_idletasks()
-            
-            for item_id, (func_id, inputs) in zip(self.tabela.get_children(), self.inputs_por_id.items()):
-                bbox_p = self.tabela.bbox(item_id, "p")
-                bbox_f = self.tabela.bbox(item_id, "f")
-                bbox_fj = self.tabela.bbox(item_id, "fj")
-                bbox_obs = self.tabela.bbox(item_id, "obs")
-                self._place_if_visible(inputs["p"], bbox_p)
-                self._place_if_visible(inputs["f"], bbox_f)
-                self._place_if_visible(inputs["fj"], bbox_fj)
-                self._place_if_visible(inputs["obs"], bbox_obs)
-        except Exception:
-            pass
-
-    def _place_if_visible(self, entry, bbox):
-        try:
-            if not entry.winfo_exists():
-                return
-            if bbox:
-                x, y, w, h = bbox
-                entry.place(x=x + 3, y=y + 2, width=w - 6, height=h - 4)
-                entry.lift()
-            else:
-                entry.place_forget()
-        except Exception:
-            pass
 
     def _calcular_presenca(self, func_id):
         """Calcula automaticamente P = total_dias_mes - (F + FJ)"""
