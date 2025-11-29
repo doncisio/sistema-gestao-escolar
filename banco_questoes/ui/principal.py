@@ -827,7 +827,7 @@ Status: {questao.status.value if questao.status else ''}"""
         self.var_posicao_img = tk.StringVar(value="abaixo")
         
         for pos_val, pos_txt in [("acima", "⬆️ Acima"), ("abaixo", "⬇️ Abaixo"), 
-                                  ("esquerda", "⬅️ Esquerda"), ("direita", "➡️ Direita")]:
+                                  ("esquerda", "⬅️ Esquerda"), ("direita", "➡️ Direita"), ("entre", "↔️ Entre")]:
             tk.Radiobutton(
                 frame_pos_img, text=pos_txt, variable=self.var_posicao_img,
                 value=pos_val, bg=self.co0
@@ -848,6 +848,12 @@ Status: {questao.status.value if questao.status else ''}"""
             command=self.remover_imagem_enunciado,
             bg=self.co8, fg="white"
         ).pack(side="left", padx=5)
+
+        tk.Button(
+            frame_btn_img, text="📎 Inserir no Texto",
+            command=self.inserir_imagem_enunciado_entre,
+            bg=self.co4, fg="white"
+        ).pack(side="left", padx=5)
         
         self.lbl_imagem_enunciado = tk.Label(
             frame_btn_img, text="Nenhuma imagem selecionada",
@@ -865,6 +871,7 @@ Status: {questao.status.value if questao.status else ''}"""
         # Variável para armazenar o caminho da imagem
         self.imagem_enunciado_path = None
         self.imagem_enunciado_preview = None  # PhotoImage reference
+        self.imagem_enunciado_inline = False  # Se a imagem foi inserida inline no Text
         
         # Seção: Texto de apoio (opcional)
         frame_apoio = tk.LabelFrame(
@@ -1035,6 +1042,66 @@ Status: {questao.status.value if questao.status else ''}"""
             nome_arquivo = caminho.split("/")[-1].split("\\")[-1]
             self.lbl_imagem_enunciado.config(text=f"✅ {nome_arquivo[:30]}...")
             self.mostrar_preview_imagem(caminho, self.lbl_preview_enunciado, 150)
+
+    def inserir_imagem_enunciado_entre(self):
+        """Insere uma imagem no ponto atual do cursor dentro do enunciado (inline)."""
+        from tkinter import filedialog
+
+        filetypes = [
+            ("Imagens", "*.png *.jpg *.jpeg *.gif *.bmp"),
+            ("PNG", "*.png"),
+            ("JPEG", "*.jpg *.jpeg"),
+            ("GIF", "*.gif"),
+            ("Todos", "*.*")
+        ]
+
+        caminho = filedialog.askopenfilename(
+            title="Inserir Imagem no Enunciado",
+            filetypes=filetypes,
+            parent=self.janela
+        )
+
+        if not caminho:
+            return
+
+        try:
+            from PIL import Image, ImageTk
+
+            # Carregar imagem e reduzir largura se for muito larga para o editor
+            img = Image.open(caminho)
+            max_w = 600
+            if img.width > max_w:
+                ratio = max_w / img.width
+                img = img.resize((int(img.width * ratio), int(img.height * ratio)), Image.Resampling.LANCZOS)
+
+            photo = ImageTk.PhotoImage(img)
+
+            # Inserir imagem no Text no índice atual do cursor
+            try:
+                self.cad_enunciado.image_create("insert", image=photo)
+            except Exception:
+                # fallback: append at the end
+                self.cad_enunciado.image_create("end", image=photo)
+
+            # Manter referência ao PhotoImage
+            self._store_image_ref(photo)
+
+            # Guardar informação para salvar posteriormente
+            self.imagem_enunciado_path = caminho
+            self.imagem_enunciado_inline = True
+            nome_arquivo = caminho.split("/")[-1].split("\\")[-1]
+            self.lbl_imagem_enunciado.config(text=f"✅ {nome_arquivo[:30]}... (inline)")
+            # Também atualizar o preview menor
+            self.mostrar_preview_imagem(caminho, self.lbl_preview_enunciado, 150)
+
+            # Forçar opção de posição para 'entre'
+            self.var_posicao_img.set("entre")
+
+        except ImportError:
+            messagebox.showwarning("Aviso", "PIL não disponível — não é possível inserir a imagem inline.")
+        except Exception as e:
+            logger.error(f"Erro ao inserir imagem inline: {e}")
+            messagebox.showerror("Erro", f"Erro ao inserir imagem no enunciado: {e}")
     
     def remover_imagem_enunciado(self):
         """Remove a imagem do enunciado."""
@@ -1224,10 +1291,16 @@ Status: {questao.status.value if questao.status else ''}"""
             
             # Imagem do enunciado
             if self.imagem_enunciado_path:
+                # Se a posição selecionada for 'entre' (inline), o DB pode não ter enum
+                # correspondente; salvo como 'abaixo' no banco e marco 'inline' no metadado.
+                pos_sel = self.var_posicao_img.get()
+                pos_for_db = 'abaixo' if pos_sel == 'entre' else pos_sel
                 arquivo_enunciado = self._preparar_arquivo_imagem(
-                    self.imagem_enunciado_path, 
-                    posicao_imagem=self.var_posicao_img.get()
+                    self.imagem_enunciado_path,
+                    posicao_imagem=pos_for_db
                 )
+                if arquivo_enunciado and pos_sel == 'entre':
+                    arquivo_enunciado['inline'] = True
                 if arquivo_enunciado:
                     arquivos_questao.append(arquivo_enunciado)
             
@@ -2137,9 +2210,23 @@ def abrir_banco_questoes(janela_principal=None):
         janela_principal: Referência à janela principal (opcional)
     """
     try:
+        # Esconder a janela principal para focar na interface do banco de questões
+        if janela_principal:
+            try:
+                janela_principal.withdraw()
+            except Exception:
+                # Ignorar se não for possível ocultar
+                pass
+
         interface = InterfaceBancoQuestoes(janela_principal=janela_principal)
         return interface
     except Exception as e:
         logger.error(f"Erro ao abrir banco de questões: {e}")
         messagebox.showerror("Erro", f"Não foi possível abrir o banco de questões: {e}")
+        # Restaurar janela principal caso tenha sido escondida
+        if janela_principal:
+            try:
+                janela_principal.deiconify()
+            except Exception:
+                pass
         return None

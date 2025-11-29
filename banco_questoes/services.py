@@ -47,7 +47,7 @@ class QuestaoService:
             ID da questão criada ou None em caso de erro
         """
         try:
-            with get_cursor() as cursor:
+            with get_cursor(commit=True) as cursor:
                 # Inserir questão principal
                 sql = """
                     INSERT INTO questoes (
@@ -62,7 +62,7 @@ class QuestaoService:
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
                 """
-                
+
                 params = (
                     questao.componente_curricular.value if questao.componente_curricular else None,
                     questao.ano_escolar.value if questao.ano_escolar else None,
@@ -87,15 +87,15 @@ class QuestaoService:
                     questao.escola_id,
                     questao.autor_id
                 )
-                
+
                 cursor.execute(sql, params)
                 questao_id = cursor.lastrowid
-                
+
                 # Inserir alternativas se houver
                 if questao.alternativas:
                     for alt in questao.alternativas:
                         QuestaoService._inserir_alternativa(cursor, questao_id, alt)
-                
+
                 logger.info(f"Questão criada com ID {questao_id}")
                 return questao_id
                 
