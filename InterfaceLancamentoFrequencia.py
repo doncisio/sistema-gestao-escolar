@@ -12,7 +12,7 @@ from tkinter import ttk, messagebox
 from conexao import conectar_bd
 import config
 from datetime import datetime
-from typing import cast
+from typing import cast, Optional
 
 # Imports para controle de perfil de usuário
 from config import perfis_habilitados
@@ -67,8 +67,14 @@ class InterfaceLancamentoFrequencia:
         # Obter ano letivo atual
         from typing import Optional, cast
         self.ano_letivo_atual: Optional[int] = None
-        # Forçar ao analisador que este atributo será tratado como Optional[int]
-        self.ano_letivo_atual = cast(Optional[int], self.obter_ano_letivo_atual())
+        # Obter ano letivo atual e tentar converter para int com segurança
+        _ano_temp = self.obter_ano_letivo_atual()
+        if _ano_temp is not None:
+            try:
+                self.ano_letivo_atual = int(_ano_temp)
+            except Exception:
+                # Se não for possível converter, mantemos None e exibimos aviso
+                logger.warning(f"Não foi possível converter ano letivo retornado ({_ano_temp}) para int")
         
         if self.ano_letivo_atual is not None:
             self.criar_interface()
@@ -82,26 +88,24 @@ class InterfaceLancamentoFrequencia:
             self.janela_principal.deiconify()
         self.janela.destroy()
     
-    def obter_ano_letivo_atual(self):
-        """Obtém o ID do ano letivo atual."""
+    def obter_ano_letivo_atual(self) -> "Optional[int]":
+        """Obtém o ID do ano letivo atual.
+
+        Retorna `int` quando encontrado ou `None` caso contrário. Converte
+        valores numéricos (por exemplo Decimal) para `int` para manter tipos
+        consistentes com as anotações do código e evitar avisos do Pylance.
+        """
         conn = None
         cursor = None
-        ano = self.ano_letivo_atual
-        if ano is None:
-            logger.error("Ano letivo atual indefinido ao salvar faltas")
-            messagebox.showerror("Erro", "Ano letivo não configurado.")
-            return
-        ano = int(ano)
-
         try:
             conn = conectar_bd()
             if conn is None:
                 return None
 
             cursor = conn.cursor()
-            
-            # Primeiro tenta obter o ano letivo do ano atual
-            cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = YEAR(CURDATE())")
+
+            # Tenta obter o ano letivo correspondente ao ano corrente
+            cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = YEAR(CURDATE()) LIMIT 1")
             resultado = cursor.fetchone()
 
             if not resultado:
@@ -109,7 +113,39 @@ class InterfaceLancamentoFrequencia:
                 cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
                 resultado = cursor.fetchone()
 
-            return resultado[0] if resultado else None
+            if not resultado:
+                return None
+
+            # Resultado pode ser tuple/list ou dict dependendo do cursor
+            if isinstance(resultado, dict):
+                val = next(iter(resultado.values()))
+            else:
+                val = resultado[0]
+
+            # Converter somente para tipos previsíveis para evitar erros de tipo
+            try:
+                import decimal, numbers, datetime as _dt
+
+                if isinstance(val, int):
+                    return val
+                if isinstance(val, (decimal.Decimal, float)):
+                    return int(val)
+                if isinstance(val, str) and val.isdigit():
+                    return int(val)
+                # Em caso de objetos date/datetime, tentamos extrair o ano (não esperado aqui)
+                if isinstance(val, (_dt.date, _dt.datetime)):
+                    logger.warning(f"id de ano letivo retornou date/datetime, ignorando: {val}")
+                    return None
+
+            except Exception:
+                logger.warning(f"Tipo inesperado para id de ano letivo: {type(val)} - valor: {val}")
+
+            # Fallback genérico: tentar int(str(val)) apenas como última opção
+            try:
+                return int(str(val))
+            except Exception:
+                logger.warning(f"Valor de id de ano letivo não convertido: {val}")
+                return None
 
         except Exception as e:
             logger.error(f"Erro ao obter ano letivo atual: {e}")
@@ -682,6 +718,17 @@ class InterfaceLancamentoFrequencia:
         
         conn = None
         cursor = None
+        # Garantir que temos ano letivo atual antes de salvar
+        if self.ano_letivo_atual is None:
+            _ano = self.obter_ano_letivo_atual()
+            if _ano is not None:
+                try:
+                    self.ano_letivo_atual = int(_ano)
+                except Exception:
+                    self.ano_letivo_atual = None
+        if self.ano_letivo_atual is None:
+            messagebox.showerror("Erro", "Ano letivo atual indefinido. Não é possível salvar as faltas.")
+            return
         try:
             conn = conectar_bd()
             if conn is None:

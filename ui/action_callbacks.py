@@ -259,7 +259,7 @@ class RHCallbacks:
     def gerar_folhas_de_ponto(self, numero_mes: int):
         """Gera folhas de ponto para o mês especificado."""
         try:
-            from main import gerar_folhas_de_ponto as _gerar_folhas
+            from services.report_service import gerar_folhas_de_ponto as _gerar_folhas
             _gerar_folhas(numero_mes)
         except Exception as e:
             logger.exception(f"Erro ao gerar folhas de ponto: {e}")
@@ -268,7 +268,7 @@ class RHCallbacks:
     def gerar_resumo_ponto(self, numero_mes: int):
         """Gera resumo de ponto para o mês especificado."""
         try:
-            from main import gerar_resumo_ponto as _gerar_resumo
+            from services.report_service import gerar_resumo_ponto as _gerar_resumo
             _gerar_resumo(numero_mes)
         except Exception as e:
             logger.exception(f"Erro ao gerar resumo de ponto: {e}")
@@ -619,6 +619,10 @@ class ActionCallbacksManager:
     def abrir_cadastro_faltas(self):
         """Atalho para reports.abrir_cadastro_faltas()"""
         return self.reports.abrir_cadastro_faltas()
+
+    def abrir_lancamento_frequencia_alunos(self):
+        """Atalho para reports.abrir_lancamento_frequencia_alunos()"""
+        return self.reports.abrir_lancamento_frequencia_alunos()
     
     def lista_atualizada_semed(self):
         """Atalho para reports.lista_atualizada_semed()"""
