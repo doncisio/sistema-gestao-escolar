@@ -216,9 +216,11 @@ CREATE TABLE questoes_arquivos (
   largura INT UNSIGNED DEFAULT NULL,
   altura INT UNSIGNED DEFAULT NULL,
   
----
-
-### 4. Tabela: `avaliacoes` COMMENT 'Texto alternativo / descrição da imagem',
+  -- Posicionamento da imagem
+  posicao ENUM('acima', 'abaixo', 'esquerda', 'direita') DEFAULT 'abaixo' COMMENT 'Posição da imagem em relação ao texto',
+  ordem INT UNSIGNED DEFAULT 1 COMMENT 'Ordem quando há múltiplas imagens',
+  
+  alt_text VARCHAR(500) DEFAULT NULL COMMENT 'Texto alternativo / descrição da imagem',
   
   uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   uploaded_by BIGINT UNSIGNED NOT NULL,
@@ -234,14 +236,24 @@ CREATE TABLE questoes_arquivos (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Índice para buscar todos os arquivos de uma questão (incluindo alternativas)
-CREATE INDEX idx_arquivo_questao_completo ON questoes_arquivos(questao_id, alternativa_id, posicao);
+CREATE INDEX idx_arquivo_questao_completo ON questoes_arquivos(questao_id, alternativa_id, ordem);
 ```
 
 **Exemplos de uso**:
-- **Imagem no enunciado**: `questao_id=123, alternativa_id=NULL, tipo_arquivo='imagem'`
-- **Imagem na alternativa A**: `questao_id=123, alternativa_id=456, tipo_arquivo='imagem'`
-- **Múltiplas imagens**: usar campo `posicao` (1, 2, 3...)
+- **Imagem no enunciado acima do texto**: `questao_id=123, alternativa_id=NULL, tipo_arquivo='imagem', posicao='acima'`
+- **Imagem no enunciado à direita**: `questao_id=123, alternativa_id=NULL, tipo_arquivo='imagem', posicao='direita'`
+- **Imagem na alternativa A**: `questao_id=123, alternativa_id=456, tipo_arquivo='imagem', posicao='direita'`
+- **Múltiplas imagens**: usar campo `ordem` (1, 2, 3...)
 - **Vídeo explicativo**: `tipo_arquivo='video'`
+
+**Posições recomendadas por tipo de questão**:
+| Tipo de Questão | Posições Recomendadas |
+|-----------------|----------------------|
+| Dissertativa | acima, abaixo, esquerda, direita (todas) |
+| Múltipla Escolha | abaixo (enunciado), direita (alternativas) |
+| V/F | abaixo, esquerda |
+| Associação | direita (para itens), abaixo (enunciado) |
+| Lacuna/Completar | acima, abaixo |
 
 ---
 

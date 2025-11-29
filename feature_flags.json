@@ -46,7 +46,7 @@
       "category": "auth"
     },
     "banco_questoes_habilitado": {
-      "enabled": false,
+      "enabled": true,
       "description": "Habilita m\u00c3\u00b3dulo de banco de quest\u00c3\u00b5es BNCC",
       "category": "features"
     },
@@ -56,5 +56,5 @@
       "category": "features"
     }
   },
-  "last_updated": "2025-11-28T09:10:00.000000"
+  "last_updated": "2025-11-29T12:00:00.000000"
 }

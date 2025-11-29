@@ -119,7 +119,7 @@ def banco_questoes_habilitado() -> bool:
     Returns:
         bool: True se o módulo está habilitado
     """
-    return get_flag('banco_questoes_habilitado', true)
+    return get_flag('banco_questoes_habilitado', True)
 
 
 def dashboard_bncc_habilitado() -> bool:
