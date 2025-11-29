@@ -125,12 +125,19 @@ class InterfaceEdicaoFuncionario:
                 return
                 
             # Usar importação local para evitar problemas de importação circular
-            import main
-            
-            # Tentar atualizar - se falhar, apenas registrar o erro
             try:
-                main.atualizar_tabela_principal()
-                logger.info("Tabela principal atualizada com sucesso")
+                import main
+            except Exception:
+                main = None
+
+            # Tentar atualizar via getattr para evitar alerta do analisador (Pylance)
+            try:
+                updater = getattr(main, 'atualizar_tabela_principal', None)
+                if callable(updater):
+                    updater()
+                    logger.info("Tabela principal atualizada com sucesso")
+                else:
+                    logger.info("Módulo 'main' não expõe 'atualizar_tabela_principal'; pulando atualização")
             except Exception as update_error:
                 logger.info(f"Não foi possível atualizar a tabela principal: {str(update_error)}")
                 logger.info("A tabela será atualizada na próxima vez que você navegar pelos registros")
@@ -374,6 +381,17 @@ class InterfaceEdicaoFuncionario:
         self.e_carga_horaria = Entry(col2_frame, **entry_style)
         self.e_carga_horaria.pack(fill=X, pady=(0, 10))
         
+        # Turno
+        Label(col2_frame, text="Turno", **label_style).pack(anchor=W, pady=(5, 0))
+        # Popular os valores do combobox a partir do enum do banco (`funcionarios.turno`)
+        try:
+            enum_vals = self._get_enum_values('funcionarios', 'turno')
+            ui_values = [self.db_to_ui_turno(v) or str(v) for v in enum_vals] if enum_vals else ['Matutino', 'Vespertino', 'Matutino/Vespertino']
+        except Exception:
+            ui_values = ['Matutino', 'Vespertino', 'Matutino/Vespertino']
+        self.c_turno = ttk.Combobox(col2_frame, values=ui_values, **combo_style)
+        self.c_turno.pack(anchor=W, pady=(0, 10))
+        
         # COLUNA 3 - Informações Complementares
         col3_frame = Frame(form_frame, bg=self.co1, padx=10, pady=5, relief="flat")
         col3_frame.grid(row=0, column=2, sticky=tk.NSEW)
@@ -431,11 +449,6 @@ class InterfaceEdicaoFuncionario:
         self.c_volante.set('não')  # Valor padrão
         self.lbl_volante.grid_remove()  # Inicialmente oculto
         self.c_volante.grid_remove()  # Inicialmente oculto
-        
-        # Turno
-        Label(prof_frame, text="Turno *", **label_style).grid(row=2, column=0, sticky=W, padx=10)
-        self.c_turno = ttk.Combobox(prof_frame, values=('Matutino', 'Vespertino', 'Matutino/Vespertino'), **combo_style)
-        self.c_turno.grid(row=3, column=0, sticky=W, padx=10, pady=(0, 10))
         
         # Escola
         Label(prof_frame, text="Escola *", **label_style).grid(row=2, column=1, sticky=W, padx=10)
@@ -578,8 +591,14 @@ class InterfaceEdicaoFuncionario:
     def atualizar_interface_cargo(self, event=None):
         cargo = self.c_cargo.get()
         
+        # Mostrar ou ocultar o frame de professor (aceitar variações como 'Professor')
+        try:
+            is_prof = isinstance(cargo, str) and cargo.startswith('Professor')
+        except Exception:
+            is_prof = False
+
         # Mostrar ou ocultar o frame de professor
-        if cargo == "Professor@":
+        if is_prof:
             self.frame_professor.pack(fill=BOTH, expand=True, pady=10)
             self.frame_disciplinas_container.pack(fill=BOTH, expand=True, padx=10, pady=5)
             self.btn_disciplinas.config(state=tk.NORMAL)
@@ -910,8 +929,17 @@ class InterfaceEdicaoFuncionario:
                 except Exception:
                     pass
 
+                # Carregar turno para todos os funcionários
+                try:
+                    ui_turno = self.db_to_ui_turno(funcionario[9]) or ""
+                    self.c_turno.set(ui_turno)
+                    logger.info(f"Carregado turno para funcionário #{self.funcionario_id}: db='{funcionario[9]}' ui='{ui_turno}' values={self.c_turno['values']}")
+                except Exception as e:
+                    logger.error(f"Erro ao setar c_turno: {e}")
+
                 # Se for professor, carregar dados específicos
-                if funcionario[7] == "Professor@":
+                # Aceitar variações do cargo que indiquem "Professor"
+                if funcionario[7] and isinstance(funcionario[7], str) and funcionario[7].startswith('Professor'):
                     self.frame_professor.pack(fill=BOTH, expand=True, pady=10)
                     self.c_polivalente.set(funcionario[15] or "não")  # polivalente
                     
@@ -920,9 +948,6 @@ class InterfaceEdicaoFuncionario:
                         self.lbl_volante.grid()
                         self.c_volante.grid()
                         self.c_volante.set(funcionario[17] or "não")  # volante
-                    
-                    # Converter valor vindo do banco para rótulo da UI
-                    self.c_turno.set(self.db_to_ui_turno(funcionario[9]) or "")  # turno
                     
                     # (Escola e checkbox já foram ajustados acima para todos os funcionários)
                     

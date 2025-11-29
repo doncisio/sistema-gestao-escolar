@@ -343,6 +343,17 @@ class InterfaceCadastroFuncionario:
         self.e_carga_horaria = Entry(col2_frame, **entry_style)
         self.e_carga_horaria.pack(fill=X, pady=(0, 10))
         
+        # Turno
+        Label(col2_frame, text="Turno", **label_style).pack(anchor=W, pady=(5, 0))
+        # Popular os valores do combobox a partir do enum do banco (`funcionarios.turno`)
+        try:
+            enum_vals = self._get_enum_values('funcionarios', 'turno')
+            ui_values = [self.db_to_ui_turno(v) or str(v) for v in enum_vals] if enum_vals else ['Matutino', 'Vespertino', 'Matutino/Vespertino']
+        except Exception:
+            ui_values = ['Matutino', 'Vespertino', 'Matutino/Vespertino']
+        self.c_turno = ttk.Combobox(col2_frame, values=ui_values, **combo_style)
+        self.c_turno.pack(anchor=W, pady=(0, 10))
+        
         # COLUNA 3 - Informações Complementares
         col3_frame = Frame(form_frame, bg=self.co1, padx=10, pady=5, relief="flat")
         col3_frame.grid(row=0, column=2, sticky=NSEW)
@@ -400,11 +411,6 @@ class InterfaceCadastroFuncionario:
         self.c_volante.set('não')  # Valor padrão
         self.lbl_volante.grid_remove()  # Inicialmente oculto
         self.c_volante.grid_remove()  # Inicialmente oculto
-        
-        # Turno
-        Label(prof_frame, text="Turno *", **label_style).grid(row=2, column=0, sticky=W, padx=10)
-        self.c_turno = ttk.Combobox(prof_frame, values=('Matutino', 'Vespertino', 'Matutino/Vespertino'), **combo_style)
-        self.c_turno.grid(row=3, column=0, sticky=W, padx=10, pady=(0, 10))
         
         # Escola
         Label(prof_frame, text="Escola *", **label_style).grid(row=2, column=1, sticky=W, padx=10)
@@ -503,6 +509,21 @@ class InterfaceCadastroFuncionario:
 
         # Não encontrou correspondência: devolver None para gravar NULL e evitar truncamento
         return None
+    def db_to_ui_turno(self, db_value):
+        """Converte um valor vindo do banco para o rótulo exibido na UI."""
+        if not db_value:
+            return None
+
+        reverse_map = {
+            'MAT': 'Matutino',
+            'VESP': 'Vespertino',
+            'Matutino': 'Matutino',
+            'Vespertino': 'Vespertino',
+            'Matutino/Vespertino': 'Matutino/Vespertino',
+            'Noturno': 'Noturno'
+        }
+
+        return reverse_map.get(db_value, db_value)
     
     def on_frame_configure(self, event):
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
@@ -523,8 +544,13 @@ class InterfaceCadastroFuncionario:
     def atualizar_interface_cargo(self, event=None):
         cargo = self.c_cargo.get()
         
-        # Mostrar ou ocultar o frame de professor
-        if cargo == "Professor@":
+        # Mostrar ou ocultar o frame de professor (aceitar variações como 'Professor')
+        try:
+            is_prof = isinstance(cargo, str) and cargo.startswith('Professor')
+        except Exception:
+            is_prof = False
+
+        if is_prof:
             self.frame_professor.pack(fill=BOTH, expand=True, pady=10)
             self.frame_disciplinas_container.pack(fill=BOTH, expand=True, padx=10, pady=5)
             self.btn_disciplinas.config(state=NORMAL)
