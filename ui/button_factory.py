@@ -607,13 +607,22 @@ class ButtonFactory:
         menu_bar.add_cascade(label="Serviços", menu=servicos_menu, font=menu_font)
         
         # ========== MENU 4: GERENCIAMENTO DE FALTAS ==========
-        if acesso.pode_alguma(['frequencia.visualizar', 'frequencia.lancar']):
+        if acesso.pode_alguma(['frequencia.visualizar', 'frequencia.lancar', 'frequencia.lancar_proprias']):
             faltas_menu = Menu(menu_bar, tearoff=0, font=menu_font)
             
-            # Cadastrar/Editar Faltas só aparece se pode lançar
+            # Lançamento de Frequência de Alunos (professor e admin)
+            if acesso.pode_alguma(['frequencia.lancar_proprias', 'frequencia.lancar']):
+                faltas_menu.add_command(
+                    label="📋 Lançar Frequência de Alunos",
+                    command=self.callbacks.abrir_lancamento_frequencia_alunos,
+                    font=menu_font
+                )
+                faltas_menu.add_separator()
+            
+            # Cadastrar/Editar Faltas de Funcionários (apenas admin)
             if acesso.pode('frequencia.lancar'):
                 faltas_menu.add_command(
-                    label="Cadastrar/Editar Faltas",
+                    label="Cadastrar/Editar Faltas (Funcionários)",
                     command=self.callbacks.abrir_cadastro_faltas,
                     font=menu_font
                 )
@@ -634,7 +643,22 @@ class ButtonFactory:
             
             menu_bar.add_cascade(label="Gerenciamento de Faltas", menu=faltas_menu, font=menu_font)
         
-        # ========== MENU 5: DOCUMENTOS DA ESCOLA (todos podem ver) ==========
+        # ========== MENU 5: BANCO DE QUESTÕES (quando habilitado) ==========
+        from config import banco_questoes_habilitado
+        if banco_questoes_habilitado():
+            # Professores, coordenadores e admins podem acessar
+            if acesso.pode_alguma(['frequencia.lancar_proprias', 'frequencia.lancar', 'sistema.usuarios']):
+                questoes_menu = Menu(menu_bar, tearoff=0, font=menu_font)
+                
+                questoes_menu.add_command(
+                    label="📚 Banco de Questões BNCC",
+                    command=lambda: self._abrir_banco_questoes(),
+                    font=menu_font
+                )
+                
+                menu_bar.add_cascade(label="📚 Avaliações", menu=questoes_menu, font=menu_font)
+        
+        # ========== MENU 6: DOCUMENTOS DA ESCOLA (todos podem ver) ==========
         documentos_menu = Menu(menu_bar, tearoff=0, font=menu_font)
         documentos_menu.add_command(
             label="Estatuto da Escola",
@@ -653,7 +677,7 @@ class ButtonFactory:
         )
         menu_bar.add_cascade(label="Documentos da Escola", menu=documentos_menu, font=menu_font)
         
-        # ========== MENU 6: USUÁRIO (quando perfis habilitados) ==========
+        # ========== MENU 7: USUÁRIO (quando perfis habilitados) ==========
         if perfis_habilitados():
             usuario_menu = Menu(menu_bar, tearoff=0, font=menu_font)
             
@@ -730,6 +754,15 @@ class ButtonFactory:
         except Exception as e:
             logger.exception(f"Erro ao abrir gestão de usuários: {e}")
             messagebox.showerror("Erro", f"Erro ao abrir gestão de usuários: {e}")
+    
+    def _abrir_banco_questoes(self):
+        """Abre a interface do Banco de Questões BNCC."""
+        try:
+            from banco_questoes.ui import abrir_banco_questoes
+            abrir_banco_questoes(janela_principal=self.janela)
+        except Exception as e:
+            logger.exception(f"Erro ao abrir banco de questões: {e}")
+            messagebox.showerror("Erro", f"Erro ao abrir banco de questões: {e}")
     
     def _fazer_logout(self):
         """Realiza logout e fecha a aplicação."""

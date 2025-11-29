@@ -10,6 +10,12 @@ from utilitarios.conversoes import to_safe_float
 import mysql.connector
 import os
 
+# Imports para controle de perfil de usuário
+from config import perfis_habilitados
+from services.perfil_filter_service import PerfilFilterService, get_turmas_usuario
+from auth.usuario_logado import UsuarioLogado
+from auth.decorators import requer_permissao
+
 class InterfaceCadastroEdicaoNotas:
     def __init__(self, root=None, aluno_id=None, janela_principal=None):
         # Armazenar referência à janela principal
@@ -421,12 +427,43 @@ class InterfaceCadastroEdicaoNotas:
                 return
 
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT t.id, CONCAT(t.nome, ' - ', t.turno) AS turma_nome 
-                FROM turmas t 
-                WHERE t.serie_id = %s AND t.ano_letivo_id = %s
-                ORDER BY t.nome
-            """, self._norm_params((serie_id, self.ano_letivo_atual)))
+            
+            # Obter filtro de turmas baseado no perfil do usuário
+            turmas_permitidas = get_turmas_usuario()
+            
+            # Construir query com filtro de perfil se necessário
+            if turmas_permitidas is None:
+                # Admin/Coordenador - sem filtro
+                cursor.execute("""
+                    SELECT t.id, CONCAT(t.nome, ' - ', t.turno) AS turma_nome 
+                    FROM turmas t 
+                    WHERE t.serie_id = %s AND t.ano_letivo_id = %s
+                    ORDER BY t.nome
+                """, self._norm_params((serie_id, self.ano_letivo_atual)))
+            elif not turmas_permitidas:
+                # Professor sem turmas vinculadas
+                self.turmas_map = {}
+                self.cb_turma['values'] = []
+                self.cb_turma.set("")
+                self.cb_disciplina.set("")
+                self.cb_disciplina['values'] = []
+                messagebox.showinfo(
+                    "Sem turmas", 
+                    "Você não possui turmas vinculadas para lançamento de notas.\n"
+                    "Contate a coordenação para vincular suas disciplinas."
+                )
+                return
+            else:
+                # Professor - filtrar apenas turmas vinculadas
+                placeholders = ','.join(['%s'] * len(turmas_permitidas))
+                cursor.execute(f"""
+                    SELECT t.id, CONCAT(t.nome, ' - ', t.turno) AS turma_nome 
+                    FROM turmas t 
+                    WHERE t.serie_id = %s AND t.ano_letivo_id = %s
+                    AND t.id IN ({placeholders})
+                    ORDER BY t.nome
+                """, self._norm_params((serie_id, self.ano_letivo_atual, *turmas_permitidas)))
+            
             turmas = cursor.fetchall()
 
             self.turmas_map = {turma[1]: turma[0] for turma in turmas}
@@ -462,6 +499,9 @@ class InterfaceCadastroEdicaoNotas:
         if nivel_id is None:
             return
         
+        # Obter turma selecionada para filtro de professor
+        turma_id = self.turmas_map.get(self.cb_turma.get()) if self.cb_turma.get() else None
+        
         conn = None
         cursor = None
         try:
@@ -471,35 +511,63 @@ class InterfaceCadastroEdicaoNotas:
                 return
 
             cursor = conn.cursor()
-
-            # Usar uma consulta mais simples que carrega todas as disciplinas com o nivel_id correto
-            cursor.execute("""
-                SELECT id, nome 
-                FROM disciplinas 
-                WHERE nivel_id = %s AND escola_id = %s
-                ORDER BY nome
-            """, self._norm_params((nivel_id, config.ESCOLA_ID)))
-
-            disciplinas = cursor.fetchall()
-
-            # Se não encontrar disciplinas com nivel_id, tenta buscar todas as disciplinas da escola
-            if not disciplinas:
+            
+            # Verificar se é professor e aplicar filtro de disciplinas
+            if perfis_habilitados() and UsuarioLogado.get_perfil() == 'professor':
+                funcionario_id = UsuarioLogado.get_funcionario_id()
+                if funcionario_id and turma_id:
+                    # Professor: buscar apenas disciplinas que ele leciona na turma
+                    cursor.execute("""
+                        SELECT DISTINCT d.id, d.nome 
+                        FROM disciplinas d
+                        INNER JOIN funcionario_disciplinas fd ON fd.disciplina_id = d.id
+                        WHERE fd.funcionario_id = %s 
+                        AND fd.turma_id = %s
+                        AND d.escola_id = %s
+                        ORDER BY d.nome
+                    """, self._norm_params((funcionario_id, turma_id, config.ESCOLA_ID)))
+                    disciplinas = cursor.fetchall()
+                    
+                    if not disciplinas:
+                        # Tentar sem filtro de turma (caso disciplinas não estejam vinculadas corretamente)
+                        cursor.execute("""
+                            SELECT DISTINCT d.id, d.nome 
+                            FROM disciplinas d
+                            INNER JOIN funcionario_disciplinas fd ON fd.disciplina_id = d.id
+                            WHERE fd.funcionario_id = %s 
+                            AND d.nivel_id = %s
+                            AND d.escola_id = %s
+                            ORDER BY d.nome
+                        """, self._norm_params((funcionario_id, nivel_id, config.ESCOLA_ID)))
+                        disciplinas = cursor.fetchall()
+                else:
+                    disciplinas = []
+            else:
+                # Admin/Coordenador: todas as disciplinas do nível
                 cursor.execute("""
                     SELECT id, nome 
                     FROM disciplinas 
-                    WHERE escola_id = %s
+                    WHERE nivel_id = %s AND escola_id = %s
                     ORDER BY nome
-                """, self._norm_params((config.ESCOLA_ID,)))
+                """, self._norm_params((nivel_id, config.ESCOLA_ID)))
                 disciplinas = cursor.fetchall()
 
+                # Se não encontrar disciplinas com nivel_id, tenta buscar todas da escola
+                if not disciplinas:
+                    cursor.execute("""
+                        SELECT id, nome 
+                        FROM disciplinas 
+                        WHERE escola_id = %s
+                        ORDER BY nome
+                    """, self._norm_params((config.ESCOLA_ID,)))
+                    disciplinas = cursor.fetchall()
+
             if not disciplinas:
-                messagebox.showinfo("Informação", "Não há disciplinas cadastradas para esta escola.")
+                msg = "Não há disciplinas vinculadas a você nesta turma." if perfis_habilitados() and UsuarioLogado.get_perfil() == 'professor' else "Não há disciplinas cadastradas para esta escola."
+                messagebox.showinfo("Informação", msg)
                 self.cb_disciplina.set("")
                 self.cb_disciplina['values'] = []
                 return
-
-            # Mostrar o que foi carregado para debug
-            # print(f"Disciplinas carregadas: {disciplinas}")
 
             self.disciplinas_map = {disc[1]: disc[0] for disc in disciplinas}
             self.cb_disciplina['values'] = list(self.disciplinas_map.keys())
@@ -1546,6 +1614,27 @@ class InterfaceCadastroEdicaoNotas:
             self.lbl_total_alunos.config(text=str(len(self.alunos)))
     
     def salvar_notas(self):
+        # Verificar permissão para salvar notas (se perfis habilitados)
+        if perfis_habilitados():
+            perfil = UsuarioLogado.get_perfil()
+            if perfil == 'coordenador':
+                # Coordenador pode visualizar mas não editar notas
+                messagebox.showwarning(
+                    "Sem Permissão",
+                    "Coordenadores podem visualizar notas, mas não têm permissão para editá-las.\n"
+                    "Apenas professores podem lançar notas em suas próprias turmas."
+                )
+                return
+            elif perfil == 'professor':
+                # Verificar se a turma atual pertence ao professor
+                turma_id = self.turmas_map.get(self.cb_turma.get()) if self.cb_turma.get() else None
+                if turma_id and not PerfilFilterService.pode_acessar_turma(turma_id):
+                    messagebox.showerror(
+                        "Sem Permissão",
+                        "Você não tem permissão para lançar notas nesta turma."
+                    )
+                    return
+        
         # Suporta tanto o modo legacy (entradas por linha) quanto o editor único
         has_entries = hasattr(self, 'entradas_notas') and bool(getattr(self, 'entradas_notas', {}))
         has_notas_dict = getattr(self, '_usar_editor_unico', False) and hasattr(self, 'notas_dict') and bool(getattr(self, 'notas_dict', {}))

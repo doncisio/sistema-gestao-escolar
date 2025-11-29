@@ -23,16 +23,18 @@ class LoginWindow:
     Exibe formulário de login e retorna o usuário autenticado.
     """
     
-    def __init__(self, on_success: Optional[Callable[[Usuario], None]] = None):
+    def __init__(self, root: Optional[tk.Tk] = None, on_success: Optional[Callable[[Usuario], None]] = None):
         """
         Inicializa a janela de login.
         
         Args:
+            root: Janela root do Tkinter (se None, cria uma nova)
             on_success: Callback chamado após login bem-sucedido
         """
+        self.root = root
         self.on_success = on_success
         self.usuario: Optional[Usuario] = None
-        self.janela: Optional[tk.Tk] = None
+        self.janela: Optional[tk.Toplevel] = None
         
         # Variáveis do formulário
         self.var_username = None
@@ -50,12 +52,18 @@ class LoginWindow:
         # Garantir ao analisador de tipos que `self.janela` foi criado
         if self.janela is None:
             return None
-        self.janela.mainloop()
+        self.janela.wait_window()  # Aguarda a janela ser fechada
         return self.usuario
     
     def _criar_janela(self):
         """Cria e configura a janela de login."""
-        self.janela = tk.Tk()
+        # Se não foi fornecido um root, criar um novo
+        if self.root is None:
+            self.root = tk.Tk()
+            self.root.withdraw()
+        
+        # Criar janela como Toplevel
+        self.janela = tk.Toplevel(self.root)
         self.janela.title("Login - Sistema de Gestão Escolar")
         
         # Configurações da janela
@@ -300,7 +308,7 @@ class LoginWindow:
         if self.on_success and self.usuario:
             self.on_success(self.usuario)
         assert self.janela is not None
-        self.janela.destroy()
+        self.janela.destroy()  # Destrói apenas a janela Toplevel
     
     def _solicitar_troca_senha(self, usuario: Usuario):
         """Abre janela para trocar senha no primeiro acesso."""
@@ -327,7 +335,7 @@ class LoginWindow:
         """Handler para fechamento da janela."""
         self.usuario = None
         if self.janela is not None:
-            self.janela.destroy()
+            self.janela.destroy()  # Destrói apenas a janela Toplevel
 
 
 class TrocaSenhaWindow:

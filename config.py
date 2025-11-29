@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Optional
 
+from sympy import true
+
 # ID padrão da escola usado em consultas (substitua conforme necessário em produção)
 ESCOLA_ID = 60
 
@@ -30,7 +32,7 @@ DEFAULT_DOCUMENTS_SECRETARIA_ROOT = r"G:\Meu Drive\Sistema Escolar - Documentos"
 _feature_flags_cache: Optional[dict] = None
 
 
-def carregar_feature_flags() -> dict:
+def carregar_feature_flags() -> Optional[dict]:
     """
     Carrega as feature flags do arquivo JSON.
     Usa cache para evitar leituras repetidas do arquivo.
@@ -70,7 +72,7 @@ def get_flag(nome_flag: str, padrao: bool = False) -> bool:
     Returns:
         bool: True se a flag está habilitada, False caso contrário
     """
-    flags = carregar_feature_flags()
+    flags = carregar_feature_flags() or {}
     flag_config = flags.get(nome_flag, {})
     
     if isinstance(flag_config, dict):
@@ -81,7 +83,7 @@ def get_flag(nome_flag: str, padrao: bool = False) -> bool:
     return padrao
 
 
-def recarregar_feature_flags() -> dict:
+def recarregar_feature_flags() -> Optional[dict]:
     """
     Força a recarga das feature flags do arquivo.
     Útil quando o arquivo foi modificado externamente.
@@ -117,7 +119,7 @@ def banco_questoes_habilitado() -> bool:
     Returns:
         bool: True se o módulo está habilitado
     """
-    return get_flag('banco_questoes_habilitado', False)
+    return get_flag('banco_questoes_habilitado', true)
 
 
 def dashboard_bncc_habilitado() -> bool:

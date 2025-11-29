@@ -1,7 +1,7 @@
 # 📋 Plano de Implementação de Perfis de Usuário
 
-> **📅 Última atualização**: 28 de Novembro de 2025  
-> **🎯 Status Geral**: Fases 1-6 CONCLUÍDAS ✅ | Fase 7 em andamento
+> **📅 Última atualização**: 29 de Novembro de 2025  
+> **🎯 Status Geral**: Fases 1-7 CONCLUÍDAS ✅ | Sistema em Produção | Banco de Questões BNCC iniciado
 
 ---
 
@@ -18,12 +18,12 @@
 │  ✅ Fase 4 - Filtro de Dados por Perfil      CONCLUÍDA                 │
 │  ✅ Fase 5 - Interface de Gestão de Usuários CONCLUÍDA                 │
 │  ✅ Fase 6 - Testes e Ajustes                CONCLUÍDA                 │
-│  🔄 Fase 7 - Ativação em Produção            EM ANDAMENTO              │
+│  ✅ Fase 7 - Ativação em Produção            CONCLUÍDA                 │
 ├────────────────────────────────────────────────────────────────────────┤
 │  📁 Arquivos Criados: 15+ arquivos no módulo auth/ e ui/               │
 │  🗄️ Tabelas Criadas: usuarios, permissoes, perfil_permissoes,          │
 │                       usuario_permissoes, logs_acesso                   │
-│  👤 Usuários de Teste: admin, coord_teste, prof_teste                  │
+│  👤 Usuários Criados: 30 (5 admin, 2 coord, 23 prof)                   │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -235,18 +235,67 @@ tests/
 
 ---
 
-## 🔄 FASE 7: ATIVAÇÃO EM PRODUÇÃO (EM ANDAMENTO)
+## ✅ FASE 7: ATIVAÇÃO EM PRODUÇÃO - CONCLUÍDA
 
 ### Checklist de Ativação:
 - [x] Backup completo do banco de dados
 - [x] Flag `perfis_habilitados` = true
 - [x] Usuários de teste funcionando
-- [ ] Criar usuário administrador definitivo (seu usuário)
-- [ ] Criar usuários para coordenadores reais
-- [ ] Criar usuários para professores reais
+- [x] Criar usuário administrador definitivo (Tarcisio - superusuário)
+- [x] Criar usuários para coordenadores reais
+- [x] Criar usuários para professores reais
 - [ ] Testar em ambiente de produção
 - [ ] Monitorar primeiros dias de uso
 - [ ] Treinar usuários (se necessário)
+
+### Migração Executada em 28/11/2025:
+
+**Script:** `scripts/migrar_usuarios_fase7.py`
+
+**Regras aplicadas:**
+- Funcionários da **escola_id = 60** apenas
+- **Username:** CPF (apenas números)
+- **Senha padrão:** CPF (apenas números)
+- **primeiro_acesso = TRUE** (forçar troca de senha)
+
+**Mapeamento de cargos → perfis:**
+| Cargo | Perfil |
+|-------|--------|
+| Gestor Escolar | administrador |
+| Técnico em Administração Escolar | administrador |
+| Auxiliar administrativo | administrador |
+| Especialista (Coordenadora) | coordenador |
+| Professor@ | professor |
+
+### Resultado da Migração:
+
+| Perfil | Quantidade |
+|--------|------------|
+| Administrador | 5 |
+| Coordenador | 2 |
+| Professor | 23 |
+| **Total** | **30** |
+
+### Usuários Administradores:
+| Login (CPF) | Nome | Observação |
+|-------------|------|------------|
+| admin | Tarcisio Sousa de Almeida | **SUPERUSUÁRIO** |
+| 97517526391 | Leandro Fonseca Lima | Gestor |
+| 75580080344 | Rosiane de Jesus Santos Melo | Gestor |
+| 82758603349 | Adriana Jôyna Ferreira | Aux. Administrativo |
+| 84263008391 | Margareth Rose Silveira Guimarães | Aux. Administrativo |
+
+### Usuários Coordenadores:
+| Login (CPF) | Nome |
+|-------------|------|
+| 01132498376 | Allanne Leão Sousa |
+| coord_teste | Laise de Laine Rabelo Viegas |
+
+### Usuários Professores (23 total):
+Todos os professores da escola 60 com CPF cadastrado.
+Login e senha inicial = CPF (apenas números).
+
+⚠️ **IMPORTANTE:** Todos os usuários devem trocar a senha no primeiro acesso!
 
 ---
 
@@ -255,34 +304,61 @@ tests/
 ### 📌 Prioridade Alta - Implementar em Breve
 
 #### 1. Integração com Lançamento de Notas
-**Status**: 🔲 Não Iniciado  
-**Arquivo**: `ui/lancamento_notas.py` (modificar)
+**Status**: ✅ IMPLEMENTADO (29/11/2025)  
+**Arquivo**: `InterfaceCadastroEdicaoNotas.py` (modificado)
 
+**Implementação realizada:**
+- ✅ Filtro de turmas por perfil no `carregar_turmas()`
+  - Professor vê apenas turmas vinculadas via `funcionario_disciplinas`
+  - Admin/Coordenador vê todas as turmas
+- ✅ Filtro de disciplinas por perfil no `carregar_disciplinas()`
+  - Professor vê apenas disciplinas que leciona na turma selecionada
+- ✅ Bloqueio de edição para coordenador no `salvar_notas()`
+  - Coordenador pode visualizar mas não salvar
+- ✅ Verificação de permissão de turma antes de salvar
+
+**Arquivos modificados:**
 ```python
-# TODO: Aplicar filtro de turmas para professor
-# Professor só pode lançar notas nas suas turmas
-# Coordenador pode visualizar mas não editar
+# InterfaceCadastroEdicaoNotas.py
+from services.perfil_filter_service import PerfilFilterService, get_turmas_usuario
+from auth.usuario_logado import UsuarioLogado
+from auth.decorators import requer_permissao
 ```
-
-**Tarefas**:
-- [ ] Filtrar turmas por perfil no combo de seleção
-- [ ] Bloquear edição para coordenador
-- [ ] Aplicar decorator `@requer_permissao('notas.lancar_proprias')`
 
 ---
 
 #### 2. Integração com Lançamento de Frequência
-**Status**: 🔲 Não Iniciado  
-**Arquivo**: `ui/lancamento_frequencia.py` (modificar)
+**Status**: ✅ IMPLEMENTADO (29/11/2025)  
+**Arquivo**: `InterfaceLancamentoFrequencia.py` (NOVO)
 
-```python
-# TODO: Aplicar filtro de turmas para professor
-# Professor só pode lançar frequência nas suas turmas
+**Implementação realizada:**
+- ✅ Nova interface `InterfaceLancamentoFrequencia` criada
+  - Lançamento de faltas de alunos por bimestre
+  - Filtro de turmas por perfil (professor vê apenas suas turmas)
+  - Bloqueio de edição para coordenador
+  - Estatísticas de faltas (total, média)
+- ✅ Integração com `action_callbacks.py`
+  - Novo método `abrir_lancamento_frequencia_alunos()`
+  - Decorator `@requer_permissao('frequencia.lancar_proprias')`
+- ✅ Integração com `button_factory.py`
+  - Menu "Gerenciamento de Faltas" atualizado
+  - Item "Lançar Frequência de Alunos" adicionado
+
+**Arquivos modificados/criados:**
+- `InterfaceLancamentoFrequencia.py` (NOVO - 600+ linhas)
+- `ui/action_callbacks.py` (método adicionado)
+- `ui/button_factory.py` (menu atualizado)
+
+**Tabela utilizada:** `faltas_bimestrais`
+```sql
+CREATE TABLE faltas_bimestrais (
+    id INT,
+    aluno_id INT,
+    bimestre ENUM('1º bimestre', '2º bimestre', '3º bimestre', '4º bimestre'),
+    faltas INT,
+    ano_letivo_id INT
+);
 ```
-
-**Tarefas**:
-- [ ] Filtrar turmas por perfil no combo de seleção
-- [ ] Aplicar decorator `@requer_permissao('frequencia.lancar_proprias')`
 
 ---
 
@@ -417,17 +493,62 @@ class HistoricoAcoesWindow:
 ### 📌 Prioridade Baixa - Futuro
 
 #### 9. Integração com Banco de Questões BNCC
-**Status**: 🔲 Aguardando módulo de questões
+**Status**: ✅ INTERFACES COMPLETAS (Atualizado)
 
-```python
-# Permissões já cadastradas:
-# - questoes.criar
-# - questoes.editar_proprias
-# - questoes.editar_todas
-# - questoes.aprovar
-# - avaliacoes.criar
-# - avaliacoes.aplicar
-```
+**Módulo criado:** `banco_questoes/`
+
+**Arquivos implementados:**
+- ✅ `db/migrations/criar_tabelas_banco_questoes_v2.sql` - 12 tabelas (tipos INT compatíveis)
+- ✅ `banco_questoes/__init__.py` - Módulo principal
+- ✅ `banco_questoes/models.py` - Dataclasses e enums (730 linhas)
+- ✅ `banco_questoes/services.py` - CRUD de questões e avaliações (932 linhas)
+- ✅ `banco_questoes/ui/__init__.py` - Módulo UI
+- ✅ `banco_questoes/ui/principal.py` - Interface principal completa (1285 linhas)
+
+**Tabelas criadas no banco:** (12 tabelas)
+1. `questoes` - Questões do banco
+2. `questoes_alternativas` - Alternativas de múltipla escolha
+3. `questoes_arquivos` - Imagens e anexos
+4. `avaliacoes` - Provas/testes
+5. `avaliacoes_questoes` - Relacionamento N:N
+6. `avaliacoes_aplicadas` - Registro de aplicações
+7. `respostas_alunos` - Respostas dos alunos
+8. `questoes_favoritas` - Favoritos por professor
+9. `questoes_comentarios` - Avaliações das questões
+10. `questoes_historico` - Versionamento
+11. `estatisticas_questao_turma` - Estatísticas por turma
+12. `desempenho_aluno_habilidade` - Desempenho por habilidade BNCC
+
+**Interface Principal (`InterfaceBancoQuestoes`):**
+- ✅ **Aba "Buscar Questões"**: Filtros por componente, ano, dificuldade, tipo, habilidade BNCC
+- ✅ **Aba "Nova Questão"**: Cadastro com alternativas, enunciado, texto de apoio, gabarito
+- ✅ **Aba "Montar Avaliação"**: Seleção de questões, ordenação, pontuação
+- ✅ **Aba "Minhas Questões"**: Lista de questões do professor logado
+- ✅ **Aba "Estatísticas"**: Dashboard de uso (admin/coordenador)
+
+**Permissões já cadastradas:**
+- `questoes.criar`
+- `questoes.editar_proprias`
+- `questoes.editar_todas`
+- `questoes.aprovar`
+- `avaliacoes.criar`
+- `avaliacoes.aplicar`
+
+**Integração no menu:**
+- ✅ Menu "📚 Avaliações" com item "📚 Banco de Questões BNCC"
+- ✅ Visível apenas quando `banco_questoes_habilitado = true`
+
+**Feature Flag:** `banco_questoes_habilitado = false` (pronto para ativar)
+
+**Próximos passos:**
+- [x] Executar script SQL para criar tabelas ✅
+- [x] Criar interface principal com abas ✅
+- [x] Integrar no menu principal ✅
+- [ ] Testar fluxo completo de criação de questão
+- [ ] Testar montagem de avaliação
+- [ ] Implementar geração de PDF de avaliação
+- [ ] Criar interface de lançamento de respostas
+- [ ] Criar relatórios de desempenho por habilidade
 
 ---
 
@@ -451,7 +572,6 @@ class HistoricoAcoesWindow:
 ```
 
 ---
-
 ## 📁 Estrutura de Arquivos Atual
 
 ```
@@ -464,6 +584,11 @@ gestao/
 │   ├── password_utils.py          # Hash bcrypt
 │   └── usuario_logado.py          # Singleton do usuário atual
 │
+├── banco_questoes/                # ✅ NOVO (29/11/2025)
+│   ├── __init__.py                # Módulo principal
+│   ├── models.py                  # Dataclasses e enums
+│   └── services.py                # CRUD de questões e avaliações
+│
 ├── services/
 │   ├── perfil_filter_service.py   # ✅ Filtro central por perfil
 │   ├── turma_service.py           # ✅ Modificado com filtro
@@ -473,17 +598,22 @@ gestao/
 │   ├── login.py                   # ✅ Tela de login
 │   ├── gestao_usuarios.py         # ✅ CRUD de usuários
 │   ├── button_factory.py          # ✅ Modificado com filtro
+│   ├── action_callbacks.py        # ✅ Modificado (frequência alunos)
 │   ├── trocar_senha.py            # 🔲 TODO: Criar
 │   └── historico_acoes.py         # 🔲 TODO: Criar
 │
 ├── db/migrations/
 │   ├── criar_tabelas_perfis.sql   # ✅ Script SQL completo
-│   └── criar_tabela_logs.sql      # ✅ Script SQL logs
+│   ├── criar_tabela_logs.sql      # ✅ Script SQL logs
+│   ├── criar_tabelas_banco_questoes.sql     # Script original
+│   └── criar_tabelas_banco_questoes_v2.sql  # ✅ EXECUTADO - Tabelas BNCC
 │
 ├── tests/
 │   ├── test_fase6_completo.py     # ✅ Testes automatizados
 │   └── check_permissoes.py        # ✅ Verificação de permissões
 │
+├── InterfaceCadastroEdicaoNotas.py   # ✅ Modificado com filtro de perfil
+├── InterfaceLancamentoFrequencia.py  # ✅ NOVO (29/11/2025) - Frequência alunos
 ├── feature_flags.json             # ✅ Flag de controle
 ├── config.py                      # ✅ perfis_habilitados()
 └── main.py                        # ✅ Integrado com login

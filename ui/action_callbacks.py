@@ -225,13 +225,23 @@ class ReportCallbacks:
     
     @requer_permissao('frequencia.lancar')
     def abrir_cadastro_faltas(self):
-        """Abre interface de cadastro/edição de faltas."""
+        """Abre interface de cadastro/edição de faltas de funcionários."""
         try:
             from InterfaceCadastroEdicaoFaltas import abrir_interface_faltas
             abrir_interface_faltas(janela_principal=self.janela)
         except Exception as e:
             logger.exception(f"Erro ao abrir cadastro de faltas: {e}")
             messagebox.showerror("Erro", f"Não foi possível abrir a interface de faltas: {e}")
+    
+    @requer_permissao('frequencia.lancar_proprias')
+    def abrir_lancamento_frequencia_alunos(self):
+        """Abre interface de lançamento de frequência de alunos."""
+        try:
+            from InterfaceLancamentoFrequencia import abrir_interface_frequencia
+            abrir_interface_frequencia(janela_principal=self.janela)
+        except Exception as e:
+            logger.exception(f"Erro ao abrir lançamento de frequência: {e}")
+            messagebox.showerror("Erro", f"Não foi possível abrir a interface de frequência: {e}")
 
 
 class RHCallbacks:

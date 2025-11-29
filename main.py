@@ -31,19 +31,35 @@ def main():
             # Importar e exibir tela de login
             from ui.login import LoginWindow
             from auth import UsuarioLogado
+            import tkinter as tk
             
-            login_window = LoginWindow()
+            # Criar uma janela Tk temporária para o login
+            root_temp = tk.Tk()
+            root_temp.withdraw()  # Esconder a janela root temporária
+            
+            login_window = LoginWindow(root=root_temp)
             usuario = login_window.mostrar()
             
             if not usuario:
                 # Usuário cancelou ou fechou a janela
                 logger.info("Login cancelado pelo usuário")
+                root_temp.destroy()
                 sys.exit(0)
             
             logger.info(f"✅ Usuário autenticado: {usuario.username} ({usuario.perfil_display})")
             
+            # Destruir a janela temporária APÓS obter o usuário
+            try:
+                root_temp.quit()
+                root_temp.destroy()
+            except:
+                pass
+            
+            logger.debug("Janela de login destruída, criando aplicação principal...")
+            
             # Criar aplicação passando o usuário logado
             app = Application(usuario=usuario)
+            logger.debug("Aplicação criada com sucesso")
         else:
             # Fluxo normal - sem login (comportamento atual)
             logger.debug("Sistema de perfis desabilitado - Abrindo direto")
@@ -53,9 +69,18 @@ def main():
         logger.debug("Inicializando componentes...")
         app.initialize()
         
+        # Garantir que a janela principal fique visível e em foco
+        janela = getattr(app, 'janela', None)
+        if janela:
+            janela.deiconify()  # Garante que esteja visível
+            janela.lift()  # Traz para frente
+            janela.focus_force()  # Força o foco
+            janela.attributes('-topmost', True)  # Temporariamente no topo
+            janela.after(100, lambda: janela.attributes('-topmost', False))  # Remove após 100ms
+        
         # Configurar fechamento da aplicação com backup
-        if app.janela:
-            app.janela.protocol("WM_DELETE_WINDOW", lambda: app.on_close_with_backup(test_mode=TEST_MODE))
+        if janela:
+            janela.protocol("WM_DELETE_WINDOW", lambda: app.on_close_with_backup(test_mode=TEST_MODE))
         
         # Iniciar sistema de backup automático (se não estiver em modo teste)
         app.setup_backup(test_mode=TEST_MODE)

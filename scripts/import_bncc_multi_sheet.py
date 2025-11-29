@@ -2,7 +2,7 @@
 """
 Importador BNCC multi-sheet com modo dry-run.
 Uso:
-  python scripts\import_bncc_multi_sheet.py --file C:\gestao\MapasDeFocoBncc_Unificados.xlsx --dry-run
+  python scripts/import_bncc_multi_sheet.py --file C:/gestao/MapasDeFocoBncc_Unificados.xlsx --dry-run
 
 Opções de DB (quando não `--dry-run`): --user, --database, --host, --port
 
