@@ -1,0 +1,44 @@
+MOVIMENTAÇÃO DE ARQUIVOS NÃO UTILIZADOS
+Data: 29/11/2025 21:13:58
+==================================================
+
+ARQUIVOS MOVIDOS (35):
+  - analise_alunos.py
+  - editar_aluno_modal.py
+  - inserirmediaconceito.py
+  - limpar_duplicados_documentos.py
+  - main_app.py
+  - modificar_trigger.py
+  - processar_notas_html.py
+  - resumo_correcao_menu.py
+  - validar_excel_notas.py
+  - temp_backup_main.py
+  - bncc_parser.py
+  - bncc_utils.py
+  - scripts/analisar_dependencias.py
+  - scripts/analyze_excel_columns.py
+  - scripts/analyze_missing_fields.py
+  - scripts/apply_migration.py
+  - scripts/check_ef08ma01.py
+  - scripts/check_excel_ef08ma01.py
+  - scripts/cleanup_bak_after_tests.py
+  - scripts/criar_admin_teste.py
+  - scripts/criar_usuario_admin.py
+  - scripts/criar_usuario_teste.py
+  - scripts/desvincular_escola60.py
+  - scripts/executar_migrations_auth.py
+  - scripts/generate_lista_arquivos.py
+  - scripts/gerar_todos_codigos.py
+  - scripts/import_bncc_multi_sheet.py
+  - scripts/inspect_mapas_bncc.py
+  - scripts/migrar_usuarios_fase7.py
+  - scripts/replace_prints_with_logger.py
+  - scripts/run_bncc_import.py
+  - scripts/update_refactor_status.py
+  - scripts/validate_bncc_final.py
+  - scripts/verify_bncc_import.py
+  - scripts/test_pdf_save.py
+
+
+PARA REVERTER:
+Execute: reverter_movimentacao('20251129_211358')
