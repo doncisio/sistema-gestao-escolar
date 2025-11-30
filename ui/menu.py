@@ -83,15 +83,41 @@ class MenuManager:
             def mostrar_menu(event):
                 if self.menu_contextual is None:
                     return
+
+                # Verificar se o widget Treeview ainda existe (proteção contra widgets destruídos)
+                try:
+                    if not getattr(treeview, 'winfo_exists', lambda: False)() or not treeview.winfo_exists():
+                        self.logger.warning('Treeview não existe mais ao tentar abrir menu contextual')
+                        return
+                except Exception:
+                    # Se houver qualquer problema consultando o widget, logar e abortar
+                    self.logger.exception('Erro ao verificar existência do Treeview antes de mostrar o menu')
+                    return
+
                 try:
                     # Selecionar item sob o cursor
-                    item = treeview.identify_row(event.y)
+                    item = None
+                    try:
+                        item = treeview.identify_row(event.y)
+                    except Exception:
+                        self.logger.exception('Erro ao identificar linha no Treeview')
+
                     if item:
-                        treeview.selection_set(item)
-                        treeview.focus(item)
+                        try:
+                            treeview.selection_set(item)
+                            treeview.focus(item)
+                        except Exception:
+                            self.logger.exception('Erro ao selecionar/focar item no Treeview')
+
+                    try:
                         self.menu_contextual.tk_popup(event.x_root, event.y_root)
+                    except Exception:
+                        self.logger.exception('Erro ao exibir menu contextual (tk_popup)')
                 finally:
-                    self.menu_contextual.grab_release()
+                    try:
+                        self.menu_contextual.grab_release()
+                    except Exception:
+                        self.logger.exception('Erro ao liberar grab do menu contextual')
             
             treeview.bind("<Button-3>", mostrar_menu)  # Clique direito
             

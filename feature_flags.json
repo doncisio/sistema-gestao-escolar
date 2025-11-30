@@ -41,7 +41,7 @@
       "category": "integration"
     },
     "perfis_habilitados": {
-      "enabled": false,
+      "enabled": true,
       "description": "Habilita sistema de perfis de usu\u00c3\u00a1rio com login",
       "category": "auth"
     },
@@ -54,7 +54,32 @@
       "enabled": false,
       "description": "Habilita dashboard pedag\u00c3\u00b3gico BNCC",
       "category": "features"
+    },
+    "dashboard_por_perfil": {
+      "enabled": true,
+      "description": "Habilita dashboard espec\u00c3\u00adfico por perfil de usu\u00c3\u00a1rio (coordenador, professor)",
+      "category": "ui"
+    },
+    "modulo_transporte": {
+      "enabled": false,
+      "description": "Habilita m\u00c3\u00b3dulo de transporte escolar",
+      "category": "modules"
+    },
+    "modulo_merenda_sae": {
+      "enabled": false,
+      "description": "Habilita m\u00c3\u00b3dulo de merenda/SAE (Servi\u00c3\u00a7o de Alimenta\u00c3\u00a7\u00c3\u00a3o Escolar)",
+      "category": "modules"
+    },
+    "modulo_bi": {
+      "enabled": false,
+      "description": "Habilita m\u00c3\u00b3dulo de Business Intelligence",
+      "category": "modules"
+    },
+    "modulo_censo": {
+      "enabled": false,
+      "description": "Habilita m\u00c3\u00b3dulo de Censo Escolar",
+      "category": "modules"
     }
   },
-  "last_updated": "2025-11-29T12:00:00.000000"
+  "last_updated": "2025-11-30T12:00:00.000000"
 }

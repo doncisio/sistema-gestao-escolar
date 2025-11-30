@@ -394,6 +394,7 @@ class Application:
         
         try:
             from services.db_service import DbService
+            from config import get_flag
             
             # Frame getter para o dashboard
             frame_getter = lambda: self.frames.get('frame_tabela')
@@ -420,8 +421,17 @@ class Application:
             
             # Criar o dashboard apenas se solicitado
             if criar_agora:
-                self.dashboard_manager.criar_dashboard()
-                logger.debug("✓ Dashboard criado e exibido")
+                # Verificar se dashboard por perfil está habilitado
+                dashboard_por_perfil = get_flag('dashboard_por_perfil', True)
+                
+                if dashboard_por_perfil and self.usuario:
+                    # Usar dashboard específico por perfil
+                    self.dashboard_manager.criar_dashboard_por_perfil(self.usuario)
+                    logger.debug(f"✓ Dashboard por perfil criado para {self.usuario.perfil_display}")
+                else:
+                    # Dashboard padrão (administrador)
+                    self.dashboard_manager.criar_dashboard()
+                    logger.debug("✓ Dashboard padrão criado e exibido")
             else:
                 logger.info("✓ Dashboard configurado para carregamento sob demanda")
             

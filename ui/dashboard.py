@@ -763,6 +763,87 @@ class DashboardManager:
             self.criar_dashboard()
         except Exception:
             pass
+    
+    def criar_dashboard_por_perfil(self, usuario=None):
+        """
+        Cria dashboard apropriado baseado no perfil do usuário.
+        
+        Este método seleciona automaticamente qual dashboard exibir:
+        - Administrador: Dashboard completo com todas as estatísticas
+        - Coordenador: Dashboard pedagógico com foco em desempenho
+        - Professor: Dashboard com foco nas suas turmas
+        
+        Args:
+            usuario: Objeto UsuarioLogado com informações do perfil.
+                    Se None, exibe o dashboard completo (perfis desabilitados).
+        """
+        if usuario is None:
+            # Perfis desabilitados - mostrar dashboard completo (administrador)
+            logger.debug("Dashboard: perfis desabilitados, usando dashboard completo")
+            self.criar_dashboard()
+            return
+        
+        try:
+            if usuario.is_admin():
+                # Dashboard administrativo completo
+                logger.debug(f"Dashboard: exibindo dashboard de administrador para {usuario.username}")
+                self.criar_dashboard()
+            
+            elif usuario.is_coordenador():
+                # Dashboard pedagógico para coordenador
+                logger.debug(f"Dashboard: exibindo dashboard de coordenador para {usuario.username}")
+                from ui.dashboard_coordenador import DashboardCoordenador
+                
+                dash_coord = DashboardCoordenador(
+                    janela=self.janela,
+                    db_service=self.db_service,
+                    frame_getter=self.frame_getter,
+                    escola_id=self.escola_id,
+                    ano_letivo=self.ano_letivo,
+                    co_bg=self.co1,
+                    co_fg=self.co0,
+                    co_accent=self.co4
+                )
+                dash_coord.criar_dashboard()
+            
+            elif usuario.is_professor():
+                # Dashboard específico do professor
+                logger.debug(f"Dashboard: exibindo dashboard de professor para {usuario.username}")
+                from ui.dashboard_professor import DashboardProfessor
+                
+                # Obter funcionario_id do usuário logado
+                funcionario_id = getattr(usuario, 'funcionario_id', None)
+                
+                if funcionario_id is None:
+                    logger.warning("Professor sem funcionario_id, usando dashboard padrão")
+                    self.criar_dashboard()
+                    return
+                
+                dash_prof = DashboardProfessor(
+                    janela=self.janela,
+                    db_service=self.db_service,
+                    frame_getter=self.frame_getter,
+                    funcionario_id=funcionario_id,
+                    escola_id=self.escola_id,
+                    ano_letivo=self.ano_letivo,
+                    co_bg=self.co1,
+                    co_fg=self.co0,
+                    co_accent=self.co4
+                )
+                dash_prof.criar_dashboard()
+            
+            else:
+                # Perfil desconhecido - usar dashboard padrão
+                logger.warning(f"Perfil desconhecido: {usuario.perfil}, usando dashboard padrão")
+                self.criar_dashboard()
+                
+        except ImportError as e:
+            logger.error(f"Erro ao importar dashboard específico: {e}")
+            self.criar_dashboard()
+        except Exception as e:
+            logger.exception(f"Erro ao criar dashboard por perfil: {e}")
+            self.criar_dashboard()
+
 
 """Stub for dashboard UI component.
 
