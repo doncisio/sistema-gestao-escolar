@@ -220,7 +220,7 @@ def boletiminiciais(aluno_id, ano_letivo_id):
 
 
     # Adicionando a imagem
-    figura_superior = os.path.join(os.path.dirname(__file__), 'pacologo.png')  # Ajuste o nome do arquivo conforme necessário
+    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')  # Ajuste o nome do arquivo conforme necessário
     # Definir estilos
     estilo_centro = ParagraphStyle(name='centro', fontSize=12, alignment=1, leading=18)
     estilo_formatado = ParagraphStyle(name='centro', fontSize=12, alignment=4, leading=18)
@@ -865,7 +865,7 @@ def boletimfinais(aluno_id, ano_letivo_id):
 
 
     # Adicionando a imagem
-    figura_superior = os.path.join(os.path.dirname(__file__), 'pacologo.png')  # Ajuste o nome do arquivo conforme necessário
+    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')  # Ajuste o nome do arquivo conforme necessário
     # Definir estilos
     estilo_centro = ParagraphStyle(name='centro', fontSize=12, alignment=1, leading=18)
     estilo_formatado = ParagraphStyle(name='centro', fontSize=12, alignment=4, leading=16)

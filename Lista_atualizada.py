@@ -633,8 +633,8 @@ def lista_atualizada():
         "<b>CNPJ: 01.394.462/0001-01</b>"
     ]
 
-    figura_superior = os.path.join(os.path.dirname(__file__), 'logosemed.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
+    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'logosemed.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.png')
 
     doc, buffer = create_pdf_buffer()
     elements = []
@@ -756,7 +756,7 @@ def lista_matriculados_apos_inicio():
         "<b>CNPJ: 01.394.462/0001-01</b>"
     ]
 
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.png')
     doc, buffer = create_pdf_buffer()
     elements = []
 

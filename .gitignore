@@ -12,8 +12,8 @@ ENV/
 # Banco de dados - NÃO SINCRONIZAR
 *.db
 *.sqlite
-*.sql
-backup_redeescola.sql
+migrations/backup_*.sql
+migrations/backup_redeescola.sql
 
 # Backups - NÃO SINCRONIZAR
 Backup_Sistema/

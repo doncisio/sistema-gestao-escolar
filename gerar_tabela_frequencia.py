@@ -33,8 +33,8 @@ def lista_frequencia():
         "<b>CNPJ: 01.394.462/0001-01</b>"
     ]
 
-    figura_superior = os.path.join(os.path.dirname(__file__), 'logopacobranco.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.jpg')
+    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopacobranco.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
 
     for (nome_serie, nome_turma, turno), turma_df in df.groupby(['NOME_SERIE', 'NOME_TURMA', 'TURNO']):
         nome_turma_completo = f"{nome_serie} {nome_turma}" if nome_turma else nome_serie

@@ -82,10 +82,12 @@ class LoginWindow:
         
         # Ícone (se existir)
         try:
-            icon_path = os.path.join(os.path.dirname(__file__), '..', 'aa.ico')
+            # ícone movido para pasta `ico/` na raiz do projeto
+            icon_path = os.path.join(os.path.dirname(__file__), '..', 'ico', 'aa.ico')
             if os.path.exists(icon_path):
                 self.janela.iconbitmap(icon_path)
-        except:
+        except Exception:
+            # Não bloquear a inicialização da UI por erro de ícone
             pass
         
         # Protocolo de fechamento

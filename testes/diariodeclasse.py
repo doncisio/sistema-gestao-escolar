@@ -18,8 +18,8 @@ def create_custom_pdf(output_path, image_path):
     image_width = width - 2 * image_margin
     image_height = height - 2 * image_margin
     c.drawImage(image_path, image_margin, image_margin, image_width, image_height)
-    figura_superior = "logosemed.png"  # Atualize para o caminho correto
-    figura_inferior = "logopaco.png"  # Atualize para o caminho correto
+    figura_superior = "imagens/logosemed.png"  # Atualize para o caminho correto
+    figura_inferior = "imagens/logopaco.png"  # Atualize para o caminho correto
     # Adicionar o cabeçalho sobre a imagem
     cabecalho = [
         "ESTADO DO MARANHÃO",

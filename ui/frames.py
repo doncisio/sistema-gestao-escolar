@@ -12,6 +12,7 @@ Extraído do main.py como parte da refatoração do Sprint 2.
 
 from tkinter import Frame, Label, Entry, Button, NSEW, EW, X, BOTH, W, LEFT, RIGHT, SOLID, RAISED, RIDGE
 from tkinter import ttk
+import os
 from PIL import Image, ImageTk
 from config_logs import get_logger
 
@@ -102,8 +103,8 @@ def criar_logo(frame_logo, nome_escola, co0, co1, co7):
     # Logo
     app_logo = None
     try:
-        # Tenta carregar a imagem do logo
-        app_img = Image.open('logopaco.png')
+        # Tenta carregar a imagem do logo (agora em `imagens/`)
+        app_img = Image.open(os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.png'))
         app_img = app_img.resize((200, 50))
         app_logo = ImageTk.PhotoImage(app_img)
         

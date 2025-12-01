@@ -6,7 +6,7 @@ Usage examples:
   python run_migration.py --host localhost --user doncisio --database redeescola 
   (you will be interactively prompted for the password)
 
-  python run_migration.py --file C:\gestao\migration_bncc_parsed_fields.sql --user doncisio --database redeescola
+  python run_migration.py --file C:\gestao\migrations\migration_bncc_parsed_fields.sql --user doncisio --database redeescola
 
 The script will execute the SQL file using mysql-connector-python with multi statement support.
 """
@@ -73,7 +73,7 @@ if __name__ == '__main__':
     parser.add_argument('--port', type=int, default=3306, help='Porta MySQL')
     parser.add_argument('--user', required=True, help='Usuário MySQL')
     parser.add_argument('--database', required=True, help='Banco de dados alvo')
-    parser.add_argument('--file', default=r'C:\gestao\migration_bncc_parsed_fields.sql', help='Caminho do arquivo SQL')
+    parser.add_argument('--file', default=r'C:\gestao\migrations\migration_bncc_parsed_fields.sql', help='Caminho do arquivo SQL')
     parser.add_argument('--password', help='Senha MySQL (não recomendado em CLI)')
 
     args = parser.parse_args()

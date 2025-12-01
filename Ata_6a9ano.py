@@ -299,8 +299,8 @@ def ata_geral_6a9ano():
         "<b>CNPJ: 06.003.636/0001-73</b>"
     ]
 
-    figura_superior = os.path.join(os.path.dirname(__file__), 'pacologo.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.jpg')
+    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
 
     # Criar nome do arquivo
     data_atual = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")

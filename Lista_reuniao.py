@@ -62,8 +62,8 @@ def lista_reuniao():
     elements = []
 
     # Caminhos das figuras (tentar localizar via helper, se não encontrar usa caminho relativo)
-    figura_superior_path = _find_image_in_repo('logosemed.png') or os.path.join(os.path.dirname(__file__), 'logosemed.png')
-    figura_inferior_path = _find_image_in_repo('logopaco.jpg') or os.path.join(os.path.dirname(__file__), 'logopaco.jpg')
+    figura_superior_path = _find_image_in_repo('logosemed.png') or os.path.join(os.path.dirname(__file__), 'imagens', 'logosemed.png')
+    figura_inferior_path = _find_image_in_repo('logopaco.jpg') or os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
 
     # Debug: logar caminhos resolvidos para as imagens
     logger.info("DEBUG imagens - figura_superior_path=%s figura_inferior_path=%s", figura_superior_path, figura_inferior_path)

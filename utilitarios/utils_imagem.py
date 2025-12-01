@@ -228,7 +228,7 @@ def verificar_imagens_necessarias():
         'icon/book.png',
         'icon/settings.png',
         'icon/history.png',
-        'logopaco.png'
+        'imagens/logopaco.png'
     ]
     
     resultado = {}

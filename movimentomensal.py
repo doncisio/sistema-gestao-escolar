@@ -810,8 +810,8 @@ def relatorio_movimentacao_mensal(mes=None):
     ]
 
     # Logotipos
-    figura_superior = os.path.join(os.path.dirname(__file__), 'logosemed.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
+    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'logosemed.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.png')
     
     # Estabelecer conexão com o banco de dados e buscar dados necessários
     with get_connection() as conn:
@@ -1775,7 +1775,7 @@ def gerar_lista_alunos_transferidos():
         "<b>CNPJ: 01.394.462/0001-01</b>"
     ]
 
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.png')
     doc, buffer = create_pdf_buffer(pagesize=landscape(letter))
     elements = []
 
@@ -1972,7 +1972,7 @@ def gerar_lista_alunos_matriculados_depois():
         "<b>CNPJ: 01.394.462/0001-01</b>"
     ]
 
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.png')
     doc, buffer = create_pdf_buffer(pagesize=landscape(letter))
     elements = []
 

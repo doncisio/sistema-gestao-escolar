@@ -478,8 +478,8 @@ def gerar_documento_pdf(df, bimestre, nome_arquivo, disciplinas, nivel_ensino, a
     ]
     
     # Caminhos das figuras
-    figura_superior_path = os.path.join(os.path.dirname(__file__), 'pacologo.png')
-    figura_inferior_path = os.path.join(os.path.dirname(__file__), 'logopaco.jpg')
+    figura_superior_path = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')
+    figura_inferior_path = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
     
     # Verificar se as imagens existem
     try:
@@ -723,8 +723,8 @@ def gerar_documento_pdf_com_assinatura(df, bimestre, nome_arquivo, disciplinas, 
     ]
     
     # Caminhos das figuras
-    figura_superior_path = os.path.join(os.path.dirname(__file__), 'pacologo.png')
-    figura_inferior_path = os.path.join(os.path.dirname(__file__), 'logopaco.jpg')
+    figura_superior_path = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')
+    figura_inferior_path = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
     
     # Verificar se as imagens existem
     try:

@@ -285,8 +285,8 @@ def ata_geral():
     ]
 
     # Caminhos das figuras
-    figura_superior = os.path.join(os.path.dirname(__file__), 'pacologo.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.jpg')
+    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
 
     df['Situação Final'] = df.apply(lambda row: determinar_situacao_final(row, faltas_dict, limite_faltas), axis=1)
     

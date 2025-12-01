@@ -24,7 +24,7 @@ def fazer_backup():
     
     :return: True se o backup foi bem-sucedido, False caso contrário.
     """
-    caminho_backup_local = "backup_redeescola.sql"
+    caminho_backup_local = "migrations/backup_redeescola.sql"
     caminho_backup_drive = r"G:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql"
     try:
         # Obter credenciais do arquivo .env
@@ -96,7 +96,7 @@ def restaurar_backup():
     
     :return: True se a restauração foi bem-sucedida, False caso contrário.
     """
-    caminho_backup_local = "backup_redeescola.sql"
+    caminho_backup_local = "migrations/backup_redeescola.sql"
     caminho_backup_drive = r"G:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql"
     try:
         # Determinar qual arquivo de backup usar (prioridade: Drive > Local)

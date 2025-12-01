@@ -815,8 +815,8 @@ def historico_escolar(aluno_id,
         logger.error("Dados da escola não encontrados.")
         return
 
-    figura_superior = os.path.join(os.path.dirname(__file__), 'pacologo.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopacobranco.png')
+    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopacobranco.png')
 
     buffer = io.BytesIO()
     left_margin = 18

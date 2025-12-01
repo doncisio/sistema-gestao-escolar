@@ -268,8 +268,8 @@ def criar_pdf_declaracao_comparecimento(buffer, dados, nome_aluno, nome_responsa
     cabecalho = criar_cabecalho_escola(dados)
     
     # Imagens
-    figura_superior = os.path.join(os.path.dirname(__file__), 'pacologo.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopacobranco.png')
+    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopacobranco.png')
     
     # Tabela do cabeçalho
     data_cabecalho = [

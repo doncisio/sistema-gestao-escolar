@@ -407,7 +407,7 @@ def lista_alfabetica():
         "<b>CNPJ: 01.394.462/0001-01</b>"
     ]
 
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.png')
 
     doc, buffer = create_pdf_buffer()
     elements = []

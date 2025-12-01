@@ -29,11 +29,11 @@ def gerar_lista_reuniao():
     df = pd.DataFrame(dados_aluno)
     # Definir caminhos das imagens tentando localizar via helper; fallback para caminhos relativos
     if _find_image_in_repo:
-        figura_superior = _find_image_in_repo('logosemed.png') or os.path.join(os.path.dirname(__file__), 'logosemed.png')
-        figura_inferior = _find_image_in_repo('logopaco.jpg') or os.path.join(os.path.dirname(__file__), 'logopaco.jpg')
+        figura_superior = _find_image_in_repo('logosemed.png') or os.path.join(os.path.dirname(__file__), 'imagens', 'logosemed.png')
+        figura_inferior = _find_image_in_repo('logopaco.jpg') or os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
     else:
-        figura_superior = os.path.join(os.path.dirname(__file__), 'logosemed.png')
-        figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.jpg')
+        figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'logosemed.png')
+        figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
     
     cabecalho = [
         "PREFEITURA MUNICIPAL DE PAÇO DO LUMIAR",

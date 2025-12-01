@@ -127,7 +127,7 @@ def gerar_tabela_docentes():
     ]
     
     # Adicionar o cabeçalho com cache
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.png')
     img_inf = _get_cached_image(figura_inferior, 3 * inch, 0.7 * inch)
     header_style = _get_cached_style('Header', fontSize=12, alignment=1)
     

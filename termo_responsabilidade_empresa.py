@@ -39,8 +39,8 @@ def gerar_termo_responsabilidade(nome_escola: str = "ESCOLA MUNICIPAL PROFª. NA
         f"<b>CNPJ: {cnpj_escola}</b>"
     ]
 
-    figura_superior = os.path.join(os.path.dirname(__file__), 'logosemed.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
+    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'logosemed.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.png')
 
     doc, buffer = create_pdf_buffer()
     elements = []

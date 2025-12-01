@@ -152,8 +152,8 @@ def criar_pdf(buffer, cabecalho, rodape_texto, dados_aluno, responsaveis, marcac
     )
     elements = []
 
-    figura_superior = os.path.join(os.path.dirname(__file__), 'pacologo.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopacobranco.png')
+    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopacobranco.png')
 
     data = [
         [Image(figura_superior, width=1 * inch, height=1 * inch),

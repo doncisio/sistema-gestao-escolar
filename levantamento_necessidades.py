@@ -181,7 +181,7 @@ def gerar_levantamento_necessidades():
     ]
     
     # Adicionar o cabeçalho
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.png')
     data = [
         [Image(figura_inferior, width=3 * inch, height=0.7 * inch)],
         [Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1))]

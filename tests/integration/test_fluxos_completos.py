@@ -584,7 +584,7 @@ class TestBackupRestauracao:
         
         if resultado:
             # Verificar que arquivo existe
-            backup_path = Path("backup_redeescola.sql")
+            backup_path = Path("migrations/backup_redeescola.sql")
             assert backup_path.exists()
             assert backup_path.stat().st_size > 0
         else:

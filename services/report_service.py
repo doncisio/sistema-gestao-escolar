@@ -38,6 +38,8 @@ def _find_image_in_repo(filename: str) -> Optional[str]:
         _os.path.join(mod_dir, filename),
         _os.path.join(mod_dir, '..', filename),
         _os.path.join(repo_root, filename),
+        _os.path.join(repo_root, 'imagens', filename),
+        _os.path.join(mod_dir, '..', 'imagens', filename),
     ]
 
     # também tentar variações de extensão comuns
@@ -46,6 +48,7 @@ def _find_image_in_repo(filename: str) -> Optional[str]:
     for e in other_exts:
         candidates.append(_os.path.join(repo_root, base + e))
         candidates.append(_os.path.join(mod_dir, base + e))
+        candidates.append(_os.path.join(repo_root, 'imagens', base + e))
 
     for c in candidates:
         try:

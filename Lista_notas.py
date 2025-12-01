@@ -68,8 +68,8 @@ def lista_notas():
         "<b>INEP: 21008485</b>",
         "<b>CNPJ: 06.003.636/0001-73</b>"
     ]
-    figura_superior = os.path.join(os.path.dirname(__file__), 'logosemed.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.jpg')
+    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'logosemed.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
 
     # 2. Configuração do Documento PDF
     buffer = io.BytesIO()

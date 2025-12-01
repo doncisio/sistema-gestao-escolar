@@ -53,7 +53,7 @@ def encontrar_referencias_imagens():
     
     # Adicionar imagens conhecidas que podem não ser detectadas pela análise de código
     imagens_conhecidas = [
-        'logopaco.png',
+        'imagens/logopaco.png',
         'icon/learning.png',
         'icon/book.png',
         'icon/left.png',

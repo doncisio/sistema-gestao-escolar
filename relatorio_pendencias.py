@@ -254,8 +254,8 @@ def gerar_pdf_pendencias(bimestre, nivel_ensino="iniciais", ano_letivo=None, esc
     ]
     
     # Caminhos das figuras
-    figura_superior_path = os.path.join(os.path.dirname(__file__), 'pacologo.png')
-    figura_inferior_path = os.path.join(os.path.dirname(__file__), 'logopaco.jpg')
+    figura_superior_path = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')
+    figura_inferior_path = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
     
     # Carregar as imagens
     try:

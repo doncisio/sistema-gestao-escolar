@@ -45,8 +45,8 @@ def lista_frequencia():
     ]
 
     # Caminhos das figuras
-    figura_superior = os.path.join(os.path.dirname(__file__), 'logopacobranco.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'logopaco.jpg')
+    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopacobranco.png')
+    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
 
     # Criar o documento PDF
     doc, buffer = create_pdf_buffer()
