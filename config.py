@@ -5,8 +5,7 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from sympy import true
-
+# Nota: evitar dependências desnecessárias (ex: sympy). Usar booleanos Python nativos.
 # ID padrão da escola usado em consultas (substitua conforme necessário em produção)
 ESCOLA_ID = 60
 
