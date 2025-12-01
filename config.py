@@ -150,3 +150,23 @@ def modo_debug() -> bool:
         bool: True se o modo debug está habilitado
     """
     return get_flag('modo_debug', False)
+
+
+def coordenadores_series_map() -> dict:
+    """Retorna o mapeamento configurado em `feature_flags.json` para `coordenadores_series`.
+
+    Retorna um dicionário username -> lista de nomes de série.
+    """
+    flags = carregar_feature_flags() or {}
+    cfg = flags.get('coordenadores_series', {})
+    if isinstance(cfg, dict):
+        return cfg.get('mapping', {}) if 'mapping' in cfg else {}
+    return {}
+
+
+def coordenador_series_para_usuario(username: str):
+    """Retorna a lista de séries permitidas para o `username` do coordenador, ou None se não houver restrição."""
+    mapping = coordenadores_series_map()
+    if not mapping:
+        return None
+    return mapping.get(username)

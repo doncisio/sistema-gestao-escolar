@@ -170,6 +170,7 @@ def teste_queries(escola_id=60, ano_letivo=None):
         traceback.print_exc()
 
 
+import config
 from ui.dashboard_coordenador import DashboardCoordenador
 
 
@@ -178,8 +179,13 @@ def main():
     escola_id = 60
     ano_letivo = None
 
+    # Instanciar como se fosse o coordenador '03499893379' (séries configuradas em feature_flags)
+    username = '03499893379'
+    series = config.coordenador_series_para_usuario(username)
+    print('Séries permitidas para', username, ':', series)
+
     dc = DashboardCoordenador(janela=None, db_service=None, frame_getter=lambda: None,
-                              escola_id=escola_id, ano_letivo=ano_letivo)
+                              escola_id=escola_id, ano_letivo=ano_letivo, series_permitidas=series)
 
     try:
         # Testar conexão e executar queries individuais primeiro

@@ -259,6 +259,10 @@ class ButtonFactory:
         """
         menu_font = ('Ivy', 12)
         acesso = ControleAcesso()
+        # cache de perfis para evitar chamadas repetidas
+        is_admin = acesso.is_admin()
+        is_coordenador = acesso.is_coordenador()
+        is_professor = acesso.is_professor()
         
         # Barra de menu principal
         menu_bar = Menu(self.janela)
@@ -266,69 +270,115 @@ class ButtonFactory:
         # ========== MENU 1: LISTAS (todos podem ver relatórios) ==========
         if acesso.pode('relatorios.visualizar'):
             listas_menu = Menu(menu_bar, tearoff=0, font=menu_font)
-            listas_menu.add_command(
-                label="Lista Atualizada",
-                command=self.callbacks.lista_atualizada,
-                font=menu_font
-            )
-            listas_menu.add_command(
-                label="Lista Atualizada SEMED",
-                command=self.callbacks.lista_atualizada_semed,
-                font=menu_font
-            )
-            listas_menu.add_command(
-                label="Lista de Reunião",
-                command=self.callbacks.lista_reuniao,
-                font=menu_font
-            )
-            listas_menu.add_command(
-                label="Lista de Notas",
-                command=self.callbacks.lista_notas,
-                font=menu_font
-            )
-            listas_menu.add_command(
-                label="Lista de Frequências",
-                command=self.callbacks.reports.lista_frequencia,
-                font=menu_font
-            )
+
+            # Dashboard (Admin/Coord/Professor)
+            if acesso.pode('dashboard.completo') or acesso.pode('dashboard.pedagogico') or acesso.pode('dashboard.proprio'):
+                listas_menu.add_command(
+                    label="📊 Ver Dashboard",
+                    command=lambda: self._mostrar_dashboard(),
+                    font=menu_font
+                )
+                listas_menu.add_separator()
+
+            # Lista Atualizada (Admin, Coordenador)
+            if is_admin or is_coordenador:
+                listas_menu.add_command(
+                    label="Lista Atualizada",
+                    command=self.callbacks.lista_atualizada,
+                    font=menu_font
+                )
+
+            # Lista Atualizada SEMED (Admin)
+            if is_admin:
+                listas_menu.add_command(
+                    label="Lista Atualizada SEMED",
+                    command=self.callbacks.lista_atualizada_semed,
+                    font=menu_font
+                )
+
+            # Lista de Reunião (Admin, Coordenador)
+            if is_admin or is_coordenador:
+                listas_menu.add_command(
+                    label="Lista de Reunião",
+                    command=self.callbacks.lista_reuniao,
+                    font=menu_font
+                )
+
+            # Lista de Notas (Admin, Professor)
+            if is_admin or is_professor:
+                listas_menu.add_command(
+                    label="Lista de Notas",
+                    command=self.callbacks.lista_notas,
+                    font=menu_font
+                )
+
+            # Lista de Frequências (Admin, Professor)
+            if is_admin or is_professor:
+                listas_menu.add_command(
+                    label="Lista de Frequências",
+                    command=self.callbacks.reports.lista_frequencia,
+                    font=menu_font
+                )
+
             listas_menu.add_separator()
-            listas_menu.add_command(
-                label="Contatos de Responsáveis",
-                command=self.callbacks.relatorio_contatos_responsaveis,
-                font=menu_font
-            )
-            listas_menu.add_command(
-                label="Levantamento de Necessidades",
-                command=self.callbacks.reports.relatorio_levantamento_necessidades,
-                font=menu_font
-            )
-            listas_menu.add_command(
-                label="Lista Alfabética",
-                command=self.callbacks.reports.relatorio_lista_alfabetica,
-                font=menu_font
-            )
-            listas_menu.add_command(
-                label="Alunos com Transtornos",
-                command=self.callbacks.reports.relatorio_alunos_transtornos,
-                font=menu_font
-            )
+
+            # Contatos de Responsáveis (Admin, Coordenador)
+            if is_admin or is_coordenador:
+                listas_menu.add_command(
+                    label="Contatos de Responsáveis",
+                    command=self.callbacks.relatorio_contatos_responsaveis,
+                    font=menu_font
+                )
+
+            # Levantamento de Necessidades (Admin, Coordenador)
+            if is_admin or is_coordenador:
+                listas_menu.add_command(
+                    label="Levantamento de Necessidades",
+                    command=self.callbacks.reports.relatorio_levantamento_necessidades,
+                    font=menu_font
+                )
+
+            # Lista Alfabética (Admin)
+            if is_admin:
+                listas_menu.add_command(
+                    label="Lista Alfabética",
+                    command=self.callbacks.reports.relatorio_lista_alfabetica,
+                    font=menu_font
+                )
+
+            # Alunos com Transtornos (Admin, Coordenador)
+            if is_admin or is_coordenador:
+                listas_menu.add_command(
+                    label="Alunos com Transtornos",
+                    command=self.callbacks.reports.relatorio_alunos_transtornos,
+                    font=menu_font
+                )
+
             listas_menu.add_separator()
-            listas_menu.add_command(
-                label="Transferências Expedidas",
-                command=self.callbacks.reports.relatorio_lista_transferidos,
-                font=menu_font
-            )
-            listas_menu.add_command(
-                label="Transferências Recebidas",
-                command=self.callbacks.reports.relatorio_lista_matriculados_depois,
-                font=menu_font
-            )
+
+            # Transferências (Admin)
+            if is_admin:
+                listas_menu.add_command(
+                    label="Transferências Expedidas",
+                    command=self.callbacks.reports.relatorio_lista_transferidos,
+                    font=menu_font
+                )
+                listas_menu.add_command(
+                    label="Transferências Recebidas",
+                    command=self.callbacks.reports.relatorio_lista_matriculados_depois,
+                    font=menu_font
+                )
+
             listas_menu.add_separator()
-            listas_menu.add_command(
-                label="Termo de Responsabilidade",
-                command=self.callbacks.reports.relatorio_termo_responsabilidade,
-                font=menu_font
-            )
+
+            # Termo de Responsabilidade (Admin, Coordenador)
+            if is_admin or is_coordenador:
+                listas_menu.add_command(
+                    label="Termo de Responsabilidade",
+                    command=self.callbacks.reports.relatorio_termo_responsabilidade,
+                    font=menu_font
+                )
+
             menu_bar.add_cascade(label="Listas", menu=listas_menu, font=menu_font)
         
         # ========== MENU 2: GERENCIAMENTO DE NOTAS (requer permissão notas) ==========
@@ -526,20 +576,11 @@ class ButtonFactory:
             
             menu_bar.add_cascade(label="Gerenciamento de Notas", menu=notas_menu, font=menu_font)
         
-        # ========== MENU 3: SERVIÇOS ==========
-        servicos_menu = Menu(menu_bar, tearoff=0, font=menu_font)
-        
-        # Dashboard (todos podem ver)
-        if acesso.pode('dashboard.completo') or acesso.pode('dashboard.pedagogico') or acesso.pode('dashboard.proprio'):
-            servicos_menu.add_command(
-                label="📊 Ver Dashboard",
-                command=lambda: self._mostrar_dashboard(),
-                font=menu_font
-            )
-            servicos_menu.add_separator()
-        
-        # Submenu: Movimento Mensal (apenas admin/coordenador)
-        if acesso.is_admin_ou_coordenador():
+        # ========== MENU 3: SERVIÇOS (apenas administradores) ==========
+        if acesso.is_admin():
+            servicos_menu = Menu(menu_bar, tearoff=0, font=menu_font)
+            
+            # Submenu: Movimento Mensal
             movimento_mensal_menu = Menu(servicos_menu, tearoff=0, font=menu_font)
             movimento_mensal_menu.add_command(
                 label="Gerar Relatório",
@@ -552,32 +593,28 @@ class ButtonFactory:
                 font=menu_font
             )
         
-        # Solicitação de Professores (apenas admin)
-        if acesso.is_admin():
+            # Solicitação de Professores
             servicos_menu.add_command(
                 label="Solicitação de Professores e Coordenadores",
                 command=self.callbacks.abrir_solicitacao_professores,
                 font=menu_font
             )
-        
-        # Gerenciador de Documentos de Funcionários (admin/coordenador)
-        if acesso.is_admin_ou_coordenador():
+            
+            # Gerenciador de Documentos de Funcionários
             servicos_menu.add_command(
                 label="Gerenciador de Documentos de Funcionários",
                 command=self.callbacks.abrir_gerenciador_documentos,
                 font=menu_font
             )
-        
-        # Gerenciador de Documentos do Sistema (admin)
-        if acesso.is_admin():
+            
+            # Gerenciador de Documentos do Sistema
             servicos_menu.add_command(
                 label="Gerenciador de Documentos do Sistema",
                 command=lambda: self._abrir_gerenciador_documentos_sistema(),
                 font=menu_font
             )
         
-        # Declaração de Comparecimento (todos podem gerar)
-        if acesso.pode('alunos.documentos'):
+            # Declaração de Comparecimento
             servicos_menu.add_command(
                 label="Declaração de Comparecimento (Responsável)",
                 command=self.callbacks.declaracao_comparecimento,
@@ -588,25 +625,23 @@ class ButtonFactory:
                 command=lambda: self._abrir_crachas(),
                 font=menu_font
             )
-        
-        # Importar Notas (admin/coordenador)
-        if acesso.is_admin_ou_coordenador():
+            
+            # Importar Notas
             servicos_menu.add_command(
                 label="Importar Notas do GEDUC (HTML → Excel)",
                 command=lambda: self._abrir_importacao_notas_html(),
                 font=menu_font
             )
-        
-        # Transição de Ano Letivo (apenas admin)
-        if acesso.pode('sistema.transicao_ano'):
+            
+            # Transição de Ano Letivo
             servicos_menu.add_separator()
             servicos_menu.add_command(
                 label="🔄 Transição de Ano Letivo",
                 command=self.callbacks.abrir_transicao_ano_letivo,
                 font=menu_font
             )
-        
-        menu_bar.add_cascade(label="Serviços", menu=servicos_menu, font=menu_font)
+            
+            menu_bar.add_cascade(label="Serviços", menu=servicos_menu, font=menu_font)
         
         # ========== MENU 4: GERENCIAMENTO DE FALTAS ==========
         if acesso.pode_alguma(['frequencia.visualizar', 'frequencia.lancar', 'frequencia.lancar_proprias']):
@@ -934,10 +969,9 @@ class ButtonFactory:
             self.janela.deiconify()
     
     def _mostrar_dashboard(self):
-        """Mostra o dashboard com estatísticas de alunos"""
+        """Mostra o dashboard adaptado ao perfil do usuário."""
         try:
             # Obter referência ao app através do callback manager
-            # O app é passado via janela ou podemos acessar através de um atributo
             app = getattr(self.janela, '_app_instance', None)
             
             if app and app.dashboard_manager:
@@ -946,9 +980,10 @@ class ButtonFactory:
                     for widget in app.frames['frame_tabela'].winfo_children():
                         widget.destroy()
                 
-                # Criar dashboard
-                app.dashboard_manager.criar_dashboard()
-                logger.info("Dashboard exibido com sucesso")
+                # Criar dashboard adaptado por perfil
+                usuario = getattr(app, 'usuario', None)
+                app.dashboard_manager.criar_dashboard_por_perfil(usuario)
+                logger.info(f"Dashboard exibido para perfil: {usuario.perfil if usuario else 'administrador'}")
             else:
                 messagebox.showwarning("Aviso", "Dashboard não está disponível no momento.")
                 logger.warning("Dashboard manager não inicializado")

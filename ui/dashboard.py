@@ -3,6 +3,7 @@ from threading import Thread
 from tkinter import Toplevel, Frame, Label, Button, messagebox
 from tkinter.ttk import Progressbar
 from config_logs import get_logger
+import config
 
 logger = get_logger(__name__)
 
@@ -793,6 +794,11 @@ class DashboardManager:
                 # Dashboard pedagógico para coordenador
                 logger.debug(f"Dashboard: exibindo dashboard de coordenador para {usuario.username}")
                 from ui.dashboard_coordenador import DashboardCoordenador
+                import config
+                
+                # Obter séries permitidas para este coordenador
+                series_permitidas = config.coordenador_series_para_usuario(usuario.username)
+                logger.debug(f"Séries permitidas para {usuario.username}: {series_permitidas}")
                 
                 dash_coord = DashboardCoordenador(
                     janela=self.janela,
@@ -800,9 +806,7 @@ class DashboardManager:
                     frame_getter=self.frame_getter,
                     escola_id=self.escola_id,
                     ano_letivo=self.ano_letivo,
-                    co_bg=self.co1,
-                    co_fg=self.co0,
-                    co_accent=self.co4
+                    series_permitidas=series_permitidas
                 )
                 dash_coord.criar_dashboard()
             

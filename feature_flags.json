@@ -60,6 +60,26 @@
       "description": "Habilita dashboard espec\u00c3\u00adfico por perfil de usu\u00c3\u00a1rio (coordenador, professor)",
       "category": "ui"
     },
+    "coordenadores_series": {
+      "enabled": true,
+      "description": "Mapeamento de coordenadores para s\u00c3\u00a9ries que podem gerenciar (username -> lista de nomes de s\u00c3\u00a9rie).",
+      "category": "auth",
+      "mapping": {
+        "03499893379": [
+          "1\u00c2\u00ba Ano",
+          "2\u00c2\u00ba Ano",
+          "3\u00c2\u00ba Ano",
+          "4\u00c2\u00ba Ano",
+          "5\u00c2\u00ba Ano"
+        ],
+        "01132498376": [
+          "6\u00c2\u00ba Ano",
+          "7\u00c2\u00ba Ano",
+          "8\u00c2\u00ba Ano",
+          "9\u00c2\u00ba Ano"
+        ]
+      }
+    },
     "modulo_transporte": {
       "enabled": false,
       "description": "Habilita m\u00c3\u00b3dulo de transporte escolar",
