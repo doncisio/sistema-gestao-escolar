@@ -56,7 +56,7 @@ def obter_dados_responsavel_aluno(cursor, aluno_id):
         LEFT JOIN 
             Turmas t ON m.turma_id = t.id
         LEFT JOIN 
-            Serie s ON t.serie_id = s.id
+            series s ON t.serie_id = s.id
         LEFT JOIN
             Escolas e ON a.escola_id = e.id
         LEFT JOIN

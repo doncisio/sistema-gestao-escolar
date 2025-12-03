@@ -325,7 +325,7 @@ def construir_consulta_sql(bimestre, filtro_serie, disciplinas, nivel_id, ano_le
         JOIN
             Turmas t ON m.turma_id = t.id
         JOIN
-            Serie s ON t.serie_id = s.id
+            series s ON t.serie_id = s.id
         LEFT JOIN
             Notas n ON a.id = n.aluno_id AND n.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = {ano_letivo})
         LEFT JOIN

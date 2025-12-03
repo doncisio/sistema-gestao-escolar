@@ -340,7 +340,7 @@ def buscar_corpo_docente_1_5(cursor, escola_id=60):
     LEFT JOIN 
         turmas t ON ft.turma_id = t.id
     LEFT JOIN 
-        serie s ON t.serie_id = s.id
+        series s ON t.serie_id = s.id
     WHERE 
         f.escola_id = %s
         AND f.cargo = 'Professor@'
@@ -416,7 +416,7 @@ def buscar_corpo_docente_6_9(cursor, escola_id=60):
     LEFT JOIN 
         turmas t ON ft.turma_id = t.id
     LEFT JOIN 
-        serie s ON t.serie_id = s.id
+        series s ON t.serie_id = s.id
     WHERE 
         f.escola_id = %s
         AND f.cargo = 'Professor@'

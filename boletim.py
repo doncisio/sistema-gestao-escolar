@@ -104,7 +104,7 @@ def consultar_dados_aluno(aluno_id, ano_letivo_id):
         SELECT
             escolas.nome AS nome_escola,
             alunos.nome AS nome_aluno,
-            serie.nome AS serie,
+            series.nome AS serie,
             turmas.nome AS turma,
             turmas.turno AS turno,
             anosletivos.ano_letivo,
@@ -113,7 +113,7 @@ def consultar_dados_aluno(aluno_id, ano_letivo_id):
             notas.bimestre AS bimestre,
             faltas.faltas AS faltas_bimestrais,
             anosletivos.numero_dias_aula,
-            serie.id AS serie_id
+            series.id AS serie_id
         FROM
             matriculas
         JOIN
@@ -121,7 +121,7 @@ def consultar_dados_aluno(aluno_id, ano_letivo_id):
         JOIN
             turmas ON matriculas.turma_id = turmas.id
         JOIN
-            serie ON turmas.serie_id = serie.id
+            series ON turmas.serie_id = series.id
         JOIN
             anosletivos ON matriculas.ano_letivo_id = anosletivos.id
         JOIN
@@ -720,7 +720,7 @@ def boletimfinais(aluno_id, ano_letivo_id):
         SELECT
             escolas.nome AS nome_escola,
             alunos.nome AS nome_aluno,
-            serie.nome AS serie,
+            series.nome AS serie,
             turmas.nome AS turma,
             turmas.turno AS turno,
             anosletivos.ano_letivo,
@@ -729,7 +729,7 @@ def boletimfinais(aluno_id, ano_letivo_id):
             notas.bimestre AS bimestre,
             faltas.faltas AS faltas_bimestrais,
             anosletivos.numero_dias_aula,
-            serie.id AS serie_id
+            series.id AS serie_id
         FROM
             matriculas
         JOIN
@@ -737,7 +737,7 @@ def boletimfinais(aluno_id, ano_letivo_id):
         JOIN
             turmas ON matriculas.turma_id = turmas.id
         JOIN
-            serie ON turmas.serie_id = serie.id
+            series ON turmas.serie_id = series.id
         JOIN
             anosletivos ON matriculas.ano_letivo_id = anosletivos.id
         JOIN

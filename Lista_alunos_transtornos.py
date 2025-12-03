@@ -44,7 +44,7 @@ def fetch_students_with_disorders(ano_letivo):
         JOIN 
             Turmas t ON m.turma_id = t.id
         JOIN 
-            Serie s ON t.serie_id = s.id
+            series s ON t.serie_id = s.id
         LEFT JOIN 
             ResponsaveisAlunos ra ON a.id = ra.aluno_id
         LEFT JOIN 

@@ -68,7 +68,7 @@ def obter_dados_aluno(cursor, aluno_id):
         JOIN 
             Turmas t ON m.turma_id = t.id
         JOIN 
-            Serie s ON t.serie_id = s.id
+            series s ON t.serie_id = s.id
         LEFT JOIN 
             NiveisEnsino n ON s.nivel_id = n.id
         WHERE

@@ -86,7 +86,7 @@ def fetch_student_data(ano_letivo):
         JOIN 
             Turmas t ON m.turma_id = t.id
         JOIN 
-            Serie s ON t.serie_id = s.id
+            series s ON t.serie_id = s.id
         LEFT JOIN 
             ResponsaveisAlunos ra ON a.id = ra.aluno_id
         LEFT JOIN 
@@ -160,7 +160,7 @@ def data_funcionario(escola_id):
             LEFT JOIN
                 Turmas t ON fd.turma_id = t.id
             LEFT JOIN
-                Serie s ON t.serie_id = s.id
+                series s ON t.serie_id = s.id
             WHERE 
                 f.escola_id = %s
                 AND f.cargo = 'Professor@'
@@ -183,7 +183,7 @@ def data_funcionario(escola_id):
             LEFT JOIN
                 Turmas t ON f.turma = t.id
             LEFT JOIN
-                Serie s ON t.serie_id = s.id
+                series s ON t.serie_id = s.id
             WHERE 
                 f.escola_id = %s
                 AND f.cargo = 'Professor@'
