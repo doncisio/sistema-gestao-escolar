@@ -109,7 +109,7 @@ def abrir_interface_declaracao_comparecimento(janela_pai, gerar_declaracao_func)
                             FROM alunos a
                             INNER JOIN matriculas m ON a.id = m.aluno_id
                             INNER JOIN turmas t ON m.turma_id = t.id
-                            INNER JOIN serie s ON t.serie_id = s.id
+                            INNER JOIN series s ON t.serie_id = s.id
                             WHERE a.escola_id = 60 
                             AND m.ano_letivo_id = %s
                             AND m.status IN ('Ativo', 'Transferido')
@@ -123,7 +123,7 @@ def abrir_interface_declaracao_comparecimento(janela_pai, gerar_declaracao_func)
                             FROM alunos a
                             INNER JOIN matriculas m ON a.id = m.aluno_id
                             INNER JOIN turmas t ON m.turma_id = t.id
-                            INNER JOIN serie s ON t.serie_id = s.id
+                            INNER JOIN series s ON t.serie_id = s.id
                             WHERE a.escola_id = 60 
                             AND m.ano_letivo_id = %s
                             AND m.status IN ('Ativo', 'Transferido')

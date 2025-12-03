@@ -63,7 +63,7 @@ def listar_turmas(
                     al.ano_letivo as ano_letivo,
                     COALESCE(COUNT(DISTINCT m.id), 0) as total_alunos
                 FROM turmas t
-                LEFT JOIN serie s ON t.serie_id = s.id
+                LEFT JOIN series s ON t.serie_id = s.id
                 LEFT JOIN anosletivos al ON t.ano_letivo_id = al.id
                 LEFT JOIN Matriculas m ON m.turma_id = t.id AND m.status = 'Ativo'
             """
@@ -143,7 +143,7 @@ def obter_turma_por_id(turma_id: int) -> Optional[Dict[str, Any]]:
                     al.ano_letivo as ano_letivo,
                     COALESCE(COUNT(DISTINCT m.id), 0) as total_alunos
                 FROM turmas t
-                LEFT JOIN serie s ON t.serie_id = s.id
+                LEFT JOIN series s ON t.serie_id = s.id
                 LEFT JOIN anosletivos al ON t.ano_letivo_id = al.id
                 LEFT JOIN Matriculas m ON m.turma_id = t.id AND m.status = 'Ativo'
                 WHERE t.id = %s
@@ -433,7 +433,7 @@ def buscar_turmas(termo: str, ano_letivo_id: Optional[int] = None, aplicar_filtr
                     al.ano_letivo as ano_letivo,
                     COALESCE(COUNT(DISTINCT m.id), 0) as total_alunos
                 FROM turmas t
-                LEFT JOIN serie s ON t.serie_id = s.id
+                LEFT JOIN series s ON t.serie_id = s.id
                 LEFT JOIN anosletivos al ON t.ano_letivo_id = al.id
                 LEFT JOIN Matriculas m ON m.turma_id = t.id AND m.status = 'Ativo'
                 WHERE (t.nome LIKE %s OR s.nome LIKE %s OR t.turno LIKE %s)

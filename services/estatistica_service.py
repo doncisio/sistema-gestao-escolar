@@ -51,7 +51,7 @@ def obter_estatisticas_alunos(escola_id: int = 60, ano_letivo: Optional[str] = N
                         t.turno
                     FROM matriculas m
                     INNER JOIN turmas t ON m.turma_id = t.id
-                    INNER JOIN serie s ON t.serie_id = s.id
+                    INNER JOIN series s ON t.serie_id = s.id
                     INNER JOIN alunos a ON m.aluno_id = a.id
                     WHERE m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
                       AND a.escola_id = %s
@@ -90,7 +90,7 @@ def obter_estatisticas_alunos(escola_id: int = 60, ano_letivo: Optional[str] = N
                     COUNT(DISTINCT m.aluno_id) as total
                 FROM matriculas m
                 INNER JOIN turmas t ON m.turma_id = t.id
-                INNER JOIN serie s ON t.serie_id = s.id
+                INNER JOIN series s ON t.serie_id = s.id
                 INNER JOIN alunos a ON m.aluno_id = a.id
                 WHERE m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
                   AND a.escola_id = %s
@@ -118,7 +118,7 @@ def obter_estatisticas_alunos(escola_id: int = 60, ano_letivo: Optional[str] = N
                     COUNT(DISTINCT m.aluno_id) as total
                 FROM matriculas m
                 INNER JOIN turmas t ON m.turma_id = t.id
-                INNER JOIN serie s ON t.serie_id = s.id
+                INNER JOIN series s ON t.serie_id = s.id
                 INNER JOIN alunos a ON m.aluno_id = a.id
                 WHERE m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
                   AND a.escola_id = %s

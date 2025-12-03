@@ -75,7 +75,7 @@ def teste_queries(escola_id=60, ano_letivo=None):
                         COUNT(DISTINCT m.aluno_id) AS total_alunos
                     FROM matriculas m
                     JOIN turmas t ON m.turma_id = t.id
-                    JOIN serie s ON t.serie_id = s.id
+                    JOIN series s ON t.serie_id = s.id
                     JOIN alunos a ON m.aluno_id = a.id
                     LEFT JOIN notas n ON m.aluno_id = n.aluno_id 
                         AND m.ano_letivo_id = n.ano_letivo_id
@@ -95,7 +95,7 @@ def teste_queries(escola_id=60, ano_letivo=None):
                     FROM alunos a
                     JOIN matriculas m ON a.id = m.aluno_id
                     JOIN turmas t ON m.turma_id = t.id
-                    JOIN serie s ON t.serie_id = s.id
+                    JOIN series s ON t.serie_id = s.id
                     JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = m.ano_letivo_id
                     WHERE m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
                       AND a.escola_id = %s
@@ -115,7 +115,7 @@ def teste_queries(escola_id=60, ano_letivo=None):
                     FROM alunos a
                     JOIN matriculas m ON a.id = m.aluno_id
                     JOIN turmas t ON m.turma_id = t.id
-                    JOIN serie s ON t.serie_id = s.id
+                    JOIN series s ON t.serie_id = s.id
                     LEFT JOIN faltas_bimestrais fb ON a.id = fb.aluno_id 
                         AND fb.ano_letivo_id = m.ano_letivo_id
                     WHERE m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
@@ -135,7 +135,7 @@ def teste_queries(escola_id=60, ano_letivo=None):
                         COUNT(DISTINCT m.aluno_id) AS alunos_sem_nota
                     FROM matriculas m
                     JOIN turmas t ON m.turma_id = t.id
-                    JOIN serie s ON t.serie_id = s.id
+                    JOIN series s ON t.serie_id = s.id
                     JOIN alunos a ON m.aluno_id = a.id
                     CROSS JOIN disciplinas d
                     LEFT JOIN notas n ON m.aluno_id = n.aluno_id 
@@ -202,3 +202,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

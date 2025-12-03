@@ -52,7 +52,7 @@ def obter_series_disponiveis() -> List[Dict]:
         with get_cursor() as cursor:
             cursor.execute("""
                 SELECT id, nome 
-                FROM serie 
+                FROM series 
                 ORDER BY id
             """)
             
@@ -131,7 +131,7 @@ def verificar_matricula_existente(aluno_id: int, ano_letivo_id: int) -> Optional
                 SELECT m.id, m.status, t.nome as turma, s.nome as serie
                 FROM matriculas m
                 JOIN turmas t ON m.turma_id = t.id
-                JOIN serie s ON t.serie_id = s.id
+                JOIN series s ON t.serie_id = s.id
                 WHERE m.aluno_id = %s AND m.ano_letivo_id = %s
                 LIMIT 1
             """, (aluno_id, ano_letivo_id))
@@ -180,7 +180,7 @@ def obter_matricula_aluno(aluno_id: int, ano_letivo_id: int) -> Optional[Dict]:
                        m.data_matricula
                 FROM matriculas m
                 JOIN turmas t ON m.turma_id = t.id
-                JOIN serie s ON t.serie_id = s.id
+                JOIN series s ON t.serie_id = s.id
                 WHERE m.aluno_id = %s AND m.ano_letivo_id = %s
                 LIMIT 1
             """, (aluno_id, ano_letivo_id))
@@ -435,7 +435,7 @@ def obter_matricula_por_id(matricula_id: int) -> Optional[Dict]:
                 FROM matriculas m
                 JOIN alunos a ON m.aluno_id = a.id
                 JOIN turmas t ON m.turma_id = t.id
-                JOIN serie s ON t.serie_id = s.id
+                JOIN series s ON t.serie_id = s.id
                 JOIN anosletivos al ON m.ano_letivo_id = al.id
                 WHERE m.id = %s
             """, (matricula_id,))

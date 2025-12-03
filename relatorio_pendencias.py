@@ -58,7 +58,7 @@ def buscar_pendencias_notas(bimestre, nivel_ensino="iniciais", ano_letivo=None, 
         FROM Alunos a
         JOIN Matriculas m ON a.id = m.aluno_id
         JOIN Turmas t ON m.turma_id = t.id
-        JOIN Serie s ON t.serie_id = s.id
+        JOIN series s ON t.serie_id = s.id
         CROSS JOIN Disciplinas d
         LEFT JOIN Notas n ON a.id = n.aluno_id 
             AND d.id = n.disciplina_id 

@@ -54,7 +54,7 @@ with get_cursor() as cur:
     cur.execute("""
         SELECT t.id
         FROM turmas t
-        JOIN serie s ON t.serie_id = s.id
+        JOIN series s ON t.serie_id = s.id
         WHERE s.nome LIKE '9%'
         AND t.escola_id = %s
     """, (escola_id,))
@@ -91,3 +91,4 @@ with get_cursor() as cur:
     print("Alunos que continuarão (transicao logic):", r3)
 
 print("--- FIM ---")
+

@@ -86,7 +86,7 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
                 SELECT m.id, t.id, t.nome, t.turno, s.id, s.nome
                 FROM matriculas m
                 JOIN turmas t ON m.turma_id = t.id
-                JOIN serie s ON t.serie_id = s.id
+                JOIN series s ON t.serie_id = s.id
                 WHERE m.aluno_id = %s 
                 AND m.ano_letivo_id = %s 
                 AND m.status = 'Ativo'
@@ -388,7 +388,7 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
                     # Obter informações da série atual
                     cursor.execute("""
                         SELECT s.id, s.nome, t.id, t.nome, t.turno
-                        FROM serie s
+                        FROM series s
                         JOIN turmas t ON s.id = t.serie_id
                         WHERE t.id = %s
                     """, (turma_atual_id,))
@@ -438,7 +438,7 @@ def abrir_edicao_aluno(janela_pai, aluno_id, treeview=None, query=None):
                     # Carregar séries
                     cursor.execute("""
                         SELECT DISTINCT s.id, s.nome 
-                        FROM serie s
+                        FROM series s
                         JOIN turmas t ON s.id = t.serie_id
                         WHERE t.escola_id = 60
                         AND t.ano_letivo_id = %s

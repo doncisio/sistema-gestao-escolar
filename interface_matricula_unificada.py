@@ -430,7 +430,7 @@ class InterfaceMatriculaUnificada:
         try:
             cast(Any, self.cursor).execute("""
                 SELECT DISTINCT s.id, s.nome 
-                FROM serie s
+                FROM series s
                 JOIN turmas t ON s.id = t.serie_id
                 WHERE t.escola_id = 60
                 AND t.ano_letivo_id = %s
@@ -537,7 +537,7 @@ class InterfaceMatriculaUnificada:
                        t.nome as turma_nome, t.turno, s.nome as serie_nome, s.id as serie_id
                 FROM matriculas m
                 LEFT JOIN turmas t ON m.turma_id = t.id
-                LEFT JOIN serie s ON t.serie_id = s.id
+                LEFT JOIN series s ON t.serie_id = s.id
                 WHERE m.id = %s
             """, (self.matricula_id,))
             

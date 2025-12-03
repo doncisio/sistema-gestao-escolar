@@ -181,7 +181,7 @@ class DashboardProfessor:
                         t.turno,
                         COUNT(DISTINCT m.aluno_id) AS total_alunos
                     FROM turmas t
-                    JOIN serie s ON t.serie_id = s.id
+                    JOIN series s ON t.serie_id = s.id
                     LEFT JOIN matriculas m ON t.id = m.turma_id 
                         AND m.ano_letivo_id = %s 
                         AND m.status = 'Ativo'
@@ -209,7 +209,7 @@ class DashboardProfessor:
                             t.turno,
                             COUNT(DISTINCT m.aluno_id) AS total_alunos
                         FROM turmas t
-                        JOIN serie s ON t.serie_id = s.id
+                        JOIN series s ON t.serie_id = s.id
                         LEFT JOIN matriculas m ON t.id = m.turma_id 
                             AND m.ano_letivo_id = %s 
                             AND m.status = 'Ativo'
@@ -249,7 +249,7 @@ class DashboardProfessor:
                             'atual' AS bimestre
                         FROM matriculas m
                         JOIN turmas t ON m.turma_id = t.id
-                        JOIN serie s ON t.serie_id = s.id
+                        JOIN series s ON t.serie_id = s.id
                         CROSS JOIN disciplinas d
                         LEFT JOIN notas n ON m.aluno_id = n.aluno_id 
                             AND n.disciplina_id = d.id 
@@ -274,7 +274,7 @@ class DashboardProfessor:
                             ROUND(AVG(n.nota), 2) AS media,
                             COUNT(DISTINCT n.aluno_id) AS alunos_com_nota
                         FROM turmas t
-                        JOIN serie s ON t.serie_id = s.id
+                        JOIN series s ON t.serie_id = s.id
                         JOIN matriculas m ON t.id = m.turma_id AND m.status = 'Ativo'
                         LEFT JOIN notas n ON m.aluno_id = n.aluno_id 
                             AND n.ano_letivo_id = m.ano_letivo_id
@@ -295,7 +295,7 @@ class DashboardProfessor:
                         FROM alunos a
                         JOIN matriculas m ON a.id = m.aluno_id
                         JOIN turmas t ON m.turma_id = t.id
-                        JOIN serie s ON t.serie_id = s.id
+                        JOIN series s ON t.serie_id = s.id
                         JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = m.ano_letivo_id
                         WHERE t.id IN ({placeholders})
                           AND m.ano_letivo_id = %s

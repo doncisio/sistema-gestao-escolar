@@ -47,7 +47,7 @@ def buscar_contatos_alunos(ano_letivo: int):
         FROM alunos a
         JOIN matriculas m ON a.id = m.aluno_id
         JOIN turmas t ON m.turma_id = t.id
-        JOIN serie s ON t.serie_id = s.id
+        JOIN series s ON t.serie_id = s.id
         LEFT JOIN responsaveisalunos ra ON a.id = ra.aluno_id
         LEFT JOIN responsaveis r ON ra.responsavel_id = r.id
         WHERE m.ano_letivo_id = (SELECT id FROM anosletivos WHERE ano_letivo = %s)

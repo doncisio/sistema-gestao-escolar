@@ -217,7 +217,7 @@ class RelatorioAnaliseNotas:
             conn: Any = conectar_bd()
             cursor = cast(Any, conn).cursor()
             cursor.execute(
-                "SELECT id, nome FROM serie WHERE nivel_id = %s ORDER BY nome",
+                "SELECT id, nome FROM series WHERE nivel_id = %s ORDER BY nome",
                 (nivel_id,)
             )
             series = cursor.fetchall()
@@ -367,7 +367,7 @@ class RelatorioAnaliseNotas:
                 FROM alunos a
                 JOIN matriculas m ON a.id = m.aluno_id
                 JOIN turmas t ON m.turma_id = t.id
-                JOIN serie s ON t.serie_id = s.id
+                JOIN series s ON t.serie_id = s.id
                 CROSS JOIN disciplinas d
                 LEFT JOIN notas n ON a.id = n.aluno_id 
                     AND d.id = n.disciplina_id 

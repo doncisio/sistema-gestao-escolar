@@ -233,7 +233,7 @@ class InterfaceHistoricoEscolar:
                 FROM anosletivos 
                 UNION ALL
                 SELECT 'serie' as tipo, id, nome, NULL as escola_id, NULL as nivel_id 
-                FROM serie 
+                FROM series 
                 UNION ALL
                 SELECT 'escola' as tipo, id, nome, NULL as escola_id, NULL as nivel_id 
                 FROM escolas 
@@ -971,7 +971,7 @@ class InterfaceHistoricoEscolar:
                 FROM historico_escolar h
                 INNER JOIN disciplinas d ON h.disciplina_id = d.id
                 INNER JOIN anosletivos al ON h.ano_letivo_id = al.id
-                INNER JOIN serie s ON h.serie_id = s.id
+                INNER JOIN series s ON h.serie_id = s.id
                 INNER JOIN escolas e ON h.escola_id = e.id
                 WHERE h.aluno_id = %s
                 ORDER BY al.ano_letivo DESC, s.id, d.nome
@@ -1119,7 +1119,7 @@ class InterfaceHistoricoEscolar:
                 FROM historico_escolar h
                 LEFT JOIN disciplinas d ON h.disciplina_id = d.id
                 LEFT JOIN anosletivos a ON h.ano_letivo_id = a.id
-                LEFT JOIN serie s ON h.serie_id = s.id
+                LEFT JOIN series s ON h.serie_id = s.id
                 LEFT JOIN escolas e ON h.escola_id = e.id
                 WHERE h.id = %s
             """, (self.historico_id,))
@@ -1963,7 +1963,7 @@ class InterfaceHistoricoEscolar:
             cursor.execute("""
                 SELECT d.id, d.nome
                 FROM disciplinas d
-                LEFT JOIN serie s ON s.id = %s
+                LEFT JOIN series s ON s.id = %s
                 WHERE (d.escola_id IS NULL OR d.escola_id = %s)
                 AND (d.nivel_id IS NULL OR 
                      (CASE 
@@ -2144,7 +2144,7 @@ class InterfaceHistoricoEscolar:
             FROM historico_escolar h
             INNER JOIN disciplinas d ON h.disciplina_id = d.id
             INNER JOIN anosletivos al ON h.ano_letivo_id = al.id
-            INNER JOIN serie s ON h.serie_id = s.id
+            INNER JOIN series s ON h.serie_id = s.id
             INNER JOIN escolas e ON h.escola_id = e.id
             WHERE h.aluno_id = %s
         """
@@ -2281,7 +2281,7 @@ class InterfaceHistoricoEscolar:
             # Determinar o nível com base no número da série
             cursor.execute("""
                 SELECT nome 
-                FROM serie 
+                FROM series 
                 WHERE id = %s
             """, self._safe_sql_params(serie_id))
             

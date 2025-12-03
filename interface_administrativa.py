@@ -823,7 +823,7 @@ class InterfaceAdministrativa:
                 ano_menu.pack(side=LEFT, padx=5)
                 
                 # Carregar séries/níveis
-                cast(Any, self.cursor).execute("SELECT id, nome FROM serie ORDER BY nome")
+                cast(Any, self.cursor).execute("SELECT id, nome FROM series ORDER BY nome")
                 series = self.cursor.fetchall()
                 
                 Label(selecao_frame, text="Série:", bg=self.co10).pack(side=LEFT, padx=(20, 5))
@@ -956,7 +956,7 @@ class InterfaceAdministrativa:
                             SELECT cht.id, cht.carga_horaria_total, al.ano_letivo, s.nome
                             FROM carga_horaria_total cht
                             JOIN anosletivos al ON cht.ano_letivo_id = al.id
-                            JOIN serie s ON cht.serie_id = s.id
+                            JOIN series s ON cht.serie_id = s.id
                             WHERE cht.escola_id = %s
                             ORDER BY al.ano_letivo DESC, s.nome
                         """, (escola_id,))
@@ -1554,7 +1554,7 @@ class InterfaceAdministrativa:
                 ano_menu.pack(side=LEFT, padx=5)
                 
                 # Carregar séries/níveis
-                cast(Any, self.cursor).execute("SELECT id, nome FROM serie ORDER BY nome")
+                cast(Any, self.cursor).execute("SELECT id, nome FROM series ORDER BY nome")
                 series = self.cursor.fetchall()
                 
                 Label(selecao_frame, text="Série:", bg=self.co10).pack(side=LEFT, padx=(20, 5))
@@ -1687,7 +1687,7 @@ class InterfaceAdministrativa:
                             SELECT cht.id, cht.carga_horaria_total, al.ano_letivo, s.nome
                             FROM carga_horaria_total cht
                             JOIN anosletivos al ON cht.ano_letivo_id = al.id
-                            JOIN serie s ON cht.serie_id = s.id
+                            JOIN series s ON cht.serie_id = s.id
                             WHERE cht.escola_id = %s
                             ORDER BY al.ano_letivo DESC, s.nome
                         """, (escola_id,))

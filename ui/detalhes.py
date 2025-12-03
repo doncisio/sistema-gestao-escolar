@@ -213,7 +213,7 @@ def exibir_detalhes_aluno(
                 FROM alunos a
                 LEFT JOIN matriculas m ON a.id = m.aluno_id AND m.ano_letivo_id = %s AND m.status IN ('Ativo', 'Transferido')
                 LEFT JOIN turmas t ON m.turma_id = t.id AND t.escola_id = 60
-                LEFT JOIN serie s ON t.serie_id = s.id
+                LEFT JOIN series s ON t.serie_id = s.id
                 LEFT JOIN responsaveisalunos ra ON a.id = ra.aluno_id
                 LEFT JOIN responsaveis r ON ra.responsavel_id = r.id AND r.grau_parentesco IN ('Mãe', 'Pai')
                 WHERE a.id = %s

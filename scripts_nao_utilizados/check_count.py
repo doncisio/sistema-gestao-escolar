@@ -45,7 +45,7 @@ def count_students():
             SELECT t.id, s.nome as serie_nome, t.nome as turma_nome, t.turno,
                   (SELECT COUNT(*) FROM matriculas m WHERE m.turma_id = t.id AND m.status = 'Ativo') as total
             FROM Turmas t 
-            JOIN Serie s ON t.serie_id = s.id
+            JOIN series s ON t.serie_id = s.id
             WHERE t.id = %s
         ''', (turma_id,))
         turma = cursor.fetchone()
@@ -67,7 +67,7 @@ def count_students():
         SELECT t.id, s.nome as serie_nome, t.nome as turma_nome, t.turno,
               (SELECT COUNT(*) FROM matriculas m WHERE m.turma_id = t.id AND m.status = 'Ativo') as total
         FROM Turmas t 
-        JOIN Serie s ON t.serie_id = s.id
+        JOIN series s ON t.serie_id = s.id
         HAVING total > 0
         ORDER BY s.nome, t.nome
     ''')

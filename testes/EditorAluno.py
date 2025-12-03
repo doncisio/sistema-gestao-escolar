@@ -184,7 +184,7 @@ class EditorAluno:
                     turno, serie_id = turma_info
 
                     # 3. Pesquisar nome na tabela Series usando serie_id
-                    self.cursor.execute("SELECT nome FROM serie WHERE id = %s", (serie_id,))
+                    self.cursor.execute("SELECT nome FROM series WHERE id = %s", (serie_id,))
                     serie = self.cursor.fetchone()
                     if serie:
                         serie_nome = serie[0]
@@ -395,7 +395,7 @@ class EditorAluno:
             # Consulta para obter séries vinculadas ao ano letivo 2025
             self.cursor.execute("""
                 SELECT s.id, s.nome
-                FROM serie s
+                FROM series s
                 JOIN turmas t ON s.id = t.serie_id
                 JOIN anosletivos a ON t.ano_letivo_id = a.id
                 WHERE a.ano_letivo = %s
@@ -411,7 +411,7 @@ class EditorAluno:
     def carregar_turmas(self, serie_nome):
         """Carrega as turmas no combobox com base na série selecionada."""
         try:
-            self.cursor.execute("SELECT id FROM serie WHERE nome = %s", (serie_nome,))
+            self.cursor.execute("SELECT id FROM series WHERE nome = %s", (serie_nome,))
             serie_result = self.cursor.fetchone()
             if serie_result:
                 serie_id = serie_result[0]

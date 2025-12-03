@@ -21,7 +21,7 @@ def main():
                 COUNT(DISTINCT m.aluno_id) as total
             FROM matriculas m
             INNER JOIN turmas t ON m.turma_id = t.id
-            INNER JOIN serie s ON t.serie_id = s.id
+            INNER JOIN series s ON t.serie_id = s.id
             INNER JOIN alunos a ON m.aluno_id = a.id
             WHERE m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = '2025')
               AND a.escola_id = 60
@@ -64,7 +64,7 @@ def main():
                 GROUP_CONCAT(a.nome ORDER BY a.nome SEPARATOR ', ') as alunos
             FROM matriculas m
             INNER JOIN turmas t ON m.turma_id = t.id
-            INNER JOIN serie s ON t.serie_id = s.id
+            INNER JOIN series s ON t.serie_id = s.id
             INNER JOIN alunos a ON m.aluno_id = a.id
             WHERE s.nome = '6º Ano'
               AND m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = '2025')
@@ -86,3 +86,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

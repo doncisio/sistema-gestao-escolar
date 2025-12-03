@@ -245,7 +245,7 @@ class InterfaceTransicaoAnoLetivo:
             cursor.execute("""
                 SELECT t.id
                 FROM turmas t
-                JOIN serie s ON t.serie_id = s.id
+                JOIN series s ON t.serie_id = s.id
                 WHERE s.nome LIKE '9%'
                 AND t.escola_id = 60
             """)
@@ -567,7 +567,7 @@ class InterfaceTransicaoAnoLetivo:
                 cursor.execute("""
                     SELECT t.id
                     FROM turmas t
-                    JOIN serie s ON t.serie_id = s.id
+                    JOIN series s ON t.serie_id = s.id
                     WHERE s.nome LIKE '9%'
                     AND t.escola_id = 60
                 """)

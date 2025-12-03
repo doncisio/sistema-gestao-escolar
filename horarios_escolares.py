@@ -104,7 +104,7 @@ class InterfaceHorariosEscolares:
                     logger.info(f"  ID: {nivel['id']}, Nome: {nivel['nome']}")
                 
                 # Agora vamos listar todas as séries
-                cursor.execute("SELECT id, nome, nivel_id FROM serie")
+                cursor.execute("SELECT id, nome, nivel_id FROM series")
                 todas_series = cursor.fetchall()
                 logger.info("\nTodas as séries disponíveis:")
                 for serie in todas_series:
@@ -112,7 +112,7 @@ class InterfaceHorariosEscolares:
                 
                 # Buscar apenas as séries de interesse
                 cursor.execute("""
-                    SELECT id, nome FROM serie 
+                    SELECT id, nome FROM series 
                     WHERE nivel_id IN (
                         SELECT id FROM niveisensino WHERE nome IN ('Ensino Fundamental I', 'Ensino Fundamental II')
                     )
@@ -126,7 +126,7 @@ class InterfaceHorariosEscolares:
                 # Se não encontrar nenhuma série, podemos procurar usando IDs específicos baseados na tabela turmas
                 if not self.series_dados:
                     # IDs das séries que aparecem na tabela turmas: 3, 4, 5, 6, 7, 8, 9, 10, 11
-                    cursor.execute("SELECT id, nome FROM serie WHERE id IN (3, 4, 5, 6, 7, 8, 9, 10, 11) ORDER BY id")
+                    cursor.execute("SELECT id, nome FROM series WHERE id IN (3, 4, 5, 6, 7, 8, 9, 10, 11) ORDER BY id")
                     self.series_dados = cursor.fetchall()
                     logger.info(f"\nSéries por ID específico: {len(self.series_dados)}")
                     for serie in self.series_dados:

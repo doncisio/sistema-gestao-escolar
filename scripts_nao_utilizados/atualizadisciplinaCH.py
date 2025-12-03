@@ -68,7 +68,7 @@ def atualizar_historico():
             # 3. Buscar o nivel_id na tabela serie usando o serie_id
             serie_id_param = safe_int(serie_id, 0)
 
-            cursor.execute("SELECT nivel_id FROM serie WHERE id = %s", (serie_id_param,))
+            cursor.execute("SELECT nivel_id FROM series WHERE id = %s", (serie_id_param,))
             r = cursor.fetchone()
             nivel_id = r[0] if r and r[0] is not None else None
 

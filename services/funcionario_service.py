@@ -353,7 +353,7 @@ def obter_turmas_professor(funcionario_id: int, ano_letivo_id: Optional[int] = N
             query = """
                 SELECT t.id, t.nome, s.nome as serie
                 FROM turmas t
-                JOIN serie s ON t.serie_id = s.id
+                JOIN series s ON t.serie_id = s.id
                 WHERE t.professor_id = %s
             """
             params = [funcionario_id]

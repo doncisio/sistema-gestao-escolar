@@ -397,7 +397,7 @@ class InterfaceLancamentoFrequencia:
 
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT id, nome FROM serie WHERE nivel_id = %s ORDER BY nome",
+                "SELECT id, nome FROM series WHERE nivel_id = %s ORDER BY nome",
                 (nivel_id,)
             )
             series = cursor.fetchall()

@@ -67,7 +67,7 @@ def obter_disciplinas_por_serie(serie_id):
             try:
                 # Primeiro determinar o nível de ensino da série
                 cursor.execute("""
-                    SELECT nivel_id FROM serie WHERE id = %s
+                    SELECT nivel_id FROM series WHERE id = %s
                 """, (_safe_int(serie_id, 0),))
 
                 nivel_result = cursor.fetchone()
@@ -1322,7 +1322,7 @@ def boletim(aluno_id, ano_letivo_id):
                 FROM matriculas m
                 JOIN turmas t ON m.turma_id = t.id
                 JOIN anosletivos a ON m.ano_letivo_id = a.id
-                JOIN serie s ON t.serie_id = s.id
+                JOIN series s ON t.serie_id = s.id
                 WHERE m.aluno_id = %s AND m.ano_letivo_id = %s AND m.status = 'Ativo'
                 """
                 params = (_to_int_param(aluno_id), _to_int_param(ano_letivo_id))

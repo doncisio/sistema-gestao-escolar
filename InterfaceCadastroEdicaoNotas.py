@@ -384,7 +384,7 @@ class InterfaceCadastroEdicaoNotas:
                 return
 
             cursor = conn.cursor()
-            cursor.execute("SELECT id, nome FROM serie WHERE nivel_id = %s ORDER BY nome", self._norm_params((nivel_id,)))
+            cursor.execute("SELECT id, nome FROM series WHERE nivel_id = %s ORDER BY nome", self._norm_params((nivel_id,)))
             series = cursor.fetchall()
 
             self.series_map = {serie[1]: serie[0] for serie in series}
@@ -2604,7 +2604,7 @@ class InterfaceCadastroEdicaoNotas:
             cursor.execute("""
                 SELECT s.nivel_id
                 FROM turmas t
-                JOIN serie s ON t.serie_id = s.id
+                JOIN series s ON t.serie_id = s.id
                 WHERE t.id = %s
                 LIMIT 1
             """, (turma_id,))
@@ -3175,7 +3175,7 @@ class InterfaceCadastroEdicaoNotas:
                 cursor.execute("""
                     SELECT t.id, t.nome, s.nome as serie_nome, t.turno
                     FROM turmas t
-                    JOIN serie s ON t.serie_id = s.id
+                    JOIN series s ON t.serie_id = s.id
                     WHERE t.escola_id = %s
                     AND t.ano_letivo_id = %s
                 """, self._norm_params((config.ESCOLA_ID, self.ano_letivo_atual)))

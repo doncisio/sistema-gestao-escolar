@@ -687,7 +687,7 @@ class InterfaceCadastroFuncionario:
                 SELECT t.id, s.nome as serie_nome, t.nome as turma_nome,
                 CASE WHEN t.turno = 'MAT' THEN 'Matutino' ELSE 'Vespertino' END as turno_nome
                 FROM turmas t 
-                JOIN serie s ON t.serie_id = s.id 
+                JOIN series s ON t.serie_id = s.id 
                 WHERE t.escola_id = 60
                 ORDER BY s.nome, t.nome
             """)
@@ -789,7 +789,7 @@ class InterfaceCadastroFuncionario:
             query = f"""
                 SELECT DISTINCT s.nivel_id
                 FROM turmas t
-                JOIN serie s ON t.serie_id = s.id
+                JOIN series s ON t.serie_id = s.id
                 WHERE t.id IN ({placeholders})
             """
             cast(Any, self.cursor).execute(query, turmas_ids)

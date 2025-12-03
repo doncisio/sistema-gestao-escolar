@@ -50,7 +50,7 @@ def buscar_docentes(cursor, escola_id=60):
                     WHEN f.turma IS NOT NULL THEN 
                         (SELECT CONCAT(s.nome, ' ', t.nome) 
                          FROM turmas t 
-                         JOIN serie s ON t.serie_id = s.id 
+                         JOIN series s ON t.serie_id = s.id 
                          WHERE t.id = f.turma)
                     WHEN EXISTS (
                         SELECT 1 FROM funcionario_disciplinas fd2 
@@ -59,7 +59,7 @@ def buscar_docentes(cursor, escola_id=60):
                         (SELECT GROUP_CONCAT(DISTINCT CONCAT(s2.nome, ' ', t2.nome) ORDER BY s2.nome, t2.nome SEPARATOR ', ')
                          FROM funcionario_disciplinas fd3
                          JOIN turmas t2 ON fd3.turma_id = t2.id
-                         JOIN serie s2 ON t2.serie_id = s2.id
+                         JOIN series s2 ON t2.serie_id = s2.id
                          WHERE fd3.funcionario_id = f.id AND fd3.turma_id IS NOT NULL)
                     ELSE 'Volante (Todas as Turmas)'
                 END

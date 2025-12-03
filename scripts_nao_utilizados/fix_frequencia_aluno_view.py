@@ -73,7 +73,7 @@ def get_alunos_por_nivel(self, nivel_id, ano_letivo_id=None):
             FROM Alunos a
             JOIN Matriculas m ON a.id = m.aluno_id
             JOIN Turmas t ON m.turma_id = t.id
-            JOIN Serie s ON t.serie_id = s.id
+            JOIN series s ON t.serie_id = s.id
             WHERE s.nivel_id = %s 
               AND m.status = 'Ativo'
         """

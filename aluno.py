@@ -153,7 +153,7 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query, voltar_ca
                 # Consulta para obter séries vinculadas ao ano letivo atual
                 cursor.execute("""
                     SELECT s.id, s.nome 
-                    FROM serie s
+                    FROM series s
                     JOIN turmas t ON s.id = t.serie_id
                     JOIN anosletivos a ON t.ano_letivo_id = a.id
                     WHERE a.ano_letivo = YEAR(CURDATE())
@@ -164,7 +164,7 @@ def alunos(frame_detalhes, frame_dados, frame_tabela, treeview, query, voltar_ca
                 if not series:  # Se não encontrar para o ano atual, tenta 2025
                     cursor.execute("""
                         SELECT s.id, s.nome 
-                        FROM serie s
+                        FROM series s
                         JOIN turmas t ON s.id = t.serie_id
                         JOIN anosletivos a ON t.ano_letivo_id = a.id
                         WHERE a.ano_letivo = 2025

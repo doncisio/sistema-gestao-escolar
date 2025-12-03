@@ -94,7 +94,7 @@ END
                 FROM funcionario_disciplinas fd
                 JOIN disciplinas d ON fd.disciplina_id = d.id
                 JOIN turmas t ON fd.turma_id = t.id
-                JOIN serie s ON t.serie_id = s.id
+                JOIN series s ON t.serie_id = s.id
                 WHERE fd.funcionario_id = %s
             """, (funcionario_id,))
 

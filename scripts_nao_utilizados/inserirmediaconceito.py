@@ -75,7 +75,7 @@ for arquivo in os.listdir(caminho_dados):
             print(f"Lendo planilha: {nome_serie} (Série: {serie_principal})")
 
             # Buscar serie_id e nivel_id na tabela serie
-            mycursor.execute("SELECT id, nivel_id FROM serie WHERE nome = %s", (serie_principal,))
+            mycursor.execute("SELECT id, nivel_id FROM series WHERE nome = %s", (serie_principal,))
             serie_result = mycursor.fetchone()
             
             if not serie_result:

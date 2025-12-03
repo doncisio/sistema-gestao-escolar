@@ -43,7 +43,7 @@ try:
                 al.ano_letivo as ano_letivo,
                 COALESCE(COUNT(DISTINCT m.id), 0) as total_alunos
             FROM turmas t
-            LEFT JOIN serie s ON t.serie_id = s.id
+            LEFT JOIN series s ON t.serie_id = s.id
             LEFT JOIN anosletivos al ON t.ano_letivo_id = al.id
             LEFT JOIN Matriculas m ON m.turma_id = t.id AND m.status = 'Ativo'
         """
@@ -115,3 +115,4 @@ except Exception as e:
     traceback.print_exc()
 
 print("Fim do script")
+

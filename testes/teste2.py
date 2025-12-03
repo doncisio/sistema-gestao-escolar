@@ -21,7 +21,7 @@ try:
     query_series_turmas = """
     SELECT DISTINCT s.nome AS serie_nome, t.nome AS turma_nome, t.id AS turma_id
     FROM turmas t
-    JOIN serie s ON t.serie_id = s.id
+    JOIN series s ON t.serie_id = s.id
     WHERE t.ano_letivo_id = %s
     """
     cursor.execute(query_series_turmas, (ano_letivo_id,))
@@ -81,3 +81,4 @@ finally:
         cursor.close()
         conn.close()
         logger.info("Conexão MySQL foi fechada")
+

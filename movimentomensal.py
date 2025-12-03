@@ -113,7 +113,7 @@ def contar_movimentacao_mensal(cursor, ano_letivo_id, mes, serie):
     JOIN matriculas m ON hm.matricula_id = m.id
     JOIN alunos a ON m.aluno_id = a.id
     JOIN turmas t ON m.turma_id = t.id
-    JOIN serie s ON t.serie_id = s.id
+    JOIN series s ON t.serie_id = s.id
     WHERE 
         m.ano_letivo_id = %s
         AND hm.data_mudanca <= LAST_DAY(DATE(CONCAT(YEAR(CURDATE()), '-', %s, '-01')))
@@ -143,7 +143,7 @@ def contar_aprovacoes_reprovacoes(cursor, ano_letivo_id, serie):
         FROM alunos a
         JOIN matriculas m ON a.id = m.aluno_id
         JOIN turmas t ON m.turma_id = t.id
-        JOIN serie s ON t.serie_id = s.id
+        JOIN series s ON t.serie_id = s.id
         JOIN avaliacao_final af ON a.id = af.aluno_id
         WHERE 
             m.ano_letivo_id = %s
@@ -182,7 +182,7 @@ def contar_transferencias_recebidas(cursor, ano_letivo_id, data_inicio_ano_letiv
     cursor.execute("""
         SELECT t.id, t.nome, s.nome as serie, t.turno
         FROM turmas t
-        JOIN serie s ON t.serie_id = s.id
+        JOIN series s ON t.serie_id = s.id
         WHERE t.ano_letivo_id = %s
     """, (ano_letivo_id,))
     turmas = cursor.fetchall()
@@ -195,7 +195,7 @@ def contar_transferencias_recebidas(cursor, ano_letivo_id, data_inicio_ano_letiv
         SELECT m.id, m.data_matricula, m.status, t.turno, s.nome as serie, a.sexo
         FROM matriculas m
         JOIN turmas t ON m.turma_id = t.id
-        JOIN serie s ON t.serie_id = s.id
+        JOIN series s ON t.serie_id = s.id
         JOIN alunos a ON m.aluno_id = a.id
         WHERE m.ano_letivo_id = %s
         AND m.data_matricula > %s
@@ -222,7 +222,7 @@ def contar_transferencias_recebidas(cursor, ano_letivo_id, data_inicio_ano_letiv
             GROUP_CONCAT(a.nome) as nomes_alunos
         FROM turmas t
         JOIN matriculas m ON t.id = m.turma_id
-        JOIN serie s ON t.serie_id = s.id
+        JOIN series s ON t.serie_id = s.id
         JOIN alunos a ON m.aluno_id = a.id
         WHERE m.ano_letivo_id = %s
         AND (
@@ -316,7 +316,7 @@ def buscar_corpo_docente_1_5(cursor, escola_id=60):
                     WHEN f.turma IS NOT NULL THEN 
                         (SELECT CONCAT(s.nome, ' ', t.nome) 
                          FROM turmas t 
-                         JOIN serie s ON t.serie_id = s.id 
+                         JOIN series s ON t.serie_id = s.id 
                          WHERE t.id = f.turma)
                     ELSE 'Volante (Todas as Turmas)'
                 END
@@ -350,7 +350,7 @@ def buscar_corpo_docente_1_5(cursor, escola_id=60):
             OR (
                 f.polivalente = 'sim' AND f.turma IS NOT NULL AND EXISTS (
                     SELECT 1 FROM turmas t2 
-                    JOIN serie s2 ON t2.serie_id = s2.id 
+                    JOIN series s2 ON t2.serie_id = s2.id 
                     WHERE t2.id = f.turma AND s2.nome IN ('1º Ano', '2º Ano', '3º Ano', '4º Ano', '5º Ano')
                 )
             )
@@ -392,7 +392,7 @@ def buscar_corpo_docente_6_9(cursor, escola_id=60):
                     WHEN f.turma IS NOT NULL THEN 
                         (SELECT CONCAT(s.nome, ' ', t.nome) 
                          FROM turmas t 
-                         JOIN serie s ON t.serie_id = s.id 
+                         JOIN series s ON t.serie_id = s.id 
                          WHERE t.id = f.turma)
                     ELSE 'Volante (Todas as Turmas)'
                 END
@@ -426,7 +426,7 @@ def buscar_corpo_docente_6_9(cursor, escola_id=60):
             OR (
                 f.polivalente = 'não' AND f.turma IS NOT NULL AND EXISTS (
                     SELECT 1 FROM turmas t2 
-                    JOIN serie s2 ON t2.serie_id = s2.id 
+                    JOIN series s2 ON t2.serie_id = s2.id 
                     WHERE t2.id = f.turma AND s2.nome IN ('6º Ano', '7º Ano', '8º Ano', '9º Ano')
                 )
             )
@@ -1235,7 +1235,7 @@ def gerar_relatorio_1_5(elements, cabecalho, figura_inferior, mes):
         query_turmas = """
         SELECT s.nome as serie, COUNT(DISTINCT t.id) as total_turmas
         FROM turmas t
-        JOIN serie s ON t.serie_id = s.id
+        JOIN series s ON t.serie_id = s.id
         WHERE t.ano_letivo_id = %s
         GROUP BY s.nome
         """
@@ -1573,7 +1573,7 @@ def gerar_relatorio_6_9(elements, cabecalho, figura_inferior, mes):
             END as serie_nome,
             COUNT(DISTINCT t.id) as total_turmas
         FROM turmas t
-        JOIN serie s ON t.serie_id = s.id
+        JOIN series s ON t.serie_id = s.id
         WHERE t.ano_letivo_id = %s
         GROUP BY 
             CASE 
@@ -1936,7 +1936,7 @@ def gerar_lista_alunos_matriculados_depois():
                 END as serie_completa
             FROM turmas t
             JOIN matriculas m ON t.id = m.turma_id
-            JOIN serie s ON t.serie_id = s.id
+            JOIN series s ON t.serie_id = s.id
             JOIN alunos a ON m.aluno_id = a.id
             LEFT JOIN ResponsaveisAlunos ra ON a.id = ra.aluno_id
             LEFT JOIN Responsaveis r ON ra.responsavel_id = r.id

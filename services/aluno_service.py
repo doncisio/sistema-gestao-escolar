@@ -381,7 +381,7 @@ def buscar_alunos(termo_busca: str, escola_id: int = 60, aplicar_filtro_perfil: 
                 LEFT JOIN matriculas m ON a.id = m.aluno_id 
                     AND m.ano_letivo_id = (SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo LIMIT 1)
                 LEFT JOIN turmas t ON m.turma_id = t.id
-                LEFT JOIN serie s ON t.serie_id = s.id
+                LEFT JOIN series s ON t.serie_id = s.id
                 WHERE a.escola_id = %s
                 AND (a.nome LIKE %s OR a.cpf LIKE %s)
             """
@@ -468,7 +468,7 @@ def listar_alunos_ativos(escola_id: int = 60, ano_letivo_id: Optional[int] = Non
                 FROM alunos a
                 JOIN matriculas m ON a.id = m.aluno_id
                 JOIN turmas t ON m.turma_id = t.id
-                JOIN serie s ON t.serie_id = s.id
+                JOIN series s ON t.serie_id = s.id
                 WHERE a.escola_id = %s
                 AND m.ano_letivo_id = %s
                 AND m.status = 'Ativo'

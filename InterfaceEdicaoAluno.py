@@ -852,7 +852,7 @@ class InterfaceEdicaoAluno:
                 SELECT m.id, m.status, t.nome as turma, s.nome as serie, m.ano_letivo_id
                 FROM matriculas m
                 JOIN turmas t ON m.turma_id = t.id
-                JOIN serie s ON t.serie_id = s.id
+                JOIN series s ON t.serie_id = s.id
                 WHERE m.aluno_id = %s
                 ORDER BY m.id DESC
                 LIMIT 1

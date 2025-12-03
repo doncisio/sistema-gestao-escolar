@@ -22,7 +22,7 @@ def atualizar_historico():
 
         if existe == 0:  # Se não existir
             # 3. Buscar o nivel_id na tabela serie usando o serie_id
-            cursor.execute("SELECT nivel_id FROM serie WHERE id = %s", (serie_id,))
+            cursor.execute("SELECT nivel_id FROM series WHERE id = %s", (serie_id,))
             nivel_id = cursor.fetchone()
 
             if nivel_id is not None:
