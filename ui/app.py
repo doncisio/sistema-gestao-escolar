@@ -12,6 +12,7 @@ from typing import Optional, Dict, Any
 import os
 
 from config_logs import get_logger
+from config import get_icon_path
 from conexao import inicializar_pool, fechar_pool
 from db.connection import get_connection
 from ui.dashboard import DashboardManager
@@ -521,7 +522,7 @@ class Application:
                 
                 try:
                     # Tentar carregar ícone
-                    app_lp = Image.open('icon/learning.png')
+                    app_lp = Image.open(get_icon_path('learning.png'))
                     app_lp = app_lp.resize((30, 30))
                     app_lp = ImageTk.PhotoImage(app_lp)
                     app_logo = Label(titulo_frame, image=app_lp, text=f"Detalhes: {values[1]}", 

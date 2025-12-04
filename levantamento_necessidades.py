@@ -5,6 +5,7 @@ from reportlab.lib.colors import black, HexColor
 from reportlab.lib.pagesizes import letter, landscape
 import os
 from conexao import conectar_bd
+from config import get_image_path
 from gerarPDF import salvar_e_abrir_pdf
 import io
 from reportlab.platypus import SimpleDocTemplate
@@ -181,7 +182,7 @@ def gerar_levantamento_necessidades():
     ]
     
     # Adicionar o cabeçalho
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.png')
+    figura_inferior = str(get_image_path('logopaco.png'))
     data = [
         [Image(figura_inferior, width=3 * inch, height=0.7 * inch)],
         [Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1))]

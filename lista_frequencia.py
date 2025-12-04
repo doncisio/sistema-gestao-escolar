@@ -6,6 +6,7 @@ from reportlab.lib.units import inch
 from reportlab.lib import colors
 import os
 import datetime
+from config import get_image_path
 from gerarPDF import salvar_e_abrir_pdf
 from Lista_atualizada import fetch_student_data
 from gerarPDF import create_pdf_buffer
@@ -45,8 +46,8 @@ def lista_frequencia():
     ]
 
     # Caminhos das figuras
-    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopacobranco.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
+    figura_superior = str(get_image_path('logopacobranco.png'))
+    figura_inferior = str(get_image_path('logopaco.jpg'))
 
     # Criar o documento PDF
     doc, buffer = create_pdf_buffer()

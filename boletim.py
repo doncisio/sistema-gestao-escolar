@@ -2,6 +2,7 @@ import io
 import os
 from datetime import datetime
 from utilitarios.gerenciador_documentos import salvar_documento_sistema
+from config import get_image_path
 from utilitarios.tipos_documentos import TIPO_BOLETIM
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
@@ -220,7 +221,7 @@ def boletiminiciais(aluno_id, ano_letivo_id):
 
 
     # Adicionando a imagem
-    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')  # Ajuste o nome do arquivo conforme necessário
+    figura_superior = str(get_image_path('pacologo.png'))  # Ajuste o nome do arquivo conforme necessário
     # Definir estilos
     estilo_centro = ParagraphStyle(name='centro', fontSize=12, alignment=1, leading=18)
     estilo_formatado = ParagraphStyle(name='centro', fontSize=12, alignment=4, leading=18)
@@ -865,7 +866,7 @@ def boletimfinais(aluno_id, ano_letivo_id):
 
 
     # Adicionando a imagem
-    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')  # Ajuste o nome do arquivo conforme necessário
+    figura_superior = str(get_image_path('pacologo.png'))  # Ajuste o nome do arquivo conforme necessário
     # Definir estilos
     estilo_centro = ParagraphStyle(name='centro', fontSize=12, alignment=1, leading=18)
     estilo_formatado = ParagraphStyle(name='centro', fontSize=12, alignment=4, leading=16)

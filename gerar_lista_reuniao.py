@@ -1,4 +1,5 @@
 from config_logs import get_logger
+from config import get_image_path
 logger = get_logger(__name__)
 import io
 import os
@@ -27,13 +28,9 @@ def gerar_lista_reuniao():
         return
         
     df = pd.DataFrame(dados_aluno)
-    # Definir caminhos das imagens tentando localizar via helper; fallback para caminhos relativos
-    if _find_image_in_repo:
-        figura_superior = _find_image_in_repo('logosemed.png') or os.path.join(os.path.dirname(__file__), 'imagens', 'logosemed.png')
-        figura_inferior = _find_image_in_repo('logopaco.jpg') or os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
-    else:
-        figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'logosemed.png')
-        figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
+    # Definir caminhos das imagens usando get_image_path
+    figura_superior = str(get_image_path('logosemed.png'))
+    figura_inferior = str(get_image_path('logopaco.jpg'))
     
     cabecalho = [
         "PREFEITURA MUNICIPAL DE PAÇO DO LUMIAR",

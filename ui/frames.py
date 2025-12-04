@@ -15,6 +15,7 @@ from tkinter import ttk
 import os
 from PIL import Image, ImageTk
 from config_logs import get_logger
+from config import get_image_path, get_icon_path
 
 logger = get_logger(__name__)
 
@@ -103,8 +104,9 @@ def criar_logo(frame_logo, nome_escola, co0, co1, co7):
     # Logo
     app_logo = None
     try:
-        # Tenta carregar a imagem do logo (agora em `imagens/`)
-        app_img = Image.open(os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.png'))
+        # Tenta carregar a imagem do logo
+        logo_path = get_image_path('logopaco.png')
+        app_img = Image.open(logo_path)
         app_img = app_img.resize((200, 50))
         app_logo = ImageTk.PhotoImage(app_img)
         
@@ -116,7 +118,8 @@ def criar_logo(frame_logo, nome_escola, co0, co1, co7):
     except FileNotFoundError:
         try:
             # Tenta carregar outro logo
-            app_img = Image.open('icon/book.png')
+            icon_path = get_icon_path('book.png')
+            app_img = Image.open(icon_path)
             app_img = app_img.resize((45, 45))
             app_logo = ImageTk.PhotoImage(app_img)
             

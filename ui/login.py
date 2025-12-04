@@ -10,6 +10,7 @@ from typing import Optional, Callable
 import os
 
 from config_logs import get_logger
+from config import get_ico_path
 from auth import AuthService, UsuarioLogado, Usuario
 from ui.colors import COLORS
 
@@ -82,10 +83,9 @@ class LoginWindow:
         
         # Ícone (se existir)
         try:
-            # ícone movido para pasta `ico/` na raiz do projeto
-            icon_path = os.path.join(os.path.dirname(__file__), '..', 'ico', 'aa.ico')
-            if os.path.exists(icon_path):
-                self.janela.iconbitmap(icon_path)
+            icon_path = get_ico_path('aa.ico')
+            if icon_path.exists():
+                self.janela.iconbitmap(str(icon_path))
         except Exception:
             # Não bloquear a inicialização da UI por erro de ícone
             pass

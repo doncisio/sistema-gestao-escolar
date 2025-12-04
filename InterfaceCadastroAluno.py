@@ -1,4 +1,5 @@
 from config_logs import get_logger
+from config import get_icon_path
 logger = get_logger(__name__)
 from datetime import datetime
 from tkinter import (
@@ -132,7 +133,7 @@ class InterfaceCadastroAluno:
     def criar_header(self):
         # Título no frame_logo
         try:
-            app_img = Image.open('icon/learning.png')
+            app_img = Image.open(get_icon_path('learning.png'))
             app_img = app_img.resize((45, 45))
             self.app_logo = ImageTk.PhotoImage(app_img)
             app_logo_label = Label(

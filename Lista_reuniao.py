@@ -10,7 +10,7 @@ from reportlab.lib.colors import black, white, grey
 from gerarPDF import salvar_e_abrir_pdf, create_pdf_buffer_letter
 from Lista_atualizada import fetch_student_data
 from typing import Any
-from services.report_service import _find_image_in_repo
+from config import get_image_path
 from config_logs import get_logger
 
 logger = get_logger(__name__)
@@ -61,9 +61,9 @@ def lista_reuniao():
     doc, buffer = create_pdf_buffer_letter()
     elements = []
 
-    # Caminhos das figuras (tentar localizar via helper, se não encontrar usa caminho relativo)
-    figura_superior_path = _find_image_in_repo('logosemed.png') or os.path.join(os.path.dirname(__file__), 'imagens', 'logosemed.png')
-    figura_inferior_path = _find_image_in_repo('logopaco.jpg') or os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
+    # Caminhos das figuras usando get_image_path
+    figura_superior_path = str(get_image_path('logosemed.png'))
+    figura_inferior_path = str(get_image_path('logopaco.jpg'))
 
     # Debug: logar caminhos resolvidos para as imagens
     logger.info("DEBUG imagens - figura_superior_path=%s figura_inferior_path=%s", figura_superior_path, figura_inferior_path)

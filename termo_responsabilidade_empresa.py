@@ -6,6 +6,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.colors import black, grey
 from Lista_atualizada import create_pdf_buffer
 from gerarPDF import salvar_e_abrir_pdf
+from config import get_image_path
 
 # Cache global para imagens e estilos
 _IMAGE_CACHE = {}
@@ -39,8 +40,8 @@ def gerar_termo_responsabilidade(nome_escola: str = "ESCOLA MUNICIPAL PROFª. NA
         f"<b>CNPJ: {cnpj_escola}</b>"
     ]
 
-    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'logosemed.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.png')
+    figura_superior = str(get_image_path('logosemed.png'))
+    figura_inferior = str(get_image_path('logopaco.png'))
 
     doc, buffer = create_pdf_buffer()
     elements = []

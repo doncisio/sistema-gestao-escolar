@@ -2,6 +2,7 @@ import os
 import io
 from datetime import datetime
 import pandas as pd
+from config import get_image_path
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Image
 from utilitarios.gerenciador_documentos import salvar_documento_sistema
@@ -815,8 +816,8 @@ def historico_escolar(aluno_id,
         logger.error("Dados da escola não encontrados.")
         return
 
-    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopacobranco.png')
+    figura_superior = str(get_image_path('pacologo.png'))
+    figura_inferior = str(get_image_path('logopacobranco.png'))
 
     buffer = io.BytesIO()
     left_margin = 18

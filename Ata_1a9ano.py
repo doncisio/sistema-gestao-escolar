@@ -3,6 +3,7 @@ import io
 import pandas as pd
 import datetime
 from reportlab.lib.pagesizes import letter
+from config import get_image_path
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
@@ -361,8 +362,8 @@ def ata_geral_1a9ano():
         "<b>CNPJ: 06.003.636/0001-73</b>"
     ]
 
-    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
+    figura_superior = str(get_image_path('pacologo.png'))
+    figura_inferior = str(get_image_path('logopaco.jpg'))
 
     # Criar buffer para o PDF
     buffer = io.BytesIO()

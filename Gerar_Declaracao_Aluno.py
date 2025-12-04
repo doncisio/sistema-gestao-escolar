@@ -3,6 +3,7 @@ import io
 import datetime
 import pandas as pd
 from reportlab.lib.pagesizes import letter
+from config import get_image_path
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Image
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
@@ -152,8 +153,8 @@ def criar_pdf(buffer, cabecalho, rodape_texto, dados_aluno, responsaveis, marcac
     )
     elements = []
 
-    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopacobranco.png')
+    figura_superior = str(get_image_path('pacologo.png'))
+    figura_inferior = str(get_image_path('logopacobranco.png'))
 
     data = [
         [Image(figura_superior, width=1 * inch, height=1 * inch),

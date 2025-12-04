@@ -2,6 +2,7 @@ from config_logs import get_logger
 logger = get_logger(__name__)
 import os
 import pandas as pd
+from config import get_image_path
 import datetime
 import mysql.connector as mysql_connector
 from reportlab.lib.pagesizes import letter, landscape
@@ -478,8 +479,8 @@ def gerar_documento_pdf(df, bimestre, nome_arquivo, disciplinas, nivel_ensino, a
     ]
     
     # Caminhos das figuras
-    figura_superior_path = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')
-    figura_inferior_path = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
+    figura_superior_path = str(get_image_path('pacologo.png'))
+    figura_inferior_path = str(get_image_path('logopaco.jpg'))
     
     # Verificar se as imagens existem
     try:
@@ -723,8 +724,8 @@ def gerar_documento_pdf_com_assinatura(df, bimestre, nome_arquivo, disciplinas, 
     ]
     
     # Caminhos das figuras
-    figura_superior_path = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')
-    figura_inferior_path = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
+    figura_superior_path = str(get_image_path('pacologo.png'))
+    figura_inferior_path = str(get_image_path('logopaco.jpg'))
     
     # Verificar se as imagens existem
     try:

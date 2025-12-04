@@ -10,7 +10,7 @@ from tkinter import messagebox
 from PIL import Image, ImageTk
 from typing import Optional, Callable, Dict, Any
 from config_logs import get_logger
-from config import perfis_habilitados
+from config import perfis_habilitados, get_icon_path
 from auth.decorators import ControleAcesso
 
 logger = get_logger(__name__)
@@ -49,14 +49,22 @@ class ButtonFactory:
         Carrega e redimensiona uma imagem.
         
         Args:
-            path: Caminho do arquivo de imagem
+            path: Caminho do arquivo de imagem (relativo ou absoluto)
+                  Ex: 'icon/learning.png' será convertido para caminho absoluto
             size: Tupla (largura, altura) para redimensionamento
             
         Returns:
             ImageTk.PhotoImage ou None se não encontrado
         """
         try:
-            img = Image.open(path)
+            # Converter caminhos relativos 'icon/...' para absolutos
+            if path.startswith('icon/'):
+                icon_name = path.replace('icon/', '')
+                abs_path = get_icon_path(icon_name)
+            else:
+                abs_path = path
+            
+            img = Image.open(abs_path)
             img = img.resize(size)
             photo = ImageTk.PhotoImage(img)
             # Armazenar referência

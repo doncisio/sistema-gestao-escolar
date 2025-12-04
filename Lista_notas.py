@@ -3,6 +3,7 @@ logger = get_logger(__name__)
 import io
 import os
 import pandas as pd
+from config import get_image_path
 import datetime
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
@@ -68,8 +69,8 @@ def lista_notas():
         "<b>INEP: 21008485</b>",
         "<b>CNPJ: 06.003.636/0001-73</b>"
     ]
-    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'logosemed.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
+    figura_superior = str(get_image_path('logosemed.png'))
+    figura_inferior = str(get_image_path('logopaco.jpg'))
 
     # 2. Configuração do Documento PDF
     buffer = io.BytesIO()

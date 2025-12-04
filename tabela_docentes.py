@@ -5,6 +5,7 @@ from reportlab.lib.colors import black, HexColor, Color
 from reportlab.lib.pagesizes import landscape, letter
 import os
 from conexao import conectar_bd
+from config import get_image_path
 from typing import Any, cast
 from biblio_editor import create_pdf_buffer, quebra_linha
 from gerarPDF import salvar_e_abrir_pdf
@@ -127,7 +128,7 @@ def gerar_tabela_docentes():
     ]
     
     # Adicionar o cabeçalho com cache
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.png')
+    figura_inferior = str(get_image_path('logopaco.png'))
     img_inf = _get_cached_image(figura_inferior, 3 * inch, 0.7 * inch)
     header_style = _get_cached_style('Header', fontSize=12, alignment=1)
     

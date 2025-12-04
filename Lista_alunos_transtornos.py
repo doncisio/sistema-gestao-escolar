@@ -3,6 +3,7 @@ logger = get_logger(__name__)
 import io
 import os
 import pandas as pd
+from config import get_image_path
 import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image, PageTemplate, Frame
@@ -289,7 +290,7 @@ def lista_alunos_transtornos():
         "<b>CNPJ: 01.394.462/0001-01</b>"
     ]
 
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.png')
+    figura_inferior = str(get_image_path('logopaco.png'))
 
     # Cria o documento
     buffer = io.BytesIO()

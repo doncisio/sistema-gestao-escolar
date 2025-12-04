@@ -2,6 +2,7 @@ import io
 import os
 import pandas as pd
 from reportlab.platypus import Image, Paragraph, Table, TableStyle, Spacer, PageBreak
+from config import get_image_path
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from utilitarios.gerenciador_documentos import salvar_documento_sistema
@@ -285,8 +286,8 @@ def ata_geral():
     ]
 
     # Caminhos das figuras
-    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.jpg')
+    figura_superior = str(get_image_path('pacologo.png'))
+    figura_inferior = str(get_image_path('logopaco.jpg'))
 
     df['Situação Final'] = df.apply(lambda row: determinar_situacao_final(row, faltas_dict, limite_faltas), axis=1)
     

@@ -6,6 +6,7 @@ import os
 import io
 import datetime
 from reportlab.lib.pagesizes import letter
+from config import get_image_path
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Image
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
@@ -268,8 +269,8 @@ def criar_pdf_declaracao_comparecimento(buffer, dados, nome_aluno, nome_responsa
     cabecalho = criar_cabecalho_escola(dados)
     
     # Imagens
-    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopacobranco.png')
+    figura_superior = str(get_image_path('pacologo.png'))
+    figura_inferior = str(get_image_path('logopacobranco.png'))
     
     # Tabela do cabeçalho
     data_cabecalho = [

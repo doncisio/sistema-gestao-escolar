@@ -3,6 +3,7 @@ logger = get_logger(__name__)
 import os
 import datetime
 import pandas as pd
+from config import get_image_path
 from reportlab.lib.colors import black, white, grey
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
@@ -149,8 +150,8 @@ def gerar_pdf_contatos(ano_letivo: int):
         "<b>CNPJ: 01.394.462/0001-01</b>"
     ]
 
-    figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'logosemed.png')
-    figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopaco.png')
+    figura_superior = str(get_image_path('logosemed.png'))
+    figura_inferior = str(get_image_path('logopaco.png'))
 
     doc, buffer = create_pdf_buffer()
     elements = []

@@ -7,6 +7,7 @@ from tkinter import *
 from PIL import Image, ImageTk
 import weakref
 from config_logs import get_logger
+from config import get_icon_path, get_image_path, get_resource_path
 
 logger = get_logger(__name__)
 
@@ -139,7 +140,7 @@ class GerenciadorImagens:
                 # Tentar carregar a imagem novamente
                 if categoria == 'interface_editar' and chave == 'header_logo':
                     # Caminho específico para o ícone de edição
-                    self.carregar_imagem(categoria, 'icon/learning.png', tamanho=(45, 45), chave=chave)
+                    self.carregar_imagem(categoria, str(get_icon_path('learning.png')), tamanho=(45, 45), chave=chave)
                 
                 # Se ainda não existir após a tentativa de carregamento, retorna a imagem de backup
                 if categoria not in self.imagens or chave not in self.imagens.get(categoria, {}):
@@ -216,19 +217,19 @@ def verificar_imagens_necessarias():
     """
     # Lista de imagens usadas em todo o sistema
     imagens_sistema = [
-        'icon/learning.png',
-        'icon/video-conference.png',
-        'icon/diskette.png',
-        'icon/plus.png',
-        'icon/trash.png',
-        'icon/update.png',
-        'icon/left.png',
-        'icon/casa.png',
-        'icon/notebook.png',
-        'icon/book.png',
-        'icon/settings.png',
-        'icon/history.png',
-        'imagens/logopaco.png'
+        str(get_icon_path('learning.png')),
+        str(get_icon_path('video-conference.png')),
+        str(get_icon_path('diskette.png')),
+        str(get_icon_path('plus.png')),
+        str(get_icon_path('trash.png')),
+        str(get_icon_path('update.png')),
+        str(get_icon_path('left.png')),
+        str(get_icon_path('casa.png')),
+        str(get_icon_path('notebook.png')),
+        str(get_icon_path('book.png')),
+        str(get_icon_path('settings.png')),
+        str(get_icon_path('history.png')),
+        str(get_image_path('logopaco.png'))
     ]
     
     resultado = {}

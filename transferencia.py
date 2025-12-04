@@ -5,6 +5,7 @@ import pandas as pd
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from conexao import conectar_bd
+from config import get_image_path
 from db.connection import get_connection
 from typing import Any, cast
 from reportlab.lib.pagesizes import letter
@@ -135,8 +136,8 @@ def gerar_documento_transferencia(aluno_id, ano_letivo_id):
         ]
 
         # Caminhos das figuras
-        figura_superior = os.path.join(os.path.dirname(__file__), 'imagens', 'pacologo.png')
-        figura_inferior = os.path.join(os.path.dirname(__file__), 'imagens', 'logopacobranco.png')
+        figura_superior = str(get_image_path('pacologo.png'))
+        figura_inferior = str(get_image_path('logopacobranco.png'))
 
         # Criar o PDF em memória
         buffer = io.BytesIO()

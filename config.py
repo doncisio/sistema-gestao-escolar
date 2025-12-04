@@ -169,3 +169,76 @@ def coordenador_series_para_usuario(username: str):
     if not mapping:
         return None
     return mapping.get(username)
+
+
+# ============================================================================
+# CAMINHOS DE RECURSOS (IMAGENS E ÍCONES)
+# ============================================================================
+
+# Diretório raiz do projeto
+PROJECT_ROOT = Path(__file__).parent.resolve()
+
+# Diretórios de recursos
+IMAGENS_DIR = PROJECT_ROOT / 'imagens'
+ICON_DIR = PROJECT_ROOT / 'icon'
+ICO_DIR = PROJECT_ROOT / 'ico'
+
+
+def get_resource_path(relative_path: str) -> Path:
+    """
+    Retorna o caminho absoluto para um recurso (imagem, ícone, etc).
+    
+    Args:
+        relative_path: Caminho relativo ao diretório raiz do projeto
+                       Ex: 'icon/learning.png', 'imagens/logopaco.png', 'ico/aa.ico'
+    
+    Returns:
+        Path: Caminho absoluto para o recurso
+    """
+    return PROJECT_ROOT / relative_path
+
+
+def get_icon_path(icon_name: str) -> Path:
+    """
+    Retorna o caminho absoluto para um ícone PNG na pasta 'icon/'.
+    
+    Args:
+        icon_name: Nome do arquivo de ícone (com ou sem extensão)
+                   Ex: 'learning.png' ou 'learning'
+    
+    Returns:
+        Path: Caminho absoluto para o ícone
+    """
+    if not icon_name.endswith('.png'):
+        icon_name += '.png'
+    return ICON_DIR / icon_name
+
+
+def get_image_path(image_name: str) -> Path:
+    """
+    Retorna o caminho absoluto para uma imagem na pasta 'imagens/'.
+    
+    Args:
+        image_name: Nome do arquivo de imagem
+                    Ex: 'logopaco.png', 'logosemed.png'
+    
+    Returns:
+        Path: Caminho absoluto para a imagem
+    """
+    return IMAGENS_DIR / image_name
+
+
+def get_ico_path(ico_name: str) -> Path:
+    """
+    Retorna o caminho absoluto para um ícone ICO na pasta 'ico/'.
+    
+    Args:
+        ico_name: Nome do arquivo .ico (com ou sem extensão)
+                  Ex: 'aa.ico' ou 'aa'
+    
+    Returns:
+        Path: Caminho absoluto para o ícone ICO
+    """
+    if not ico_name.endswith('.ico'):
+        ico_name += '.ico'
+    return ICO_DIR / ico_name
