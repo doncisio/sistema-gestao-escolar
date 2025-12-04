@@ -37,6 +37,16 @@ def fazer_backup():
             logger.error("Erro: Credenciais incompletas no arquivo .env.")
             return False
 
+        # Verificar se mysqldump está disponível
+        try:
+            verificar = subprocess.run(["mysqldump", "--version"], capture_output=True, text=True)
+            if verificar.returncode != 0:
+                logger.error("mysqldump não está funcionando corretamente")
+                return False
+        except FileNotFoundError:
+            logger.error("mysqldump não encontrado. Verifique se o MySQL está instalado e no PATH do sistema.")
+            return False
+
         # Comando para fazer o backup usando mysqldump
         comando_backup = [
             "mysqldump",
@@ -49,7 +59,13 @@ def fazer_backup():
         ]
 
         # Executar o comando (resultado será salvo diretamente no arquivo)
-        resultado = subprocess.run(comando_backup, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
+        resultado = subprocess.run(comando_backup, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        
+        # Verificar se houve erro
+        if resultado.returncode != 0:
+            erro_msg = resultado.stderr.strip() if resultado.stderr else "Erro desconhecido"
+            logger.error("Falha no mysqldump: %s", erro_msg)
+            return False
         
         logger.info("✓ Backup local salvo em: %s", caminho_backup_local)
 

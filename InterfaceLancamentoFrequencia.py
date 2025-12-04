@@ -84,6 +84,12 @@ class InterfaceLancamentoFrequencia:
     
     def ao_fechar_janela(self):
         """Trata o evento de fechamento da janela."""
+        # Remover binding global do mousewheel
+        try:
+            if hasattr(self, '_canvas_alunos') and self._canvas_alunos:
+                self._canvas_alunos.unbind_all("<MouseWheel>")
+        except Exception:
+            pass
         if self.janela_principal:
             self.janela_principal.deiconify()
         self.janela.destroy()
@@ -585,6 +591,7 @@ class InterfaceLancamentoFrequencia:
         
         # Frame com scroll
         canvas = tk.Canvas(self.frame_alunos, bg=self.co0)
+        self._canvas_alunos = canvas  # Guardar referência para unbind
         scrollbar = ttk.Scrollbar(self.frame_alunos, orient="vertical", command=canvas.yview)
         frame_scroll = tk.Frame(canvas, bg=self.co0)
         
@@ -598,7 +605,11 @@ class InterfaceLancamentoFrequencia:
         
         # Configurar scroll com mousewheel
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            try:
+                if canvas.winfo_exists():
+                    canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            except Exception:
+                pass
         canvas.bind_all("<MouseWheel>", _on_mousewheel)
         
         # Cabeçalhos

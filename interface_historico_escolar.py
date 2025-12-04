@@ -32,6 +32,12 @@ class InterfaceHistoricoEscolar:
         self.aluno_id = None
         self.historico_id = None
         
+        # IDs do registro selecionado (para atualização)
+        self.registro_disciplina_id = None
+        self.registro_serie_id = None
+        self.registro_ano_letivo_id = None
+        self.registro_escola_id = None
+        
         # Dicionários para mapear nomes para IDs
         self.disciplinas_map = {}
         self.series_map = {}
@@ -416,13 +422,16 @@ class InterfaceHistoricoEscolar:
         tk.Label(self.frame_form, text="Média:").grid(row=2, column=2, padx=5, pady=5, sticky=tk.W)
         self.ent_media = tk.Entry(self.frame_form, textvariable=self.media, width=10)
         self.ent_media.grid(row=2, column=3, padx=5, pady=5, sticky=tk.W)
-        self.ent_media.bind("<Return>", lambda event: self.inserir_registro())
+        self.ent_media.bind("<Return>", self._inserir_com_enter)
+        # Validação para aceitar apenas números e ponto decimal
+        self.ent_media.bind("<KeyRelease>", self._validar_media)
         
         tk.Label(self.frame_form, text="Conceito:").grid(row=2, column=4, padx=5, pady=5, sticky=tk.W)
-        self.cb_conceito = ttk.Combobox(self.frame_form, textvariable=self.conceito)
-        self.cb_conceito['values'] = ['', 'R', 'B', 'O', 'AD', 'PNAD', 'APNAD', 'RT']
-        self.ajustar_largura_combobox(self.cb_conceito, self.cb_conceito['values'])
-        self.cb_conceito.grid(row=2, column=5, padx=5, pady=5, sticky=tk.EW)
+        self.ent_conceito = tk.Entry(self.frame_form, textvariable=self.conceito, width=10)
+        self.ent_conceito.grid(row=2, column=5, padx=5, pady=5, sticky=tk.W)
+        self.ent_conceito.bind("<Return>", self._inserir_com_enter)
+        # Validação para aceitar apenas letras maiúsculas
+        self.ent_conceito.bind("<KeyRelease>", self._validar_conceito)
         
         # Botões
         frame_botoes = tk.Frame(self.frame_form)
@@ -1136,6 +1145,12 @@ class InterfaceHistoricoEscolar:
             self.cb_ano_letivo.configure(state="normal")
             self.cb_disciplina.configure(state="normal")
             
+            # Armazenar os IDs do registro selecionado para uso na atualização
+            self.registro_disciplina_id = resultado[1]  # disciplina_id
+            self.registro_serie_id = resultado[6]  # serie_id
+            self.registro_ano_letivo_id = resultado[4]  # ano_letivo_id
+            self.registro_escola_id = resultado[8]  # escola_id
+            
             # Preencher os campos
             self.escola_selecionada.set(str(resultado[9]) if resultado[9] else "")  # Nome da escola
             self.serie_selecionada.set(str(resultado[7]) if resultado[7] else "")  # Nome da série
@@ -1356,11 +1371,32 @@ class InterfaceHistoricoEscolar:
         # Conceito (opcional)
         conceito = self.conceito.get().strip()
         
-        # Obter IDs dos campos
-        try:
-            disciplina_id, serie_id, ano_letivo_id, escola_id = self.obter_ids_dos_campos()
-        except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao obter IDs dos campos: {str(e)}")
+        # Usar os IDs armazenados do registro selecionado, ou buscar dos mapas se o usuário alterou
+        # Verificar se os campos foram alterados comparando com os valores do mapa
+        disciplina_texto = self.disciplina_selecionada.get()
+        serie_texto = self.serie_selecionada.get()
+        ano_texto = self.ano_letivo_selecionado.get()
+        escola_texto = self.escola_selecionada.get()
+        
+        # Tentar obter IDs dos mapas primeiro (caso o usuário tenha alterado)
+        disciplina_id = self.disciplinas_map.get(disciplina_texto)
+        serie_id = self.series_map.get(serie_texto)
+        ano_letivo_id = self.anos_letivos_map.get(ano_texto)
+        escola_id = self.escolas_map.get(escola_texto)
+        
+        # Se não encontrar no mapa, usar os IDs armazenados do registro selecionado
+        if disciplina_id is None and hasattr(self, 'registro_disciplina_id'):
+            disciplina_id = self.registro_disciplina_id
+        if serie_id is None and hasattr(self, 'registro_serie_id'):
+            serie_id = self.registro_serie_id
+        if ano_letivo_id is None and hasattr(self, 'registro_ano_letivo_id'):
+            ano_letivo_id = self.registro_ano_letivo_id
+        if escola_id is None and hasattr(self, 'registro_escola_id'):
+            escola_id = self.registro_escola_id
+        
+        # Validar se todos os IDs foram obtidos
+        if not all([disciplina_id, serie_id, ano_letivo_id, escola_id]):
+            messagebox.showerror("Erro", "Não foi possível obter os IDs dos campos. Por favor, selecione novamente os valores.")
             return
             
         # Verificar se já existe outro registro para esta combinação
@@ -1405,6 +1441,12 @@ class InterfaceHistoricoEscolar:
             self.media.set("")
             self.conceito.set("")
             self.historico_id = None
+            
+            # Limpar os IDs do registro selecionado
+            self.registro_disciplina_id = None
+            self.registro_serie_id = None
+            self.registro_ano_letivo_id = None
+            self.registro_escola_id = None
             
             # Atualizar disciplinas disponíveis após atualização
             self.atualizar_disciplinas()
@@ -1462,6 +1504,50 @@ class InterfaceHistoricoEscolar:
         cursor.close()
         conn.close()
 
+    def _validar_media(self, event=None):
+        """
+        Valida o campo Média para aceitar apenas números e ponto decimal.
+        Remove caracteres inválidos automaticamente.
+        """
+        valor_atual = self.media.get()
+        # Filtra apenas dígitos e ponto decimal
+        valor_filtrado = ""
+        ponto_encontrado = False
+        for char in valor_atual:
+            if char.isdigit():
+                valor_filtrado += char
+            elif char == '.' and not ponto_encontrado:
+                valor_filtrado += char
+                ponto_encontrado = True
+        if valor_filtrado != valor_atual:
+            self.media.set(valor_filtrado)
+            # Reposiciona o cursor no final
+            self.ent_media.icursor(tk.END)
+    
+    def _validar_conceito(self, event=None):
+        """
+        Valida o campo Conceito para aceitar apenas letras.
+        Converte automaticamente para maiúsculas.
+        """
+        valor_atual = self.conceito.get()
+        # Filtra apenas letras e converte para maiúsculo
+        valor_filtrado = ''.join(char.upper() for char in valor_atual if char.isalpha())
+        if valor_filtrado != valor_atual:
+            self.conceito.set(valor_filtrado)
+            # Reposiciona o cursor no final
+            self.ent_conceito.icursor(tk.END)
+
+    def _inserir_com_enter(self, event=None):
+        """
+        Executa inserir_registro apenas se houver dados em Média ou Conceito.
+        """
+        media_valor = self.media.get().strip()
+        conceito_valor = self.conceito.get().strip()
+        
+        # Só insere se pelo menos um dos campos tiver valor
+        if media_valor or conceito_valor:
+            self.inserir_registro()
+
     def limpar_campos(self, manter_aluno=False, manter_serie_escola_ano=False):
         """
         Limpa todos os campos do formulário
@@ -1492,6 +1578,12 @@ class InterfaceHistoricoEscolar:
         self.media.set("")
         self.conceito.set("")
         self.historico_id = None
+        
+        # Limpar os IDs do registro selecionado
+        self.registro_disciplina_id = None
+        self.registro_serie_id = None
+        self.registro_ano_letivo_id = None
+        self.registro_escola_id = None
 
     def mostrar_mensagem_temporaria(self, mensagem, tipo="info"):
         # Remover mensagem anterior se existir

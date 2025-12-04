@@ -98,6 +98,12 @@ class InterfaceEdicaoFuncionario:
         # Confirmar com o usuário se deseja realmente fechar (apenas se nenhum funcionário foi atualizado)
         if not self.funcionario_atualizado and messagebox.askyesno("Confirmar", "Deseja realmente sair? As alterações não salvas serão perdidas.") is False:
             return
+        
+        # Remover bindings globais antes de destruir a janela
+        try:
+            self.canvas.unbind_all("<MouseWheel>")
+        except Exception:
+            pass
             
         # Fechar a conexão com o banco de dados
         if hasattr(self, 'conn') and self.conn:
@@ -581,7 +587,12 @@ class InterfaceEdicaoFuncionario:
     
     def _on_mousewheel(self, event):
         """Permite rolar o canvas com a roda do mouse"""
-        self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        try:
+            if self.canvas.winfo_exists():
+                self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        except Exception:
+            # Canvas foi destruído, ignorar o evento
+            pass
     
     def on_frame_disciplinas_configure(self, event):
         self.canvas_disciplinas.configure(scrollregion=self.canvas_disciplinas.bbox("all"))

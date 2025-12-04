@@ -157,7 +157,12 @@ class InterfaceCadastroEdicaoFaltas:
         
         # Configurar scroll com mousewheel
         def _on_mousewheel(event):
-            self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            try:
+                if self.canvas.winfo_exists():
+                    self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            except Exception:
+                pass
+        self._mousewheel_handler = _on_mousewheel
         self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
         
         # Layout
@@ -567,6 +572,11 @@ class InterfaceCadastroEdicaoFaltas:
             c["p"].config(state="readonly")
 
     def ao_fechar_janela(self):
+        try:
+            # Remover binding global do mousewheel
+            self.canvas.unbind_all("<MouseWheel>")
+        except Exception:
+            pass
         try:
             if self.janela_principal:
                 self.janela_principal.deiconify()
