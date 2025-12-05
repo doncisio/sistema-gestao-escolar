@@ -410,20 +410,31 @@ class AdministrativoCallbacks:
     
     @requer_permissao('sistema.transicao_ano')
     def abrir_transicao_ano_letivo(self):
-        """Abre interface de transição de ano letivo com autenticação."""
+        """Abre interface de transição de ano letivo com autenticação.
+        
+        A autenticação usa uma senha administrativa separada (ADMIN_TRANSICAO_PASSWORD)
+        para maior segurança. Se não configurada, usa a senha do banco como fallback.
+        """
         try:
             import os
             from dotenv import load_dotenv
             from tkinter import simpledialog
             
-            # Carregar senha do banco de dados
             load_dotenv()
-            senha_correta = os.getenv('DB_PASSWORD')
+            
+            # Usar senha administrativa separada, com fallback para senha do banco
+            senha_admin = os.getenv('ADMIN_TRANSICAO_PASSWORD')
+            if not senha_admin:
+                # Fallback para senha do banco (mantém compatibilidade)
+                senha_admin = os.getenv('DB_PASSWORD')
+                logger.warning("ADMIN_TRANSICAO_PASSWORD não configurada, usando DB_PASSWORD como fallback")
             
             # Solicitar senha ao usuário
             senha_digitada = simpledialog.askstring(
-                "Autenticação Necessária",
-                "Digite a senha do banco de dados para acessar a Transição de Ano Letivo:",
+                "Autenticação Administrativa",
+                "⚠️ OPERAÇÃO CRÍTICA ⚠️\n\n"
+                "A Transição de Ano Letivo é uma operação IRREVERSÍVEL.\n\n"
+                "Digite a senha administrativa para continuar:",
                 show='*'
             )
             
@@ -432,12 +443,14 @@ class AdministrativoCallbacks:
                 return
             
             # Verificar senha
-            if senha_digitada != senha_correta:
+            if senha_digitada != senha_admin:
                 messagebox.showerror(
                     "Acesso Negado",
-                    "Senha incorreta! A transição de ano letivo é uma operação crítica\n"
-                    "e requer autenticação para prosseguir."
+                    "Senha incorreta!\n\n"
+                    "A transição de ano letivo é uma operação crítica\n"
+                    "e requer autenticação administrativa para prosseguir."
                 )
+                logger.warning("Tentativa de acesso à transição de ano com senha incorreta")
                 return
             
             # Se a senha estiver correta, abrir a interface

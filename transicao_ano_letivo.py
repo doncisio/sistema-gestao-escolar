@@ -20,26 +20,48 @@ from typing import Any, cast
 from datetime import datetime
 from typing import Dict
 from relatorio_pendencias import buscar_pendencias_notas
+from config import ESCOLA_ID
+from config_logs import get_logger
 import traceback
+
+logger = get_logger(__name__)
+
+# Importar cores do tema centralizado
+try:
+    from ui.theme import (
+        CO_BRANCO, CO_AZUL_ESCURO, CO_VERDE, 
+        CO_VERMELHO, CO_LARANJA, CO_FUNDO_CLARO
+    )
+except ImportError:
+    # Fallback se o tema não estiver disponível
+    CO_BRANCO = "#ffffff"
+    CO_AZUL_ESCURO = "#3b5998"
+    CO_VERDE = "#4CAF50"
+    CO_VERMELHO = "#f44336"
+    CO_LARANJA = "#ff9800"
+    CO_FUNDO_CLARO = "#f0f0f0"
 
 
 class InterfaceTransicaoAnoLetivo:
     """Interface para gerenciar a transição de ano letivo"""
     
-    def __init__(self, janela_pai, janela_principal):
+    def __init__(self, janela_pai, janela_principal, escola_id: int = None):
         self.janela = janela_pai
         self.janela_principal = janela_principal
+        self.escola_id = escola_id if escola_id is not None else ESCOLA_ID
         self.janela.title("Transição de Ano Letivo")
         self.janela.geometry("900x700")
         self.janela.resizable(False, False)
-        self.janela.configure(bg="#f0f0f0")
+        self.janela.configure(bg=CO_FUNDO_CLARO)
         
-        # Cores
-        self.co0 = "#ffffff"  # branco
-        self.co1 = "#3b5998"  # azul escuro
-        self.co2 = "#4CAF50"  # verde
-        self.co3 = "#f44336"  # vermelho
-        self.co4 = "#ff9800"  # laranja
+        logger.info(f"Inicializando transição de ano letivo para escola_id={self.escola_id}")
+        
+        # Cores do tema centralizado
+        self.co0 = CO_BRANCO       # branco
+        self.co1 = CO_AZUL_ESCURO  # azul escuro
+        self.co2 = CO_VERDE        # verde
+        self.co3 = CO_VERMELHO     # vermelho
+        self.co4 = CO_LARANJA      # laranja
         
         # Variáveis
         self.ano_atual: Any = None
@@ -179,23 +201,26 @@ class InterfaceTransicaoAnoLetivo:
         return label_valor
     
     def carregar_dados_iniciais(self):
-        """Carrega os dados iniciais do banco"""
+        """Carrega os dados iniciais do banco de forma otimizada.
+        
+        Busca o ano letivo atual com suas datas (data_inicio, data_fim) em uma única query.
+        """
         try:
             from db.connection import get_cursor
 
             with get_cursor() as cursor:
-                # Buscar ano letivo atual
+                # Buscar ano letivo atual com datas - query otimizada
                 cursor.execute("""
-                    SELECT id, ano_letivo 
+                    SELECT id, ano_letivo, data_inicio, data_fim
                     FROM anosletivos 
                     WHERE ano_letivo = YEAR(CURDATE())
                 """)
                 resultado = cast(Any, cursor.fetchone())
 
                 if not resultado:
-                    # Buscar o ano mais recente
+                    # Buscar o ano mais recente se não encontrar o atual
                     cursor.execute("""
-                        SELECT id, ano_letivo 
+                        SELECT id, ano_letivo, data_inicio, data_fim
                         FROM anosletivos 
                         ORDER BY ano_letivo DESC 
                         LIMIT 1
@@ -210,9 +235,15 @@ class InterfaceTransicaoAnoLetivo:
 
                 self.label_ano_atual.config(text=f"{resultado['ano_letivo']}")
                 self.label_ano_novo.config(text=f"{self.ano_novo['ano_letivo']}")
+                
+                # Log das datas do ano letivo
+                data_fim = resultado.get('data_fim')
+                if data_fim:
+                    logger.info(f"Ano letivo {resultado['ano_letivo']}: término em {data_fim}")
+                else:
+                    logger.warning(f"Ano letivo {resultado['ano_letivo']}: data_fim não definida, usando 31/12")
 
-                # Carregar estatísticas (reabre cursor dentro da função)
-                # carregar_estatisticas espera receber um cursor, então abrimos um temporário
+                # Carregar estatísticas
                 with get_cursor() as cur_stats:
                     self.carregar_estatisticas(cur_stats)
             else:
@@ -220,7 +251,7 @@ class InterfaceTransicaoAnoLetivo:
             
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar dados: {str(e)}")
-            traceback.print_exc()
+            logger.exception(f"Erro ao carregar dados iniciais: {e}")
     
     def carregar_estatisticas(self, cursor):
         """Carrega estatísticas das matrículas"""
@@ -235,7 +266,7 @@ class InterfaceTransicaoAnoLetivo:
                 WHERE m.ano_letivo_id = %s
                 AND m.status = 'Ativo'
                 AND a.escola_id = %s
-            """, (self.ano_atual['id'], 60))
+            """, (self.ano_atual['id'], self.escola_id))
 
             resultado = cast(Any, cursor.fetchone())
             total_matriculas = resultado['total'] if resultado else 0
@@ -246,9 +277,9 @@ class InterfaceTransicaoAnoLetivo:
                 SELECT t.id
                 FROM turmas t
                 JOIN series s ON t.serie_id = s.id
-                WHERE s.nome LIKE '9%'
-                AND t.escola_id = 60
-            """)
+                WHERE s.nome LIKE '9%%'
+                AND t.escola_id = %s
+            """, (self.escola_id,))
             _rows = cast(Any, cursor.fetchall())
             turmas_9ano = [row['id'] for row in _rows]
             
@@ -260,10 +291,10 @@ class InterfaceTransicaoAnoLetivo:
                     JOIN Matriculas m ON a.id = m.aluno_id
                     WHERE m.ano_letivo_id = %s
                     AND m.status = 'Ativo'
-                    AND a.escola_id = 60
+                    AND a.escola_id = %s
                     AND m.turma_id NOT IN ({})
                 """.format(','.join(['%s'] * len(turmas_9ano))),
-                (self.ano_atual['id'],) + tuple(turmas_9ano))
+                (self.ano_atual['id'], self.escola_id) + tuple(turmas_9ano))
             else:
                 cursor.execute("""
                     SELECT COUNT(DISTINCT a.id) as total
@@ -271,8 +302,8 @@ class InterfaceTransicaoAnoLetivo:
                     JOIN Matriculas m ON a.id = m.aluno_id
                     WHERE m.ano_letivo_id = %s
                     AND m.status = 'Ativo'
-                    AND a.escola_id = 60
-                """, (self.ano_atual['id'],))
+                    AND a.escola_id = %s
+                """, (self.ano_atual['id'], self.escola_id))
             
             resultado = cast(Any, cursor.fetchone())
             alunos_continuar = resultado['total'] if resultado else 0
@@ -289,7 +320,7 @@ class InterfaceTransicaoAnoLetivo:
                         LEFT JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = %s
                         WHERE m.ano_letivo_id = %s
                         AND m.status = 'Ativo'
-                        AND a.escola_id = 60
+                        AND a.escola_id = %s
                         GROUP BY a.id
                         HAVING (
                             COALESCE(AVG(CASE WHEN n.bimestre = '1º bimestre' THEN n.nota END), 0) +
@@ -297,7 +328,7 @@ class InterfaceTransicaoAnoLetivo:
                             COALESCE(AVG(CASE WHEN n.bimestre = '3º bimestre' THEN n.nota END), 0) +
                             COALESCE(AVG(CASE WHEN n.bimestre = '4º bimestre' THEN n.nota END), 0)
                         ) / 4 < 60 OR AVG(n.nota) IS NULL
-                    """, (self.ano_atual['id'], self.ano_atual['id']))
+                    """, (self.ano_atual['id'], self.ano_atual['id'], self.escola_id))
                     # cursor.fetchone não é suficiente aqui pois o GROUP BY retorna múltiplas linhas;
                     # usar fetchall e contar
                     rows_reprov = cursor.fetchall()
@@ -311,7 +342,7 @@ class InterfaceTransicaoAnoLetivo:
                         LEFT JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = %s
                         WHERE m.ano_letivo_id = %s
                         AND m.status = 'Ativo'
-                        AND a.escola_id = 60
+                        AND a.escola_id = %s
                         GROUP BY a.id
                         HAVING (
                             COALESCE(AVG(CASE WHEN n.bimestre = '1º bimestre' THEN n.nota END), 0) +
@@ -319,7 +350,7 @@ class InterfaceTransicaoAnoLetivo:
                             COALESCE(AVG(CASE WHEN n.bimestre = '3º bimestre' THEN n.nota END), 0) +
                             COALESCE(AVG(CASE WHEN n.bimestre = '4º bimestre' THEN n.nota END), 0)
                         ) / 4 < 60 OR AVG(n.nota) IS NULL
-                    """, (self.ano_atual['id'], self.ano_atual['id']))
+                    """, (self.ano_atual['id'], self.ano_atual['id'], self.escola_id))
                     rows_reprov = cursor.fetchall()
                     alunos_reprovados = len(rows_reprov) if rows_reprov else 0
 
@@ -336,8 +367,8 @@ class InterfaceTransicaoAnoLetivo:
                 JOIN Matriculas m ON a.id = m.aluno_id
                 WHERE m.ano_letivo_id = %s
                 AND m.status IN ('Transferido', 'Transferida', 'Cancelado', 'Evadido')
-                AND a.escola_id = 60
-            """, (self.ano_atual['id'],))
+                AND a.escola_id = %s
+            """, (self.ano_atual['id'], self.escola_id))
             
             resultado = cast(Any, cursor.fetchone())
             alunos_excluir = resultado['total'] if resultado else 0
@@ -355,18 +386,41 @@ class InterfaceTransicaoAnoLetivo:
             traceback.print_exc()
 
     def verificar_fim_do_ano(self) -> bool:
-        """Verifica se o ano letivo atual já passou do último dia do ano.
+        """Verifica se o ano letivo atual já encerrou.
 
-        Retorna True se a data atual for posterior a 31/12 do ano letivo atual.
+        Usa a data_fim da tabela anosletivos se disponível.
+        Caso contrário, usa 31/12 do ano letivo como fallback.
+        
+        Returns:
+            bool: True se a data atual for posterior à data de término do ano letivo
         """
         try:
             if not self.ano_atual or 'ano_letivo' not in self.ano_atual:
                 return False
-            ano = int(self.ano_atual['ano_letivo'])
-            fim_ano = datetime(ano, 12, 31).date()
+            
             hoje = datetime.now().date()
-            return hoje > fim_ano
-        except Exception:
+            
+            # Verificar se há data_fim definida na tabela anosletivos
+            data_fim = self.ano_atual.get('data_fim')
+            
+            if data_fim:
+                # Converter para date se necessário
+                if hasattr(data_fim, 'date'):
+                    data_fim = data_fim.date()
+                elif isinstance(data_fim, str):
+                    data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+                
+                logger.debug(f"Verificando fim do ano: hoje={hoje}, data_fim={data_fim}")
+                return hoje > data_fim
+            else:
+                # Fallback: usar 31/12 do ano letivo
+                ano = int(self.ano_atual['ano_letivo'])
+                fim_ano = datetime(ano, 12, 31).date()
+                logger.debug(f"Usando fallback 31/12: hoje={hoje}, fim_ano={fim_ano}")
+                return hoje > fim_ano
+                
+        except Exception as e:
+            logger.warning(f"Erro ao verificar fim do ano: {e}")
             return False
 
     def verificar_pendencias_bimestrais(self) -> Dict:
@@ -473,14 +527,75 @@ class InterfaceTransicaoAnoLetivo:
                               "O botão 'Executar Transição' foi habilitado.\n"
                               "Clique nele para realizar a transição.")
     
+    def verificar_backup_recente(self) -> bool:
+        """Verifica se há backup do banco nas últimas 24h.
+        
+        Returns:
+            bool: True se existe backup recente, False caso contrário
+        """
+        import os
+        from pathlib import Path
+        
+        caminhos_backup = [
+            Path("migrations/backup_redeescola.sql"),
+            Path(r"G:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql")
+        ]
+        
+        for caminho in caminhos_backup:
+            try:
+                if caminho.exists():
+                    # Verificar data de modificação
+                    mtime = datetime.fromtimestamp(caminho.stat().st_mtime)
+                    diferenca = datetime.now() - mtime
+                    if diferenca.total_seconds() < 24 * 60 * 60:  # 24 horas
+                        logger.info(f"Backup recente encontrado: {caminho} (modificado há {diferenca})")
+                        return True
+            except Exception as e:
+                logger.warning(f"Erro ao verificar backup em {caminho}: {e}")
+        
+        return False
+    
+    def criar_backup_pre_transicao(self) -> bool:
+        """Cria backup automático antes de executar a transição.
+        
+        Returns:
+            bool: True se o backup foi criado com sucesso, False caso contrário
+        """
+        try:
+            import Seguranca
+            
+            logger.info("Criando backup pré-transição...")
+            self.atualizar_status("Criando backup de segurança...", 5)
+            
+            resultado = Seguranca.fazer_backup()
+            
+            if resultado:
+                logger.info("✓ Backup pré-transição criado com sucesso!")
+                return True
+            else:
+                logger.error("✗ Falha ao criar backup pré-transição")
+                return False
+                
+        except Exception as e:
+            logger.exception(f"Erro ao criar backup: {e}")
+            return False
+    
     def confirmar_transicao(self):
         """Confirmação final antes de executar"""
+        # Verificar se existe backup recente
+        backup_recente = self.verificar_backup_recente()
+        
+        if backup_recente:
+            msg_backup = "✓ Backup recente encontrado (últimas 24h).\n\n"
+        else:
+            msg_backup = "⚠️ Nenhum backup recente encontrado!\nUm backup será criado automaticamente.\n\n"
+        
         resposta = messagebox.askyesno(
             "⚠️ CONFIRMAÇÃO FINAL",
             f"Você está prestes a realizar a transição do ano letivo "
             f"{self.ano_atual['ano_letivo']} para {self.ano_novo['ano_letivo']}.\n\n"
             f"Esta operação é IRREVERSÍVEL!\n\n"
-            f"Você fez BACKUP do banco de dados?\n\n"
+            f"{msg_backup}"
             f"Deseja continuar?",
             icon='warning'
         )
@@ -492,11 +607,17 @@ class InterfaceTransicaoAnoLetivo:
             from tkinter import simpledialog
             
             load_dotenv()
-            senha_correta = os.getenv('DB_PASSWORD')
+            
+            # Usar senha administrativa separada, com fallback para senha do banco
+            senha_admin = os.getenv('ADMIN_TRANSICAO_PASSWORD')
+            if not senha_admin:
+                senha_admin = os.getenv('DB_PASSWORD')
+                logger.warning("ADMIN_TRANSICAO_PASSWORD não configurada, usando DB_PASSWORD como fallback")
             
             senha_digitada = simpledialog.askstring(
                 "Autenticação de Segurança",
-                "Por segurança, digite novamente a senha do banco de dados\n"
+                "⚠️ ÚLTIMA CONFIRMAÇÃO ⚠️\n\n"
+                "Por segurança, digite novamente a senha administrativa\n"
                 "para EXECUTAR a transição:",
                 show='*'
             )
@@ -509,16 +630,33 @@ class InterfaceTransicaoAnoLetivo:
                 return
             
             # Verificar senha
-            if senha_digitada != senha_correta:
+            if senha_digitada != senha_admin:
                 messagebox.showerror(
                     "Acesso Negado",
                     "Senha incorreta! A transição foi CANCELADA por segurança."
                 )
+                logger.warning("Tentativa de executar transição com senha incorreta")
                 self.btn_simular.config(state=NORMAL)
                 self.btn_executar.config(state=NORMAL)
                 return
             
-            # Se a senha estiver correta, executar a transição
+            # Criar backup se não houver um recente
+            if not backup_recente:
+                if not self.criar_backup_pre_transicao():
+                    resposta_continuar = messagebox.askyesno(
+                        "⚠️ Falha no Backup",
+                        "Não foi possível criar o backup automático.\n\n"
+                        "ATENÇÃO: Prosseguir sem backup é MUITO ARRISCADO!\n\n"
+                        "Deseja continuar mesmo assim?",
+                        icon='warning'
+                    )
+                    if not resposta_continuar:
+                        messagebox.showinfo("Cancelado", "Transição cancelada. Faça o backup manualmente.")
+                        self.btn_simular.config(state=NORMAL)
+                        self.btn_executar.config(state=NORMAL)
+                        return
+            
+            # Se a senha estiver correta e backup OK, executar a transição
             self.executar_transicao()
     
     def executar_transicao(self):
@@ -529,6 +667,14 @@ class InterfaceTransicaoAnoLetivo:
         self.progressbar.pack(pady=10)
         self.progressbar['value'] = 0
         
+        # Registrar início da transição
+        logger.info("=" * 60)
+        logger.info("INICIANDO TRANSIÇÃO DE ANO LETIVO")
+        logger.info(f"Ano origem: {self.ano_atual['ano_letivo']}")
+        logger.info(f"Ano destino: {self.ano_novo['ano_letivo']}")
+        logger.info(f"Escola ID: {self.escola_id}")
+        logger.info("=" * 60)
+        
         try:
             # Usar get_connection para garantir fechamento e controle de transação
             with get_connection() as conn:
@@ -536,12 +682,14 @@ class InterfaceTransicaoAnoLetivo:
 
                 # Passo 1: Criar novo ano letivo
                 self.atualizar_status("Criando novo ano letivo...", 10)
+                logger.info(f"[Passo 1] Criando ano letivo {self.ano_novo['ano_letivo']}")
                 cursor.execute("""
                     INSERT INTO anosletivos (ano_letivo)
                     VALUES (%s)
                     ON DUPLICATE KEY UPDATE ano_letivo = ano_letivo
                 """, (self.ano_novo['ano_letivo'],))
                 conn.commit()
+                logger.info(f"[Passo 1] ✓ Ano letivo {self.ano_novo['ano_letivo']} criado/verificado")
 
                 # Buscar ID do novo ano
                 cursor.execute("""
@@ -549,30 +697,36 @@ class InterfaceTransicaoAnoLetivo:
                 """, (self.ano_novo['ano_letivo'],))
                 _tmp = cast(Any, cursor.fetchone())
                 novo_ano_id = _tmp['id']
+                logger.info(f"[Passo 1] Novo ano_letivo_id: {novo_ano_id}")
 
                 # Passo 2: Encerrar matrículas antigas
                 self.atualizar_status("Encerrando matrículas do ano anterior...", 30)
+                logger.info(f"[Passo 2] Encerrando matrículas do ano {self.ano_atual['ano_letivo']}")
                 cursor.execute("""
                     UPDATE Matriculas
                     SET status = 'Concluído'
                     WHERE ano_letivo_id = %s
                     AND status = 'Ativo'
                 """, (self.ano_atual['id'],))
+                matriculas_encerradas = cursor.rowcount
                 conn.commit()
+                logger.info(f"[Passo 2] ✓ {matriculas_encerradas} matrículas encerradas")
 
                 # Passo 3: Buscar alunos ativos para rematricular
                 self.atualizar_status("Buscando alunos para rematricular...", 50)
+                logger.info("[Passo 3] Buscando alunos para rematricular")
 
                 # Buscar turmas do 9º ano
                 cursor.execute("""
                     SELECT t.id
                     FROM turmas t
                     JOIN series s ON t.serie_id = s.id
-                    WHERE s.nome LIKE '9%'
-                    AND t.escola_id = 60
-                """)
+                    WHERE s.nome LIKE '9%%'
+                    AND t.escola_id = %s
+                """, (self.escola_id,))
                 _rows = cast(Any, cursor.fetchall())
                 turmas_9ano = [row['id'] for row in _rows]
+                logger.info(f"[Passo 3] Turmas do 9º ano identificadas: {turmas_9ano}")
 
                 # Buscar alunos que NÃO são do 9º ano (esses vão para o próximo ano)
                 cursor.execute("""
@@ -583,12 +737,13 @@ class InterfaceTransicaoAnoLetivo:
                     JOIN Matriculas m ON a.id = m.aluno_id
                     WHERE m.ano_letivo_id = %s
                     AND m.status = 'Concluído'
-                    AND a.escola_id = 60
+                    AND a.escola_id = %s
                     AND m.turma_id NOT IN ({})
                 """.format(','.join(['%s'] * len(turmas_9ano)) if turmas_9ano else "0"), 
-                (self.ano_atual['id'],) + tuple(turmas_9ano) if turmas_9ano else (self.ano_atual['id'],))
+                (self.ano_atual['id'], self.escola_id) + tuple(turmas_9ano) if turmas_9ano else (self.ano_atual['id'], self.escola_id))
 
                 alunos_normais = cast(Any, cursor.fetchall())
+                logger.info(f"[Passo 3] Alunos normais (1º ao 8º): {len(alunos_normais)}")
 
                 # Buscar alunos REPROVADOS (média < 60) em todas as turmas
                 cursor.execute("""
@@ -606,12 +761,13 @@ class InterfaceTransicaoAnoLetivo:
                     LEFT JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = %s
                     WHERE m.ano_letivo_id = %s
                     AND m.status = 'Concluído'
-                    AND a.escola_id = 60
+                    AND a.escola_id = %s
                     GROUP BY a.id, m.turma_id
                     HAVING media_final < 60 OR media_final IS NULL
-                """, (self.ano_atual['id'], self.ano_atual['id']))
+                """, (self.ano_atual['id'], self.ano_atual['id'], self.escola_id))
 
                 alunos_reprovados = cast(Any, cursor.fetchall())
+                logger.info(f"[Passo 3] Alunos reprovados: {len(alunos_reprovados)}")
 
                 # Combinar todos os alunos que serão rematriculados, evitando duplicatas
                 alunos_map = {}
@@ -625,9 +781,11 @@ class InterfaceTransicaoAnoLetivo:
 
                 alunos = list(alunos_map.values())
                 total_alunos = len(alunos)
+                logger.info(f"[Passo 3] ✓ Total de alunos a rematricular: {total_alunos}")
 
                 # Passo 4: Criar novas matrículas
                 self.atualizar_status(f"Criando {total_alunos} novas matrículas...", 60)
+                logger.info(f"[Passo 4] Criando {total_alunos} novas matrículas")
 
                 for i, aluno in enumerate(alunos):
                     cursor.execute("""
@@ -641,20 +799,32 @@ class InterfaceTransicaoAnoLetivo:
                     self.janela.update()
 
                 conn.commit()
+                logger.info(f"[Passo 4] ✓ {total_alunos} matrículas criadas com sucesso")
 
                 # Finalizar
                 self.atualizar_status("Transição concluída com sucesso!", 100)
 
                 cursor.close()
+                
+                # Log de resumo final
+                logger.info("=" * 60)
+                logger.info("TRANSIÇÃO CONCLUÍDA COM SUCESSO")
+                logger.info(f"Resumo:")
+                logger.info(f"  - Ano letivo criado: {self.ano_novo['ano_letivo']}")
+                logger.info(f"  - Matrículas encerradas: {matriculas_encerradas}")
+                logger.info(f"  - Novas matrículas: {total_alunos}")
+                logger.info(f"  - Alunos normais: {len(alunos_normais)}")
+                logger.info(f"  - Alunos reprovados: {len(alunos_reprovados)}")
+                logger.info("=" * 60)
 
                 messagebox.showinfo(
                     "✅ Sucesso!",
                     f"Transição de ano letivo concluída com sucesso!\n\n"
                     f"✓ Ano letivo {self.ano_novo['ano_letivo']} criado\n"
-                    f"✓ {self.estatisticas['total_matriculas']} matrículas encerradas\n"
+                    f"✓ {matriculas_encerradas} matrículas encerradas\n"
                     f"✓ {total_alunos} novas matrículas criadas\n"
-                    f"   • {self.estatisticas['alunos_continuar']} alunos (1º ao 8º ano)\n"
-                    f"   • {self.estatisticas.get('alunos_reprovados', 0)} alunos reprovados\n\n"
+                    f"   • {len(alunos_normais)} alunos (1º ao 8º ano)\n"
+                    f"   • {len(alunos_reprovados)} alunos reprovados\n\n"
                     f"ℹ️ Observação: Alunos do 9º ano aprovados não serão rematriculados\n"
                     f"   (concluíram o ensino fundamental)\n\n"
                     f"O sistema agora está configurado para o ano {self.ano_novo['ano_letivo']}.")
@@ -662,13 +832,14 @@ class InterfaceTransicaoAnoLetivo:
                 self.fechar()
 
         except Exception as e:
+            logger.exception(f"ERRO na transição de ano letivo: {e}")
             try:
                 if 'conn' in locals() and conn:
                     conn.rollback()
+                    logger.info("Rollback executado devido ao erro")
             except Exception:
                 pass
             messagebox.showerror("Erro", f"Erro ao executar transição:\n{str(e)}")
-            traceback.print_exc()
             self.btn_simular.config(state=NORMAL)
             self.btn_executar.config(state=NORMAL)
     
