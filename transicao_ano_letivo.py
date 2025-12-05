@@ -8,17 +8,29 @@ Funcionalidades:
 - Criar novas matrículas para o próximo ano letivo
 - Excluir alunos com status: Cancelado, Transferido, Evadido
 - Manter apenas alunos ativos para a nova matrícula
+- Progressão automática de série (1º ano → 2º ano)
+- Geração de relatório PDF pós-transição
 """
 
 import mysql.connector
+import threading
+import json
+import time
 from tkinter import (Tk, Toplevel, Frame, Label, LabelFrame, Button,
                      BOTH, LEFT, X, W, E, RIDGE, DISABLED, NORMAL)
 from tkinter import ttk, messagebox
 from conexao import conectar_bd
 from db.connection import get_connection, get_cursor
+from db.queries_transicao import (
+    QueriesTransicao, 
+    QUERY_TURMAS_9ANO, 
+    QUERY_CRIAR_ANO_LETIVO,
+    QUERY_ENCERRAR_MATRICULAS,
+    QUERY_CRIAR_MATRICULA
+)
 from typing import Any, cast
 from datetime import datetime
-from typing import Dict
+from typing import Dict, List, Optional
 from relatorio_pendencias import buscar_pendencias_notas
 from config import ESCOLA_ID
 from config_logs import get_logger
@@ -43,7 +55,11 @@ except ImportError:
 
 
 class InterfaceTransicaoAnoLetivo:
-    """Interface para gerenciar a transição de ano letivo"""
+    """Interface para gerenciar a transição de ano letivo.
+    
+    Suporta modo dry-run para simulação sem alterações no banco.
+    Executa operações longas em thread separada para não travar a UI.
+    """
     
     def __init__(self, janela_pai, janela_principal, escola_id: int = None):
         self.janela = janela_pai
@@ -62,6 +78,10 @@ class InterfaceTransicaoAnoLetivo:
         self.co2 = CO_VERDE        # verde
         self.co3 = CO_VERMELHO     # vermelho
         self.co4 = CO_LARANJA      # laranja
+        
+        # Variáveis de estado
+        self._executando = False  # Flag para evitar múltiplas execuções
+        self._mapa_turmas: Dict[int, Dict] = {}  # Cache do mapeamento de turmas
         
         # Variáveis
         self.ano_atual: Any = None
@@ -580,6 +600,88 @@ class InterfaceTransicaoAnoLetivo:
             logger.exception(f"Erro ao criar backup: {e}")
             return False
     
+    def _carregar_mapa_turmas(self) -> Dict[int, Dict]:
+        """Carrega e cacheia o mapeamento de turmas com informações de série.
+        
+        Returns:
+            Dict mapeando turma_id para dados completos da turma
+        """
+        if not self._mapa_turmas:
+            self._mapa_turmas = QueriesTransicao.get_mapa_turmas(self.escola_id)
+            logger.debug(f"Mapa de turmas carregado: {len(self._mapa_turmas)} turmas")
+        return self._mapa_turmas
+    
+    def obter_proxima_turma(self, turma_atual_id: int, reprovado: bool = False) -> int:
+        """Obtém a turma para o próximo ano letivo.
+        
+        Para alunos aprovados: promove para a próxima série (1º ano → 2º ano).
+        Para alunos reprovados: mantém na mesma turma/série.
+        
+        Args:
+            turma_atual_id: ID da turma atual do aluno
+            reprovado: Se True, mantém na mesma turma
+            
+        Returns:
+            ID da turma para matrícula no próximo ano
+        """
+        # Reprovados ficam na mesma turma
+        if reprovado:
+            logger.debug(f"Aluno reprovado: mantendo na turma {turma_atual_id}")
+            return turma_atual_id
+        
+        # Buscar próxima turma
+        proxima = QueriesTransicao.get_proxima_turma(turma_atual_id, self.escola_id)
+        
+        if proxima:
+            logger.debug(f"Progressão: turma {turma_atual_id} → {proxima}")
+            return proxima
+        else:
+            # Se não encontrar próxima série (ex: 9º ano), manter na mesma
+            # Isso não deve acontecer pois 9º ano é excluído antes
+            logger.warning(f"Próxima turma não encontrada para {turma_atual_id}, mantendo")
+            return turma_atual_id
+    
+    def _registrar_auditoria(
+        self,
+        status: str,
+        matriculas_encerradas: int,
+        matriculas_criadas: int,
+        alunos_promovidos: int,
+        alunos_retidos: int,
+        alunos_concluintes: int,
+        detalhes: str = None
+    ):
+        """Registra a transição na tabela de auditoria.
+        
+        Args:
+            status: 'sucesso', 'erro' ou 'rollback'
+            matriculas_encerradas: Total de matrículas encerradas
+            matriculas_criadas: Total de novas matrículas
+            alunos_promovidos: Alunos que avançaram de série
+            alunos_retidos: Alunos reprovados
+            alunos_concluintes: Alunos do 9º ano que concluíram
+            detalhes: Informações adicionais (JSON ou texto)
+        """
+        try:
+            import os
+            usuario = os.getenv('USERNAME', 'sistema')
+            
+            QueriesTransicao.registrar_auditoria(
+                ano_origem=self.ano_atual['ano_letivo'],
+                ano_destino=self.ano_novo['ano_letivo'],
+                escola_id=self.escola_id,
+                usuario=usuario,
+                matriculas_encerradas=matriculas_encerradas,
+                matriculas_criadas=matriculas_criadas,
+                alunos_promovidos=alunos_promovidos,
+                alunos_retidos=alunos_retidos,
+                alunos_concluintes=alunos_concluintes,
+                status=status,
+                detalhes=detalhes
+            )
+        except Exception as e:
+            logger.warning(f"Erro ao registrar auditoria (não crítico): {e}")
+    
     def confirmar_transicao(self):
         """Confirmação final antes de executar"""
         # Verificar se existe backup recente
@@ -659,36 +761,85 @@ class InterfaceTransicaoAnoLetivo:
             # Se a senha estiver correta e backup OK, executar a transição
             self.executar_transicao()
     
-    def executar_transicao(self):
-        """Executa a transição de ano letivo"""
+    def executar_transicao(self, dry_run: bool = False):
+        """Executa a transição de ano letivo.
+        
+        Args:
+            dry_run: Se True, simula a transição sem fazer commit (rollback no final)
+        """
+        if self._executando:
+            logger.warning("Transição já em execução, ignorando chamada duplicada")
+            return
+        
+        self._executando = True
         self.btn_simular.config(state=DISABLED)
         self.btn_executar.config(state=DISABLED)
         
-        self.progressbar.pack(pady=10)
-        self.progressbar['value'] = 0
+        # Executar em thread separada para não travar a UI
+        def worker():
+            try:
+                self._executar_transicao_interno(dry_run)
+            except Exception as e:
+                logger.exception(f"Erro na thread de transição: {e}")
+                self.janela.after(0, lambda: self._mostrar_erro(str(e)))
+            finally:
+                self._executando = False
         
-        # Registrar início da transição
+        thread = threading.Thread(target=worker, daemon=True)
+        thread.start()
+    
+    def _mostrar_erro(self, mensagem: str):
+        """Mostra erro na UI (chamado da thread principal)."""
+        messagebox.showerror("Erro", f"Erro ao executar transição:\n{mensagem}")
+        self.btn_simular.config(state=NORMAL)
+        self.btn_executar.config(state=NORMAL)
+    
+    def _atualizar_status_seguro(self, mensagem: str, valor: int):
+        """Atualiza status de forma thread-safe."""
+        self.janela.after(0, lambda: self.atualizar_status(mensagem, valor))
+    
+    def _executar_transicao_interno(self, dry_run: bool = False):
+        """Execução interna da transição (roda em thread separada).
+        
+        Args:
+            dry_run: Se True, faz rollback no final ao invés de commit
+        """
+        # Atualizar UI de forma segura
+        self.janela.after(0, lambda: self.progressbar.pack(pady=10))
+        
+        modo = "DRY-RUN" if dry_run else "PRODUÇÃO"
+        
+        # Registrar início e medir tempo
+        tempo_inicio = time.time()
+        
         logger.info("=" * 60)
-        logger.info("INICIANDO TRANSIÇÃO DE ANO LETIVO")
+        logger.info(f"INICIANDO TRANSIÇÃO DE ANO LETIVO [{modo}]")
         logger.info(f"Ano origem: {self.ano_atual['ano_letivo']}")
         logger.info(f"Ano destino: {self.ano_novo['ano_letivo']}")
         logger.info(f"Escola ID: {self.escola_id}")
         logger.info("=" * 60)
         
+        # Contadores para auditoria
+        matriculas_encerradas = 0
+        alunos_promovidos = 0
+        alunos_retidos = 0
+        alunos_concluintes = 0
+        total_alunos = 0
+        
         try:
-            # Usar get_connection para garantir fechamento e controle de transação
+            # Carregar mapa de turmas para progressão
+            self._carregar_mapa_turmas()
+            
+            # Usar get_connection para controle de transação
             with get_connection() as conn:
                 cursor = conn.cursor(dictionary=True)
 
                 # Passo 1: Criar novo ano letivo
-                self.atualizar_status("Criando novo ano letivo...", 10)
+                self._atualizar_status_seguro("Criando novo ano letivo...", 10)
                 logger.info(f"[Passo 1] Criando ano letivo {self.ano_novo['ano_letivo']}")
-                cursor.execute("""
-                    INSERT INTO anosletivos (ano_letivo)
-                    VALUES (%s)
-                    ON DUPLICATE KEY UPDATE ano_letivo = ano_letivo
-                """, (self.ano_novo['ano_letivo'],))
-                conn.commit()
+                cursor.execute(QUERY_CRIAR_ANO_LETIVO, (self.ano_novo['ano_letivo'],))
+                if not dry_run:
+                    conn.commit()
                 logger.info(f"[Passo 1] ✓ Ano letivo {self.ano_novo['ano_letivo']} criado/verificado")
 
                 # Buscar ID do novo ano
@@ -700,148 +851,212 @@ class InterfaceTransicaoAnoLetivo:
                 logger.info(f"[Passo 1] Novo ano_letivo_id: {novo_ano_id}")
 
                 # Passo 2: Encerrar matrículas antigas
-                self.atualizar_status("Encerrando matrículas do ano anterior...", 30)
+                self._atualizar_status_seguro("Encerrando matrículas do ano anterior...", 30)
                 logger.info(f"[Passo 2] Encerrando matrículas do ano {self.ano_atual['ano_letivo']}")
-                cursor.execute("""
-                    UPDATE Matriculas
-                    SET status = 'Concluído'
-                    WHERE ano_letivo_id = %s
-                    AND status = 'Ativo'
-                """, (self.ano_atual['id'],))
+                cursor.execute(QUERY_ENCERRAR_MATRICULAS, (self.ano_atual['id'],))
                 matriculas_encerradas = cursor.rowcount
-                conn.commit()
+                if not dry_run:
+                    conn.commit()
                 logger.info(f"[Passo 2] ✓ {matriculas_encerradas} matrículas encerradas")
 
                 # Passo 3: Buscar alunos ativos para rematricular
-                self.atualizar_status("Buscando alunos para rematricular...", 50)
+                self._atualizar_status_seguro("Buscando alunos para rematricular...", 50)
                 logger.info("[Passo 3] Buscando alunos para rematricular")
 
-                # Buscar turmas do 9º ano
-                cursor.execute("""
-                    SELECT t.id
-                    FROM turmas t
-                    JOIN series s ON t.serie_id = s.id
-                    WHERE s.nome LIKE '9%%'
-                    AND t.escola_id = %s
-                """, (self.escola_id,))
-                _rows = cast(Any, cursor.fetchall())
-                turmas_9ano = [row['id'] for row in _rows]
+                # Buscar turmas do 9º ano usando query centralizada
+                turmas_9ano = QueriesTransicao.get_turmas_9ano(self.escola_id)
                 logger.info(f"[Passo 3] Turmas do 9º ano identificadas: {turmas_9ano}")
 
-                # Buscar alunos que NÃO são do 9º ano (esses vão para o próximo ano)
-                cursor.execute("""
-                    SELECT DISTINCT 
-                        a.id as aluno_id,
-                        m.turma_id
-                    FROM Alunos a
-                    JOIN Matriculas m ON a.id = m.aluno_id
-                    WHERE m.ano_letivo_id = %s
-                    AND m.status = 'Concluído'
-                    AND a.escola_id = %s
-                    AND m.turma_id NOT IN ({})
-                """.format(','.join(['%s'] * len(turmas_9ano)) if turmas_9ano else "0"), 
-                (self.ano_atual['id'], self.escola_id) + tuple(turmas_9ano) if turmas_9ano else (self.ano_atual['id'], self.escola_id))
-
-                alunos_normais = cast(Any, cursor.fetchall())
+                # Buscar alunos usando queries centralizadas
+                alunos_normais_raw, alunos_reprovados_raw = QueriesTransicao.get_alunos_para_rematricular(
+                    self.ano_atual['id'], 
+                    self.escola_id, 
+                    turmas_9ano
+                )
+                
+                # Converter para lista mutável
+                alunos_normais = [dict(a) for a in alunos_normais_raw] if alunos_normais_raw else []
+                alunos_reprovados = [dict(a) for a in alunos_reprovados_raw] if alunos_reprovados_raw else []
+                
                 logger.info(f"[Passo 3] Alunos normais (1º ao 8º): {len(alunos_normais)}")
-
-                # Buscar alunos REPROVADOS (média < 60) em todas as turmas
-                cursor.execute("""
-                    SELECT DISTINCT 
-                        a.id as aluno_id,
-                        m.turma_id,
-                        (
-                            COALESCE(AVG(CASE WHEN n.bimestre = '1º bimestre' THEN n.nota END), 0) +
-                            COALESCE(AVG(CASE WHEN n.bimestre = '2º bimestre' THEN n.nota END), 0) +
-                            COALESCE(AVG(CASE WHEN n.bimestre = '3º bimestre' THEN n.nota END), 0) +
-                            COALESCE(AVG(CASE WHEN n.bimestre = '4º bimestre' THEN n.nota END), 0)
-                        ) / 4 as media_final
-                    FROM Alunos a
-                    JOIN Matriculas m ON a.id = m.aluno_id
-                    LEFT JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = %s
-                    WHERE m.ano_letivo_id = %s
-                    AND m.status = 'Concluído'
-                    AND a.escola_id = %s
-                    GROUP BY a.id, m.turma_id
-                    HAVING media_final < 60 OR media_final IS NULL
-                """, (self.ano_atual['id'], self.ano_atual['id'], self.escola_id))
-
-                alunos_reprovados = cast(Any, cursor.fetchall())
                 logger.info(f"[Passo 3] Alunos reprovados: {len(alunos_reprovados)}")
-
-                # Combinar todos os alunos que serão rematriculados, evitando duplicatas
-                alunos_map = {}
+                
+                # IDs dos reprovados para marcação
+                ids_reprovados = {a['aluno_id'] for a in alunos_reprovados}
+                
+                # Combinar alunos, marcando reprovados
+                alunos_map: Dict[int, Dict] = {}
+                
                 for a in alunos_normais:
-                    alunos_map[int(a['aluno_id'])] = a
-
+                    aid = int(a['aluno_id'])
+                    a['reprovado'] = aid in ids_reprovados
+                    alunos_map[aid] = a
+                
                 for a in alunos_reprovados:
                     aid = int(a['aluno_id'])
                     if aid not in alunos_map:
+                        a['reprovado'] = True
                         alunos_map[aid] = a
 
                 alunos = list(alunos_map.values())
                 total_alunos = len(alunos)
                 logger.info(f"[Passo 3] ✓ Total de alunos a rematricular: {total_alunos}")
 
-                # Passo 4: Criar novas matrículas
-                self.atualizar_status(f"Criando {total_alunos} novas matrículas...", 60)
-                logger.info(f"[Passo 4] Criando {total_alunos} novas matrículas")
+                # Passo 4: Criar novas matrículas COM PROGRESSÃO DE SÉRIE
+                self._atualizar_status_seguro(f"Criando {total_alunos} novas matrículas...", 60)
+                logger.info(f"[Passo 4] Criando {total_alunos} novas matrículas com progressão de série")
 
                 for i, aluno in enumerate(alunos):
-                    cursor.execute("""
-                        INSERT INTO Matriculas (aluno_id, turma_id, ano_letivo_id, status)
-                        VALUES (%s, %s, %s, 'Ativo')
-                    """, (aluno['aluno_id'], aluno['turma_id'], novo_ano_id))
+                    turma_atual = aluno['turma_id']
+                    reprovado = aluno.get('reprovado', False)
+                    
+                    # Determinar turma de destino com progressão
+                    nova_turma = self.obter_proxima_turma(turma_atual, reprovado=reprovado)
+                    
+                    # Criar matrícula
+                    cursor.execute(QUERY_CRIAR_MATRICULA, (aluno['aluno_id'], nova_turma, novo_ano_id))
+                    
+                    # Contabilizar
+                    if reprovado:
+                        alunos_retidos += 1
+                    else:
+                        alunos_promovidos += 1
 
-                    # Atualizar progresso
-                    progresso = 60 + (i + 1) / total_alunos * 30
-                    self.progressbar['value'] = progresso
-                    self.janela.update()
+                    # Atualizar progresso (thread-safe)
+                    if total_alunos > 0:
+                        progresso = 60 + (i + 1) / total_alunos * 30
+                        self.janela.after(0, lambda p=progresso: setattr(self.progressbar, 'value', p))
 
-                conn.commit()
-                logger.info(f"[Passo 4] ✓ {total_alunos} matrículas criadas com sucesso")
+                # Contar alunos concluintes (9º ano aprovados)
+                alunos_concluintes = self.estatisticas.get('total_matriculas', 0) - total_alunos - self.estatisticas.get('alunos_excluir', 0)
+                if alunos_concluintes < 0:
+                    alunos_concluintes = 0
 
+                # Commit ou rollback baseado no modo
+                if dry_run:
+                    conn.rollback()
+                    logger.info("[DRY-RUN] Rollback executado - nenhuma alteração foi persistida")
+                else:
+                    conn.commit()
+                    logger.info(f"[Passo 4] ✓ {total_alunos} matrículas criadas com sucesso")
                 # Finalizar
-                self.atualizar_status("Transição concluída com sucesso!", 100)
+                self._atualizar_status_seguro("Transição concluída com sucesso!", 100)
 
                 cursor.close()
                 
                 # Log de resumo final
                 logger.info("=" * 60)
-                logger.info("TRANSIÇÃO CONCLUÍDA COM SUCESSO")
+                logger.info(f"TRANSIÇÃO CONCLUÍDA {'[DRY-RUN]' if dry_run else 'COM SUCESSO'}")
                 logger.info(f"Resumo:")
                 logger.info(f"  - Ano letivo criado: {self.ano_novo['ano_letivo']}")
                 logger.info(f"  - Matrículas encerradas: {matriculas_encerradas}")
                 logger.info(f"  - Novas matrículas: {total_alunos}")
-                logger.info(f"  - Alunos normais: {len(alunos_normais)}")
-                logger.info(f"  - Alunos reprovados: {len(alunos_reprovados)}")
+                logger.info(f"  - Alunos promovidos: {alunos_promovidos}")
+                logger.info(f"  - Alunos retidos: {alunos_retidos}")
+                logger.info(f"  - Alunos concluintes (9º ano): {alunos_concluintes}")
                 logger.info("=" * 60)
-
-                messagebox.showinfo(
-                    "✅ Sucesso!",
-                    f"Transição de ano letivo concluída com sucesso!\n\n"
-                    f"✓ Ano letivo {self.ano_novo['ano_letivo']} criado\n"
-                    f"✓ {matriculas_encerradas} matrículas encerradas\n"
-                    f"✓ {total_alunos} novas matrículas criadas\n"
-                    f"   • {len(alunos_normais)} alunos (1º ao 8º ano)\n"
-                    f"   • {len(alunos_reprovados)} alunos reprovados\n\n"
-                    f"ℹ️ Observação: Alunos do 9º ano aprovados não serão rematriculados\n"
-                    f"   (concluíram o ensino fundamental)\n\n"
-                    f"O sistema agora está configurado para o ano {self.ano_novo['ano_letivo']}.")
-
-                self.fechar()
+                
+                # Registrar auditoria
+                if not dry_run:
+                    self._registrar_auditoria(
+                        status='sucesso',
+                        matriculas_encerradas=matriculas_encerradas,
+                        matriculas_criadas=total_alunos,
+                        alunos_promovidos=alunos_promovidos,
+                        alunos_retidos=alunos_retidos,
+                        alunos_concluintes=alunos_concluintes,
+                        detalhes=json.dumps({
+                            'ano_origem': self.ano_atual['ano_letivo'],
+                            'ano_destino': self.ano_novo['ano_letivo'],
+                            'data': datetime.now().isoformat()
+                        })
+                    )
+                
+                # Calcular duração
+                duracao = time.time() - tempo_inicio
+                
+                # Gerar relatório PDF
+                caminho_pdf = None
+                if not dry_run:
+                    try:
+                        from relatorio_transicao import gerar_relatorio_transicao
+                        
+                        dados_relatorio = {
+                            'matriculas_encerradas': matriculas_encerradas,
+                            'matriculas_criadas': total_alunos,
+                            'alunos_promovidos': alunos_promovidos,
+                            'alunos_retidos': alunos_retidos,
+                            'alunos_concluintes': alunos_concluintes,
+                            'status': 'sucesso',
+                            'duracao_segundos': duracao
+                        }
+                        
+                        caminho_pdf = gerar_relatorio_transicao(
+                            ano_origem=self.ano_atual['ano_letivo'],
+                            ano_destino=self.ano_novo['ano_letivo'],
+                            dados=dados_relatorio,
+                            escola_id=self.escola_id,
+                            abrir=False  # Abriremos após a mensagem
+                        )
+                        
+                        if caminho_pdf:
+                            logger.info(f"Relatório PDF gerado: {caminho_pdf}")
+                    except Exception as e:
+                        logger.warning(f"Erro ao gerar relatório PDF (não crítico): {e}")
+                
+                # Mostrar mensagem de sucesso
+                msg_modo = "\n\n🔍 MODO DRY-RUN: Nenhuma alteração foi feita no banco." if dry_run else ""
+                msg_pdf = f"\n\n📄 Relatório PDF gerado com sucesso!" if caminho_pdf else ""
+                
+                def mostrar_sucesso():
+                    messagebox.showinfo(
+                        "✅ Sucesso!",
+                        f"Transição de ano letivo concluída com sucesso!\n\n"
+                        f"✓ Ano letivo {self.ano_novo['ano_letivo']} criado\n"
+                        f"✓ {matriculas_encerradas} matrículas encerradas\n"
+                        f"✓ {total_alunos} novas matrículas criadas\n"
+                        f"   • {alunos_promovidos} alunos promovidos\n"
+                        f"   • {alunos_retidos} alunos retidos (reprovados)\n\n"
+                        f"ℹ️ {alunos_concluintes} alunos do 9º ano concluíram o ensino fundamental"
+                        f"{msg_modo}{msg_pdf}\n\n"
+                        f"O sistema agora está configurado para o ano {self.ano_novo['ano_letivo']}."
+                    )
+                    
+                    # Abrir PDF após a mensagem
+                    if caminho_pdf and not dry_run:
+                        try:
+                            import platform
+                            import os as os_mod
+                            sistema = platform.system()
+                            if sistema == 'Windows':
+                                os_mod.startfile(caminho_pdf)
+                            elif sistema == 'Darwin':
+                                os_mod.system(f'open "{caminho_pdf}"')
+                            else:
+                                os_mod.system(f'xdg-open "{caminho_pdf}"')
+                        except Exception:
+                            pass
+                    
+                    if not dry_run:
+                        self.fechar()
+                
+                self.janela.after(0, mostrar_sucesso)
 
         except Exception as e:
             logger.exception(f"ERRO na transição de ano letivo: {e}")
-            try:
-                if 'conn' in locals() and conn:
-                    conn.rollback()
-                    logger.info("Rollback executado devido ao erro")
-            except Exception:
-                pass
-            messagebox.showerror("Erro", f"Erro ao executar transição:\n{str(e)}")
-            self.btn_simular.config(state=NORMAL)
-            self.btn_executar.config(state=NORMAL)
+            
+            # Registrar erro na auditoria
+            self._registrar_auditoria(
+                status='erro',
+                matriculas_encerradas=matriculas_encerradas,
+                matriculas_criadas=0,
+                alunos_promovidos=0,
+                alunos_retidos=0,
+                alunos_concluintes=0,
+                detalhes=str(e)
+            )
+            
+            self.janela.after(0, lambda: self._mostrar_erro(str(e)))
     
     def atualizar_status(self, mensagem, valor):
         """Atualiza o status e a barra de progresso"""

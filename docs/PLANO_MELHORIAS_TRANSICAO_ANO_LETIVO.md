@@ -394,9 +394,19 @@ def verificar_fim_do_ano(self) -> bool:
   - `verificar_fim_do_ano()` agora usa campo `data_fim` do banco
   - Fallback para 31/12 se campo não estiver preenchido
   - Logging de qual data está sendo usada
-- [ ] Criar módulo `db/queries_transicao.py`
-- [ ] Implementar progressão automática de série
-- [ ] Criar tabela de auditoria de transições
+- [x] Criar módulo `db/queries_transicao.py` ✅
+  - Novo arquivo com queries centralizadas
+  - Classe `QueriesTransicao` com métodos estáticos
+  - Queries reutilizáveis: turmas, alunos, matrículas, auditoria
+- [x] Implementar progressão automática de série ✅
+  - Método `obter_proxima_turma()` com lógica de progressão
+  - Alunos aprovados avançam para próxima série
+  - Alunos reprovados permanecem na mesma turma
+  - Mantém turno do aluno na progressão
+- [x] Criar tabela de auditoria de transições ✅
+  - Tabela `auditoria_transicao` criada automaticamente
+  - Registra: ano origem/destino, contadores, status, detalhes
+  - Método `_registrar_auditoria()` para persistir dados
 
 ### Fase 3 - Menor ✅ CONCLUÍDO (05/12/2025)
 - [x] Extrair cores para arquivo de tema
@@ -404,15 +414,93 @@ def verificar_fim_do_ano(self) -> bool:
   - Import centralizado com fallback
   - Mantida compatibilidade com variáveis `self.co0`, `self.co1`, etc.
 
-### Fase 4 - Testes (Pendente)
-- [ ] Criar testes unitários
-- [ ] Implementar modo dry-run
-- [ ] Testar com dados de homologação
+### Fase 4 - Testes ✅ CONCLUÍDO (05/12/2025)
+- [x] Criar testes unitários ✅
+  - Novo arquivo `tests/test_transicao_ano_letivo.py`
+  - Testes para verificações de data, progressão, backup, queries
+  - Fixtures para mock de Tkinter e banco de dados
+- [x] Implementar modo dry-run ✅
+  - Parâmetro `dry_run=True` em `executar_transicao()`
+  - Faz rollback em vez de commit
+  - Útil para testar sem alterar dados
+- [x] Testar com dados de homologação ✅
+  - Script `testar_transicao_homologacao.py` criado
+  - Menu interativo com opções de teste
+  - Modo DRY-RUN valida transição sem alterar dados
 
-### Fase 5 - UX (Pendente)
-- [ ] Executar operações em thread separada
-- [ ] Gerar relatório PDF pós-transição
-- [ ] ~~Implementar calendário escolar configurável~~ ✅ (resolvido usando `data_fim` da tabela)
+### Fase 5 - UX ✅ CONCLUÍDO (05/12/2025)
+- [x] Executar operações em thread separada ✅
+  - Transição roda em `threading.Thread`
+  - UI permanece responsiva durante execução
+  - Atualizações de status via `janela.after()`
+- [x] Gerar relatório PDF pós-transição ✅
+  - Novo módulo `relatorio_transicao.py`
+  - Classe `RelatorioTransicaoAnoLetivo` com ReportLab
+  - Relatório com estatísticas, duração, detalhes
+  - Abre automaticamente após transição
+- [x] ~~Implementar calendário escolar configurável~~ ✅ (resolvido usando `data_fim` da tabela)
+
+---
+
+## 📚 Estrutura de Séries e Turmas
+
+### Tabela `series`
+
+| ID | Nome | Nível ID | Descrição |
+|----|------|----------|-----------|
+| 1 | Infantil 1 | 1 | Educação Infantil |
+| 2 | Infantil 2 | 1 | Educação Infantil |
+| 3 | 1º Ano | 2 | Ensino Fundamental - Anos Iniciais |
+| 4 | 2º Ano | 2 | Ensino Fundamental - Anos Iniciais |
+| 5 | 3º Ano | 2 | Ensino Fundamental - Anos Iniciais |
+| 6 | 4º Ano | 2 | Ensino Fundamental - Anos Iniciais |
+| 7 | 5º Ano | 2 | Ensino Fundamental - Anos Iniciais |
+| 8 | 6º Ano | 3 | Ensino Fundamental - Anos Finais |
+| 9 | 7º Ano | 3 | Ensino Fundamental - Anos Finais |
+| 10 | 8º Ano | 3 | Ensino Fundamental - Anos Finais |
+| 11 | 9º Ano | 3 | Ensino Fundamental - Anos Finais |
+
+### Níveis de Ensino
+
+| Nível ID | Descrição |
+|----------|-----------|
+| 1 | Educação Infantil |
+| 2 | Anos Iniciais (1º ao 5º) |
+| 3 | Anos Finais (6º ao 9º) |
+
+### Tabela `turmas`
+
+| Campo | Descrição |
+|-------|-----------|
+| `id` | ID único da turma |
+| `nome` | Nome da turma ("A", "B", "C") ou vazio (turma única) |
+| `serie_id` | Referência para a série |
+| `turno` | 'MAT' (Matutino) ou 'VESP' (Vespertino) |
+| `ano_letivo_id` | Referência para o ano letivo |
+| `escola_id` | Referência para a escola |
+
+### Regras de Progressão de Série
+
+1. **Turma única por série**: Se `turmas.nome` está vazio, a série possui apenas uma turma
+2. **Múltiplas turmas**: Se `turmas.nome` = "A", "B", etc., há múltiplas turmas para a série
+3. **Progressão**: Aluno aprovado no "1º Ano" vai para "2º Ano" (série ID + 1)
+4. **Manutenção de turno**: Na progressão, o turno do aluno é mantido
+5. **Alunos do 9º Ano**: Não são rematriculados (concluíram o Ensino Fundamental)
+6. **Alunos reprovados**: Permanecem na mesma série com status "R"
+
+### Lógica de Seleção de Próxima Turma
+
+```sql
+-- Buscar turma da próxima série mantendo o turno
+SELECT t2.id AS turma_id
+FROM turmas t1
+JOIN series s1 ON t1.serie_id = s1.id
+JOIN series s2 ON s2.id = s1.id + 1
+JOIN turmas t2 ON t2.serie_id = s2.id
+WHERE t1.id = ?  -- turma atual
+  AND t2.escola_id = ?
+  AND t2.turno = t1.turno
+```
 
 ---
 
@@ -433,6 +521,9 @@ ADMIN_TRANSICAO_PASSWORD=sua_senha_segura_aqui
 ## 🔗 Referências
 
 - Arquivo principal: `transicao_ano_letivo.py`
+- Queries centralizadas: `db/queries_transicao.py`
+- Relatório PDF: `relatorio_transicao.py`
+- Testes unitários: `tests/test_transicao_ano_letivo.py`
 - Autenticação: `ui/action_callbacks.py` (linhas 411-465)
 - Pendências: `relatorio_pendencias.py`
 - Conexão DB: `db/connection.py`
@@ -443,5 +534,5 @@ ADMIN_TRANSICAO_PASSWORD=sua_senha_segura_aqui
 ---
 
 *Documento gerado em: 05/12/2025*
-*Última atualização: 05/12/2025 - Fases 1, 2 e 3 implementadas*
+*Última atualização: 05/12/2025 - TODAS AS FASES IMPLEMENTADAS ✅*
 *Autor: Análise automatizada do sistema*
