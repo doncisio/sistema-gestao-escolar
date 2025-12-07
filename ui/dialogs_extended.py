@@ -23,7 +23,16 @@ def abrir_dialogo_folhas_ponto(janela_pai, status_label=None):
         status_label: Label para mostrar status da operação (opcional)
     """
     from utils.dates import nome_mes_pt
-    from preencher_folha_ponto import gerar_folhas_de_ponto
+    # Preferir usar a função centralizada em gerar_folha_ponto, se disponível
+    try:
+        from gerar_folha_ponto import gerar_folhas_para_escola
+        _use_gerar_folhas_para_escola = True
+    except Exception:
+        try:
+            from preencher_folha_ponto import gerar_folhas_de_ponto
+            _use_gerar_folhas_para_escola = False
+        except Exception:
+            raise
     from ui.colors import COLORS
     
     # Importar _run_report_in_background do main.py onde está definida
@@ -92,7 +101,18 @@ def abrir_dialogo_folhas_ponto(janela_pai, status_label=None):
 
             def _worker():
                 # Executa a geração em background e retorna o caminho de saída
-                gerar_folhas_de_ponto(base_pdf, saida, mes_referencia=mes, ano_referencia=ano)
+                # Importar dinamicamente aqui para evitar problemas de escopo e closures
+                try:
+                    from gerar_folha_ponto import gerar_folhas_para_escola
+                    gerar_folhas_para_escola(60, mes=mes, ano=ano, output_path=saida)
+                except Exception:
+                    # Fallback: tentar usar a implementação antiga
+                    try:
+                        from preencher_folha_ponto import gerar_folhas_de_ponto
+                        gerar_folhas_de_ponto(base_pdf, saida, mes_referencia=mes, ano_referencia=ano)
+                    except Exception as e:
+                        # Propagar exceção para ser capturada pelo agendador
+                        raise
                 return saida
 
             try:

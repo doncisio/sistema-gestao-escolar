@@ -12,6 +12,7 @@ from typing import Optional, Callable, Dict, Any
 from config_logs import get_logger
 from config import perfis_habilitados, get_icon_path
 from auth.decorators import ControleAcesso
+from datetime import datetime
 
 logger = get_logger(__name__)
 
@@ -1003,6 +1004,7 @@ class ButtonFactory:
     def _abrir_dialogo_folhas_ponto(self):
         """Wrapper para abrir diálogo de folhas de ponto"""
         try:
+            # Abrir o diálogo que permite escolher mês e pasta de saída (com implementação adaptada)
             from ui.dialogs_extended import abrir_dialogo_folhas_ponto
             abrir_dialogo_folhas_ponto(self.janela)
         except Exception as e:
