@@ -863,7 +863,11 @@ Status: {questao.status.value if questao.status else ''}"""
         
         # Habilitar scroll com roda do mouse
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            try:
+                if canvas.winfo_exists():
+                    canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            except tk.TclError:
+                pass  # Canvas foi destruído, ignorar evento
         
         canvas.bind_all("<MouseWheel>", _on_mousewheel)
         

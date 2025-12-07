@@ -256,26 +256,50 @@ class PreenchimentoAutomaticoNotas:
                 logger.info("✗ Nenhum dado para preencher")
                 return None
             
-            # Verificar se a interface tem as entradas de notas carregadas
-            if not hasattr(self.interface, 'entradas_notas') or not self.interface.entradas_notas:
-                logger.info("✗ Interface não tem entradas de notas carregadas")
-                return None
+            # Verificar se a interface tem os dados de alunos carregados
+            # A interface pode usar entradas_notas (antigo) ou notas_dict + tabela (novo)
+            usa_editor_unico = getattr(self.interface, '_usar_editor_unico', False)
+            
+            if usa_editor_unico:
+                # Nova interface com editor único e Treeview
+                if not hasattr(self.interface, 'notas_dict') or not hasattr(self.interface, 'tabela'):
+                    logger.info("✗ Interface não tem notas_dict ou tabela carregados")
+                    return None
+                if not hasattr(self.interface, 'alunos') or not self.interface.alunos:
+                    logger.info("✗ Interface não tem lista de alunos carregada")
+                    return None
+            else:
+                # Interface antiga com entradas individuais
+                if not hasattr(self.interface, 'entradas_notas') or not self.interface.entradas_notas:
+                    logger.info("✗ Interface não tem entradas de notas carregadas")
+                    return None
             
             # Mapear alunos da interface (ID -> nome normalizado)
             alunos_interface = {}
-            for aluno_id, entrada in self.interface.entradas_notas.items():
-                # Obter nome do aluno na interface
-                # O nome está armazenado na tabela
+            
+            if usa_editor_unico:
+                # Nova interface: usar self.interface.alunos
                 for aluno_info in self.interface.alunos:
-                    if aluno_info[0] == aluno_id:
-                        nome_original = aluno_info[1]
-                        nome_normalizado = self.normalizar_nome(nome_original)
-                        alunos_interface[aluno_id] = {
-                            'nome_original': nome_original,
-                            'nome_normalizado': nome_normalizado,
-                            'entrada': entrada
-                        }
-                        break
+                    aluno_id = aluno_info[0]
+                    nome_original = aluno_info[1]
+                    nome_normalizado = self.normalizar_nome(nome_original)
+                    alunos_interface[aluno_id] = {
+                        'nome_original': nome_original,
+                        'nome_normalizado': nome_normalizado
+                    }
+            else:
+                # Interface antiga: usar entradas_notas
+                for aluno_id, entrada in self.interface.entradas_notas.items():
+                    for aluno_info in self.interface.alunos:
+                        if aluno_info[0] == aluno_id:
+                            nome_original = aluno_info[1]
+                            nome_normalizado = self.normalizar_nome(nome_original)
+                            alunos_interface[aluno_id] = {
+                                'nome_original': nome_original,
+                                'nome_normalizado': nome_normalizado,
+                                'entrada': entrada
+                            }
+                            break
             
             # Preencher notas fazendo correspondência por nome normalizado
             preenchidos = 0
@@ -299,11 +323,18 @@ class PreenchimentoAutomaticoNotas:
                 for aluno_id, info in alunos_interface.items():
                     if info['nome_normalizado'] == nome_geduc:
                         # Encontrou correspondência - preencher nota
-                        entrada = info['entrada']
-                        
-                        # Limpar e preencher com nota convertida
-                        entrada.delete(0, tk.END)
-                        entrada.insert(0, str(nota_interface))
+                        if usa_editor_unico:
+                            # Nova interface: atualizar notas_dict e Treeview
+                            nota_str = str(nota_interface)
+                            self.interface.notas_dict[aluno_id] = nota_str
+                            
+                            # Atualizar a célula na Treeview
+                            self._atualizar_treeview_nota(aluno_id, nota_str)
+                        else:
+                            # Interface antiga: usar Entry
+                            entrada = info['entrada']
+                            entrada.delete(0, tk.END)
+                            entrada.insert(0, str(nota_interface))
                         
                         preenchidos += 1
                         encontrado = True
@@ -347,6 +378,36 @@ class PreenchimentoAutomaticoNotas:
             import traceback
             traceback.print_exc()
             return None
+    
+    def _atualizar_treeview_nota(self, aluno_id, nota_str):
+        """
+        Atualiza a célula de nota no Treeview para um aluno específico
+        
+        Args:
+            aluno_id: ID do aluno
+            nota_str: Nota como string
+        """
+        try:
+            if not hasattr(self.interface, 'tabela') or not self.interface.tabela:
+                return
+            
+            # Encontrar o item na Treeview pelo ID do aluno
+            for item in self.interface.tabela.get_children():
+                valores = self.interface.tabela.item(item, 'values')
+                # O número do aluno está na primeira coluna
+                num = valores[0]
+                
+                # Verificar se este item corresponde ao aluno
+                if hasattr(self.interface, 'num_para_id'):
+                    item_aluno_id = self.interface.num_para_id.get(int(num))
+                    if item_aluno_id == aluno_id:
+                        # Atualizar a coluna de nota (índice 2)
+                        novos_valores = list(valores)
+                        novos_valores[2] = nota_str
+                        self.interface.tabela.item(item, values=tuple(novos_valores))
+                        return
+        except Exception as e:
+            logger.error(f"Erro ao atualizar Treeview: {e}")
     
     def processar_pagina_notas(self):
         """
