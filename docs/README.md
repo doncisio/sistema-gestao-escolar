@@ -4,8 +4,11 @@ Sistema completo de gestão escolar desenvolvido em Python com interface Tkinter
 
 [![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-95%20passing-brightgreen.svg)](tests/)
-[![Coverage](https://img.shields.io/badge/coverage-80%25-yellow.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-59%20files-brightgreen.svg)](tests/)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](MELHORIAS_IMPLEMENTADAS.md)
+
+> **Última atualização**: Dezembro 2025 - v2.0.0  
+> **Status**: Sistema refatorado com configuração centralizada e observabilidade aprimorada
 
 ## 📋 Índice
 
@@ -54,14 +57,49 @@ Sistema completo de gestão escolar desenvolvido em Python com interface Tkinter
 - 📊 Gráficos e visualizações
 
 ### Recursos Avançados
-- 🔒 Sistema de autenticação e permissões
-- 💾 Backup automático do banco de dados
+- 🔒 Sistema de autenticação e permissões por perfil
+- 💾 Backup automático configurável (habilitável via .env)
 - 🚀 Cache inteligente (reduz 40-60% das queries)
 - ✅ Validação de dados com Pydantic V2
-- 📝 Logs estruturados (JSON + texto)
+- 📝 Logs estruturados (JSON + texto configurável)
 - 🎛️ Feature flags para controle de funcionalidades
-- 🔍 Type hints completos com validação mypy
-- 🧪 95+ testes automatizados
+- 🔍 Type hints completos
+- 🧪 59 arquivos de teste automatizados
+- ⚙️ Configuração centralizada com validação
+- 🏥 Health checks de banco e pool de conexões
+
+## 🆕 Novidades v2.0.0 (Dezembro 2025)
+
+### Configuração Centralizada
+- ✨ Novo módulo `config/settings.py` com validação completa
+- ✨ Arquivo `.env.example` com documentação de variáveis
+- ✨ `requirements.txt` atualizado e organizado
+- ✨ Suporte a `GESTAO_TEST_MODE` via ambiente
+
+### Robustez e Confiabilidade
+- 🔧 Validação de variáveis DB_* na inicialização
+- 🔧 Health check antes de criar pool de conexões
+- 🔧 Mensagens de erro claras e específicas
+- 🔧 Fallbacks seguros em caso de falha
+
+### Backup Inteligente
+- 💾 Sistema de backup opcional via configuração
+- 💾 Prevenção de agendamentos duplicados
+- 💾 Erros não bloqueiam fechamento da aplicação
+- 💾 Controle via `BACKUP_ENABLED` no .env
+
+### Observabilidade
+- 📊 Logs em formato JSON ou texto (configurável)
+- 📊 Nível de log configurável (DEBUG, INFO, WARNING, etc)
+- 📊 Log de versão e ambiente na inicialização
+- 📊 Informações de health do sistema
+
+### IDs Dinâmicos
+- 🔢 ID da escola configurável via `ESCOLA_ID` no .env
+- 🔢 Substituição de valores fixos por configuração
+- 🔢 Fallbacks para garantir compatibilidade
+
+**Ver detalhes completos**: [MELHORIAS_IMPLEMENTADAS.md](../MELHORIAS_IMPLEMENTADAS.md)
 
 ## 🛠️ Tecnologias
 
@@ -134,11 +172,13 @@ copy .env.example .env  # Windows
 cp .env.example .env    # Linux/Mac
 
 # Edite o arquivo .env com suas credenciais
+# IMPORTANTE: Configure DB_HOST, DB_USER, DB_PASSWORD, DB_NAME
 ```
 
-6. **Execute as migrations** (opcional, se disponível)
+6. **Valide a configuração** (opcional mas recomendado)
 ```bash
-alembic upgrade head
+# Testa se as configurações estão corretas
+python -c "from config.settings import validate_settings; validate_settings(); print('✓ Configuração válida!')"
 ```
 
 7. **Inicie o sistema**
@@ -148,28 +188,59 @@ python main.py
 
 ## ⚙️ Configuração
 
-### Arquivo `.env`
+### Arquivo `.env` (v2.0+)
 ```ini
-# Banco de Dados
+# Configurações do Banco de Dados MySQL (OBRIGATÓRIO)
 DB_HOST=localhost
 DB_USER=root
-DB_PASSWORD=sua_senha
+DB_PASSWORD=sua_senha_aqui
 DB_NAME=redeescola
-DB_PORT=3306
+DB_POOL_SIZE=5
 
-# Aplicação
-SCHOOL_ID=60
-GESTAO_TEST_MODE=false
+# ID da Escola Principal (usado na aplicação)
+ESCOLA_ID=60
 
-# Backup
-BACKUP_ENABLED=true
-BACKUP_LOCAL_PATH=backup_redeescola.sql
-BACKUP_DRIVE_PATH=/Backups/
+# Modo de Teste (False = produção, True = teste - desabilita backups)
+GESTAO_TEST_MODE=False
 
-# Feature Flags (opcional)
-FEATURE_CACHE_ENABLED=true
-FEATURE_JSON_LOGS=true
-FEATURE_DASHBOARD_AVANCADO=true
+# Configurações de Log
+LOG_LEVEL=INFO              # DEBUG, INFO, WARNING, ERROR, CRITICAL
+LOG_FORMAT=text             # text ou json
+
+# Configurações de Backup (opcional)
+BACKUP_ENABLED=True
+BACKUP_INTERVAL_HOURS=24
+
+# Credenciais do Google Drive (caminho do arquivo JSON)
+GOOGLE_CREDENTIALS_PATH=credentials.json
+```
+
+### Validação de Configuração
+
+O sistema valida automaticamente as configurações na inicialização:
+
+```python
+from config.settings import settings, validate_settings
+
+# Validar (lança exceção se houver erro)
+validate_settings()
+
+# Acessar configurações
+print(settings.get_summary())
+```
+
+**Saída na inicialização:**
+```
+======================================================================
+Sistema de Gestão Escolar v2.0.0
+======================================================================
+Ambiente: PRODUÇÃO
+Banco: localhost/redeescola
+Escola ID: 60
+Backup automático: HABILITADO
+Log Level: INFO
+Log Format: text
+======================================================================
 ```
 
 ### Arquivo `feature_flags.json`

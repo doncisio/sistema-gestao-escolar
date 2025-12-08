@@ -7,6 +7,12 @@ import time
 from datetime import datetime
 from config_logs import get_logger
 
+# Importar settings centralizado
+try:
+    from config.settings import settings
+except ImportError:
+    settings = None
+
 logger = get_logger(__name__)
 
 # Carregar variáveis de ambiente do arquivo .env
@@ -15,6 +21,7 @@ load_dotenv()
 # Variável global para controlar o thread de backup
 _backup_thread = None
 _backup_running = False
+_backup_initialized = False  # Flag para evitar inicialização duplicada
 
 def fazer_backup():
     r"""
@@ -282,8 +289,20 @@ def iniciar_backup_automatico():
     """
     Inicia o sistema de backup automático em uma thread separada.
     Esta função deve ser chamada no main.py após a inicialização da interface.
+    
+    IMPORTANTE: Previne inicialização duplicada usando flag global _backup_initialized.
     """
-    global _backup_thread, _backup_running
+    global _backup_thread, _backup_running, _backup_initialized
+    
+    # Verificar se backup está habilitado via configuração
+    if settings and not settings.backup.enabled:
+        logger.info("Sistema de backup automático desabilitado via configuração")
+        return
+    
+    # Prevenir inicialização duplicada
+    if _backup_initialized:
+        logger.warning("Sistema de backup automático já foi inicializado anteriormente. Ignorando chamada duplicada.")
+        return
     
     if _backup_thread is not None and _backup_thread.is_alive():
         logger.warning("Sistema de backup automático já está em execução.")
@@ -295,6 +314,10 @@ def iniciar_backup_automatico():
     # Iniciar a thread do agendador
     _backup_thread = threading.Thread(target=executar_agendador, daemon=True)
     _backup_thread.start()
+    
+    # Marcar como inicializado
+    _backup_initialized = True
+    logger.info("✓ Sistema de backup automático iniciado com sucesso")
 
 
 def parar_backup_automatico(executar_backup_final=True):
@@ -303,20 +326,30 @@ def parar_backup_automatico(executar_backup_final=True):
     
     :param executar_backup_final: Se True, executa um backup final antes de encerrar.
     """
-    global _backup_running
+    global _backup_running, _backup_initialized
+    
+    # Verificar se backup está habilitado
+    if settings and not settings.backup.enabled:
+        logger.debug("Sistema de backup desabilitado - nada a parar")
+        return
     
     if executar_backup_final and _backup_running:
-        logger.info("\n" + "="*70)
-        logger.info("Executando backup final antes de encerrar o sistema...")
-        logger.info("="*70)
-        resultado = fazer_backup()
-        if resultado:
-            logger.info("[%s] Backup final concluído com sucesso!", datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
-        else:
-            logger.warning("[%s] Falha no backup final.", datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
-        logger.info("="*70 + "\n")
+        try:
+            logger.info("\n" + "="*70)
+            logger.info("Executando backup final antes de encerrar o sistema...")
+            logger.info("="*70)
+            resultado = fazer_backup()
+            if resultado:
+                logger.info("[%s] Backup final concluído com sucesso!", datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
+            else:
+                logger.warning("[%s] Falha no backup final.", datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
+            logger.info("="*70 + "\n")
+        except Exception as e:
+            logger.error(f"Erro ao executar backup final: {e}")
+            # Não propagar o erro - permitir que o sistema feche normalmente
     
     _backup_running = False
+    _backup_initialized = False
     schedule.clear()
     logger.info("\nSistema de backup automático encerrado.")
 

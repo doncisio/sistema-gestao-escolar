@@ -15,6 +15,12 @@ from config_logs import get_logger
 from config import get_icon_path
 from conexao import inicializar_pool, fechar_pool
 from db.connection import get_connection
+
+# Importar settings centralizado
+try:
+    from config.settings import settings
+except ImportError:
+    settings = None
 from ui.dashboard import DashboardManager
 from ui.table import TableManager
 from ui.action_callbacks import ActionCallbacksManager
@@ -64,6 +70,7 @@ class Application:
         self.query: Optional[str] = None
         self.status_label: Optional[Any] = None
         self.label_rodape: Optional[Any] = None
+        self.readonly_mode: bool = False  # Flag para modo somente leitura
         
         # Managers
         self.dashboard_manager: Optional[DashboardManager] = None
@@ -128,15 +135,18 @@ class Application:
     
     def _get_school_name(self) -> str:
         """
-        Obtém o nome da escola do banco de dados.
+        Obtém o nome da escola do banco de dados com modo degradado.
         
         Returns:
             str: Nome da escola ou "Escola" como fallback
         """
         try:
+            # Obter ID da escola da configuração
+            escola_id = settings.app.escola_id if settings else 60
+            
             with get_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT nome FROM Escolas WHERE id = %s", (60,))
+                cursor.execute("SELECT nome FROM Escolas WHERE id = %s", (escola_id,))
                 result = cursor.fetchone()
                 
                 if result and result[0]:
@@ -145,6 +155,23 @@ class Application:
                 cursor.close()
         except Exception as e:
             logger.warning(f"Erro ao obter nome da escola: {e}")
+            logger.info("Sistema será iniciado em modo somente leitura")
+            
+            # Ativar modo somente leitura
+            self.readonly_mode = True
+            
+            # Exibir aviso visual na UI (após janela estar pronta)
+            if hasattr(self, 'janela') and self.janela:
+                try:
+                    import tkinter.messagebox as mb
+                    self.janela.after(100, lambda: mb.showwarning(
+                        "Modo Somente Leitura",
+                        "Não foi possível conectar ao banco de dados.\n\n"
+                        "O sistema será iniciado em modo somente leitura.\n"
+                        "Funções de edição estarão desabilitadas."
+                    ))
+                except Exception:
+                    pass  # Evitar erro se tkinter não estiver pronto
         
         return "Escola"
     
@@ -407,12 +434,13 @@ class Application:
             cache_estatisticas = {'timestamp': None, 'dados': None}
             
             # Criar DashboardManager
+            escola_id = settings.app.escola_id if settings else 60
             self.dashboard_manager = DashboardManager(
                 janela=self.janela,
                 db_service=db_service,
                 frame_getter=frame_getter,
                 cache_ref=cache_estatisticas,
-                escola_id=60,  # ID da escola
+                escola_id=escola_id,
                 co_bg=self.colors['co1'],
                 co_fg=self.colors['co0'],
                 co_accent=self.colors['co4']
@@ -617,6 +645,39 @@ class Application:
         self.janela.destroy()
         logger.debug("Aplicação encerrada")
     
+    def _enable_readonly_mode(self):
+        """
+        Ativa o modo somente leitura, desabilitando botões de edição.
+        """
+        try:
+            # Desabilitar botões de edição via ButtonFactory
+            if self.button_factory:
+                # Obter referência aos botões do ButtonFactory
+                botoes_frame = self.frames.get('frame_dados')
+                if botoes_frame:
+                    for widget in botoes_frame.winfo_children():
+                        # Desabilitar botões que não sejam de consulta
+                        if hasattr(widget, 'configure'):
+                            text = widget.cget('text') if hasattr(widget, 'cget') else ''
+                            # Manter apenas botões de visualização/consulta
+                            if any(palavra in text.lower() for palavra in ['adicionar', 'editar', 'excluir', 'novo', 'cadastrar']):
+                                widget.configure(state='disabled')
+            
+            # Desabilitar menus de edição
+            if self.menu_manager:
+                # Implementar desabilitação de itens de menu se necessário
+                pass
+            
+            # Atualizar título da janela
+            if self.janela:
+                titulo_atual = self.janela.title()
+                self.janela.title(f"{titulo_atual} [SOMENTE LEITURA]")
+            
+            logger.info("✓ Modo somente leitura ativado - funções de edição desabilitadas")
+            
+        except Exception as e:
+            logger.error(f"Erro ao ativar modo somente leitura: {e}")
+    
     def setup_backup(self, test_mode: bool = False):
         """
         Configura e inicia o sistema de backup automático.
@@ -624,17 +685,32 @@ class Application:
         Args:
             test_mode: Se True, não inicia o backup automático
         """
-        if test_mode:
+        # Verificar modo de teste via parâmetro ou settings
+        is_test_mode = test_mode
+        if settings and settings.app.test_mode:
+            is_test_mode = True
+        
+        # Verificar se backup está habilitado via settings
+        backup_enabled = True
+        if settings:
+            backup_enabled = settings.backup.enabled
+        
+        if is_test_mode:
             logger.warning("⚠️ SISTEMA EM MODO DE TESTE - Backups automáticos desabilitados")
+            return
+        
+        if not backup_enabled:
+            logger.info("ℹ️ Sistema de backup desabilitado via configuração")
             return
         
         try:
             import Seguranca
             logger.debug("Iniciando sistema de backup automático...")
             Seguranca.iniciar_backup_automatico()
-            logger.debug("Sistema de backup iniciado (14:05 e 17:00)")
+            logger.debug("✓ Sistema de backup iniciado")
         except Exception as e:
             logger.error(f"Erro ao iniciar backup automático: {e}")
+            # Não propagar erro - permitir que aplicação continue sem backup
     
     def on_close_with_backup(self, test_mode: bool = False):
         """
@@ -643,17 +719,23 @@ class Application:
         Args:
             test_mode: Se True, não executa backup final
         """
-        try:
-            # Parar o sistema de backup automático e executar backup final
-            if not test_mode:
+        # Verificar modo de teste via parâmetro ou settings
+        is_test_mode = test_mode
+        if settings and settings.app.test_mode:
+            is_test_mode = True
+        
+        # Parar o sistema de backup automático e executar backup final
+        if not is_test_mode:
+            try:
                 import Seguranca
                 logger.info("Executando backup final antes de fechar...")
                 Seguranca.parar_backup_automatico(executar_backup_final=True)
-        except Exception as e:
-            logger.error(f"Erro ao executar backup final: {e}")
-        finally:
-            # Chamar o handler padrão de fechamento
-            self.on_close()
+            except Exception as e:
+                logger.error(f"Erro ao executar backup final: {e}")
+                # Não bloquear o fechamento por causa de erro no backup
+        
+        # Chamar o handler padrão de fechamento
+        self.on_close()
     
     def initialize(self):
         """
@@ -717,6 +799,11 @@ class Application:
         # 9. Configurar menu contextual
         logger.debug("Configurando menu contextual...")
         self.setup_context_menu(editar_callback=self._editar_callback)
+        
+        # 10. Aplicar modo somente leitura se necessário
+        if self.readonly_mode:
+            logger.info("Aplicando modo somente leitura...")
+            self._enable_readonly_mode()
         
         # Mensagem de sucesso (resumida)
         logger.info("Sistema inicializado com sucesso")

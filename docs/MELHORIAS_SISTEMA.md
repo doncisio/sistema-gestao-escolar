@@ -1,103 +1,144 @@
 # 🚀 Plano de Melhorias - Sistema de Gestão Escolar
 
-**Data da Análise**: 20 de novembro de 2025  
-**Versão Atual**: Sprint 15 (84% concluído)  
-**Autor**: Análise Automatizada
+**Data da Análise**: 8 de dezembro de 2025  
+**Versão Atual**: v2.0.0 (Prioridades 0-2 semanas concluídas)  
+**Autor**: Análise Automatizada + Melhorias Implementadas
 
 ---
 
 ## 📊 Resumo Executivo
 
 ### Estado Atual do Sistema
-- **Linhas no main.py**: 4.476 linhas (meta: <500)
-- **Progresso de refatoração**: 84%
-- **Módulos criados**: 28 módulos organizados
+- **Linhas no main.py**: 137 linhas ✅ (meta <500 alcançada!)
+- **Progresso de refatoração**: 100% (Application class implementada)
+- **Módulos criados**: 30+ módulos organizados
 - **Services**: 10 serviços independentes
-- **UI Components**: 19 módulos de interface
-- **Testes**: 130+ testes automatizados (80%+ cobertura)
+- **UI Components**: 19+ módulos de interface
+- **Testes**: 59 arquivos de teste
 - **Arquitetura**: MVC modular completo
-- **Documentação**: 2,530+ linhas de docs técnicas
+- **Documentação**: 3.000+ linhas de docs técnicas
+- **Versão**: v2.0.0 (Dezembro 2025)
 
-### Principais Conquistas
+### Principais Conquistas Recentes (v2.0.0)
+✅ **Configuração centralizada** (`config/settings.py`)  
+✅ **Validação de configurações** com dataclasses  
+✅ **Health checks** de banco de dados  
+✅ **Backup opcional** via .env  
+✅ **Logs estruturados** (JSON + texto)  
+✅ **IDs dinâmicos** configuráveis  
+✅ **main.py reduzido** para 137 linhas  
+✅ `.env.example` e `requirements.txt` criados  
+✅ **Observabilidade** aprimorada (versão + ambiente)  
+✅ **Prevenção de duplicação** em agendamentos  
+
+### Conquistas Anteriores
 ✅ Connection pooling implementado  
 ✅ Queries SQL centralizadas em `db/queries.py`  
-✅ Sistema de logs estruturado (JSON + rotação)  
+✅ Sistema de logs estruturado  
 ✅ Cores centralizadas em `ui/colors.py`  
-✅ Backup automático funcional  
-✅ 130+ testes automatizados  
-✅ Sistema de cache inteligente (40-60% redução de queries)  
+✅ Sistema de cache inteligente (40-60% redução)  
 ✅ Validação Pydantic V2 completa  
 ✅ Feature flags implementadas  
-✅ Type hints com mypy configurado  
-✅ Testes de performance e benchmarks  
-✅ Documentação completa (README + API + Architecture + Development)  
+✅ Type hints com mypy  
+✅ Testes de performance  
 
 ---
 
-## 🎯 Melhorias Prioritárias
+## ✅ Melhorias Implementadas (v2.0.0)
 
-### 🔥 CRÍTICO - Impacto Imediato
+### 1. ✅ Configuração Centralizada e Segura
+**Status**: Concluída  
+**Data**: 8 de dezembro de 2025
 
-#### 1. Completar Migração para Application Class
-**Problema**: Variáveis globais ainda presentes no main.py causam acoplamento e dificultam testes.
+**Implementado**:
+- ✅ Criado `.env.example` com template documentado
+- ✅ Criado `config/settings.py` com dataclasses e validação
+- ✅ Suporte a `GESTAO_TEST_MODE` via ambiente
+- ✅ Validação automática na inicialização
+- ✅ `requirements.txt` atualizado
 
-**Situação Atual**:
-```python
-# main.py - linhas 785-806
-janela = Tk()  # Global
-co0, co1, ..., co9 = ...  # 10 variáveis de cores (agora importadas de ui.colors)
-selected_item = None
-dashboard_manager = None
-table_manager: Optional[TableManager] = None
-```
-
-**Solução**:
-- `ui/app.py` já existe com 496 linhas e estrutura completa
-- Classe `Application` encapsula janela, cores, frames, managers
-- **Ação**: Substituir inicialização no main.py por `Application().run()`
-
-**Benefícios**:
-- ✅ Elimina variáveis globais
-- ✅ Facilita testes unitários
-- ✅ Permite múltiplas instâncias da aplicação
-- ✅ Melhora encapsulamento e manutenibilidade
-
-**Estimativa**: 4-6 horas  
-**Prioridade**: 🔥 ALTA  
-**Sprint**: 16
+**Benefícios Alcançados**:
+- Detecção precoce de erros de configuração
+- Type safety em todas as configs
+- Defaults inteligentes
+- Separação por ambiente
 
 ---
 
-#### 2. Extrair Função Gigante `criar_acoes()`
-**Problema**: Função com **457 linhas** (linhas 2411-2868) que define 40+ botões com callbacks inline.
+### 2. ✅ Robustez do Pool de Conexão
+**Status**: Concluída  
+**Data**: 8 de dezembro de 2025
 
-**Situação Atual**:
+**Implementado**:
+- ✅ Validação de variáveis `DB_*` obrigatórias
+- ✅ Health check antes de criar pool
+- ✅ Mensagens de erro específicas
+- ✅ Integração com `config.settings`
+- ✅ Fallback seguro em caso de falha
+
+**Código Adicionado**:
 ```python
-def criar_acoes():
-    # 457 linhas definindo botões e menus
-    # Callbacks inline aninhados 3-4 níveis
-    # Lógica de negócio misturada com UI
-    # Acesso a variáveis globais (janela, co*, frame_detalhes)
+def _validar_configuracao_db() -> tuple[bool, list[str]]
+def _testar_conexao_db(...) -> tuple[bool, str]
 ```
 
-**Solução**: Extrair para `ui/button_factory.py`
-```python
-# ui/button_factory.py
-class ButtonFactory:
-    def __init__(self, app: Application):
-        self.app = app
-    
-    def criar_botoes_principais(self, parent: Frame) -> None:
-        """Cria botões de ações principais"""
-        pass
-    
-    def criar_menus(self) -> None:
-        """Cria barra de menus"""
-        pass
+---
+
+### 3. ✅ IDs e Configuração de Escola
+**Status**: Concluída  
+**Data**: 8 de dezembro de 2025
+
+**Implementado**:
+- ✅ ID fixo 60 substituído por `settings.app.escola_id`
+- ✅ Configurável via `ESCOLA_ID` no .env
+- ✅ Fallback para valor padrão
+- ✅ Aviso suave em logs quando falha
+
+---
+
+### 4. ✅ Backup e Encerramento Melhorados
+**Status**: Concluída  
+**Data**: 8 de dezembro de 2025
+
+**Implementado**:
+- ✅ Backup opcional via `BACKUP_ENABLED`
+- ✅ Respeita `GESTAO_TEST_MODE`
+- ✅ Flag `_backup_initialized` previne duplicação
+- ✅ Erros não bloqueiam fechamento
+- ✅ Tratamento de exceções robusto
+
+---
+
+### 5. ✅ Observabilidade Aprimorada
+**Status**: Concluída  
+**Data**: 8 de dezembro de 2025
+
+**Implementado**:
+- ✅ Formato JSON via `LOG_FORMAT=json`
+- ✅ Nível configurável via `LOG_LEVEL`
+- ✅ Log de versão na inicialização
+- ✅ Log de ambiente e configurações
+- ✅ Integração com settings
+
+**Output na inicialização**:
+```
+======================================================================
+Sistema de Gestão Escolar v2.0.0
+======================================================================
+Ambiente: PRODUÇÃO
+Banco: localhost/redeescola
+Escola ID: 60
+Backup automático: HABILITADO
+Log Level: INFO
+Log Format: text
+======================================================================
 ```
 
-**Benefícios**:
-- ✅ Reduz main.py em ~450 linhas
+---
+
+## 🎯 Próximas Melhorias (Roadmap)
+
+### 🔥 ALTA PRIORIDADE - Qualidade e Manutenção (2-6 semanas)
 - ✅ Separa lógica de criação de UI
 - ✅ Facilita testes de componentes
 - ✅ Melhora legibilidade
@@ -108,104 +149,216 @@ class ButtonFactory:
 
 ---
 
-#### 3. Consolidar Funções de Matrícula Duplicadas
-**Problema**: 2 funções gigantes com lógica duplicada.
+#### 1. GitHub Actions CI
+**Status**: Pendente  
+**Prioridade**: 🔥 ALTA
 
-**Situação Atual**:
-- `matricular_aluno()` - 42 linhas (já usa `ui/matricula_modal.py`) ✅
-- `editar_matricula()` - 42 linhas (já usa `ui/matricula_modal.py`) ✅
+**Objetivo**: Automatizar testes e validações em Windows e Ubuntu.
 
-**Status**: ✅ JÁ REFATORADO - funções agora delegam para `ui/matricula_modal.py`
+**Implementação**:
+```yaml
+# .github/workflows/ci.yml
+name: CI
 
-**Ação Restante**: 
-- Validar que todas as chamadas usam o modal
-- Remover código legado se houver
+on: [push, pull_request]
 
-**Estimativa**: 1 hora (validação)  
-**Prioridade**: ⚠️ MÉDIA  
-**Sprint**: 16
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python-version: ['3.12']
+    
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run tests
+        run: pytest tests/
+      - name: Run mypy
+        run: mypy . --ignore-missing-imports
+      - name: Run ruff
+        run: ruff check .
+```
+
+**Estimativa**: 2-3 horas  
+**Sprint**: 16-17
 
 ---
 
-### ⚠️ ALTA - Melhoria de Qualidade
+#### 2. Pre-commit Hooks
+**Status**: Pendente  
+**Prioridade**: ⚠️ MÉDIA
 
-#### 4. Quebrar Funções de Eventos Grandes
-**Problema**: Funções de eventos com 200+ linhas cada.
+**Objetivo**: Validar código antes de commits.
 
-**Funções Afetadas**:
-- `selecionar_item()` - linhas de lógica complexa
-- `on_select()` - gerencia clique em treeview
-- `pesquisar()` - queries SQL inline + construção de UI
-
-**Solução**: Extrair para classes especializadas
-```python
-# ui/event_handlers.py
-class SelectionHandler:
-    def on_item_select(self, event): ...
-    def on_item_click(self, event): ...
-    
-class SearchHandler:
-    def search_alunos(self, termo): ...
-    def search_funcionarios(self, termo): ...
+**Implementação**:
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.6
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+  
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: mixed-line-ending
 ```
 
-**Benefícios**:
-- ✅ Reduz complexidade ciclomática
-- ✅ Facilita testes de eventos
-- ✅ Melhora separação de responsabilidades
+**Instalação**:
+```bash
+pip install pre-commit
+pre-commit install
+```
 
-**Estimativa**: 8-10 horas  
-**Prioridade**: ⚠️ ALTA  
+**Estimativa**: 1 hora  
 **Sprint**: 17
 
 ---
 
-#### 5. Consolidar Funções de Relatórios
-**Problema**: 15 funções wrapper que delegam para módulos legados.
+#### 3. UI Resiliente a Erros de Banco
+**Status**: Parcialmente implementado  
+**Prioridade**: ⚠️ MÉDIA
 
 **Situação Atual**:
+- `_get_school_name()` tem aviso suave em log
+- Retorna "Escola" como fallback
+
+**Implementação Adicional**:
 ```python
-def relatorio_levantamento_necessidades():
+def _get_school_name(self) -> str:
+    """Obtém nome da escola com modo degradado."""
     try:
-        import levantamento_necessidades as _lev
-    except Exception:
-        _lev = None
-    if _lev and hasattr(_lev, 'gerar_levantamento_necessidades'):
-        # delegar
+        escola_id = settings.app.escola_id if settings else 60
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT nome FROM Escolas WHERE id = %s", (escola_id,))
+            result = cursor.fetchone()
+            
+            if result and result[0]:
+                return str(result[0])
+            cursor.close()
+    except Exception as e:
+        logger.warning(f"Erro ao obter nome da escola: {e}")
+        logger.info("Interface será carregada em modo degradado")
+        
+        # Exibir aviso visual na UI
+        if hasattr(self, 'janela') and self.janela:
+            import tkinter.messagebox as mb
+            mb.showwarning(
+                "Aviso",
+                "Não foi possível conectar ao banco.\n"
+                "Sistema iniciará em modo somente leitura."
+            )
+        
+        # Desabilitar botões de edição (implementar)
+        self._enable_readonly_mode()
+    
+    return "Escola"
+
+def _enable_readonly_mode(self):
+    """Desabilita funções de edição na UI."""
+    # TODO: Implementar desabilitação de botões
+    pass
 ```
-
-**Solução**: 
-- `services/report_service.py` já existe e centraliza relatórios
-- **Ação**: Remover wrappers redundantes do main.py
-- Garantir que todas as chamadas usem `report_service`
-
-**Benefícios**:
-- ✅ Reduz main.py em ~200 linhas
-- ✅ Elimina imports condicionais
-- ✅ Centraliza lógica de relatórios
 
 **Estimativa**: 3-4 horas  
-**Prioridade**: ⚠️ ALTA  
-**Sprint**: 17
+**Sprint**: 17-18
 
 ---
 
-#### 6. Implementar Sistema de Configurações Centralizado
-**Problema**: Configurações espalhadas em múltiplos arquivos.
+#### 4. Validação Centralizada de Permissões
+**Status**: Pendente  
+**Prioridade**: ⚠️ MÉDIA
 
-**Situação Atual**:
-- `config.py` - configurações gerais
-- `local_config.json` - configurações locais (Drive)
-- `.env` - credenciais do banco
-- Variáveis de ambiente no código
+**Objetivo**: Criar decorator/guard para validar permissões de usuário.
 
-**Solução**: Criar `config/settings.py`
+**Implementação**:
 ```python
-# config/settings.py
-from dataclasses import dataclass
-from typing import Optional
-import os
-from dotenv import load_dotenv
+# auth/guards.py
+from functools import wraps
+from typing import Callable, List
+import tkinter.messagebox as mb
+
+def require_permission(perfis_permitidos: List[str]):
+    """
+    Decorator para validar permissões de usuário.
+    
+    Args:
+        perfis_permitidos: Lista de perfis que podem acessar
+    
+    Example:
+        @require_permission(['admin', 'secretaria'])
+        def editar_aluno():
+            ...
+    """
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Obter usuário logado
+            from auth import UsuarioLogado
+            usuario = UsuarioLogado.get_usuario()
+            
+            if not usuario:
+                mb.showerror("Erro", "Usuário não autenticado")
+                return None
+            
+            if usuario.perfil not in perfis_permitidos:
+                mb.showerror(
+                    "Acesso Negado",
+                    f"Seu perfil ({usuario.perfil_display}) não tem "
+                    f"permissão para esta ação."
+                )
+                return None
+            
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+# Uso
+@require_permission(['admin', 'secretaria'])
+def editar_aluno(self):
+    ...
+
+@require_permission(['admin'])
+def restaurar_backup(self):
+    ...
+```
+
+**Estimativa**: 4-5 horas  
+**Sprint**: 18
+
+---
+
+#### 5. Documentação Atualizada
+**Status**: ✅ Parcialmente concluída (README.md e MELHORIAS_SISTEMA.md atualizados)  
+**Prioridade**: ⚠️ MÉDIA
+
+**Pendente**:
+- [ ] Atualizar badges com dados reais
+- [ ] Documentar processo de migração para v2.0
+- [ ] Adicionar guia de troubleshooting
+- [ ] Documentar novas features (settings, health checks)
+
+**Estimativa**: 2-3 horas  
+**Sprint**: 16-17
+
+---
+
+### 💡 MÉDIA PRIORIDADE - Novas Funcionalidades (3-6 meses)
 
 @dataclass
 class DatabaseConfig:

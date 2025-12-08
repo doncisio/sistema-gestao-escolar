@@ -5,17 +5,43 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Imports essenciais
-from config_logs import get_logger
+from config_logs import get_logger, setup_logging
 from config import perfis_habilitados
-from ui.app import Application
+
+# Importar settings centralizado
+try:
+    from config.settings import settings, validate_settings
+    HAS_SETTINGS = True
+except ImportError:
+    settings = None
+    HAS_SETTINGS = False
+
+# Configurar logging ANTES de criar o logger
+setup_logging()
 
 # Logger
 logger = get_logger(__name__)
 
-# TEST_MODE: Usar variável de ambiente para controlar modo de teste
-# Forçar execução dos backups automáticos por padrão (pode ser sobrescrito
-# pela variável de ambiente se quiser alterar manualmente)
+# TEST_MODE: Deprecated - usar GESTAO_TEST_MODE no .env
+# Mantido por compatibilidade
 TEST_MODE = False
+
+
+def log_startup_info():
+    """Registra informações do ambiente e versão no início da aplicação."""
+    if settings:
+        logger.info("="*70)
+        logger.info(f"Sistema de Gestão Escolar v{settings.version}")
+        logger.info("="*70)
+        logger.info(f"Ambiente: {'TESTE' if settings.app.test_mode else 'PRODUÇÃO'}")
+        logger.info(f"Banco: {settings.database.host}/{settings.database.name}")
+        logger.info(f"Escola ID: {settings.app.escola_id}")
+        logger.info(f"Backup automático: {'HABILITADO' if settings.backup.enabled else 'DESABILITADO'}")
+        logger.info(f"Log Level: {settings.log.level}")
+        logger.info(f"Log Format: {settings.log.format}")
+        logger.info("="*70)
+    else:
+        logger.warning("Settings não disponível - usando configuração padrão")
 
 
 def main():
@@ -26,6 +52,21 @@ def main():
     Caso contrário, abre a aplicação diretamente (comportamento atual).
     """
     try:
+        # Validar configurações (falha rápido se houver erro crítico)
+        if HAS_SETTINGS:
+            try:
+                validate_settings()
+                logger.debug("✓ Configurações validadas com sucesso")
+            except ValueError as e:
+                logger.error(f"Erro de configuração: {e}")
+                logger.error("Verifique seu arquivo .env e corrija os erros antes de continuar")
+                sys.exit(1)
+        
+        # Log de inicialização com informações do ambiente
+        log_startup_info()
+        
+        # Importar Application após validar settings
+        from ui.app import Application
         # Verificar se sistema de perfis está habilitado
         if perfis_habilitados():
             logger.info("🔐 Sistema de perfis habilitado - Exibindo tela de login")
@@ -82,10 +123,13 @@ def main():
         
         # Configurar fechamento da aplicação com backup
         if janela:
-            janela.protocol("WM_DELETE_WINDOW", lambda: app.on_close_with_backup(test_mode=TEST_MODE))
+            # Usar configuração de test_mode do settings se disponível
+            test_mode = settings.app.test_mode if settings else TEST_MODE
+            janela.protocol("WM_DELETE_WINDOW", lambda: app.on_close_with_backup(test_mode=test_mode))
         
-        # Iniciar sistema de backup automático (sempre ativo por padrão)
-        app.setup_backup(test_mode=False)
+        # Iniciar sistema de backup automático (respeitando configuração)
+        test_mode = settings.app.test_mode if settings else TEST_MODE
+        app.setup_backup(test_mode=test_mode)
         
         # Iniciar mainloop
         logger.info("✅ Sistema pronto - Iniciando interface")

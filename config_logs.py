@@ -5,6 +5,12 @@ from datetime import datetime
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 from typing import Optional
 
+# Importar settings centralizado
+try:
+    from config.settings import settings
+except ImportError:
+    settings = None
+
 
 class JSONFormatter(logging.Formatter):
     """
@@ -69,8 +75,8 @@ class StructuredFormatter(logging.Formatter):
 
 def setup_logging(
     log_file: str = 'logs/app.log',
-    level: int = logging.INFO,
-    use_json: bool = False,
+    level: Optional[int] = None,
+    use_json: Optional[bool] = None,
     rotation_type: str = 'size',  # 'size', 'time', 'both'
     max_bytes: int = 10 * 1024 * 1024,  # 10MB
     backup_count: int = 5,
@@ -78,11 +84,14 @@ def setup_logging(
 ) -> None:
     """
     Configura logging estruturado com opções avançadas.
+    
+    Se settings estiver disponível, usa configurações de lá.
+    Caso contrário, usa valores passados ou padrão.
 
     Args:
         log_file: Caminho do arquivo de log
-        level: Nível de logging (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        use_json: Se True, usa JSON formatter; se False, usa key=value
+        level: Nível de logging (DEBUG, INFO, WARNING, ERROR, CRITICAL) - None usa settings
+        use_json: Se True, usa JSON formatter; se False, usa key=value - None usa settings
         rotation_type: Tipo de rotação ('size', 'time', 'both')
         max_bytes: Tamanho máximo do arquivo para rotação por tamanho
         backup_count: Número de arquivos de backup a manter
@@ -93,6 +102,18 @@ def setup_logging(
     # Evitar reconfiguração duplicada
     if getattr(logger, '_configured_for_app', False):
         return
+    
+    # Determinar configurações a partir de settings se disponível
+    if settings:
+        if level is None:
+            level = getattr(logging, settings.log.level, logging.INFO)
+        if use_json is None:
+            use_json = settings.log.format == 'json'
+    else:
+        if level is None:
+            level = logging.INFO
+        if use_json is None:
+            use_json = False
 
     logger.setLevel(level)
 
