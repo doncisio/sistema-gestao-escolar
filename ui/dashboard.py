@@ -207,6 +207,23 @@ class DashboardManager:
         # Keep a reference to the last created dashboard frame so we can
         # verify the worker is updating the intended widget instance.
         self._last_dashboard_frame = None
+    
+    def invalidar_cache(self):
+        """Invalida o cache das estatísticas para forçar recálculo."""
+        try:
+            from utils.cache import dashboard_cache
+            # Invalidar todas as entradas do cache de estatísticas
+            count = dashboard_cache.invalidate_pattern('obter_estatisticas')
+            logger.info(f"Cache do dashboard invalidado: {count} entradas removidas")
+            return count
+        except Exception as e:
+            logger.exception(f"Erro ao invalidar cache do dashboard: {e}")
+            return 0
+    
+    def atualizar_dashboard(self):
+        """Atualiza o dashboard invalidando cache e recriando."""
+        self.invalidar_cache()
+        self.criar_dashboard()
 
     def criar_dashboard(self):
         """Cria o dashboard dentro do `frame_tabela` atual (obtido via `frame_getter`)."""

@@ -329,25 +329,20 @@ def obter_movimento_mensal_resumo(escola_id: int = 60, ano_letivo: Optional[str]
                 r_ativos = cursor.fetchone()
                 ativos = (r_ativos['total'] if isinstance(r_ativos, dict) else (r_ativos[0] if r_ativos else 0)) if r_ativos else 0
 
-                # Transferidos / Evadidos acumulados até fim do mês: último status não voltou para 'Ativo'
+                # Transferidos e Evadidos: usar status atual da matrícula ao invés de histórico
+                # para garantir consistência com obter_estatisticas_alunos
                 cursor.execute(
                     """
-                    SELECT hm.status_novo as status,
-                           COUNT(DISTINCT m.aluno_id) as total
-                    FROM historico_matricula hm
-                    INNER JOIN matriculas m ON hm.matricula_id = m.id
+                    SELECT 
+                        m.status,
+                        COUNT(DISTINCT m.aluno_id) as total
+                    FROM matriculas m
                     INNER JOIN alunos a ON m.aluno_id = a.id
                     WHERE m.ano_letivo_id = %s
                       AND a.escola_id = %s
-                      AND hm.data_mudanca <= LAST_DAY(DATE(CONCAT(%s, '-', %s, '-01')))
-                      AND hm.status_novo IN ('Evadido','Transferido','Transferida')
-                      AND NOT EXISTS (
-                        SELECT 1 FROM historico_matricula hm2
-                        WHERE hm2.matricula_id = hm.matricula_id
-                          AND hm2.data_mudanca > hm.data_mudanca
-                          AND hm2.status_novo = 'Ativo'
-                      )
-                    GROUP BY hm.status_novo
+                      AND m.status IN ('Transferido', 'Transferida', 'Evadido')
+                      AND m.data_matricula <= LAST_DAY(DATE(CONCAT(%s, '-', %s, '-01')))
+                    GROUP BY m.status
                     """,
                     (ano_letivo_id, escola_id, ano_letivo, mes)
                 )
