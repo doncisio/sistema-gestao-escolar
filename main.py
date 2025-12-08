@@ -13,7 +13,9 @@ from ui.app import Application
 logger = get_logger(__name__)
 
 # TEST_MODE: Usar variável de ambiente para controlar modo de teste
-TEST_MODE = os.environ.get('GESTAO_TEST_MODE', 'false').lower() == 'true'
+# Forçar execução dos backups automáticos por padrão (pode ser sobrescrito
+# pela variável de ambiente se quiser alterar manualmente)
+TEST_MODE = False
 
 
 def main():
@@ -82,8 +84,8 @@ def main():
         if janela:
             janela.protocol("WM_DELETE_WINDOW", lambda: app.on_close_with_backup(test_mode=TEST_MODE))
         
-        # Iniciar sistema de backup automático (se não estiver em modo teste)
-        app.setup_backup(test_mode=TEST_MODE)
+        # Iniciar sistema de backup automático (sempre ativo por padrão)
+        app.setup_backup(test_mode=False)
         
         # Iniciar mainloop
         logger.info("✅ Sistema pronto - Iniciando interface")
