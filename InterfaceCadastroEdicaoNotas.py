@@ -149,17 +149,28 @@ class InterfaceCadastroEdicaoNotas:
         
         menu_io.add_command(
             label="📥 Importar do Excel",
-            command=self.importar_do_excel
+            command=self.importar_do_excel,
+            accelerator="Ctrl+I"
         )
         menu_io.add_separator()
         menu_io.add_command(
             label="📄 Exportar Template",
-            command=self.exportar_template_excel
+            command=self.exportar_template_excel,
+            accelerator="Ctrl+T"
         )
         menu_io.add_command(
             label="📤 Exportar para Excel",
-            command=self.exportar_para_excel
+            command=self.exportar_para_excel,
+            accelerator="Ctrl+E"
         )
+        
+        # Vincular os atalhos de teclado para Importar/Exportar
+        self.janela.bind('<Control-i>', lambda e: self.importar_do_excel())
+        self.janela.bind('<Control-I>', lambda e: self.importar_do_excel())
+        self.janela.bind('<Control-t>', lambda e: self.exportar_template_excel())
+        self.janela.bind('<Control-T>', lambda e: self.exportar_template_excel())
+        self.janela.bind('<Control-e>', lambda e: self.exportar_para_excel())
+        self.janela.bind('<Control-E>', lambda e: self.exportar_para_excel())
         
         # Menu Ações (botões que sobraram)
         menu_acoes = tk.Menu(self.menubar, tearoff=0)
@@ -167,17 +178,27 @@ class InterfaceCadastroEdicaoNotas:
         
         menu_acoes.add_command(
             label="💾 Salvar Notas",
-            command=self.salvar_notas
+            command=self.salvar_notas,
+            accelerator="Ctrl+S"
         )
         menu_acoes.add_command(
             label="🧹 Limpar Campos",
-            command=self.limpar_campos
+            command=self.limpar_campos,
+            accelerator="Ctrl+L"
         )
         menu_acoes.add_separator()
         menu_acoes.add_command(
             label="🔄 Atualizar",
-            command=self.carregar_notas_alunos
+            command=self.carregar_notas_alunos,
+            accelerator="F5"
         )
+        
+        # Vincular os atalhos de teclado
+        self.janela.bind('<Control-s>', lambda e: self.salvar_notas())
+        self.janela.bind('<Control-S>', lambda e: self.salvar_notas())
+        self.janela.bind('<Control-l>', lambda e: self.limpar_campos())
+        self.janela.bind('<Control-L>', lambda e: self.limpar_campos())
+        self.janela.bind('<F5>', lambda e: self.carregar_notas_alunos())
     
     def criar_interface(self):
         # Verificar se o ano letivo foi obtido com sucesso
@@ -1635,9 +1656,31 @@ class InterfaceCadastroEdicaoNotas:
                     )
                     return
         
+        # IMPORTANTE: Forçar o fechamento do editor antes de salvar
+        # Isso garante que a nota sendo editada seja salva no notas_dict
+        if getattr(self, '_usar_editor_unico', False) and getattr(self, '_editor_aluno_id', None) is not None:
+            try:
+                self._fechar_editor(commit=True, mover_proximo=False)
+                # Pequeno delay para garantir que o editor foi fechado
+                self.janela.update_idletasks()
+            except Exception as e:
+                logger.error(f"Erro ao fechar editor antes de salvar: {e}")
+        
+        # Log de depuração
+        logger.info("=== INICIANDO SALVAMENTO DE NOTAS ===")
+        logger.info(f"Disciplina ID: {getattr(self, 'disciplina_id', None)}")
+        logger.info(f"Bimestre: {getattr(self, 'bimestre', None)}")
+        logger.info(f"Ano Letivo: {getattr(self, 'ano_letivo_atual', None)}")
+        logger.info(f"Usar editor único: {getattr(self, '_usar_editor_unico', False)}")
+        logger.info(f"Notas dict: {getattr(self, 'notas_dict', {})}")
+        logger.info(f"Alunos IDs: {getattr(self, 'alunos_ids', [])}")
+        
         # Suporta tanto o modo legacy (entradas por linha) quanto o editor único
         has_entries = hasattr(self, 'entradas_notas') and bool(getattr(self, 'entradas_notas', {}))
         has_notas_dict = getattr(self, '_usar_editor_unico', False) and hasattr(self, 'notas_dict') and bool(getattr(self, 'notas_dict', {}))
+        
+        logger.info(f"Has entries: {has_entries}, Has notas_dict: {has_notas_dict}")
+        
         if not (has_entries or has_notas_dict):
             messagebox.showinfo("Aviso", "Não há notas para salvar.")
             return
