@@ -73,3 +73,10 @@ ver_*.py
 ~$*.xlsx
 ~$*.xls
 ~$*.csv
+
+# Build e distribuição - NÃO SINCRONIZAR (arquivos grandes)
+build/
+dist/
+installer_output/
+*.exe
+*.spec
