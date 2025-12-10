@@ -354,6 +354,10 @@ def boletiminiciais(aluno_id, ano_letivo_id):
     
     faltas_bimestrais = {disciplina: [0, 0, 0, 0] for disciplina in ordem_disciplinas}
     faltas_bimestrais = {disciplina: [0, 0, 0, 0] for disciplina in ordem_disciplinas}
+    # Lista para coletar as médias finais de cada disciplina (valores no formato inteiro *10, ex: 73 -> 7.3)
+    medias_finais_disciplinas: List[int] = []
+    # Média final global do aluno (em escala 0-10). Inicializada aqui para garantir escopo
+    media_final_global: float = 0.0
 
     # Iterar sobre os dados do aluno
     for linha in dados_aluno:
@@ -476,7 +480,16 @@ def boletiminiciais(aluno_id, ano_letivo_id):
                                     _cell(nota_recuperacao),
                                     _cell("--")
                                 ])
+
+                            # Registrar média final desta disciplina para cálculo geral
+                            if len(notas_raw) == 4:
+                                try:
+                                    medias_finais_disciplinas.append(int(media_final_arredondada))
+                                except Exception:
+                                    pass
                         else:
+                            # quando não temos disciplina_id, usamos a média anual arredondada como final
+                            media_final_arredondada = media_anual_arredondada
                             # Só mostrar a média final se tiver 4 notas
                             if len(notas_raw) == 4:
                                 data_nota.append([
@@ -485,7 +498,7 @@ def boletiminiciais(aluno_id, ano_letivo_id):
                                     _cell(notas_disciplinas[disciplina][1]),
                                     _cell(notas_disciplinas[disciplina][2]),
                                     _cell(notas_disciplinas[disciplina][3]),
-                                    _cell(f"{media_anual_arredondada:.1f}"),
+                                    _cell(f"{media_anual_arredondada/10:.1f}"),
                                     _cell("--"),
                                     _cell(f"{media_anual_arredondada/10:.1f}")
                                 ])
@@ -496,10 +509,17 @@ def boletiminiciais(aluno_id, ano_letivo_id):
                                     _cell(notas_disciplinas[disciplina][1]),
                                     _cell(notas_disciplinas[disciplina][2]),
                                     _cell(notas_disciplinas[disciplina][3]),
-                                    _cell(f"{media_anual_arredondada:.1f}"),
+                                    _cell(f"{media_anual_arredondada/10:.1f}"),
                                     _cell("--"),
                                     _cell("--")
                                 ])
+
+                            # Registrar média final desta disciplina quando houver 4 notas
+                            if len(notas_raw) == 4:
+                                try:
+                                    medias_finais_disciplinas.append(int(media_final_arredondada))
+                                except Exception:
+                                    pass
 
                     # Calcular total de faltas por disciplina
                     total_faltas_por_disciplina = {}
@@ -508,6 +528,16 @@ def boletiminiciais(aluno_id, ano_letivo_id):
 
                     # Calcular total geral de faltas
                     total_faltas = sum(sum(faltas) for faltas in faltas_bimestrais.values())
+
+                    # Calcular média final global do aluno (média das médias finais das disciplinas)
+                    if medias_finais_disciplinas:
+                        try:
+                            soma_medias = sum(medias_finais_disciplinas)
+                            media_final_global = (soma_medias / len(medias_finais_disciplinas)) / 10.0
+                        except Exception:
+                            media_final_global = 0.0
+                    else:
+                        media_final_global = 0.0
 
                     # Adicionar a linha de Faltas ao final da tabela (garantir Paragraphs nas células)
                     faltas_row = [
@@ -566,7 +596,6 @@ def boletiminiciais(aluno_id, ano_letivo_id):
 
     # Verificar se todas as disciplinas têm 4 notas
     todas_notas_completas = True
-    media_final_arredondada = 0
     for disciplina in ordem_disciplinas:
         notas = [_safe_float(nota) for nota in notas_disciplinas[disciplina] if nota != "--"]
         if len(notas) != 4:
@@ -575,14 +604,15 @@ def boletiminiciais(aluno_id, ano_letivo_id):
 
     # Só verificar aprovação se todas as notas estiverem completas
     if todas_notas_completas:
-        if media_final_arredondada < 6 or total_faltas > (0.25 * numero_dias_aula):
+        # Usar a média final global calculada anteriormente (em escala 0-10)
+        if media_final_global < 6 or total_faltas > (0.25 * numero_dias_aula):
             resultado_final[0] = "( ) AP - Aprovado"
             resultado_final[1] = "( ) PNAD - Progressão com Necessidade de Apoio Didático"
             if total_faltas > (0.25 * numero_dias_aula):
                 resultado_final[2] = "(X) RP-Reprovado por faltas"
             else:
                 resultado_final[2] = "(X) RP-Reprovado"
-        elif media_final_arredondada >= 6 and total_faltas <= (0.25 * numero_dias_aula):
+        elif media_final_global >= 6 and total_faltas <= (0.25 * numero_dias_aula):
             resultado_final[0] = "(X) AP - Aprovado"
         else:
             resultado_final[0] = "( ) AP - Aprovado"
@@ -998,6 +1028,9 @@ def boletimfinais(aluno_id, ano_letivo_id):
     notas_disciplinas = {disciplina: ["--", "--", "--", "--"] for disciplina in ordem_disciplinas}
     notas_brutas_disciplinas: Dict[str, List[Optional[float]]] = {disciplina: [None, None, None, None] for disciplina in ordem_disciplinas}
     faltas_bimestrais = {disciplina: [0, 0, 0, 0] for disciplina in ordem_disciplinas}
+    # Coletar médias finais por disciplina para cálculo da média global
+    medias_finais_disciplinas: List[int] = []
+    media_final_global: float = 0.0
 
     # Iterar sobre os dados do aluno
     for linha in dados_aluno:
@@ -1103,7 +1136,15 @@ def boletimfinais(aluno_id, ano_letivo_id):
                                 _cell(str(sum(faltas_bimestrais[disciplina]))),
                                 _cell("AP" if len(notas_raw) == 4 and media_final_arredondada/10 >= 6 else ("RP" if len(notas_raw) == 4 else "--"))
                             ])
+                            # Registrar média final desta disciplina
+                            if len(notas_raw) == 4:
+                                try:
+                                    medias_finais_disciplinas.append(int(media_final_arredondada))
+                                except Exception:
+                                    pass
                         else:
+                            # usar média anual arredondada como final quando não há id de disciplina
+                            media_final_arredondada = media_anual_arredondada
                             data_nota.append([
                                 _cell(quebra_linha(disciplina)),
                                 _cell(notas_disciplinas[disciplina][0]),
@@ -1120,6 +1161,12 @@ def boletimfinais(aluno_id, ano_letivo_id):
                                 _cell(str(sum(faltas_bimestrais[disciplina]))),
                                 _cell("AP" if len(notas_raw) == 4 and media_anual_arredondada/10 >= 6 else ("RP" if len(notas_raw) == 4 else "--"))
                             ])
+                            # Registrar média final desta disciplina quando houver 4 notas
+                            if len(notas_raw) == 4:
+                                try:
+                                    medias_finais_disciplinas.append(int(media_final_arredondada))
+                                except Exception:
+                                    pass
                 finally:
                     try:
                         cursor.close()
@@ -1129,6 +1176,16 @@ def boletimfinais(aluno_id, ano_letivo_id):
         logger.exception("Erro ao obter recuperações/avaliacoes em boletimfinais")
         recuperacoes = {}
         avaliacoes = {}
+
+    # Calcular média final global do aluno (média das médias finais das disciplinas)
+    if medias_finais_disciplinas:
+        try:
+            soma_medias = sum(medias_finais_disciplinas)
+            media_final_global = (soma_medias / len(medias_finais_disciplinas)) / 10.0
+        except Exception:
+            media_final_global = 0.0
+    else:
+        media_final_global = 0.0
 
     # Criando a tabela de notas com ReportLab
     tabela_notas = Table(data_nota, colWidths=[1.6 * inch] + [0.70 * inch] * 12 + [1.1 * inch])
@@ -1174,7 +1231,6 @@ def boletimfinais(aluno_id, ano_letivo_id):
 
     # Verificar se todas as disciplinas têm 4 notas
     todas_notas_completas = True
-    media_final_arredondada = 0
     for disciplina in ordem_disciplinas:
         notas_raw = [n for n in notas_brutas_disciplinas[disciplina] if n is not None]
         if len(notas_raw) != 4:
@@ -1183,10 +1239,11 @@ def boletimfinais(aluno_id, ano_letivo_id):
 
     # Só verificar aprovação se todas as notas estiverem completas
     if todas_notas_completas:
-        if media_final_arredondada < 6 or total_faltas > (0.25 * numero_dias_aula):
+        # Usar média global calculada a partir das médias finais das disciplinas
+        if media_final_global < 6 or total_faltas > (0.25 * numero_dias_aula):
             resultado_final[0] = "( ) AP - Aprovado"
             resultado_final[1] = "( ) RP - Reprovado"
-        elif media_final_arredondada >= 6 and total_faltas <= (0.25 * numero_dias_aula):
+        elif media_final_global >= 6 and total_faltas <= (0.25 * numero_dias_aula):
             resultado_final[0] = "(X) AP - Aprovado"
         else:
             resultado_final[0] = "( ) AP - Aprovado"
