@@ -485,13 +485,27 @@ class DeclaracaoCallbacks:
         try:
             from GerenciadorDocumentosFuncionarios import GerenciadorDocumentosFuncionarios
             
+            # Ocultar janela principal
+            self.janela.withdraw()
+            
             gerenciador_window = Toplevel(self.janela)
             GerenciadorDocumentosFuncionarios(gerenciador_window)
+            
+            # Configurar callback para restaurar janela principal ao fechar
+            def ao_fechar():
+                gerenciador_window.destroy()
+                self.janela.deiconify()  # Restaurar janela principal
+                self.janela.lift()  # Trazer para frente
+                self.janela.focus_force()  # Forçar foco
+            
+            gerenciador_window.protocol("WM_DELETE_WINDOW", ao_fechar)
             
             logger.info("Gerenciador de documentos aberto")
             
         except Exception as e:
             logger.exception(f"Erro ao abrir gerenciador de documentos: {e}")
+            # Restaurar janela principal em caso de erro
+            self.janela.deiconify()
             messagebox.showerror("Erro", f"Erro ao abrir gerenciador: {str(e)}")
     
     def abrir_gerenciador_licencas(self):

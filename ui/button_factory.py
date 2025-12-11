@@ -35,11 +35,11 @@ class ButtonFactory:
     
     def _load_image(self, path: str, size: tuple = None):
         """
-        Carrega uma imagem de um arquivo local.
+        Carrega uma imagem de um arquivo local e redimensiona para o tamanho adequado.
         
         Args:
             path: Caminho relativo ou absoluto da imagem
-            size: Tupla (largura, altura) para redimensionar, ou None
+            size: Tupla (largura, altura) para redimensionar. Se None, usa (20, 20) por padrão.
             
         Returns:
             ImageTk.PhotoImage ou None
@@ -48,18 +48,30 @@ class ButtonFactory:
             import os
             # Se o caminho não for absoluto, buscar na raiz do projeto
             if not os.path.isabs(path):
-                abs_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), path)
+                # Obter diretório raiz do projeto (2 níveis acima de ui/)
+                project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                abs_path = os.path.join(project_root, path)
+                
+                # Se não encontrar, tentar concatenar apenas o nome do arquivo na pasta icon
+                if not os.path.exists(abs_path) and os.path.dirname(path) == 'icon':
+                    abs_path = os.path.join(project_root, 'icon', os.path.basename(path))
             else:
                 abs_path = path
             
             if not os.path.exists(abs_path):
-                logger.warning(f"Imagem não encontrada: {path}")
+                logger.warning(f"Imagem não encontrada: {path} (procurado em: {abs_path})")
                 return None
             
             img = Image.open(abs_path)
-            if size:
-                img = img.resize(size)
+            
+            # Aplicar tamanho padrão de 20x20 se não especificado (ideal para botões)
+            if size is None:
+                size = (20, 20)
+            
+            # Redimensionar mantendo qualidade usando LANCZOS
+            img = img.resize(size, Image.Resampling.LANCZOS)
             photo = ImageTk.PhotoImage(img)
+            
             # Armazenar referência
             self._image_refs[path] = photo
             return photo
