@@ -7,66 +7,58 @@ do main.py, organizando em uma classe reutilizável e testável.
 
 from tkinter import Frame, Button, Menu, LEFT, RIGHT, RIDGE, X, EW
 from tkinter import messagebox
+from typing import Callable, Optional
 from PIL import Image, ImageTk
-from typing import Optional, Callable, Dict, Any
-from config_logs import get_logger
-from config import perfis_habilitados, get_icon_path
 from auth.decorators import ControleAcesso
-from datetime import datetime
+from config_logs import get_logger
 
 logger = get_logger(__name__)
+from config import perfis_habilitados
 
 
 class ButtonFactory:
+    """Factory para criação de botões e menus da aplicação.
+
+    Nota: stub mínimo de inicialização para manter compatibilidade com o código
+    que espera atributos como `janela`, `frame_dados`, `callbacks` e `colors`.
     """
-    Factory para criação de botões e menus da interface principal.
-    
-    Encapsula a lógica de criação de botões, menus e suas imagens,
-    que antes estava na função criar_acoes() do main.py.
-    """
-    
-    def __init__(self, janela, frame_dados, callbacks, colors: Dict[str, str]):
-        """
-        Inicializa o ButtonFactory.
-        
-        Args:
-            janela: Janela principal Tk
-            frame_dados: Frame onde os botões serão criados
-            callbacks: Instância de ActionCallbacksManager com os callbacks
-            colors: Dicionário com cores da aplicação (co0-co9)
-        """
+
+    def __init__(self, janela=None, frame_dados=None, callbacks=None, colors=None):
         self.janela = janela
         self.frame_dados = frame_dados
         self.callbacks = callbacks
-        self.colors = colors
-        
-        # Armazenar referências de imagens para evitar garbage collection
+        self.colors = colors or {
+            'co0': '#000000', 'co1': '#ffffff', 'co2': '#f0f0f0', 'co3': '#f0f0f0',
+            'co4': '#f0f0f0', 'co5': '#f0f0f0', 'co6': '#f0f0f0', 'co9': '#f0f0f0'
+        }
         self._image_refs = {}
-        
-        logger.debug("ButtonFactory inicializado")
     
-    def _load_image(self, path: str, size: tuple = (18, 18)) -> Optional[Any]:
+    def _load_image(self, path: str, size: tuple = None):
         """
-        Carrega e redimensiona uma imagem.
+        Carrega uma imagem de um arquivo local.
         
         Args:
-            path: Caminho do arquivo de imagem (relativo ou absoluto)
-                  Ex: 'icon/learning.png' será convertido para caminho absoluto
-            size: Tupla (largura, altura) para redimensionamento
+            path: Caminho relativo ou absoluto da imagem
+            size: Tupla (largura, altura) para redimensionar, ou None
             
         Returns:
-            ImageTk.PhotoImage ou None se não encontrado
+            ImageTk.PhotoImage ou None
         """
         try:
-            # Converter caminhos relativos 'icon/...' para absolutos
-            if path.startswith('icon/'):
-                icon_name = path.replace('icon/', '')
-                abs_path = get_icon_path(icon_name)
+            import os
+            # Se o caminho não for absoluto, buscar na raiz do projeto
+            if not os.path.isabs(path):
+                abs_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), path)
             else:
                 abs_path = path
             
+            if not os.path.exists(abs_path):
+                logger.warning(f"Imagem não encontrada: {path}")
+                return None
+            
             img = Image.open(abs_path)
-            img = img.resize(size)
+            if size:
+                img = img.resize(size)
             photo = ImageTk.PhotoImage(img)
             # Armazenar referência
             self._image_refs[path] = photo
@@ -629,6 +621,18 @@ class ButtonFactory:
                 command=self.callbacks.declaracao_comparecimento,
                 font=menu_font
             )
+            # Gerar Declarações em Lote (9º Ano)
+            servicos_menu.add_command(
+                label="Gerar Declarações do 9º Ano",
+                command=lambda: self._servicos_gerar_declaracoes_9ano(),
+                font=menu_font
+            )
+            # Gerar Certificados em Lote (9º Ano)
+            servicos_menu.add_command(
+                label="Gerar Certificados do 9º Ano",
+                command=lambda: self._servicos_gerar_certificados_9ano(),
+                font=menu_font
+            )
             servicos_menu.add_command(
                 label="Crachás Alunos/Responsáveis",
                 command=lambda: self._abrir_crachas(),
@@ -891,6 +895,52 @@ class ButtonFactory:
         except Exception as e:
             logger.exception(f"Erro ao gerar declaração: {e}")
             messagebox.showerror("Erro", f"Erro ao gerar declaração: {e}")
+
+    def _servicos_gerar_declaracoes_9ano(self):
+        """Gera declarações em lote para alunos do 9º ano (matriculados e ativos)."""
+        try:
+            resposta = messagebox.askyesno(
+                "Confirmar",
+                "Gerar declarações para todos os alunos do 9º ano matriculados e ativos?\n\nIsso pode demorar. Deseja continuar?"
+            )
+            if not resposta:
+                return
+
+            # Gerar declarações combinadas em um único arquivo usando o novo util
+            from servicos_lote_documentos import gerar_declaracoes_9ano_combinadas
+
+            arquivo = gerar_declaracoes_9ano_combinadas()
+            if arquivo:
+                messagebox.showinfo("Concluído", f"Declarações combinadas geradas: {arquivo}")
+            else:
+                messagebox.showerror("Erro", "Falha ao gerar declarações combinadas. Verifique os logs.")
+
+        except Exception as e:
+            logger.exception(f"Erro no processo de geração de declarações em lote: {e}")
+            messagebox.showerror("Erro", f"Erro ao gerar declarações: {e}")
+
+    def _servicos_gerar_certificados_9ano(self):
+        """Gera certificados em lote para alunos do 9º ano (matriculados e ativos) em um único PDF."""
+        try:
+            resposta = messagebox.askyesno(
+                "Confirmar",
+                "Gerar certificados para todos os alunos do 9º ano matriculados e ativos?\n\nIsso pode demorar. Deseja continuar?"
+            )
+            if not resposta:
+                return
+
+            # Gerar certificados combinados em um único arquivo usando o util otimizado
+            from servicos_lote_documentos import gerar_certificados_9ano_combinados
+
+            arquivo = gerar_certificados_9ano_combinados()
+            if arquivo:
+                messagebox.showinfo("Concluído", f"Certificados combinados gerados: {arquivo}")
+            else:
+                messagebox.showerror("Erro", "Falha ao gerar certificados combinados. Verifique os logs.")
+
+        except Exception as e:
+            logger.exception(f"Erro no processo de geração de certificados em lote: {e}")
+            messagebox.showerror("Erro", f"Erro ao gerar certificados: {e}")
     
     def _abrir_relatorio_analise(self):
         """Wrapper para abrir relatório estatístico de análise de notas"""

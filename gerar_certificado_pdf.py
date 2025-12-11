@@ -271,8 +271,8 @@ def gerar_certificado_pdf(aluno_id, arquivo_saida=None):
             A {escola} no uso de suas atribuições legais, confere o presente
             Certificado de Conclusão do Ensino Fundamental para {aluno_label}
             <b>{nome_aluno}</b>, {filho_label} de {nome_pai} e de {nome_mae},
-            {nascido_label} em {data_nasc} no município de {municipio}
-            {('Distrito Federal' if uf_full == 'Distrito Federal' else 'Estado do ' + uf_full)}.
+            {nascido_label} em {data_nasc} no município de {municipio} do
+            {('Distrito Federal' if uf_full == 'Distrito Federal' else 'Estado do ' + uf_full)} por ter concluído no ano de 2025. Reconhecido pela Resolução Nº /2015-CME de 07/04/2015, do Conselho Municipal de Educação.
         """).strip()
         
         # Criar estilo para texto justificado
