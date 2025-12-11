@@ -139,6 +139,188 @@ def formatar_data_extenso(data=None):
     return f"{data.day:02d} de {meses[data.month - 1]} de {data.year}"
 
 
+def obter_data_impressao(cutoff_date=None):
+    """Retorna a string a ser impressa na data do documento.
+    Se a data atual for igual ou anterior a 30/12/2025, retorna '30 de Dezembro de 2025'
+    Caso contrário, retorna a data atual por extenso.
+    """
+    if cutoff_date is None:
+        cutoff_date = date(2025, 12, 30)
+    hoje = date.today()
+    if hoje <= cutoff_date:
+        return "30 de Dezembro de 2025"
+    return formatar_data_extenso(datetime.now())
+
+
+def renderizar_pagina_certificado(c, dados, ano_letivo=2025):
+    """
+    Renderiza uma página de certificado no canvas fornecido
+    
+    Args:
+        c: Canvas do ReportLab
+        dados: Dicionário com dados do aluno (mesmo formato de buscar_dados_aluno)
+        ano_letivo: Ano letivo para o certificado (padrão: 2025)
+    """
+    # Registrar fontes (usando fontes padrão do sistema)
+    try:
+        pdfmetrics.registerFont(TTFont('CenturyGothic', 'GOTHIC.TTF'))
+        pdfmetrics.registerFont(TTFont('CenturyGothic-Bold', 'GOTHICB.TTF'))
+        fonte_titulo = 'CenturyGothic-Bold'
+        fonte_texto = 'CenturyGothic'
+    except:
+        fonte_titulo = 'Helvetica-Bold'
+        fonte_texto = 'Helvetica'
+    
+    # Criar o PDF em formato paisagem
+    largura, altura = landscape(A4)
+    
+    # Carregar e adicionar imagem de fundo
+    bg_image = carregar_imagem_local("fcertificado3.png")
+    if bg_image:
+        # Forçar a imagem de fundo a preencher toda a página A4
+        c.drawImage(bg_image, 0, 0, width=largura, height=altura, preserveAspectRatio=False, mask='auto')
+    
+    # Definir margens com bordas respeitadas
+    margem_esquerda = 75
+    margem_direita = 75
+    margem_superior = 70
+    margem_inferior = 70
+    largura_util = largura - margem_esquerda - margem_direita
+    
+    # Posição Y inicial (do topo com margem)
+    y = altura - margem_superior
+    
+    # Adicionar brasões/logos (carregando localmente)
+    logo_esq = carregar_imagem_local("logo_prefeitura.png")
+    if logo_esq:
+        c.drawImage(logo_esq, margem_esquerda, y - 80, width=90, height=90, preserveAspectRatio=True, mask='auto')
+    
+    logo_dir = carregar_imagem_local("Daco_5738580.png")
+    if logo_dir:
+        c.drawImage(logo_dir, largura - margem_direita - 90, y - 80, width=90, height=90, preserveAspectRatio=True, mask='auto')
+    
+    # Cabeçalho
+    c.setFont(fonte_texto, 13)
+    c.drawCentredString(largura / 2, y - 15, "ESTADO DO MARANHÃO")
+    c.drawCentredString(largura / 2, y - 32, "PREFEITURA MUNICIPAL DE PAÇO DO LUMIAR")
+    c.drawCentredString(largura / 2, y - 49, "SECRETARIA MUNICIPAL DE EDUCAÇÃO")
+    
+    y -= 100
+    
+    # Título CERTIFICADO
+    c.setFont(fonte_titulo, 28)
+    c.drawCentredString(largura / 2, y-30, "CERTIFICADO")
+    
+    y -= 50
+    
+    # Preparar o texto
+    escola = dados.get('nome_escola', 'EM PROFª NADIR NASCIMENTO MORAES')
+    nome_aluno = dados.get('nome', '').upper()
+    nomes_responsaveis = dados.get('nomes_responsaveis', '')
+    
+    # Separar responsáveis (formato: "Nome1 e Nome2")
+    if nomes_responsaveis:
+        partes = nomes_responsaveis.split(' e ')
+        nome_pai = partes[0].upper() if len(partes) > 0 else ''
+        nome_mae = partes[1].upper() if len(partes) > 1 else ''
+    else:
+        nome_pai = ''
+        nome_mae = ''
+    
+    data_nasc = formatar_data(dados.get('data_nascimento', ''))
+    municipio = dados.get('local_nascimento', 'PAÇO DO LUMIAR').upper()
+    uf = (dados.get('UF_nascimento') or 'MA').upper()
+
+    # Mapear sigla UF para nome completo do estado
+    uf_map = {
+        'AC': 'Acre', 'AL': 'Alagoas', 'AP': 'Amapá', 'AM': 'Amazonas',
+        'BA': 'Bahia', 'CE': 'Ceará', 'DF': 'Distrito Federal', 'ES': 'Espírito Santo',
+        'GO': 'Goiás', 'MA': 'Maranhão', 'MT': 'Mato Grosso', 'MS': 'Mato Grosso do Sul',
+        'MG': 'Minas Gerais', 'PA': 'Pará', 'PB': 'Paraíba', 'PR': 'Paraná',
+        'PE': 'Pernambuco', 'PI': 'Piauí', 'RJ': 'Rio de Janeiro', 'RN': 'Rio Grande do Norte',
+        'RS': 'Rio Grande do Sul', 'RO': 'Rondônia', 'RR': 'Roraima', 'SC': 'Santa Catarina',
+        'SP': 'São Paulo', 'SE': 'Sergipe', 'TO': 'Tocantins'
+    }
+    uf_full = uf_map.get(uf, uf)
+    
+    # Ajustar gênero conforme campo 'sexo' (M/F)
+    sexo_aluno = (dados.get('sexo') or '').upper()
+    if sexo_aluno == 'F':
+        aluno_label = 'a Aluna'
+        filho_label = 'filha'
+        nascido_label = 'nascida'
+    else:
+        aluno_label = 'o Aluno'
+        filho_label = 'filho'
+        nascido_label = 'nascido'
+
+    # Criar texto completo justificado usando Paragraph
+    texto_completo = textwrap.dedent(f"""
+        A {escola} no uso de suas atribuições legais, confere o presente
+        Certificado de Conclusão do Ensino Fundamental para {aluno_label}
+        <b>{nome_aluno}</b>, {filho_label} de {nome_pai} e de {nome_mae},
+        {nascido_label} em {data_nasc} no município de {municipio} do
+        {('Distrito Federal' if uf_full == 'Distrito Federal' else 'Estado do ' + uf_full)} por ter concluído no ano de {ano_letivo}. Reconhecido pela Resolução Nº 19/2023-CME de 07/05/2024, do Conselho Municipal de Educação.
+    """).strip()
+    
+    # Criar estilo para texto justificado
+    styles = getSampleStyleSheet()
+    estilo_justificado = ParagraphStyle(
+        'Justificado',
+        parent=styles['Normal'],
+        fontSize=15,
+        leading=22,
+        alignment=TA_JUSTIFY,
+        fontName=fonte_texto,
+        spaceBefore=0,
+        spaceAfter=0,
+        leftIndent=0,
+        rightIndent=0
+    )
+    
+    # Criar parágrafo justificado
+    paragrafo = Paragraph(texto_completo, estilo_justificado)
+    
+    # Calcular largura e altura disponível para o parágrafo
+    largura_paragrafo = largura_util
+    altura_disponivel = 150
+    
+    # Desenhar o parágrafo
+    w, h = paragrafo.wrap(largura_paragrafo, altura_disponivel)
+    paragrafo.drawOn(c, margem_esquerda, y - h)
+    
+    y -= h + 40
+    
+    # Data por extenso (com lógica condicional para 30/12/2025)
+    data_atual = obter_data_impressao()
+    c.setFont(fonte_texto, 13)
+    texto_data = f"PAÇO DO LUMIAR - MA, {data_atual}."
+    c.drawRightString(largura - margem_direita, y, texto_data)
+    
+    # Verificar se há espaço suficiente para assinaturas
+    y -= 60
+    if y < margem_inferior + 60:
+        y = margem_inferior + 60
+    
+    # Linhas para assinaturas (centralizadas e espaçadas)
+    linha_y = y
+    espacamento_total = largura_util
+    largura_assinatura = 220
+    espaco_entre = (espacamento_total - (2 * largura_assinatura)) / 3
+    
+    pos_assinatura1 = margem_esquerda + espaco_entre
+    pos_assinatura2 = margem_esquerda + espaco_entre + largura_assinatura + espaco_entre
+    
+    # Desenhar linhas de assinatura
+    c.line(pos_assinatura1, linha_y, pos_assinatura1 + largura_assinatura, linha_y)
+    c.line(pos_assinatura2, linha_y, pos_assinatura2 + largura_assinatura, linha_y)
+    
+    # Texto das assinaturas
+    c.setFont(fonte_texto, 10)
+    c.drawCentredString(pos_assinatura1 + largura_assinatura/2, linha_y - 18, "SECRETÁRIO(A) MUNICIPAL DE EDUCAÇÃO")
+    c.drawCentredString(pos_assinatura2 + largura_assinatura/2, linha_y - 18, "GESTOR ESCOLAR")
+
+
 def gerar_certificado_pdf(aluno_id, arquivo_saida=None):
     """
     Gera o certificado em PDF para um aluno
@@ -165,172 +347,11 @@ def gerar_certificado_pdf(aluno_id, arquivo_saida=None):
         arquivo_saida = os.path.join(pasta_certificados, nome_arquivo)
     
     try:
-        # Registrar fontes (usando fontes padrão do sistema)
-        # Century Gothic pode não estar disponível, usar alternativas
-        try:
-            pdfmetrics.registerFont(TTFont('CenturyGothic', 'GOTHIC.TTF'))
-            pdfmetrics.registerFont(TTFont('CenturyGothic-Bold', 'GOTHICB.TTF'))
-            fonte_titulo = 'CenturyGothic-Bold'
-            fonte_texto = 'CenturyGothic'
-        except:
-            logger.info("Fonte Century Gothic não encontrada, usando Helvetica")
-            fonte_titulo = 'Helvetica-Bold'
-            fonte_texto = 'Helvetica'
-        
         # Criar o PDF em formato paisagem
-        largura, altura = landscape(A4)
         c = canvas.Canvas(arquivo_saida, pagesize=landscape(A4))
         
-        # Carregar e adicionar imagem de fundo
-        bg_image = carregar_imagem_local("fcertificado3.png")
-        if bg_image:
-            # Forçar a imagem de fundo a preencher toda a página A4
-            # evitando bordas deixadas pela preservação de proporção
-            c.drawImage(bg_image, 0, 0, width=largura, height=altura, preserveAspectRatio=False, mask='auto')
-        
-        # Definir margens com bordas respeitadas
-        margem_esquerda = 75
-        margem_direita = 75
-        margem_superior = 70
-        margem_inferior = 70
-        largura_util = largura - margem_esquerda - margem_direita
-        
-        # Posição Y inicial (do topo com margem)
-        y = altura - margem_superior
-        
-        # Adicionar brasões/logos (carregando localmente)
-        # Logo esquerda
-        logo_esq = carregar_imagem_local("logo_prefeitura.png")
-        if logo_esq:
-            c.drawImage(logo_esq, margem_esquerda, y - 80, width=90, height=90, preserveAspectRatio=True, mask='auto')
-        
-        # Logo direita
-        logo_dir = carregar_imagem_local("Daco_5738580.png")
-        if logo_dir:
-            c.drawImage(logo_dir, largura - margem_direita - 90, y - 80, width=90, height=90, preserveAspectRatio=True, mask='auto')
-        
-        # Cabeçalho
-        
-        # Cabeçalho
-        c.setFont(fonte_texto, 13)
-        c.drawCentredString(largura / 2, y - 15, "ESTADO DO MARANHÃO")
-        c.drawCentredString(largura / 2, y - 32, "PREFEITURA MUNICIPAL DE PAÇO DO LUMIAR")
-        c.drawCentredString(largura / 2, y - 49, "SECRETARIA MUNICIPAL DE EDUCAÇÃO")
-        
-        y -= 100
-        
-        # Título CERTIFICADO
-        c.setFont(fonte_titulo, 28)
-        c.drawCentredString(largura / 2, y-30, "CERTIFICADO")
-        
-        y -= 50
-        
-        # Preparar o texto
-        escola = dados.get('nome_escola', 'EM PROFª NADIR NASCIMENTO MORAES')
-        nome_aluno = dados.get('nome', '').upper()
-        nomes_responsaveis = dados.get('nomes_responsaveis', '')
-        
-        # Separar responsáveis (formato: "Nome1 e Nome2")
-        if nomes_responsaveis:
-            partes = nomes_responsaveis.split(' e ')
-            nome_pai = partes[0].upper() if len(partes) > 0 else ''
-            nome_mae = partes[1].upper() if len(partes) > 1 else ''
-        else:
-            nome_pai = ''
-            nome_mae = ''
-        
-        data_nasc = formatar_data(dados.get('data_nascimento', ''))
-        municipio = dados.get('local_nascimento', 'PAÇO DO LUMIAR').upper()
-        uf = (dados.get('UF_nascimento') or 'MA').upper()
-
-        # Mapear sigla UF para nome completo do estado
-        uf_map = {
-            'AC': 'Acre', 'AL': 'Alagoas', 'AP': 'Amapá', 'AM': 'Amazonas',
-            'BA': 'Bahia', 'CE': 'Ceará', 'DF': 'Distrito Federal', 'ES': 'Espírito Santo',
-            'GO': 'Goiás', 'MA': 'Maranhão', 'MT': 'Mato Grosso', 'MS': 'Mato Grosso do Sul',
-            'MG': 'Minas Gerais', 'PA': 'Pará', 'PB': 'Paraíba', 'PR': 'Paraná',
-            'PE': 'Pernambuco', 'PI': 'Piauí', 'RJ': 'Rio de Janeiro', 'RN': 'Rio Grande do Norte',
-            'RS': 'Rio Grande do Sul', 'RO': 'Rondônia', 'RR': 'Roraima', 'SC': 'Santa Catarina',
-            'SP': 'São Paulo', 'SE': 'Sergipe', 'TO': 'Tocantins'
-        }
-        uf_full = uf_map.get(uf, uf)
-        
-        # Ajustar gênero conforme campo 'sexo' (M/F)
-        sexo_aluno = (dados.get('sexo') or '').upper()
-        if sexo_aluno == 'F':
-            aluno_label = 'a Aluna'
-            filho_label = 'filha'
-            nascido_label = 'nascida'
-        else:
-            aluno_label = 'o Aluno'
-            filho_label = 'filho'
-            nascido_label = 'nascido'
-
-        # Criar texto completo justificado usando Paragraph
-        texto_completo = textwrap.dedent(f"""
-            A {escola} no uso de suas atribuições legais, confere o presente
-            Certificado de Conclusão do Ensino Fundamental para {aluno_label}
-            <b>{nome_aluno}</b>, {filho_label} de {nome_pai} e de {nome_mae},
-            {nascido_label} em {data_nasc} no município de {municipio} do
-            {('Distrito Federal' if uf_full == 'Distrito Federal' else 'Estado do ' + uf_full)} por ter concluído no ano de 2025. Reconhecido pela Resolução Nº 19/2023-CME de 07/05/2024, do Conselho Municipal de Educação.
-        """).strip()
-        
-        # Criar estilo para texto justificado
-        styles = getSampleStyleSheet()
-        estilo_justificado = ParagraphStyle(
-            'Justificado',
-            parent=styles['Normal'],
-            fontSize=15,
-            leading=22,
-            alignment=TA_JUSTIFY,
-            fontName=fonte_texto,
-            spaceBefore=0,
-            spaceAfter=0,
-            leftIndent=0,
-            rightIndent=0
-        )
-        
-        # Criar parágrafo justificado
-        paragrafo = Paragraph(texto_completo, estilo_justificado)
-        
-        # Calcular largura e altura disponível para o parágrafo
-        largura_paragrafo = largura_util
-        altura_disponivel = 150
-        
-        # Desenhar o parágrafo
-        w, h = paragrafo.wrap(largura_paragrafo, altura_disponivel)
-        paragrafo.drawOn(c, margem_esquerda, y - h)
-        
-        y -= h + 40
-        
-        # Data por extenso
-        data_atual = formatar_data_extenso()
-        c.setFont(fonte_texto, 13)
-        texto_data = f"PAÇO DO LUMIAR - MA, {data_atual}."
-        c.drawRightString(largura - margem_direita, y, texto_data)
-        
-        # Verificar se há espaço suficiente para assinaturas
-        y -= 60
-        if y < margem_inferior + 60:
-            y = margem_inferior + 60
-        
-        # Linhas para assinaturas (centralizadas e espaçadas)
-        linha_y = y
-        espacamento_total = largura_util
-        largura_assinatura = 220
-        espaco_entre = (espacamento_total - (2 * largura_assinatura)) / 3
-        
-        pos_assinatura1 = margem_esquerda + espaco_entre
-        pos_assinatura2 = margem_esquerda + espaco_entre + largura_assinatura + espaco_entre
-        
-        # Desenhar linhas de assinatura
-        c.line(pos_assinatura1, linha_y, pos_assinatura1 + largura_assinatura, linha_y)
-        c.line(pos_assinatura2, linha_y, pos_assinatura2 + largura_assinatura, linha_y)
-        
-        # Texto das assinaturas (já desenhado acima, espaço reservado)
-        c.setFont(fonte_texto, 10)
-        c.drawCentredString(pos_assinatura1 + largura_assinatura/2, linha_y - 18, "SECRETÁRIO(A) MUNICIPAL DE EDUCAÇÃO")
-        c.drawCentredString(pos_assinatura2 + largura_assinatura/2, linha_y - 18, "GESTOR ESCOLAR")
+        # Renderizar a página do certificado
+        renderizar_pagina_certificado(c, dados)
         
         # Finalizar o PDF
         c.save()
