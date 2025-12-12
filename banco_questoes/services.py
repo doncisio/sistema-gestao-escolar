@@ -248,6 +248,24 @@ class QuestaoService:
         return [QuestaoAlternativa.from_dict(row) for row in cursor.fetchall()]
     
     @staticmethod
+    def buscar_alternativas(questao_id: int) -> List[QuestaoAlternativa]:
+        """
+        Busca alternativas de uma questão (método público).
+        
+        Args:
+            questao_id: ID da questão
+            
+        Returns:
+            Lista de alternativas ordenadas
+        """
+        try:
+            with get_cursor() as cursor:
+                return QuestaoService._carregar_alternativas(cursor, questao_id)
+        except Exception as e:
+            logger.exception(f"Erro ao buscar alternativas da questão {questao_id}: {e}")
+            return []
+    
+    @staticmethod
     def excluir(questao_id: int) -> bool:
         """
         Exclui uma questão.

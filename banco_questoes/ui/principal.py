@@ -51,6 +51,8 @@ class InterfaceBancoQuestoes:
         self.janela.configure(bg=self.co0)
         # Cache para referências de imagens (evita garbage collection do PhotoImage)
         self._image_refs = []
+        # Cache para previews de imagens (evita recarregar)
+        self._cache_imagens = {}
         
         # Verificar perfil do usuário
         self.perfil = None
@@ -989,6 +991,18 @@ Status: {questao.status.value if questao.status else ''}"""
         ).pack(side="left", padx=5)
         
         tk.Button(
+            frame_btn_img, text="✏️ Editar Imagem",
+            command=self.editar_imagem_enunciado,
+            bg="#FF9800", fg="white"
+        ).pack(side="left", padx=5)
+        
+        tk.Button(
+            frame_btn_img, text="🔍 Ampliar Preview",
+            command=lambda: self.ampliar_preview(self.imagem_enunciado_path) if self.imagem_enunciado_path else None,
+            bg=self.co4, fg="white"
+        ).pack(side="left", padx=5)
+        
+        tk.Button(
             frame_btn_img, text="🗑️ Remover Imagem",
             command=self.remover_imagem_enunciado,
             bg=self.co8, fg="white"
@@ -1088,6 +1102,21 @@ Status: {questao.status.value if questao.status else ''}"""
             command=self.limpar_campos_cadastro,
             bg=self.co8, fg="white", font=("Arial", 10, "bold")
         ).pack(side="right", padx=5)
+        
+        tk.Button(
+            frame_botoes, text="📋 Salvar Template",
+            command=self.salvar_como_template,
+            bg=self.co4, fg="white", font=("Arial", 10, "bold")
+        ).pack(side="right", padx=5)
+        
+        tk.Button(
+            frame_botoes, text="📂 Carregar Template",
+            command=self.carregar_template,
+            bg=self.co4, fg="white", font=("Arial", 10, "bold")
+        ).pack(side="right", padx=5)
+        
+        # Habilitar drag & drop se disponível
+        self.habilitar_drag_drop()
     
     def criar_campos_alternativas(self):
         """Cria os campos para alternativas de múltipla escolha."""
@@ -1145,6 +1174,12 @@ Status: {questao.status.value if questao.status else ''}"""
             ).pack(side="left", padx=2)
             
             tk.Button(
+                frame_alt_img, text="✏️",
+                command=lambda l=letra: self.editar_imagem_alternativa(l),
+                bg="#FF9800", fg="white", width=3
+            ).pack(side="left", padx=2)
+            
+            tk.Button(
                 frame_alt_img, text="🗑️",
                 command=lambda l=letra: self.remover_imagem_alternativa(l),
                 bg=self.co8, fg="white", width=3
@@ -1183,6 +1218,10 @@ Status: {questao.status.value if questao.status else ''}"""
         )
         
         if caminho:
+            # Validar tamanho da imagem
+            if not self.validar_tamanho_imagem(caminho):
+                return
+            
             self.imagem_enunciado_path = caminho
             nome_arquivo = caminho.split("/")[-1].split("\\")[-1]
             self.lbl_imagem_enunciado.config(text=f"✅ {nome_arquivo[:30]}...")
@@ -1274,6 +1313,10 @@ Status: {questao.status.value if questao.status else ''}"""
         )
         
         if caminho:
+            # Validar tamanho da imagem
+            if not self.validar_tamanho_imagem(caminho):
+                return
+            
             self.imagens_alternativas[letra] = caminho
             nome_arquivo = caminho.split("/")[-1].split("\\")[-1]
             self.labels_imagem_alt[letra].config(text=f"✅ {nome_arquivo[:15]}...")
@@ -1288,8 +1331,15 @@ Status: {questao.status.value if questao.status else ''}"""
         self.labels_preview_alt[letra].config(image='')
     
     def mostrar_preview_imagem(self, caminho: str, label: tk.Label, tamanho_max: int = 100):
-        """Mostra preview de uma imagem em um label."""
+        """Mostra preview de uma imagem em um label (com cache)."""
         try:
+            # Verificar cache
+            cache_key = f"{caminho}_{tamanho_max}"
+            if cache_key in self._cache_imagens:
+                photo = self._cache_imagens[cache_key]
+                label.config(image=photo)
+                return
+            
             from PIL import Image, ImageTk
             
             img = Image.open(caminho)
@@ -1301,6 +1351,9 @@ Status: {questao.status.value if questao.status else ''}"""
             
             img_resized = img.resize((novo_w, novo_h), Image.Resampling.LANCZOS)
             photo = ImageTk.PhotoImage(img_resized)
+            
+            # Armazenar no cache
+            self._cache_imagens[cache_key] = photo
             
             label.config(image=photo)
             # Manter referência ao PhotoImage para evitar garbage collection
@@ -2077,11 +2130,275 @@ Status: {questao.status.value if questao.status else ''}"""
     
     def gerar_pdf_avaliacao(self):
         """Gera PDF da avaliação."""
-        messagebox.showinfo(
-            "Em desenvolvimento",
-            "A geração de PDF será implementada em breve.\n"
-            "Por enquanto, salve a avaliação para consultar depois."
-        )
+        # Validar campos obrigatórios
+        if not self.aval_titulo.get().strip():
+            messagebox.showwarning("Aviso", "Informe o título da avaliação.")
+            return
+        
+        if not self.aval_componente.get():
+            messagebox.showwarning("Aviso", "Selecione o componente curricular.")
+            return
+        
+        if not self.aval_ano.get():
+            messagebox.showwarning("Aviso", "Selecione o ano escolar.")
+            return
+        
+        if not self.questoes_avaliacao:
+            messagebox.showwarning("Aviso", "Adicione pelo menos uma questão à avaliação.")
+            return
+        
+        try:
+            from tkinter import filedialog
+            import os
+            
+            # Solicitar local para salvar
+            nome_sugerido = f"Avaliacao_{self.aval_componente.get().replace(' ', '_')}_{self.aval_ano.get().replace(' ', '_')}.pdf"
+            
+            caminho_pdf = filedialog.asksaveasfilename(
+                title="Salvar Avaliação em PDF",
+                defaultextension=".pdf",
+                filetypes=[("PDF", "*.pdf")],
+                initialfile=nome_sugerido,
+                parent=self.janela
+            )
+            
+            if not caminho_pdf:
+                return
+            
+            # Gerar o PDF
+            self._criar_pdf_avaliacao(caminho_pdf)
+            
+            # Perguntar se quer abrir
+            resposta = messagebox.askyesno(
+                "PDF Gerado",
+                f"PDF gerado com sucesso!\n\n{caminho_pdf}\n\nDeseja abrir o arquivo?",
+                icon='info'
+            )
+            
+            if resposta:
+                os.startfile(caminho_pdf)
+            
+        except Exception as e:
+            logger.error(f"Erro ao gerar PDF: {e}")
+            messagebox.showerror("Erro", f"Erro ao gerar PDF:\n{e}")
+    
+    def _criar_pdf_avaliacao(self, caminho_pdf: str):
+        """Cria o arquivo PDF da avaliação."""
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import cm
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.utils import ImageReader
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.platypus import Paragraph, Table, TableStyle
+        from reportlab.lib import colors
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        import os
+        from datetime import datetime
+        
+        # Criar canvas
+        c = canvas.Canvas(caminho_pdf, pagesize=A4)
+        width, height = A4
+        
+        # Margens
+        margin_left = 2 * cm
+        margin_right = 2 * cm
+        margin_top = 2 * cm
+        margin_bottom = 2 * cm
+        
+        y_position = height - margin_top
+        
+        # ====================================================================
+        # CABEÇALHO
+        # ====================================================================
+        
+        # Logo da escola (centralizado, preservando proporção)
+        logo_path = r"C:\gestao\imagens\logopaco.png"
+        header_block_height = 0
+        if os.path.exists(logo_path):
+            try:
+                # Obter tamanho da imagem e calcular escala para manter proporção
+                from PIL import Image
+                img_pil = Image.open(logo_path)
+                img_w, img_h = img_pil.size
+
+                # Limites máximos para exibição do logo
+                max_w = 6 * cm
+                max_h = 3 * cm
+
+                scale = min(max_w / img_w, max_h / img_h, 1.0)
+                disp_w = img_w * scale
+                disp_h = img_h * scale
+
+                x_img = (width - disp_w) / 2
+                y_img = y_position - disp_h
+                c.drawImage(logo_path, x_img, y_img, width=disp_w, height=disp_h, preserveAspectRatio=True, mask='auto')
+
+                header_block_height = disp_h
+                y_position = y_img - 0.2 * cm
+            except Exception as e:
+                logger.warning(f"Erro ao carregar logo: {e}")
+                header_block_height = 0
+        else:
+            header_block_height = 0
+
+        # Texto do cabeçalho (centralizado e depois justificado no corpo)
+        estilos = getSampleStyleSheet()
+        estilo_cab = ParagraphStyle(
+            'cabecalho', parent=estilos['Normal'], alignment=TA_JUSTIFY, fontName='Helvetica-Bold', fontSize=12)
+        estilo_info = ParagraphStyle(
+            'info', parent=estilos['Normal'], alignment=TA_JUSTIFY, fontName='Helvetica', fontSize=11)
+
+        # Construir conteúdo do cabeçalho
+        # Espaçamento uniforme entre as três linhas do cabeçalho
+        gap = 0.5 * cm
+
+        cab_html = 'E.M. PROFª. NADIR NASCIMENTO MORAES'
+        p = Paragraph(cab_html, estilo_cab)
+        w_p, h_p = p.wrap(width - margin_left - margin_right, y_position)
+        p.drawOn(c, margin_left, y_position - h_p)
+        y_position -= h_p + gap
+
+        # Adicionar '- MA' conforme documentação
+        info_text = 'PAÇO DO LUMIAR - MA, ______de___________________ de 2025.'
+        p2 = Paragraph(info_text, estilo_info)
+        w2, h2 = p2.wrap(width - margin_left - margin_right, y_position)
+        p2.drawOn(c, margin_left, y_position - h2)
+        y_position -= h2 + gap
+
+        # Linha com ESTUDANTE (esquerda) e TURMA (direita) usando Table para alinhar e manter espaçamento
+        estudante_text = 'ESTUDANTE:____________________________________________'
+        turma_text = 'TURMA:________'
+        content_width = width - margin_left - margin_right
+        col_w1 = content_width * 0.75
+        col_w2 = content_width - col_w1
+        table = Table([[estudante_text, turma_text]], colWidths=[col_w1, col_w2])
+        table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 11),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0,0), (-1,-1), 0),
+            ('RIGHTPADDING', (0,0), (-1,-1), 0),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+            ('TOPPADDING', (0,0), (-1,-1), 0),
+        ]))
+
+        w_tab, h_tab = table.wrap(content_width, y_position)
+        table.drawOn(c, margin_left, y_position - h_tab)
+        y_position -= h_tab + gap
+
+        # Linha separadora
+        c.line(margin_left, y_position, width - margin_right, y_position)
+        y_position -= 0.8 * cm
+        
+        # ====================================================================
+        # TÍTULO DA ATIVIDADE
+        # ====================================================================
+        
+        componente = self.aval_componente.get()
+        ano = self.aval_ano.get()
+        bimestre = self.aval_bimestre.get() if self.aval_bimestre.get() else "____"
+        
+        titulo_atividade = f"Atividade Avaliativa de {componente} do {ano} - {bimestre}"
+        
+        c.setFont("Helvetica-Bold", 14)
+        # Centralizar título
+        text_width = c.stringWidth(titulo_atividade, "Helvetica-Bold", 14)
+        x_centered = (width - text_width) / 2
+        c.drawString(x_centered, y_position, titulo_atividade)
+        
+        # Remover subtítulo "Lista de Questões" — o formato das questões terá numeração direta
+        y_position -= 0.5 * cm
+        
+        # ====================================================================
+        # QUESTÕES
+        # ====================================================================
+        
+        from banco_questoes.services import QuestaoService
+        
+        for ordem, questao_id in enumerate(self.questoes_avaliacao, 1):
+            try:
+                questao = QuestaoService.buscar_por_id(questao_id)
+                
+                if not questao:
+                    continue
+                
+                # Verificar se precisa de nova página
+                # Reservar espaço estimado: se espaço insuficiente, nova página
+                if y_position < margin_bottom + 6*cm:
+                    c.showPage()
+                    y_position = height - margin_top
+
+                # Número da questão seguido do enunciado (ex: "1. Texto")
+                enunciado = questao.enunciado or ""
+                estilo_enun = ParagraphStyle('enunciado', parent=getSampleStyleSheet()['Normal'], alignment=TA_JUSTIFY, fontName='Helvetica', fontSize=12, leading=14)
+                p_enun = Paragraph(f"<b>{ordem}.</b> {enunciado.replace('\n', '<br/>')}", estilo_enun)
+                w_enun, h_enun = p_enun.wrap(width - margin_left - margin_right, y_position)
+                if h_enun > y_position - margin_bottom:
+                    c.showPage()
+                    y_position = height - margin_top
+                p_enun.drawOn(c, margin_left, y_position - h_enun)
+                y_position -= h_enun + 0.2 * cm
+
+                # Alternativas (se múltipla escolha)
+                if questao.tipo and getattr(questao.tipo, 'value', '') == "multipla_escolha":
+                    alternativas = QuestaoService.buscar_alternativas(questao_id)
+                    estilo_alt = ParagraphStyle('alternativa', parent=getSampleStyleSheet()['Normal'], alignment=TA_JUSTIFY, fontName='Helvetica', fontSize=12, leftIndent=12, leading=14)
+                    for alt in alternativas:
+                        texto_alt = f"{alt.letra}) {alt.texto or ''}"
+                        p_alt = Paragraph(texto_alt, estilo_alt)
+                        w_alt, h_alt = p_alt.wrap(width - margin_left - margin_right - 0.5*cm, y_position)
+                        if h_alt > y_position - margin_bottom:
+                            c.showPage()
+                            y_position = height - margin_top
+                        p_alt.drawOn(c, margin_left + 0.5*cm, y_position - h_alt)
+                        y_position -= h_alt
+
+                # Espaço para resposta (se dissertativa)
+                elif questao.tipo and getattr(questao.tipo, 'value', '') == "dissertativa":
+                    # Espaço para resposta (5 linhas)
+                    for _ in range(5):
+                        if y_position < margin_bottom + 0.5*cm:
+                            c.showPage()
+                            y_position = height - margin_top
+                        c.line(margin_left + 0.5*cm, y_position, width - margin_right, y_position)
+                        y_position -= 0.6 * cm
+
+                # Espaçamento entre questões
+                y_position -= 0.8 * cm
+                
+            except Exception as e:
+                logger.error(f"Erro ao processar questão {questao_id}: {e}")
+                continue
+        
+        # Salvar PDF
+        c.save()
+        logger.info(f"PDF gerado: {caminho_pdf}")
+    
+    def _quebrar_texto(self, texto: str, largura_max: float, canvas_obj, font_name: str, font_size: int) -> list:
+        """Quebra texto em múltiplas linhas para caber na largura especificada."""
+        palavras = texto.split()
+        linhas = []
+        linha_atual = ""
+        
+        for palavra in palavras:
+            teste = f"{linha_atual} {palavra}".strip()
+            largura_teste = canvas_obj.stringWidth(teste, font_name, font_size)
+            
+            if largura_teste <= largura_max:
+                linha_atual = teste
+            else:
+                if linha_atual:
+                    linhas.append(linha_atual)
+                linha_atual = palavra
+        
+        if linha_atual:
+            linhas.append(linha_atual)
+        
+        return linhas if linhas else [""]
     
     # =========================================================================
     # ABA: MINHAS QUESTÕES
@@ -2353,6 +2670,404 @@ POR STATUS:
         except Exception as e:
             logger.error(f"Erro ao carregar estatísticas: {e}")
             self.lbl_stats.config(text=f"Erro ao carregar: {e}")
+    
+    # =========================================================================
+    # FASE 1 - MELHORIAS CRÍTICAS: EDITOR DE IMAGENS E VALIDAÇÕES
+    # =========================================================================
+    
+    def abrir_editor_imagem(self, caminho_imagem: str, tipo: str = 'enunciado', letra_alt: str = None):
+        """
+        Abre o editor de imagens integrado.
+        
+        Args:
+            caminho_imagem: Caminho da imagem a editar
+            tipo: 'enunciado' ou 'alternativa'
+            letra_alt: Letra da alternativa (se tipo='alternativa')
+        """
+        import os
+        if not caminho_imagem or not os.path.exists(caminho_imagem):
+            messagebox.showwarning("Aviso", "Imagem não encontrada.")
+            return
+        
+        try:
+            from banco_questoes.ui.editor_imagem import EditorImagem
+            
+            editor = EditorImagem(
+                parent=self.janela,
+                caminho_imagem=caminho_imagem,
+                callback=lambda caminho_editado: self._aplicar_imagem_editada(
+                    caminho_editado, tipo, letra_alt
+                )
+            )
+            editor.abrir()
+        except ImportError as e:
+            logger.error(f"Erro ao importar editor: {e}")
+            messagebox.showerror("Erro", "Módulo de edição de imagens não disponível.")
+        except Exception as e:
+            logger.error(f"Erro ao abrir editor de imagem: {e}")
+            messagebox.showerror("Erro", f"Erro ao abrir editor:\n{e}")
+    
+    def _aplicar_imagem_editada(self, caminho_editado: str, tipo: str, letra_alt: str = None):
+        """Aplica a imagem editada ao campo apropriado."""
+        import os
+        if tipo == 'enunciado':
+            self.imagem_enunciado_path = caminho_editado
+            nome_arquivo = os.path.basename(caminho_editado)
+            self.lbl_imagem_enunciado.config(text=f"✅ {nome_arquivo[:30]}... (editada)")
+            self.mostrar_preview_imagem(caminho_editado, self.lbl_preview_enunciado, 150)
+        elif tipo == 'alternativa' and letra_alt:
+            self.imagens_alternativas[letra_alt] = caminho_editado
+            nome_arquivo = os.path.basename(caminho_editado)
+            self.labels_imagem_alt[letra_alt].config(text=f"✅ {nome_arquivo[:15]}... (ed)")
+            self.mostrar_preview_imagem(caminho_editado, self.labels_preview_alt[letra_alt], 40)
+    
+    def editar_imagem_enunciado(self):
+        """Abre editor para editar imagem do enunciado."""
+        if not self.imagem_enunciado_path:
+            messagebox.showinfo("Aviso", "Selecione uma imagem primeiro.")
+            return
+        
+        import os
+        if not os.path.exists(self.imagem_enunciado_path):
+            messagebox.showerror("Erro", "Arquivo de imagem não encontrado.")
+            return
+        
+        self.abrir_editor_imagem(self.imagem_enunciado_path, tipo='enunciado')
+    
+    def editar_imagem_alternativa(self, letra: str):
+        """Abre editor para editar imagem de uma alternativa."""
+        caminho = self.imagens_alternativas.get(letra)
+        if not caminho:
+            messagebox.showinfo("Aviso", f"Selecione uma imagem para a alternativa {letra} primeiro.")
+            return
+        
+        import os
+        if not os.path.exists(caminho):
+            messagebox.showerror("Erro", "Arquivo de imagem não encontrado.")
+            return
+        
+        self.abrir_editor_imagem(caminho, tipo='alternativa', letra_alt=letra)
+    
+    def validar_tamanho_imagem(self, caminho: str, tamanho_max_mb: int = 5) -> bool:
+        """
+        Valida se a imagem não excede o tamanho máximo.
+        
+        Args:
+            caminho: Caminho do arquivo
+            tamanho_max_mb: Tamanho máximo em MB
+            
+        Returns:
+            bool: True se válido, False caso contrário
+        """
+        import os
+        try:
+            tamanho_bytes = os.path.getsize(caminho)
+            tamanho_mb = tamanho_bytes / (1024 * 1024)
+            
+            if tamanho_mb > tamanho_max_mb:
+                resposta = messagebox.askyesno(
+                    "Arquivo Grande",
+                    f"A imagem tem {tamanho_mb:.1f}MB (máximo recomendado: {tamanho_max_mb}MB).\\n\\n"
+                    "Deseja redimensionar automaticamente?",
+                    icon='warning'
+                )
+                
+                if resposta:
+                    return self._redimensionar_automatico(caminho, tamanho_max_mb)
+                return False
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Erro ao validar tamanho: {e}")
+            return False
+    
+    def _redimensionar_automatico(self, caminho: str, tamanho_max_mb: int) -> bool:
+        """Redimensiona imagem automaticamente para não exceder tamanho máximo."""
+        import os
+        try:
+            from PIL import Image
+            
+            img = Image.open(caminho)
+            
+            # Reduzir qualidade/tamanho progressivamente
+            qualidade = 85
+            largura_atual = img.width
+            
+            while True:
+                # Salvar temporariamente
+                temp_path = caminho + ".temp.jpg"
+                
+                if largura_atual < img.width:
+                    ratio = largura_atual / img.width
+                    nova_altura = int(img.height * ratio)
+                    img_redim = img.resize((largura_atual, nova_altura), Image.Resampling.LANCZOS)
+                else:
+                    img_redim = img
+                
+                # Converter para RGB se necessário (para salvar como JPEG)
+                if img_redim.mode in ('RGBA', 'LA', 'P'):
+                    img_rgb = Image.new('RGB', img_redim.size, (255, 255, 255))
+                    if img_redim.mode == 'P':
+                        img_redim = img_redim.convert('RGBA')
+                    img_rgb.paste(img_redim, mask=img_redim.split()[-1] if img_redim.mode == 'RGBA' else None)
+                    img_redim = img_rgb
+                
+                img_redim.save(temp_path, "JPEG", quality=qualidade, optimize=True)
+                
+                # Verificar tamanho
+                tamanho_mb = os.path.getsize(temp_path) / (1024 * 1024)
+                
+                if tamanho_mb <= tamanho_max_mb:
+                    # Substituir original
+                    os.replace(temp_path, caminho)
+                    messagebox.showinfo(
+                        "Redimensionamento",
+                        f"Imagem redimensionada para {tamanho_mb:.1f}MB"
+                    )
+                    return True
+                
+                # Reduzir mais
+                qualidade -= 10
+                largura_atual = int(largura_atual * 0.8)
+                
+                if qualidade < 30 or largura_atual < 200:
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+                    messagebox.showerror(
+                        "Erro",
+                        "Não foi possível reduzir o tamanho da imagem adequadamente."
+                    )
+                    return False
+            
+        except Exception as e:
+            logger.error(f"Erro ao redimensionar: {e}")
+            return False
+    
+    def ampliar_preview(self, caminho: str):
+        """Abre janela com visualização ampliada da imagem."""
+        import os
+        if not caminho or not os.path.exists(caminho):
+            messagebox.showwarning("Aviso", "Nenhuma imagem selecionada.")
+            return
+        
+        try:
+            janela_preview = tk.Toplevel(self.janela)
+            janela_preview.title("📷 Visualização da Imagem")
+            janela_preview.geometry("800x600")
+            janela_preview.grab_set()
+            
+            from PIL import Image, ImageTk
+            
+            img = Image.open(caminho)
+            
+            # Redimensionar para caber na janela
+            img_display = img.copy()
+            img_display.thumbnail((780, 520), Image.Resampling.LANCZOS)
+            photo = ImageTk.PhotoImage(img_display)
+            
+            label = tk.Label(janela_preview, image=photo)
+            label.image = photo  # Manter referência
+            label.pack(expand=True, pady=10)
+            
+            # Info da imagem
+            tamanho_kb = os.path.getsize(caminho) / 1024
+            info_text = f"Dimensões: {img.width}x{img.height}px | Tamanho: {tamanho_kb:.1f}KB"
+            tk.Label(janela_preview, text=info_text, font=("Arial", 10)).pack(pady=5)
+            
+            tk.Button(
+                janela_preview, text="Fechar",
+                command=janela_preview.destroy,
+                bg=self.co8, fg="white", padx=20
+            ).pack(pady=10)
+            
+        except Exception as e:
+            logger.error(f"Erro ao visualizar imagem: {e}")
+            messagebox.showerror("Erro", f"Erro ao visualizar imagem:\\n{e}")
+    
+    # =========================================================================
+    # FASE 2 - MELHORIAS IMPORTANTES: DRAG & DROP, CACHE, TEMPLATES
+    # =========================================================================
+    
+    def habilitar_drag_drop(self):
+        """Habilita arrastar e soltar imagens."""
+        try:
+            from tkinterdnd2 import DND_FILES
+            
+            # Enunciado
+            self.frame_preview_enunciado.drop_target_register(DND_FILES)
+            self.frame_preview_enunciado.dnd_bind(
+                '<<Drop>>',
+                lambda e: self._processar_drop(e.data, 'enunciado')
+            )
+            
+            # Alternativas
+            for letra in ["A", "B", "C", "D", "E"]:
+                if hasattr(self, 'labels_preview_alt') and letra in self.labels_preview_alt:
+                    self.labels_preview_alt[letra].drop_target_register(DND_FILES)
+                    self.labels_preview_alt[letra].dnd_bind(
+                        '<<Drop>>',
+                        lambda e, l=letra: self._processar_drop(e.data, 'alternativa', l)
+                    )
+                    
+        except ImportError:
+            logger.info("tkinterdnd2 não disponível - drag & drop desabilitado")
+        except Exception as e:
+            logger.warning(f"Erro ao habilitar drag & drop: {e}")
+    
+    def _processar_drop(self, data: str, tipo: str, letra: str = None):
+        """Processa arquivo arrastado."""
+        import os
+        # Limpar string do caminho
+        caminho = data.strip('{}').strip()
+        
+        # Verificar se é imagem
+        extensoes_validas = ['.png', '.jpg', '.jpeg', '.gif', '.bmp']
+        if not any(caminho.lower().endswith(ext) for ext in extensoes_validas):
+            messagebox.showwarning("Aviso", "Arraste apenas arquivos de imagem.")
+            return
+        
+        # Validar tamanho
+        if not self.validar_tamanho_imagem(caminho):
+            return
+        
+        if tipo == 'enunciado':
+            self.imagem_enunciado_path = caminho
+            nome_arquivo = os.path.basename(caminho)
+            self.lbl_imagem_enunciado.config(text=f"✅ {nome_arquivo[:30]}...")
+            self.mostrar_preview_imagem(caminho, self.lbl_preview_enunciado, 150)
+        elif tipo == 'alternativa' and letra:
+            self.imagens_alternativas[letra] = caminho
+            nome_arquivo = os.path.basename(caminho)
+            self.labels_imagem_alt[letra].config(text=f"✅ {nome_arquivo[:15]}...")
+            self.mostrar_preview_imagem(caminho, self.labels_preview_alt[letra], 40)
+    
+    def salvar_como_template(self):
+        """Salva questão atual como template."""
+        import os
+        import json
+        from tkinter import simpledialog
+        
+        nome = simpledialog.askstring(
+            "Nome do Template",
+            "Digite um nome para o template:",
+            parent=self.janela
+        )
+        
+        if not nome:
+            return
+        
+        try:
+            template = {
+                'nome': nome,
+                'componente': self.cad_componente.get() if hasattr(self, 'cad_componente') else '',
+                'ano': self.cad_ano.get() if hasattr(self, 'cad_ano') else '',
+                'tipo': self.cad_tipo.get() if hasattr(self, 'cad_tipo') else '',
+                'dificuldade': self.cad_dificuldade.get() if hasattr(self, 'cad_dificuldade') else '',
+                'alternativas': {}
+            }
+            
+            # Salvar alternativas se existirem
+            if hasattr(self, 'cad_alternativas'):
+                for letra, entry in self.cad_alternativas.items():
+                    template['alternativas'][letra] = entry.get()
+            
+            # Salvar em arquivo JSON
+            templates_dir = os.path.join("config", "templates_questoes")
+            os.makedirs(templates_dir, exist_ok=True)
+            
+            arquivo = os.path.join(templates_dir, f"{nome}.json")
+            with open(arquivo, 'w', encoding='utf-8') as f:
+                json.dump(template, f, indent=2, ensure_ascii=False)
+            
+            messagebox.showinfo("Sucesso", f"Template '{nome}' salvo!")
+            
+        except Exception as e:
+            logger.error(f"Erro ao salvar template: {e}")
+            messagebox.showerror("Erro", f"Erro ao salvar template:\\n{e}")
+    
+    def carregar_template(self):
+        """Carrega um template salvo."""
+        import os
+        
+        templates_dir = os.path.join("config", "templates_questoes")
+        
+        if not os.path.exists(templates_dir):
+            messagebox.showinfo("Aviso", "Nenhum template encontrado.")
+            return
+        
+        templates = [f[:-5] for f in os.listdir(templates_dir) if f.endswith('.json')]
+        
+        if not templates:
+            messagebox.showinfo("Aviso", "Nenhum template encontrado.")
+            return
+        
+        # Diálogo de seleção
+        janela = tk.Toplevel(self.janela)
+        janela.title("Carregar Template")
+        janela.geometry("400x300")
+        janela.grab_set()
+        
+        tk.Label(janela, text="Selecione um template:").pack(pady=10)
+        
+        listbox = tk.Listbox(janela, height=10)
+        listbox.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        for template in templates:
+            listbox.insert(tk.END, template)
+        
+        def aplicar():
+            seleção = listbox.curselection()
+            if not seleção:
+                return
+            
+            nome_template = listbox.get(seleção[0])
+            self._aplicar_template(nome_template)
+            janela.destroy()
+        
+        tk.Button(
+            janela, text="Carregar", command=aplicar,
+            bg=self.co2, fg="white", padx=20
+        ).pack(pady=10)
+    
+    def _aplicar_template(self, nome: str):
+        """Aplica um template aos campos."""
+        import os
+        import json
+        
+        try:
+            arquivo = os.path.join("config", "templates_questoes", f"{nome}.json")
+            with open(arquivo, 'r', encoding='utf-8') as f:
+                template = json.load(f)
+            
+            # Aplicar valores
+            if hasattr(self, 'cad_componente') and template.get('componente'):
+                self.cad_componente.set(template['componente'])
+                self._atualizar_habilidades_cadastro()
+            
+            if hasattr(self, 'cad_ano') and template.get('ano'):
+                self.cad_ano.set(template['ano'])
+                self._atualizar_habilidades_cadastro()
+            
+            if hasattr(self, 'cad_tipo') and template.get('tipo'):
+                self.cad_tipo.set(template['tipo'])
+                self.atualizar_campos_tipo()
+            
+            if hasattr(self, 'cad_dificuldade') and template.get('dificuldade'):
+                self.cad_dificuldade.set(template['dificuldade'])
+            
+            # Alternativas
+            if hasattr(self, 'cad_alternativas') and template.get('alternativas'):
+                for letra, texto in template['alternativas'].items():
+                    if letra in self.cad_alternativas:
+                        self.cad_alternativas[letra].delete(0, tk.END)
+                        self.cad_alternativas[letra].insert(0, texto)
+            
+            messagebox.showinfo("Sucesso", f"Template '{nome}' aplicado!")
+            
+        except Exception as e:
+            logger.error(f"Erro ao carregar template: {e}")
+            messagebox.showerror("Erro", f"Erro ao carregar template:\\n{e}")
 
 
 def abrir_banco_questoes(janela_principal=None):
