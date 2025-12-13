@@ -7,12 +7,13 @@ Janela principal que integra todas as funcionalidades do banco de questões.
 from config_logs import get_logger
 logger = get_logger(__name__)
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from typing import Optional, Any
 import config
 
 from config import perfis_habilitados
 from auth.usuario_logado import UsuarioLogado
+from banco_questoes.texto_base_service import TextoBaseService, TipoTextoBase
 
 
 class InterfaceBancoQuestoes:
@@ -113,6 +114,12 @@ class InterfaceBancoQuestoes:
             self.frame_estatisticas = tk.Frame(self.notebook, bg=self.co0)
             self.notebook.add(self.frame_estatisticas, text="📊 Estatísticas")
             self.criar_aba_estatisticas()
+        
+        # Aba 6: Textos Base (apenas se pode criar questões/avaliações)
+        if self._pode_criar_questao():
+            self.frame_textos_base = tk.Frame(self.notebook, bg=self.co0)
+            self.notebook.add(self.frame_textos_base, text="📄 Textos Base")
+            self.criar_aba_textos_base()
     
     def _pode_criar_questao(self) -> bool:
         """Verifica se o usuário pode criar questões."""
@@ -1908,6 +1915,122 @@ Status: {questao.status.value if questao.status else ''}"""
         self.aval_tipo.current(2)
         self.aval_tipo.grid(row=4, column=1, padx=5, pady=5, sticky="w")
         
+        # Buscar Questões
+        frame_busca_q = tk.LabelFrame(
+            frame_esq, text="Buscar Questões",
+            bg=self.co0, font=("Arial", 10, "bold")
+        )
+        frame_busca_q.pack(fill="both", expand=True, pady=5)
+        
+        # Filtros de busca
+        frame_filtros = tk.Frame(frame_busca_q, bg=self.co0)
+        frame_filtros.pack(fill="x", padx=5, pady=5)
+        
+        tk.Label(frame_filtros, text="ID:", bg=self.co0).grid(row=0, column=0, padx=2, pady=2, sticky="w")
+        self.busca_id_q = ttk.Entry(frame_filtros, width=10)
+        self.busca_id_q.grid(row=0, column=1, padx=2, pady=2, sticky="w")
+        
+        tk.Button(
+            frame_filtros,
+            text="🔍 Buscar",
+            command=self.buscar_questoes_para_avaliacao,
+            bg=self.co4, fg="white",
+            font=("Arial", 8, "bold"),
+            relief="flat"
+        ).grid(row=0, column=2, padx=5, pady=2)
+        
+        # Lista de questões encontradas
+        scroll_q = tk.Scrollbar(frame_busca_q, orient="vertical")
+        scroll_q.pack(side="right", fill="y")
+        
+        self.listbox_questoes_busca = tk.Listbox(
+            frame_busca_q,
+            yscrollcommand=scroll_q.set,
+            height=6,
+            font=("Arial", 9)
+        )
+        self.listbox_questoes_busca.pack(fill="both", expand=True, padx=5, pady=5)
+        scroll_q.config(command=self.listbox_questoes_busca.yview)
+        
+        # Duplo clique para adicionar
+        self.listbox_questoes_busca.bind("<Double-Button-1>", lambda e: self.adicionar_questao_da_busca())
+        
+        # Botão adicionar
+        tk.Button(
+            frame_busca_q,
+            text="➕ Adicionar à Avaliação",
+            command=self.adicionar_questao_da_busca,
+            bg=self.co2, fg="white",
+            font=("Arial", 9, "bold"),
+            relief="flat"
+        ).pack(padx=5, pady=5)
+        
+        # Textos Base da Avaliação
+        frame_textos = tk.LabelFrame(
+            frame_esq, text="Textos Base (opcional)",
+            bg=self.co0, font=("Arial", 10, "bold")
+        )
+        frame_textos.pack(fill="both", expand=True, pady=5)
+        
+        # Lista de textos base vinculados
+        self.textos_base_avaliacao = []  # Lista de dicts: {id, ordem, questoes_vinculadas}
+        
+        # Listbox para textos base
+        scroll_textos = tk.Scrollbar(frame_textos, orient="vertical")
+        scroll_textos.pack(side="right", fill="y")
+        
+        self.listbox_textos = tk.Listbox(
+            frame_textos,
+            yscrollcommand=scroll_textos.set,
+            height=8,
+            font=("Arial", 9)
+        )
+        self.listbox_textos.pack(fill="both", expand=True, padx=5, pady=5)
+        scroll_textos.config(command=self.listbox_textos.yview)
+        
+        # Botões para gerenciar textos base
+        frame_btn_textos = tk.Frame(frame_textos, bg=self.co0)
+        frame_btn_textos.pack(fill="x", padx=5, pady=5)
+        
+        tk.Button(
+            frame_btn_textos,
+            text="➕ Adicionar",
+            command=self.adicionar_texto_base_avaliacao,
+            bg=self.co2, fg="white",
+            font=("Arial", 8, "bold"),
+            relief="flat"
+        ).pack(side="left", padx=2)
+        
+        tk.Button(
+            frame_btn_textos,
+            text="⬆️",
+            command=lambda: self.mover_texto_base(-1),
+            bg=self.co9, fg="white",
+            font=("Arial", 8, "bold"),
+            relief="flat",
+            width=3
+        ).pack(side="left", padx=2)
+        
+        tk.Button(
+            frame_btn_textos,
+            text="⬇️",
+            command=lambda: self.mover_texto_base(1),
+            bg=self.co9, fg="white",
+            font=("Arial", 8, "bold"),
+            relief="flat",
+            width=3
+        ).pack(side="left", padx=2)
+        
+        tk.Button(
+            frame_btn_textos,
+            text="🗑️",
+            command=self.remover_texto_base_avaliacao,
+            bg=self.co8, fg="white",
+            font=("Arial", 8, "bold"),
+            relief="flat",
+            width=3
+        ).pack(side="left", padx=2)
+        
         # Frame direito - questões selecionadas
         frame_dir = tk.Frame(self.frame_avaliacao, bg=self.co0)
         frame_dir.pack(side="right", fill="both", expand=True, padx=10, pady=10)
@@ -2061,6 +2184,267 @@ Status: {questao.status.value if questao.status else ''}"""
             valores[0] = str(i)
             self.tree_avaliacao.item(item, values=valores)
     
+    def adicionar_texto_base_avaliacao(self):
+        """Abre dialog para adicionar texto base à avaliação."""
+        dialog = tk.Toplevel(self.janela)
+        dialog.title("Adicionar Texto Base")
+        dialog.geometry("600x450")
+        dialog.configure(bg=self.co0)
+        dialog.grab_set()
+        
+        container = tk.Frame(dialog, bg=self.co0)
+        container.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        tk.Label(
+            container,
+            text="Selecione um Texto Base",
+            font=("Arial", 12, "bold"),
+            bg=self.co0, fg=self.co1
+        ).pack(anchor="w", pady=(0, 10))
+        
+        # Treeview para selecionar texto
+        frame_tree = tk.Frame(container, bg=self.co0)
+        frame_tree.pack(fill="both", expand=True, pady=(0, 10))
+        
+        scroll_y = tk.Scrollbar(frame_tree, orient="vertical")
+        scroll_y.pack(side="right", fill="y")
+        
+        tree_textos = ttk.Treeview(
+            frame_tree,
+            columns=("id", "titulo", "tipo"),
+            show="headings",
+            yscrollcommand=scroll_y.set,
+            height=12
+        )
+        
+        tree_textos.heading("id", text="ID")
+        tree_textos.heading("titulo", text="Título")
+        tree_textos.heading("tipo", text="Tipo")
+        
+        tree_textos.column("id", width=50, anchor="center")
+        tree_textos.column("titulo", width=350, anchor="w")
+        tree_textos.column("tipo", width=100, anchor="center")
+        
+        tree_textos.pack(fill="both", expand=True)
+        scroll_y.config(command=tree_textos.yview)
+        
+        # Carregar textos base disponíveis
+        try:
+            textos = TextoBaseService.listar(escola_id=config.ESCOLA_ID)
+            for texto in textos:
+                tipo_display = "📝 Texto" if texto.tipo == TipoTextoBase.TEXTO else "🖼️ Imagem"
+                tree_textos.insert("", "end", values=(texto.id, texto.titulo, tipo_display))
+        except Exception as e:
+            logger.error(f"Erro ao carregar textos base: {e}")
+        
+        # Campo para números de questões vinculadas
+        frame_questoes = tk.Frame(container, bg=self.co0)
+        frame_questoes.pack(fill="x", pady=(0, 15))
+        
+        tk.Label(
+            frame_questoes,
+            text="Questões vinculadas a este texto (ex: 1,2,3):",
+            font=("Arial", 9),
+            bg=self.co0, fg=self.co7
+        ).pack(anchor="w")
+        
+        entry_questoes = tk.Entry(frame_questoes, font=("Arial", 10), relief="solid", bd=1)
+        entry_questoes.pack(fill="x", pady=(5, 0))
+        entry_questoes.insert(0, "1")
+        
+        # Botões
+        frame_btns = tk.Frame(container, bg=self.co0)
+        frame_btns.pack(fill="x")
+        
+        def confirmar():
+            selecionado = tree_textos.selection()
+            if not selecionado:
+                messagebox.showwarning("Atenção", "Selecione um texto base.")
+                return
+            
+            item = tree_textos.item(selecionado[0])
+            texto_id = item["values"][0]
+            titulo = item["values"][1]
+            
+            # Parse questões vinculadas
+            questoes_str = entry_questoes.get().strip()
+            questoes_vinculadas = []
+            if questoes_str:
+                try:
+                    questoes_vinculadas = [int(q.strip()) for q in questoes_str.split(",") if q.strip()]
+                except ValueError:
+                    messagebox.showwarning("Atenção", "Formato inválido. Use números separados por vírgula (ex: 1,2,3)")
+                    return
+            
+            # Verificar se já existe
+            if any(t["id"] == texto_id for t in self.textos_base_avaliacao):
+                messagebox.showinfo("Aviso", "Este texto base já foi adicionado.")
+                return
+            
+            # Adicionar à lista
+            ordem = len(self.textos_base_avaliacao) + 1
+            self.textos_base_avaliacao.append({
+                "id": texto_id,
+                "titulo": titulo,
+                "ordem": ordem,
+                "questoes_vinculadas": questoes_vinculadas
+            })
+            
+            # Atualizar listbox
+            self.atualizar_listbox_textos()
+            
+            messagebox.showinfo("Sucesso", f"Texto base '{titulo}' adicionado!")
+            dialog.destroy()
+        
+        tk.Button(
+            frame_btns,
+            text="✓ Adicionar",
+            command=confirmar,
+            bg=self.co2, fg="white",
+            font=("Arial", 10, "bold"),
+            relief="flat",
+            padx=20, pady=8
+        ).pack(side="left", padx=(0, 10))
+        
+        tk.Button(
+            frame_btns,
+            text="✗ Cancelar",
+            command=dialog.destroy,
+            bg=self.co9, fg="white",
+            font=("Arial", 10, "bold"),
+            relief="flat",
+            padx=20, pady=8
+        ).pack(side="left")
+    
+    def atualizar_listbox_textos(self):
+        """Atualiza a listbox de textos base da avaliação."""
+        self.listbox_textos.delete(0, tk.END)
+        for texto in self.textos_base_avaliacao:
+            questoes = ",".join(str(q) for q in texto["questoes_vinculadas"]) if texto["questoes_vinculadas"] else "-"
+            display = f"{texto['ordem']}. {texto['titulo']} (Q: {questoes})"
+            self.listbox_textos.insert(tk.END, display)
+    
+    def remover_texto_base_avaliacao(self):
+        """Remove texto base selecionado da avaliação."""
+        selecao = self.listbox_textos.curselection()
+        if not selecao:
+            messagebox.showwarning("Atenção", "Selecione um texto base para remover.")
+            return
+        
+        index = selecao[0]
+        texto = self.textos_base_avaliacao[index]
+        
+        confirmacao = messagebox.askyesno(
+            "Confirmar",
+            f"Remover texto base '{texto['titulo']}'?"
+        )
+        
+        if confirmacao:
+            self.textos_base_avaliacao.pop(index)
+            # Renumerar
+            for i, t in enumerate(self.textos_base_avaliacao, 1):
+                t["ordem"] = i
+            self.atualizar_listbox_textos()
+    
+    def mover_texto_base(self, direcao: int):
+        """Move texto base para cima (-1) ou para baixo (+1)."""
+        selecao = self.listbox_textos.curselection()
+        if not selecao:
+            return
+        
+        index = selecao[0]
+        novo_index = index + direcao
+        
+        if novo_index < 0 or novo_index >= len(self.textos_base_avaliacao):
+            return
+        
+        # Trocar posições
+        self.textos_base_avaliacao[index], self.textos_base_avaliacao[novo_index] = \
+            self.textos_base_avaliacao[novo_index], self.textos_base_avaliacao[index]
+        
+        # Renumerar
+        for i, t in enumerate(self.textos_base_avaliacao, 1):
+            t["ordem"] = i
+        
+        self.atualizar_listbox_textos()
+        self.listbox_textos.selection_set(novo_index)
+    
+    def buscar_questoes_para_avaliacao(self):
+        """Busca questões para adicionar na avaliação."""
+        from banco_questoes.services import QuestaoService
+        from banco_questoes.models import FiltroQuestoes, StatusQuestao
+        
+        # Limpar listbox
+        self.listbox_questoes_busca.delete(0, tk.END)
+        
+        try:
+            # Se informou ID específico
+            id_busca = self.busca_id_q.get().strip()
+            if id_busca:
+                try:
+                    questao_id = int(id_busca)
+                    questao = QuestaoService.buscar_por_id(questao_id)
+                    if questao:
+                        tipo_str = questao.tipo.value if questao.tipo else "?"
+                        enunciado_preview = questao.enunciado[:50] if questao.enunciado else ""
+                        self.listbox_questoes_busca.insert(
+                            tk.END,
+                            f"ID {questao.id} | {tipo_str} | {enunciado_preview}..."
+                        )
+                        # Guardar ID para recuperar depois
+                        self.listbox_questoes_busca.itemconfig(tk.END, {'fg': 'black'})
+                        if not hasattr(self, '_questoes_busca_map'):
+                            self._questoes_busca_map = {}
+                        self._questoes_busca_map[0] = questao.id
+                    else:
+                        messagebox.showinfo("Não encontrado", f"Questão ID {questao_id} não encontrada.")
+                except ValueError:
+                    messagebox.showwarning("Erro", "ID deve ser um número.")
+                return
+            
+            # Buscar todas as questões aprovadas da escola
+            filtros = FiltroQuestoes(
+                escola_id=config.ESCOLA_ID,
+                status=StatusQuestao.APROVADA
+            )
+            questoes, _ = QuestaoService.buscar(filtros, limite=50)
+            
+            if not questoes:
+                messagebox.showinfo("Aviso", "Nenhuma questão encontrada.")
+                return
+            
+            # Popular listbox
+            if not hasattr(self, '_questoes_busca_map'):
+                self._questoes_busca_map = {}
+            
+            for idx, questao in enumerate(questoes):
+                tipo_str = questao.tipo.value if questao.tipo else "?"
+                enunciado_preview = questao.enunciado[:50] if questao.enunciado else ""
+                self.listbox_questoes_busca.insert(
+                    tk.END,
+                    f"ID {questao.id} | {tipo_str} | {enunciado_preview}..."
+                )
+                self._questoes_busca_map[idx] = questao.id
+            
+        except Exception as e:
+            logger.error(f"Erro ao buscar questões: {e}")
+            messagebox.showerror("Erro", f"Erro ao buscar questões: {e}")
+    
+    def adicionar_questao_da_busca(self):
+        """Adiciona a questão selecionada na busca para a avaliação."""
+        selecao = self.listbox_questoes_busca.curselection()
+        if not selecao:
+            messagebox.showwarning("Aviso", "Selecione uma questão para adicionar.")
+            return
+        
+        idx = selecao[0]
+        if not hasattr(self, '_questoes_busca_map') or idx not in self._questoes_busca_map:
+            messagebox.showerror("Erro", "Erro ao recuperar questão selecionada.")
+            return
+        
+        questao_id = self._questoes_busca_map[idx]
+        self.adicionar_questao_avaliacao(questao_id)
+    
     def atualizar_totais_avaliacao(self):
         """Atualiza totais de questões e pontos."""
         total_questoes = len(self.questoes_avaliacao)
@@ -2116,10 +2500,22 @@ Status: {questao.status.value if questao.status else ''}"""
                 for ordem, questao_id in enumerate(self.questoes_avaliacao, 1):
                     AvaliacaoService.adicionar_questao(avaliacao_id, questao_id, ordem=ordem, pontuacao=1.0)
                 
+                # Adicionar textos base à avaliação
+                for texto in self.textos_base_avaliacao:
+                    try:
+                        TextoBaseService.vincular_texto_avaliacao(
+                            avaliacao_id=avaliacao_id,
+                            texto_base_id=texto["id"],
+                            ordem=texto["ordem"]
+                        )
+                    except Exception as e:
+                        logger.error(f"Erro ao vincular texto base {texto['id']}: {e}")
+                
+                msg_textos = f"\n{len(self.textos_base_avaliacao)} textos base vinculados." if self.textos_base_avaliacao else ""
                 messagebox.showinfo(
                     "Sucesso",
                     f"Avaliação #{avaliacao_id} salva com sucesso!\n"
-                    f"{len(self.questoes_avaliacao)} questões adicionadas."
+                    f"{len(self.questoes_avaliacao)} questões adicionadas.{msg_textos}"
                 )
             else:
                 messagebox.showerror("Erro", "Não foi possível salvar a avaliação.")
@@ -2311,7 +2707,193 @@ Status: {questao.status.value if questao.status else ''}"""
         c.drawString(x_centered, y_position, titulo_atividade)
         
         # Remover subtítulo "Lista de Questões" — o formato das questões terá numeração direta
-        y_position -= 0.5 * cm
+        y_position -= 1.2 * cm
+        
+        # ====================================================================
+        # TEXTOS BASE (se houver)
+        # ====================================================================
+        
+        if self.textos_base_avaliacao:
+            # Coletar questões vinculadas para o enunciado
+            todas_questoes = set()
+            for texto in self.textos_base_avaliacao:
+                todas_questoes.update(texto.get("questoes_vinculadas", []))
+            
+            questoes_vinculadas_str = ", ".join(str(q) for q in sorted(todas_questoes))
+            
+            # Verificar tipos dos textos para gerar enunciado apropriado
+            tipos = set()
+            textos_obj = []
+            for texto in self.textos_base_avaliacao:
+                try:
+                    texto_obj = TextoBaseService.buscar_por_id(texto["id"])
+                    if texto_obj:
+                        textos_obj.append(texto_obj)
+                        tipos.add(texto_obj.tipo)
+                except Exception as e:
+                    logger.error(f"Erro ao carregar texto base {texto['id']}: {e}")
+            
+            # Gerar enunciado introdutório
+            if tipos == {TipoTextoBase.TEXTO}:
+                enunciado_intro = f"Com base nos textos, responda as questões {questoes_vinculadas_str}."
+            elif tipos == {TipoTextoBase.IMAGEM}:
+                enunciado_intro = f"Analise as imagens e responda as questões {questoes_vinculadas_str}."
+            else:
+                enunciado_intro = f"Com base nos textos e imagens, responda as questões {questoes_vinculadas_str}."
+            
+            # Renderizar enunciado
+            estilo_enunciado = ParagraphStyle(
+                'enunciado_intro',
+                parent=estilos['Normal'],
+                alignment=TA_JUSTIFY,
+                fontName='Helvetica-Bold',
+                fontSize=11,
+                leading=13
+            )
+            p_enunciado = Paragraph(enunciado_intro, estilo_enunciado)
+            w_en, h_en = p_enunciado.wrap(width - margin_left - margin_right, y_position)
+            
+            if h_en > y_position - margin_bottom:
+                c.showPage()
+                y_position = height - margin_top
+            
+            p_enunciado.drawOn(c, margin_left, y_position - h_en)
+            y_position -= h_en + 0.6 * cm
+            
+            # Renderizar textos base
+            if len(textos_obj) == 1:
+                # Um único texto - usar largura completa
+                texto = textos_obj[0]
+                
+                if texto.tipo == TipoTextoBase.TEXTO:
+                    # Título do texto
+                    estilo_titulo = ParagraphStyle('titulo_texto', parent=estilos['Normal'], alignment=TA_CENTER, fontName='Helvetica-Bold', fontSize=11)
+                    p_tit = Paragraph(f"<b>{texto.titulo}</b>", estilo_titulo)
+                    w_tit, h_tit = p_tit.wrap(width - margin_left - margin_right, y_position)
+                    
+                    if h_tit > y_position - margin_bottom:
+                        c.showPage()
+                        y_position = height - margin_top
+                    
+                    p_tit.drawOn(c, margin_left, y_position - h_tit)
+                    y_position -= h_tit + 0.3 * cm
+                    
+                    # Conteúdo do texto
+                    estilo_texto = ParagraphStyle('texto_base', parent=estilos['Normal'], alignment=TA_JUSTIFY, fontName='Helvetica', fontSize=10, leading=12)
+                    p_txt = Paragraph(texto.conteudo or "", estilo_texto)
+                    w_txt, h_txt = p_txt.wrap(width - margin_left - margin_right, y_position)
+                    
+                    if h_txt > y_position - margin_bottom:
+                        c.showPage()
+                        y_position = height - margin_top
+                    
+                    p_txt.drawOn(c, margin_left, y_position - h_txt)
+                    y_position -= h_txt + 0.8 * cm
+                
+                else:  # Imagem
+                    if texto.caminho_imagem and os.path.exists(texto.caminho_imagem):
+                        # Título
+                        estilo_titulo = ParagraphStyle('titulo_img', parent=estilos['Normal'], alignment=TA_CENTER, fontName='Helvetica-Bold', fontSize=11)
+                        p_tit = Paragraph(f"<b>{texto.titulo}</b>", estilo_titulo)
+                        w_tit, h_tit = p_tit.wrap(width - margin_left - margin_right, y_position)
+                        
+                        if h_tit > y_position - margin_bottom:
+                            c.showPage()
+                            y_position = height - margin_top
+                        
+                        p_tit.drawOn(c, margin_left, y_position - h_tit)
+                        y_position -= h_tit + 0.3 * cm
+                        
+                        # Imagem centralizada
+                        from PIL import Image
+                        img_pil = Image.open(texto.caminho_imagem)
+                        img_w, img_h = img_pil.size
+                        
+                        max_w = width - margin_left - margin_right
+                        max_h = 8 * cm
+                        scale = min(max_w / img_w, max_h / img_h, 1.0)
+                        disp_w = img_w * scale
+                        disp_h = img_h * scale
+                        
+                        if disp_h > y_position - margin_bottom:
+                            c.showPage()
+                            y_position = height - margin_top
+                        
+                        x_img = margin_left + (max_w - disp_w) / 2
+                        c.drawImage(texto.caminho_imagem, x_img, y_position - disp_h, width=disp_w, height=disp_h, preserveAspectRatio=True)
+                        y_position -= disp_h + 0.8 * cm
+            
+            elif len(textos_obj) == 2:
+                # Dois textos - layout lado a lado usando Table
+                col_width = (width - margin_left - margin_right - 0.5 * cm) / 2
+                
+                estilo_titulo_texto = ParagraphStyle('tit_texto', parent=estilos['Normal'], alignment=TA_CENTER, fontName='Helvetica-Bold', fontSize=11)
+                estilo_texto = ParagraphStyle('texto', parent=estilos['Normal'], alignment=TA_JUSTIFY, fontName='Helvetica', fontSize=10, leading=12)
+                
+                # Preparar células para a tabela
+                celulas_titulo = []
+                celulas_conteudo = []
+                
+                for texto in textos_obj:
+                    # Título
+                    p_tit = Paragraph(f"<b>{texto.titulo}</b>", estilo_titulo_texto)
+                    celulas_titulo.append(p_tit)
+                    
+                    # Conteúdo
+                    if texto.tipo == TipoTextoBase.TEXTO:
+                        p_txt = Paragraph(texto.conteudo or "", estilo_texto)
+                        celulas_conteudo.append(p_txt)
+                    else:  # Imagem como placeholder (simplificado)
+                        p_txt = Paragraph(f"<i>[Imagem: {texto.titulo}]</i>", estilo_texto)
+                        celulas_conteudo.append(p_txt)
+                
+                # Criar tabela
+                table_textos = Table([celulas_titulo, celulas_conteudo], colWidths=[col_width, col_width])
+                table_textos.setStyle(TableStyle([
+                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 10),
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('LEFTPADDING', (0,0), (-1,-1), 5),
+                    ('RIGHTPADDING', (0,0), (-1,-1), 5),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+                    ('TOPPADDING', (0,0), (-1,-1), 5),
+                    ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+                ]))
+                
+                w_table, h_table = table_textos.wrap(width - margin_left - margin_right, y_position)
+                
+                if h_table > y_position - margin_bottom:
+                    c.showPage()
+                    y_position = height - margin_top
+                
+                table_textos.drawOn(c, margin_left, y_position - h_table)
+                y_position -= h_table + 0.8 * cm
+            
+            else:
+                # Mais de 2 textos - renderizar sequencialmente
+                for texto in textos_obj:
+                    if texto.tipo == TipoTextoBase.TEXTO:
+                        estilo_titulo = ParagraphStyle('titulo_texto', parent=estilos['Normal'], alignment=TA_LEFT, fontName='Helvetica-Bold', fontSize=10)
+                        p_tit = Paragraph(f"<b>{texto.titulo}</b>", estilo_titulo)
+                        w_tit, h_tit = p_tit.wrap(width - margin_left - margin_right, y_position)
+                        
+                        if h_tit > y_position - margin_bottom:
+                            c.showPage()
+                            y_position = height - margin_top
+                        
+                        p_tit.drawOn(c, margin_left, y_position - h_tit)
+                        y_position -= h_tit + 0.2 * cm
+                        
+                        estilo_texto = ParagraphStyle('texto_base', parent=estilos['Normal'], alignment=TA_JUSTIFY, fontName='Helvetica', fontSize=9, leading=11)
+                        p_txt = Paragraph(texto.conteudo or "", estilo_texto)
+                        w_txt, h_txt = p_txt.wrap(width - margin_left - margin_right, y_position)
+                        
+                        if h_txt > y_position - margin_bottom:
+                            c.showPage()
+                            y_position = height - margin_top
+                        
+                        p_txt.drawOn(c, margin_left, y_position - h_txt)
+                        y_position -= h_txt + 0.5 * cm
         
         # ====================================================================
         # QUESTÕES
@@ -2670,6 +3252,500 @@ POR STATUS:
         except Exception as e:
             logger.error(f"Erro ao carregar estatísticas: {e}")
             self.lbl_stats.config(text=f"Erro ao carregar: {e}")
+    
+    # =========================================================================
+    # ABA TEXTOS BASE - GERENCIAMENTO DE TEXTOS/IMAGENS
+    # =========================================================================
+    
+    def criar_aba_textos_base(self):
+        """Cria a aba de gerenciamento de textos base."""
+        # Container principal com scroll
+        container = tk.Frame(self.frame_textos_base, bg=self.co0)
+        container.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Título
+        tk.Label(
+            container,
+            text="Gerenciamento de Textos Base",
+            font=("Arial", 14, "bold"),
+            bg=self.co0, fg=self.co1
+        ).pack(anchor="w", pady=(0, 10))
+        
+        tk.Label(
+            container,
+            text="Crie textos ou selecione imagens que podem ser reutilizados em múltiplas questões e avaliações.",
+            font=("Arial", 10),
+            bg=self.co0, fg=self.co7
+        ).pack(anchor="w", pady=(0, 10))
+        
+        # Frame de ações no topo
+        frame_acoes = tk.Frame(container, bg=self.co0)
+        frame_acoes.pack(fill="x", pady=(0, 10))
+        
+        tk.Button(
+            frame_acoes,
+            text="➕ Novo Texto Base",
+            command=self.novo_texto_base,
+            bg=self.co2, fg="white",
+            font=("Arial", 10, "bold"),
+            cursor="hand2",
+            relief="flat",
+            padx=15, pady=8
+        ).pack(side="left", padx=(0, 5))
+        
+        tk.Button(
+            frame_acoes,
+            text="✏️ Editar",
+            command=self.editar_texto_base,
+            bg=self.co4, fg="white",
+            font=("Arial", 10, "bold"),
+            cursor="hand2",
+            relief="flat",
+            padx=15, pady=8
+        ).pack(side="left", padx=5)
+        
+        tk.Button(
+            frame_acoes,
+            text="🗑️ Excluir",
+            command=self.excluir_texto_base,
+            bg=self.co8, fg="white",
+            font=("Arial", 10, "bold"),
+            cursor="hand2",
+            relief="flat",
+            padx=15, pady=8
+        ).pack(side="left", padx=5)
+        
+        tk.Button(
+            frame_acoes,
+            text="🔄 Atualizar Lista",
+            command=self.carregar_lista_textos_base,
+            bg=self.co9, fg="white",
+            font=("Arial", 10, "bold"),
+            cursor="hand2",
+            relief="flat",
+            padx=15, pady=8
+        ).pack(side="left", padx=5)
+        
+        # Treeview para listagem
+        frame_tree = tk.Frame(container, bg=self.co0)
+        frame_tree.pack(fill="both", expand=True)
+        
+        # Scrollbars
+        scroll_y = tk.Scrollbar(frame_tree, orient="vertical")
+        scroll_y.pack(side="right", fill="y")
+        
+        scroll_x = tk.Scrollbar(frame_tree, orient="horizontal")
+        scroll_x.pack(side="bottom", fill="x")
+        
+        # Treeview
+        self.tree_textos_base = ttk.Treeview(
+            frame_tree,
+            columns=("id", "titulo", "tipo", "criado_em", "autor"),
+            show="headings",
+            yscrollcommand=scroll_y.set,
+            xscrollcommand=scroll_x.set,
+            height=15
+        )
+        
+        self.tree_textos_base.heading("id", text="ID")
+        self.tree_textos_base.heading("titulo", text="Título")
+        self.tree_textos_base.heading("tipo", text="Tipo")
+        self.tree_textos_base.heading("criado_em", text="Criado em")
+        self.tree_textos_base.heading("autor", text="Autor")
+        
+        self.tree_textos_base.column("id", width=50, anchor="center")
+        self.tree_textos_base.column("titulo", width=300, anchor="w")
+        self.tree_textos_base.column("tipo", width=100, anchor="center")
+        self.tree_textos_base.column("criado_em", width=150, anchor="center")
+        self.tree_textos_base.column("autor", width=200, anchor="w")
+        
+        self.tree_textos_base.pack(fill="both", expand=True)
+        
+        scroll_y.config(command=self.tree_textos_base.yview)
+        scroll_x.config(command=self.tree_textos_base.xview)
+        
+        # Doubleclick para editar
+        self.tree_textos_base.bind("<Double-1>", lambda e: self.editar_texto_base())
+        
+        # Carregar dados
+        self.carregar_lista_textos_base()
+    
+    def carregar_lista_textos_base(self):
+        """Carrega a lista de textos base no treeview."""
+        try:
+            # Limpar treeview
+            for item in self.tree_textos_base.get_children():
+                self.tree_textos_base.delete(item)
+            
+            # Buscar textos base
+            escola_id = config.ESCOLA_ID
+            textos = TextoBaseService.listar(escola_id=escola_id)
+            
+            for texto in textos:
+                tipo_display = "📝 Texto" if texto.tipo == TipoTextoBase.TEXTO else "🖼️ Imagem"
+                autor = texto.autor_id or "N/A"
+                criado = texto.created_at.strftime("%d/%m/%Y %H:%M") if texto.created_at else "N/A"
+                
+                self.tree_textos_base.insert(
+                    "",
+                    "end",
+                    values=(texto.id, texto.titulo, tipo_display, criado, autor)
+                )
+            
+            logger.info(f"{len(textos)} textos base carregados")
+            
+        except Exception as e:
+            logger.error(f"Erro ao carregar textos base: {e}")
+            messagebox.showerror("Erro", f"Erro ao carregar textos base:\n{e}")
+    
+    def novo_texto_base(self):
+        """Abre janela para criar novo texto base."""
+        self.abrir_janela_texto_base(modo="criar")
+    
+    def editar_texto_base(self):
+        """Abre janela para editar texto base selecionado."""
+        selecionado = self.tree_textos_base.selection()
+        if not selecionado:
+            messagebox.showwarning("Atenção", "Selecione um texto base para editar.")
+            return
+        
+        item = self.tree_textos_base.item(selecionado[0])
+        texto_id = item["values"][0]
+        self.abrir_janela_texto_base(modo="editar", texto_id=texto_id)
+    
+    def excluir_texto_base(self):
+        """Exclui o texto base selecionado."""
+        selecionado = self.tree_textos_base.selection()
+        if not selecionado:
+            messagebox.showwarning("Atenção", "Selecione um texto base para excluir.")
+            return
+        
+        item = self.tree_textos_base.item(selecionado[0])
+        texto_id = item["values"][0]
+        titulo = item["values"][1]
+        
+        confirmacao = messagebox.askyesno(
+            "Confirmar Exclusão",
+            f"Deseja realmente excluir o texto base:\n\n'{titulo}'?\n\nEsta ação não pode ser desfeita."
+        )
+        
+        if confirmacao:
+            try:
+                TextoBaseService.excluir(texto_id)
+                messagebox.showinfo("Sucesso", "Texto base excluído com sucesso!")
+                self.carregar_lista_textos_base()
+            except Exception as e:
+                logger.error(f"Erro ao excluir texto base: {e}")
+                messagebox.showerror("Erro", f"Erro ao excluir texto base:\n{e}")
+    
+    def abrir_janela_texto_base(self, modo="criar", texto_id=None):
+        """
+        Abre janela para criar/editar texto base.
+        
+        Args:
+            modo: 'criar' ou 'editar'
+            texto_id: ID do texto (para modo editar)
+        """
+        janela = tk.Toplevel(self.janela)
+        janela.title(f"{'Novo' if modo == 'criar' else 'Editar'} Texto Base")
+        janela.geometry("700x600")
+        janela.configure(bg=self.co0)
+        janela.grab_set()
+        
+        # Variáveis
+        var_tipo = tk.StringVar(value="texto")
+        var_titulo = tk.StringVar()
+        var_conteudo = tk.StringVar()
+        var_caminho_imagem = tk.StringVar()
+        
+        # Carregar dados se editar
+        if modo == "editar" and texto_id:
+            try:
+                texto = TextoBaseService.buscar_por_id(texto_id)
+                if texto:
+                    var_titulo.set(texto.titulo)
+                    var_tipo.set(texto.tipo.value)
+                    if texto.tipo == TipoTextoBase.TEXTO:
+                        var_conteudo.set(texto.conteudo or "")
+                    else:
+                        var_caminho_imagem.set(texto.caminho_imagem or "")
+            except Exception as e:
+                logger.error(f"Erro ao carregar texto base: {e}")
+                messagebox.showerror("Erro", f"Erro ao carregar dados:\n{e}")
+                janela.destroy()
+                return
+        
+        # Container com scroll
+        container = tk.Frame(janela, bg=self.co0)
+        container.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Título
+        tk.Label(
+            container,
+            text=f"{'Criar Novo' if modo == 'criar' else 'Editar'} Texto Base",
+            font=("Arial", 14, "bold"),
+            bg=self.co0, fg=self.co1
+        ).pack(anchor="w", pady=(0, 20))
+        
+        # Campo: Título
+        frame_titulo = tk.Frame(container, bg=self.co0)
+        frame_titulo.pack(fill="x", pady=(0, 15))
+        
+        tk.Label(
+            frame_titulo,
+            text="Título:",
+            font=("Arial", 10, "bold"),
+            bg=self.co0, fg=self.co7
+        ).pack(anchor="w")
+        
+        tk.Entry(
+            frame_titulo,
+            textvariable=var_titulo,
+            font=("Arial", 11),
+            relief="solid",
+            bd=1
+        ).pack(fill="x", pady=(5, 0))
+        
+        # Campo: Tipo
+        frame_tipo = tk.Frame(container, bg=self.co0)
+        frame_tipo.pack(fill="x", pady=(0, 15))
+        
+        tk.Label(
+            frame_tipo,
+            text="Tipo:",
+            font=("Arial", 10, "bold"),
+            bg=self.co0, fg=self.co7
+        ).pack(anchor="w")
+        
+        frame_radio = tk.Frame(frame_tipo, bg=self.co0)
+        frame_radio.pack(anchor="w", pady=(5, 0))
+        
+        def atualizar_campos():
+            """Mostra/oculta campos baseado no tipo selecionado."""
+            if var_tipo.get() == "texto":
+                frame_conteudo.pack(fill="both", expand=True, pady=(0, 15))
+                frame_imagem.pack_forget()
+            else:
+                frame_conteudo.pack_forget()
+                frame_imagem.pack(fill="x", pady=(0, 15))
+        
+        tk.Radiobutton(
+            frame_radio,
+            text="📝 Texto",
+            variable=var_tipo,
+            value="texto",
+            font=("Arial", 10),
+            bg=self.co0,
+            command=atualizar_campos
+        ).pack(side="left", padx=(0, 20))
+        
+        tk.Radiobutton(
+            frame_radio,
+            text="🖼️ Imagem",
+            variable=var_tipo,
+            value="imagem",
+            font=("Arial", 10),
+            bg=self.co0,
+            command=atualizar_campos
+        ).pack(side="left")
+        
+        # Campo: Conteúdo (para texto)
+        frame_conteudo = tk.Frame(container, bg=self.co0)
+        
+        tk.Label(
+            frame_conteudo,
+            text="Conteúdo do Texto:",
+            font=("Arial", 10, "bold"),
+            bg=self.co0, fg=self.co7
+        ).pack(anchor="w")
+        
+        scroll_texto = tk.Scrollbar(frame_conteudo)
+        scroll_texto.pack(side="right", fill="y")
+        
+        texto_widget = tk.Text(
+            frame_conteudo,
+            font=("Arial", 11),
+            relief="solid",
+            bd=1,
+            wrap="word",
+            yscrollcommand=scroll_texto.set,
+            height=12
+        )
+        texto_widget.pack(fill="both", expand=True, pady=(5, 0))
+        scroll_texto.config(command=texto_widget.yview)
+        
+        if var_conteudo.get():
+            texto_widget.insert("1.0", var_conteudo.get())
+        
+        # Campo: Imagem
+        frame_imagem = tk.Frame(container, bg=self.co0)
+        
+        tk.Label(
+            frame_imagem,
+            text="Arquivo de Imagem:",
+            font=("Arial", 10, "bold"),
+            bg=self.co0, fg=self.co7
+        ).pack(anchor="w")
+        
+        frame_img_input = tk.Frame(frame_imagem, bg=self.co0)
+        frame_img_input.pack(fill="x", pady=(5, 0))
+        
+        tk.Entry(
+            frame_img_input,
+            textvariable=var_caminho_imagem,
+            font=("Arial", 11),
+            relief="solid",
+            bd=1,
+            state="readonly"
+        ).pack(side="left", fill="x", expand=True, padx=(0, 10))
+        
+        def selecionar_imagem():
+            """Abre dialog para selecionar imagem."""
+            caminho = filedialog.askopenfilename(
+                title="Selecionar Imagem",
+                filetypes=[
+                    ("Imagens", "*.png;*.jpg;*.jpeg;*.gif;*.bmp"),
+                    ("Todos os arquivos", "*.*")
+                ]
+            )
+            if caminho:
+                var_caminho_imagem.set(caminho)
+        
+        tk.Button(
+            frame_img_input,
+            text="📂 Escolher",
+            command=selecionar_imagem,
+            bg=self.co4, fg="white",
+            font=("Arial", 9, "bold"),
+            cursor="hand2",
+            relief="flat",
+            padx=15, pady=5
+        ).pack(side="left")
+        
+        # Exibir campo correto inicialmente
+        atualizar_campos()
+        
+        # Botões de ação
+        frame_botoes = tk.Frame(container, bg=self.co0)
+        frame_botoes.pack(fill="x", pady=(20, 0))
+        
+        def salvar():
+            """Salva o texto base."""
+            titulo = var_titulo.get().strip()
+            tipo = var_tipo.get()
+            
+            if not titulo:
+                messagebox.showwarning("Atenção", "O título é obrigatório.")
+                return
+            
+            try:
+                if tipo == "texto":
+                    conteudo = texto_widget.get("1.0", "end-1c").strip()
+                    if not conteudo:
+                        messagebox.showwarning("Atenção", "O conteúdo do texto é obrigatório.")
+                        return
+                    
+                    if modo == "criar":
+                        TextoBaseService.criar(
+                            titulo=titulo,
+                            tipo=TipoTextoBase.TEXTO,
+                            conteudo=conteudo,
+                            escola_id=config.ESCOLA_ID,
+                            autor_id=self.funcionario_id
+                        )
+                    else:
+                        # Buscar texto existente e atualizar
+                        texto = TextoBaseService.buscar_por_id(texto_id)
+                        if texto:
+                            texto.titulo = titulo
+                            texto.conteudo = conteudo
+                            # Atualizar no banco (será necessário método de update)
+                            # Por enquanto, recriar
+                            TextoBaseService.excluir(texto_id)
+                            TextoBaseService.criar(
+                                titulo=titulo,
+                                tipo=TipoTextoBase.TEXTO,
+                                conteudo=conteudo,
+                                escola_id=config.ESCOLA_ID,
+                                autor_id=self.funcionario_id
+                            )
+                else:
+                    caminho = var_caminho_imagem.get().strip()
+                    if not caminho:
+                        messagebox.showwarning("Atenção", "Selecione uma imagem.")
+                        return
+                    
+                    # Copiar imagem para pasta uploads
+                    import os
+                    import shutil
+                    from datetime import datetime
+                    
+                    uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+                    os.makedirs(uploads_dir, exist_ok=True)
+                    
+                    ext = os.path.splitext(caminho)[1]
+                    nome_arquivo = f"texto_base_{datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}"
+                    destino = os.path.join(uploads_dir, nome_arquivo)
+                    
+                    shutil.copy2(caminho, destino)
+                    
+                    # Obter dimensões da imagem
+                    from PIL import Image
+                    with Image.open(destino) as img:
+                        largura, altura = img.size
+                    
+                    if modo == "criar":
+                        TextoBaseService.criar(
+                            titulo=titulo,
+                            tipo=TipoTextoBase.IMAGEM,
+                            caminho_imagem=destino,
+                            largura=largura,
+                            altura=altura,
+                            escola_id=config.ESCOLA_ID,
+                            autor_id=self.funcionario_id
+                        )
+                    else:
+                        # Atualizar (recriar)
+                        TextoBaseService.excluir(texto_id)
+                        TextoBaseService.criar(
+                            titulo=titulo,
+                            tipo=TipoTextoBase.IMAGEM,
+                            caminho_imagem=destino,
+                            largura=largura,
+                            altura=altura,
+                            escola_id=config.ESCOLA_ID,
+                            autor_id=self.funcionario_id
+                        )
+                
+                messagebox.showinfo("Sucesso", f"Texto base {'criado' if modo == 'criar' else 'atualizado'} com sucesso!")
+                janela.destroy()
+                self.carregar_lista_textos_base()
+                
+            except Exception as e:
+                logger.error(f"Erro ao salvar texto base: {e}")
+                messagebox.showerror("Erro", f"Erro ao salvar:\n{e}")
+        
+        tk.Button(
+            frame_botoes,
+            text="💾 Salvar",
+            command=salvar,
+            bg=self.co2, fg="white",
+            font=("Arial", 11, "bold"),
+            cursor="hand2",
+            relief="flat",
+            padx=30, pady=10
+        ).pack(side="left", padx=(0, 10))
+        
+        tk.Button(
+            frame_botoes,
+            text="❌ Cancelar",
+            command=janela.destroy,
+            bg=self.co9, fg="white",
+            font=("Arial", 11, "bold"),
+            cursor="hand2",
+            relief="flat",
+            padx=30, pady=10
+        ).pack(side="left")
     
     # =========================================================================
     # FASE 1 - MELHORIAS CRÍTICAS: EDITOR DE IMAGENS E VALIDAÇÕES
