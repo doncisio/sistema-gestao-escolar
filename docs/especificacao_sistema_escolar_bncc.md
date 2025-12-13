@@ -472,4 +472,3 @@ Este documento define a estrutura mínima necessária para que o desenvolvedor c
 Com esses três módulos e as melhorias sugeridas, a escola terá uma plataforma sólida para organizar avaliações, acompanhar o desempenho dos alunos e otimizar a ação pedagógica baseada em dados.
 
 **Recomendação Final:** Iniciar com um MVP focado nos módulos 1 e 2, validar com usuários reais por 2 meses, e então expandir para o módulo 3 com base no feedback coletado. Essa abordagem iterativa reduz riscos e garante que o produto final atenda realmente às necessidades da escola.
-

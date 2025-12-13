@@ -200,6 +200,54 @@ class QuestaoService:
             return False
     
     @staticmethod
+    def registrar_historico(questao_id: int, usuario_id: int, motivo: str = None) -> bool:
+        """
+        Registra snapshot da questão no histórico antes de alterações.
+        
+        Args:
+            questao_id: ID da questão
+            usuario_id: ID do usuário que está fazendo a alteração
+            motivo: Motivo da alteração (opcional)
+            
+        Returns:
+            True se registrou com sucesso, False caso contrário
+        """
+        try:
+            with get_cursor(commit=True) as cursor:
+                # Buscar estado atual da questão
+                cursor.execute("SELECT * FROM questoes WHERE id = %s", (questao_id,))
+                questao_atual = cursor.fetchone()
+                
+                if not questao_atual:
+                    logger.warning(f"Questão {questao_id} não encontrada para registro de histórico")
+                    return False
+                
+                # Salvar snapshot completo como JSON no histórico
+                snapshot = json.dumps({
+                    'enunciado': questao_atual.get('enunciado'),
+                    'habilidade_bncc': questao_atual.get('habilidade_bncc_codigo'),
+                    'componente': questao_atual.get('componente_curricular'),
+                    'ano': questao_atual.get('ano_escolar'),
+                    'tipo': questao_atual.get('tipo'),
+                    'dificuldade': questao_atual.get('dificuldade'),
+                    'status': questao_atual.get('status')
+                }, ensure_ascii=False)
+                
+                sql = """
+                    INSERT INTO questoes_historico 
+                    (questao_id, campo_alterado, valor_anterior, alterado_por, motivo)
+                    VALUES (%s, %s, %s, %s, %s)
+                """
+                cursor.execute(sql, (questao_id, 'snapshot_completo', snapshot, usuario_id, motivo))
+                
+                logger.info(f"Histórico registrado para questão {questao_id}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Erro ao registrar histórico da questão {questao_id}: {e}")
+            return False
+    
+    @staticmethod
     def buscar_por_id(questao_id: int, carregar_alternativas: bool = True) -> Optional[Questao]:
         """
         Busca uma questão pelo ID.
@@ -296,6 +344,160 @@ class QuestaoService:
                 
         except Exception as e:
             logger.exception(f"Erro ao excluir questão {questao_id}: {e}")
+            return False
+    
+    @staticmethod
+    def alterar_status(questao_id: int, novo_status: str, usuario_id: int) -> bool:
+        """
+        Altera o status de uma questão.
+        
+        Args:
+            questao_id: ID da questão
+            novo_status: Novo status ('rascunho', 'revisao', 'aprovada', 'arquivada')
+            usuario_id: ID do usuário que está alterando
+            
+        Returns:
+            True se alterado com sucesso
+        """
+        try:
+            with get_cursor(commit=True) as cursor:
+                # Registrar histórico da mudança
+                cursor.execute(
+                    "SELECT status FROM questoes WHERE id = %s",
+                    (questao_id,)
+                )
+                row = cursor.fetchone()
+                if not row:
+                    return False
+                
+                status_anterior = row[0]
+                
+                # Atualizar status
+                cursor.execute(
+                    "UPDATE questoes SET status = %s WHERE id = %s",
+                    (novo_status, questao_id)
+                )
+                
+                # Registrar no histórico
+                cursor.execute("""
+                    INSERT INTO questoes_historico 
+                    (questao_id, campo_alterado, valor_anterior, valor_novo, alterado_por, motivo)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (questao_id, 'status', status_anterior, novo_status, usuario_id, 
+                     f'Mudança de status: {status_anterior} → {novo_status}'))
+                
+                logger.info(f"Status da questão {questao_id} alterado: {status_anterior} → {novo_status}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Erro ao alterar status da questão {questao_id}: {e}")
+            return False
+    
+    @staticmethod
+    def aprovar_questao(questao_id: int, aprovador_id: int, comentario: str = None) -> bool:
+        """
+        Aprova uma questão (muda status para 'aprovada').
+        
+        Args:
+            questao_id: ID da questão
+            aprovador_id: ID do coordenador/admin que está aprovando
+            comentario: Comentário opcional da aprovação
+            
+        Returns:
+            True se aprovada com sucesso
+        """
+        try:
+            with get_cursor(commit=True) as cursor:
+                # Atualizar status
+                cursor.execute(
+                    "UPDATE questoes SET status = 'aprovada' WHERE id = %s",
+                    (questao_id,)
+                )
+                
+                # Registrar aprovação no histórico
+                motivo = f"Questão aprovada"
+                if comentario:
+                    motivo += f" - Comentário: {comentario}"
+                
+                cursor.execute("""
+                    INSERT INTO questoes_historico 
+                    (questao_id, campo_alterado, valor_anterior, valor_novo, alterado_por, motivo)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (questao_id, 'status', 'revisao', 'aprovada', aprovador_id, motivo))
+                
+                # Criar comentário se fornecido
+                if comentario:
+                    try:
+                        cursor.execute("""
+                            INSERT INTO questoes_comentarios 
+                            (questao_id, funcionario_id, comentario, tipo)
+                            VALUES (%s, %s, %s, %s)
+                        """, (questao_id, aprovador_id, comentario, 'aprovacao'))
+                    except Exception as e:
+                        logger.warning(f"Não foi possível salvar comentário: {e}")
+                
+                logger.info(f"Questão {questao_id} aprovada por usuário {aprovador_id}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Erro ao aprovar questão {questao_id}: {e}")
+            return False
+    
+    @staticmethod
+    def devolver_questao(questao_id: int, revisor_id: int, motivo: str) -> bool:
+        """
+        Devolve questão para revisão (muda status para 'rascunho').
+        
+        Args:
+            questao_id: ID da questão
+            revisor_id: ID do coordenador/admin que está devolvendo
+            motivo: Motivo da devolução (obrigatório)
+            
+        Returns:
+            True se devolvida com sucesso
+        """
+        try:
+            with get_cursor(commit=True) as cursor:
+                # Buscar status atual
+                cursor.execute(
+                    "SELECT status FROM questoes WHERE id = %s",
+                    (questao_id,)
+                )
+                row = cursor.fetchone()
+                if not row:
+                    return False
+                
+                status_anterior = row[0]
+                
+                # Atualizar status
+                cursor.execute(
+                    "UPDATE questoes SET status = 'rascunho' WHERE id = %s",
+                    (questao_id,)
+                )
+                
+                # Registrar devolução no histórico
+                cursor.execute("""
+                    INSERT INTO questoes_historico 
+                    (questao_id, campo_alterado, valor_anterior, valor_novo, alterado_por, motivo)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (questao_id, 'status', status_anterior, 'rascunho', revisor_id, 
+                     f"Devolvida para revisão - Motivo: {motivo}"))
+                
+                # Criar comentário com o motivo
+                try:
+                    cursor.execute("""
+                        INSERT INTO questoes_comentarios 
+                        (questao_id, funcionario_id, comentario, tipo)
+                        VALUES (%s, %s, %s, %s)
+                    """, (questao_id, revisor_id, motivo, 'devolucao'))
+                except Exception as e:
+                    logger.warning(f"Não foi possível salvar comentário: {e}")
+                
+                logger.info(f"Questão {questao_id} devolvida para revisão por usuário {revisor_id}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Erro ao devolver questão {questao_id}: {e}")
             return False
     
     # ========================================================================
@@ -509,6 +711,209 @@ class QuestaoService:
         except Exception as e:
             logger.exception(f"Erro ao rejeitar questão: {e}")
             return False
+
+
+class EstatisticasService:
+    """Serviço para estatísticas de questões."""
+    
+    @staticmethod
+    def obter_estatisticas_questao(questao_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Obtém estatísticas de uma questão específica.
+        
+        Args:
+            questao_id: ID da questão
+            
+        Returns:
+            Dicionário com estatísticas ou None
+        """
+        try:
+            with get_cursor() as cursor:
+                # Buscar dados básicos da questão
+                cursor.execute("""
+                    SELECT 
+                        q.id,
+                        q.enunciado,
+                        q.tipo,
+                        q.dificuldade,
+                        q.componente_curricular,
+                        q.ano_escolar,
+                        q.created_at
+                    FROM questoes q
+                    WHERE q.id = %s
+                """, (questao_id,))
+                
+                questao = cursor.fetchone()
+                if not questao:
+                    return None
+                
+                # Vezes utilizada em avaliações
+                cursor.execute("""
+                    SELECT COUNT(DISTINCT avaliacao_id) as total_avaliacoes
+                    FROM avaliacoes_questoes
+                    WHERE questao_id = %s
+                """, (questao_id,))
+                vezes_utilizada = cursor.fetchone()['total_avaliacoes']
+                
+                # Taxa de acerto (se houver respostas registradas)
+                cursor.execute("""
+                    SELECT 
+                        COUNT(*) as total_respostas,
+                        SUM(CASE WHEN correta = 1 THEN 1 ELSE 0 END) as total_corretas
+                    FROM respostas_alunos
+                    WHERE questao_id = %s
+                """, (questao_id,))
+                
+                respostas = cursor.fetchone()
+                total_respostas = respostas['total_respostas'] if respostas else 0
+                total_corretas = respostas['total_corretas'] if respostas else 0
+                taxa_acerto = (total_corretas / total_respostas * 100) if total_respostas > 0 else None
+                
+                # Tempo médio de resposta (se disponível)
+                cursor.execute("""
+                    SELECT AVG(tempo_resposta) as tempo_medio
+                    FROM respostas_alunos
+                    WHERE questao_id = %s AND tempo_resposta IS NOT NULL
+                """, (questao_id,))
+                
+                tempo_row = cursor.fetchone()
+                tempo_medio = tempo_row['tempo_medio'] if tempo_row and tempo_row['tempo_medio'] else None
+                
+                # Distribuição de alternativas escolhidas (para múltipla escolha)
+                distribuicao_alternativas = None
+                if questao['tipo'] == 'multipla_escolha':
+                    cursor.execute("""
+                        SELECT 
+                            resposta_letra,
+                            COUNT(*) as qtd
+                        FROM respostas_alunos
+                        WHERE questao_id = %s AND resposta_letra IS NOT NULL
+                        GROUP BY resposta_letra
+                        ORDER BY resposta_letra
+                    """, (questao_id,))
+                    
+                    distribuicao_alternativas = {
+                        row['resposta_letra']: row['qtd'] 
+                        for row in cursor.fetchall()
+                    }
+                
+                return {
+                    'questao_id': questao['id'],
+                    'enunciado_resumo': questao['enunciado'][:100] + '...' if len(questao['enunciado']) > 100 else questao['enunciado'],
+                    'tipo': questao['tipo'],
+                    'dificuldade': questao['dificuldade'],
+                    'componente': questao['componente_curricular'],
+                    'ano': questao['ano_escolar'],
+                    'vezes_utilizada': vezes_utilizada,
+                    'total_respostas': total_respostas,
+                    'total_corretas': total_corretas,
+                    'taxa_acerto': taxa_acerto,
+                    'tempo_medio_segundos': tempo_medio,
+                    'distribuicao_alternativas': distribuicao_alternativas,
+                    'criada_em': questao['created_at']
+                }
+                
+        except Exception as e:
+            logger.error(f"Erro ao obter estatísticas da questão {questao_id}: {e}")
+            return None
+    
+    @staticmethod
+    def obter_estatisticas_gerais(escola_id: int = None, autor_id: int = None) -> Dict[str, Any]:
+        """
+        Obtém estatísticas gerais do banco de questões.
+        
+        Args:
+            escola_id: Filtrar por escola (opcional)
+            autor_id: Filtrar por autor (opcional)
+            
+        Returns:
+            Dicionário com estatísticas gerais
+        """
+        try:
+            with get_cursor() as cursor:
+                where_clauses = []
+                params = []
+                
+                if escola_id:
+                    where_clauses.append("escola_id = %s")
+                    params.append(escola_id)
+                
+                if autor_id:
+                    where_clauses.append("autor_id = %s")
+                    params.append(autor_id)
+                
+                where_sql = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+                
+                # Total de questões
+                cursor.execute(f"SELECT COUNT(*) as total FROM questoes {where_sql}", params)
+                total_questoes = cursor.fetchone()['total']
+                
+                # Por status
+                cursor.execute(f"""
+                    SELECT status, COUNT(*) as qtd
+                    FROM questoes {where_sql}
+                    GROUP BY status
+                """, params)
+                por_status = {row['status']: row['qtd'] for row in cursor.fetchall()}
+                
+                # Por tipo
+                cursor.execute(f"""
+                    SELECT tipo, COUNT(*) as qtd
+                    FROM questoes {where_sql}
+                    GROUP BY tipo
+                """, params)
+                por_tipo = {row['tipo']: row['qtd'] for row in cursor.fetchall()}
+                
+                # Por dificuldade
+                cursor.execute(f"""
+                    SELECT dificuldade, COUNT(*) as qtd
+                    FROM questoes {where_sql}
+                    GROUP BY dificuldade
+                """, params)
+                por_dificuldade = {row['dificuldade']: row['qtd'] for row in cursor.fetchall()}
+                
+                # Por componente
+                cursor.execute(f"""
+                    SELECT componente_curricular, COUNT(*) as qtd
+                    FROM questoes {where_sql}
+                    GROUP BY componente_curricular
+                """, params)
+                por_componente = {row['componente_curricular']: row['qtd'] for row in cursor.fetchall()}
+                
+                # Questões mais utilizadas
+                cursor.execute(f"""
+                    SELECT 
+                        q.id,
+                        q.enunciado,
+                        COUNT(DISTINCT aq.avaliacao_id) as vezes_utilizada
+                    FROM questoes q
+                    INNER JOIN avaliacoes_questoes aq ON q.id = aq.questao_id
+                    {where_sql}
+                    GROUP BY q.id, q.enunciado
+                    ORDER BY vezes_utilizada DESC
+                    LIMIT 10
+                """, params)
+                mais_utilizadas = [
+                    {
+                        'id': row['id'],
+                        'enunciado': row['enunciado'][:80] + '...' if len(row['enunciado']) > 80 else row['enunciado'],
+                        'vezes': row['vezes_utilizada']
+                    }
+                    for row in cursor.fetchall()
+                ]
+                
+                return {
+                    'total_questoes': total_questoes,
+                    'por_status': por_status,
+                    'por_tipo': por_tipo,
+                    'por_dificuldade': por_dificuldade,
+                    'por_componente': por_componente,
+                    'mais_utilizadas': mais_utilizadas
+                }
+                
+        except Exception as e:
+            logger.error(f"Erro ao obter estatísticas gerais: {e}")
+            return {}
 
 
 class AvaliacaoService:

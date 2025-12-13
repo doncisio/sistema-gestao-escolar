@@ -61,14 +61,12 @@ COMMENT='Relacionamento entre avaliações e textos base';
 -- 2. TEXTOS BASE
 -- ============================================================================
 
--- Total de textos base: 4
+-- Total de textos base: 2
 DELETE FROM textos_base;
 ALTER TABLE textos_base AUTO_INCREMENT = 1;
 
 INSERT INTO textos_base (`id`, `titulo`, `tipo`, `conteudo`, `escola_id`, `autor_id`, `created_at`, `updated_at`) VALUES (1, 'Texto A - Sustentabilidade Ambiental', 'texto', 'A sustentabilidade ambiental tornou-se um tema central nas discussoes globais. Preservar os recursos naturais e adotar praticas sustentaveis sao fundamentais para garantir um futuro melhor as proximas geracoes. O equilibrio entre desenvolvimento economico e conservacao ambiental e o grande desafio do seculo XXI. As empresas precisam repensar seus modelos de producao, reduzindo o desperdicio e investindo em tecnologias limpas. Da mesma forma, os cidadaos devem incorporar habitos mais conscientes no dia a dia, como a reducao do consumo de plastico e a economia de agua e energia.', 60, 1, '2025-12-12 21:28:52', '2025-12-12 21:28:52');
 INSERT INTO textos_base (`id`, `titulo`, `tipo`, `conteudo`, `escola_id`, `autor_id`, `created_at`, `updated_at`) VALUES (2, 'Texto B - Tecnologia Digital', 'texto', 'A tecnologia digital transformou profundamente a forma como nos comunicamos. As redes sociais conectam pessoas ao redor do mundo instantaneamente, mas tambem trazem desafios relacionados a privacidade e ao uso consciente da informacao. E fundamental educar as novas geracoes para um uso responsavel da tecnologia. O excesso de exposicao as telas pode causar problemas de saude fisica e mental, especialmente entre criancas e adolescentes. Por outro lado, a tecnologia oferece oportunidades incriveis de aprendizado, trabalho remoto e acesso a cultura. O desafio e encontrar o equilibrio.', 60, 1, '2025-12-12 21:28:52', '2025-12-12 21:28:52');
-INSERT INTO textos_base (`id`, `titulo`, `tipo`, `conteudo`, `escola_id`, `autor_id`, `created_at`, `updated_at`) VALUES (3, 'Texto A - Sustentabilidade Ambiental', 'texto', 'A sustentabilidade ambiental tornou-se um tema central nas discussoes globais. Preservar os recursos naturais e adotar praticas sustentaveis sao fundamentais para garantir um futuro melhor as proximas geracoes. O equilibrio entre desenvolvimento economico e conservacao ambiental e o grande desafio do seculo XXI.', 60, 1, '2025-12-12 21:33:04', '2025-12-12 21:33:04');
-INSERT INTO textos_base (`id`, `titulo`, `tipo`, `conteudo`, `escola_id`, `autor_id`, `created_at`, `updated_at`) VALUES (4, 'Texto B - Tecnologia Digital', 'texto', 'A tecnologia digital transformou profundamente a forma como nos comunicamos. As redes sociais conectam pessoas ao redor do mundo instantaneamente, mas tambem trazem desafios relacionados a privacidade e ao uso consciente da informacao. O desafio e encontrar o equilibrio entre beneficios e riscos.', 60, 1, '2025-12-12 21:33:04', '2025-12-12 21:33:04');
 
 -- ✓ 4 textos base exportados
 

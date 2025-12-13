@@ -1111,7 +1111,13 @@ Status: {questao.status.value if questao.status else ''}"""
         ).pack(side="right", padx=5)
         
         tk.Button(
-            frame_botoes, text="📋 Salvar Template",
+            frame_botoes, text="� Importar Excel",
+            command=self.importar_questoes_excel,
+            bg="#8B4513", fg="white", font=("Arial", 10, "bold")
+        ).pack(side="right", padx=5)
+        
+        tk.Button(
+            frame_botoes, text="�📋 Salvar Template",
             command=self.salvar_como_template,
             bg=self.co4, fg="white", font=("Arial", 10, "bold")
         ).pack(side="right", padx=5)
@@ -1440,12 +1446,15 @@ Status: {questao.status.value if questao.status else ''}"""
             self.frame_vf.pack(fill="x", padx=10, pady=10)
     
     def salvar_questao(self, status: str):
-        """Salva a questão no banco de dados."""
+        """Salva a questão no banco de dados (cria nova ou atualiza existente)."""
         from banco_questoes.services import QuestaoService
         from banco_questoes.models import (
             Questao, QuestaoAlternativa, QuestaoArquivo, ComponenteCurricular, AnoEscolar,
             TipoQuestao, DificuldadeQuestao, StatusQuestao, VisibilidadeQuestao, TipoArquivo
         )
+        
+        # Verificar se está editando (se tem ID armazenado)
+        editando = hasattr(self, '_questao_id_edicao') and self._questao_id_edicao
         
         # Validar campos obrigatórios
         if not self.cad_componente.get():
@@ -1456,8 +1465,14 @@ Status: {questao.status.value if questao.status else ''}"""
             messagebox.showwarning("Aviso", "Selecione o ano escolar.")
             return
         
+        # VALIDAÇÃO OBRIGATÓRIA: Habilidade BNCC (conforme especificação BNCC)
         if not self.cad_habilidade.get().strip():
-            messagebox.showwarning("Aviso", "Informe a habilidade BNCC.")
+            messagebox.showerror(
+                "Campo Obrigatório",
+                "⚠️ Habilidade BNCC é obrigatória!\n\n"
+                "Todas as questões devem estar vinculadas a pelo menos uma habilidade da BNCC.\n\n"
+                "Selecione o Componente e o Ano primeiro para filtrar as habilidades disponíveis."
+            )
             return
         
         # Extrair código da habilidade (antes de " - " se houver descrição)
@@ -1556,20 +1571,50 @@ Status: {questao.status.value if questao.status else ''}"""
             
             questao.arquivos = arquivos_questao
             
-            questao_id = QuestaoService.criar(questao)
-            
-            if questao_id:
-                # Salvar arquivos de imagem
-                if arquivos_questao:
-                    self._salvar_arquivos_questao(questao_id, arquivos_questao)
+            # CRIAR OU ATUALIZAR
+            if editando:
+                questao.id = self._questao_id_edicao
                 
-                messagebox.showinfo(
-                    "Sucesso",
-                    f"Questão #{questao_id} salva com sucesso!\nStatus: {status}"
-                )
-                self.limpar_campos_cadastro()
+                # VERSIONAMENTO: Registrar histórico antes de atualizar
+                try:
+                    QuestaoService.registrar_historico(
+                        questao_id=self._questao_id_edicao,
+                        usuario_id=self.funcionario_id,
+                        motivo="Edição manual via interface"
+                    )
+                except Exception as e:
+                    logger.warning(f"Não foi possível registrar histórico: {e}")
+                
+                sucesso = QuestaoService.atualizar(questao)
+                
+                if sucesso:
+                    # Atualizar arquivos se houver
+                    if arquivos_questao:
+                        self._salvar_arquivos_questao(self._questao_id_edicao, arquivos_questao)
+                    
+                    messagebox.showinfo(
+                        "Sucesso",
+                        f"✅ Questão #{self._questao_id_edicao} atualizada com sucesso!\n\nO histórico de alterações foi registrado."
+                    )
+                    self.limpar_campos_cadastro()
+                    self._questao_id_edicao = None  # Limpar flag de edição
+                else:
+                    messagebox.showerror("Erro", "Não foi possível atualizar a questão.")
             else:
-                messagebox.showerror("Erro", "Não foi possível salvar a questão.")
+                questao_id = QuestaoService.criar(questao)
+                
+                if questao_id:
+                    # Salvar arquivos de imagem
+                    if arquivos_questao:
+                        self._salvar_arquivos_questao(questao_id, arquivos_questao)
+                    
+                    messagebox.showinfo(
+                        "Sucesso",
+                        f"Questão #{questao_id} salva com sucesso!\nStatus: {status}"
+                    )
+                    self.limpar_campos_cadastro()
+                else:
+                    messagebox.showerror("Erro", "Não foi possível salvar a questão.")
             
         except Exception as e:
             logger.error(f"Erro ao salvar questão: {e}")
@@ -1861,7 +1906,75 @@ Status: {questao.status.value if questao.status else ''}"""
             entry.delete(0, "end")
             var.set("V")
         
+        # Limpar flag de edição
+        if hasattr(self, '_questao_id_edicao'):
+            self._questao_id_edicao = None
+        
         self.atualizar_campos_tipo()
+    
+    def carregar_questao_para_edicao(self, questao):
+        """Carrega dados de uma questão nos campos para edição."""
+        try:
+            # Armazenar ID para modo edição
+            self._questao_id_edicao = questao.id
+            
+            # Limpar campos primeiro
+            self.limpar_campos_cadastro()
+            
+            # Preencher dados básicos
+            if questao.componente_curricular:
+                self.cad_componente.set(questao.componente_curricular.value)
+                self.cad_componente.event_generate("<<ComboboxSelected>>")
+            
+            if questao.ano_escolar:
+                self.cad_ano.set(questao.ano_escolar.value)
+                self.cad_ano.event_generate("<<ComboboxSelected>>")
+            
+            if questao.habilidade_bncc_codigo:
+                # Aguardar atualização de habilidades
+                self.janela.after(100, lambda: self.cad_habilidade.set(questao.habilidade_bncc_codigo))
+            
+            if questao.tipo:
+                self.cad_tipo.set(questao.tipo.value)
+                self.atualizar_campos_tipo()
+            
+            if questao.dificuldade:
+                self.cad_dificuldade.set(questao.dificuldade.value)
+            
+            # Enunciado
+            if questao.enunciado:
+                self.cad_enunciado.insert("1.0", questao.enunciado)
+            
+            # Texto de apoio
+            if questao.texto_apoio:
+                self.cad_texto_apoio.insert("1.0", questao.texto_apoio)
+            
+            # Carregar alternativas se múltipla escolha
+            if questao.tipo and questao.tipo.value == "multipla_escolha":
+                from banco_questoes.services import QuestaoService
+                alternativas = QuestaoService.buscar_alternativas(questao.id)
+                
+                for alt in alternativas:
+                    letra = alt.letra.upper()
+                    if letra in self.cad_alternativas:
+                        self.cad_alternativas[letra].delete(0, tk.END)
+                        self.cad_alternativas[letra].insert(0, alt.texto or '')
+                        if alt.correta:
+                            self.var_gabarito.set(letra)
+            
+            # Gabarito dissertativa
+            if questao.tipo and questao.tipo.value == "dissertativa" and questao.gabarito_dissertativa:
+                self.cad_gabarito_diss.insert("1.0", questao.gabarito_dissertativa)
+            
+            messagebox.showinfo(
+                "Modo Edição",
+                f"Editando questão #{questao.id}\n\n"
+                "Faça as alterações necessárias e clique em 'Salvar Rascunho' ou 'Enviar para Revisão'."
+            )
+            
+        except Exception as e:
+            logger.error(f"Erro ao carregar questão para edição: {e}")
+            messagebox.showerror("Erro", f"Erro ao carregar questão: {e}")
     
     # =========================================================================
     # ABA: MONTAR AVALIAÇÃO
@@ -1920,57 +2033,114 @@ Status: {questao.status.value if questao.status else ''}"""
             frame_esq, text="Buscar Questões",
             bg=self.co0, font=("Arial", 10, "bold")
         )
-        frame_busca_q.pack(fill="both", expand=True, pady=5)
+        frame_busca_q.pack(fill="x", expand=False, pady=5)  # MUDADO: fill="x" e expand=False
         
-        # Filtros de busca
-        frame_filtros = tk.Frame(frame_busca_q, bg=self.co0)
-        frame_filtros.pack(fill="x", padx=5, pady=5)
+        # Filtros de busca - LINHA 1
+        frame_filtros1 = tk.Frame(frame_busca_q, bg=self.co0)
+        frame_filtros1.pack(fill="x", padx=5, pady=2)
         
-        tk.Label(frame_filtros, text="ID:", bg=self.co0).grid(row=0, column=0, padx=2, pady=2, sticky="w")
-        self.busca_id_q = ttk.Entry(frame_filtros, width=10)
-        self.busca_id_q.grid(row=0, column=1, padx=2, pady=2, sticky="w")
+        tk.Label(frame_filtros1, text="ID:", bg=self.co0, font=("Arial", 8)).grid(row=0, column=0, padx=2, pady=2, sticky="w")
+        self.busca_aval_id = ttk.Entry(frame_filtros1, width=8)
+        self.busca_aval_id.grid(row=0, column=1, padx=2, pady=2)
+        
+        tk.Label(frame_filtros1, text="Componente:", bg=self.co0, font=("Arial", 8)).grid(row=0, column=2, padx=2, pady=2, sticky="w")
+        self.busca_aval_comp = ttk.Combobox(frame_filtros1, width=14, state="readonly", font=("Arial", 8))
+        self.busca_aval_comp['values'] = ["Todos", "Língua Portuguesa", "Matemática", "Ciências", "Geografia", "História"]
+        self.busca_aval_comp.current(0)
+        self.busca_aval_comp.grid(row=0, column=3, padx=2, pady=2)
+        
+        # LINHA 2
+        frame_filtros2 = tk.Frame(frame_busca_q, bg=self.co0)
+        frame_filtros2.pack(fill="x", padx=5, pady=2)
+        
+        tk.Label(frame_filtros2, text="Ano:", bg=self.co0, font=("Arial", 8)).grid(row=0, column=0, padx=2, pady=2, sticky="w")
+        self.busca_aval_ano = ttk.Combobox(frame_filtros2, width=8, state="readonly", font=("Arial", 8))
+        self.busca_aval_ano['values'] = ["Todos", "6º ano", "7º ano", "8º ano", "9º ano"]
+        self.busca_aval_ano.current(0)
+        self.busca_aval_ano.grid(row=0, column=1, padx=2, pady=2)
+        
+        tk.Label(frame_filtros2, text="Tipo:", bg=self.co0, font=("Arial", 8)).grid(row=0, column=2, padx=2, pady=2, sticky="w")
+        self.busca_aval_tipo = ttk.Combobox(frame_filtros2, width=12, state="readonly", font=("Arial", 8))
+        self.busca_aval_tipo['values'] = ["Todos", "Dissertativa", "Múltipla Escolha"]
+        self.busca_aval_tipo.current(0)
+        self.busca_aval_tipo.grid(row=0, column=3, padx=2, pady=2)
+        
+        # LINHA 3 - Busca por texto
+        frame_filtros3 = tk.Frame(frame_busca_q, bg=self.co0)
+        frame_filtros3.pack(fill="x", padx=5, pady=2)
+        
+        tk.Label(frame_filtros3, text="Palavras-chave:", bg=self.co0, font=("Arial", 8)).pack(side="left", padx=2)
+        self.busca_aval_texto = ttk.Entry(frame_filtros3, width=25, font=("Arial", 8))
+        self.busca_aval_texto.pack(side="left", padx=2, fill="x", expand=True)
         
         tk.Button(
-            frame_filtros,
+            frame_filtros3,
             text="🔍 Buscar",
             command=self.buscar_questoes_para_avaliacao,
             bg=self.co4, fg="white",
             font=("Arial", 8, "bold"),
             relief="flat"
-        ).grid(row=0, column=2, padx=5, pady=2)
+        ).pack(side="left", padx=5)
         
-        # Lista de questões encontradas
-        scroll_q = tk.Scrollbar(frame_busca_q, orient="vertical")
+        # Lista de questões encontradas - COM PREVIEW
+        frame_lista_q = tk.Frame(frame_busca_q, bg=self.co0)
+        frame_lista_q.pack(fill="both", expand=False, padx=5, pady=5)  # MUDADO: expand=False
+        
+        scroll_q = tk.Scrollbar(frame_lista_q, orient="vertical")
         scroll_q.pack(side="right", fill="y")
         
-        self.listbox_questoes_busca = tk.Listbox(
-            frame_busca_q,
+        # Treeview com colunas: ID, Tipo, Preview do Enunciado
+        self.tree_questoes_busca = ttk.Treeview(
+            frame_lista_q,
+            columns=("id", "tipo", "enunciado"),
+            show="headings",
             yscrollcommand=scroll_q.set,
-            height=6,
-            font=("Arial", 9)
+            height=5  # REDUZIDO DE 8 PARA 5
         )
-        self.listbox_questoes_busca.pack(fill="both", expand=True, padx=5, pady=5)
-        scroll_q.config(command=self.listbox_questoes_busca.yview)
         
-        # Duplo clique para adicionar
-        self.listbox_questoes_busca.bind("<Double-Button-1>", lambda e: self.adicionar_questao_da_busca())
+        self.tree_questoes_busca.heading("id", text="ID")
+        self.tree_questoes_busca.heading("tipo", text="Tipo")
+        self.tree_questoes_busca.heading("enunciado", text="Enunciado (preview)")
         
-        # Botão adicionar
+        self.tree_questoes_busca.column("id", width=40, anchor="center")
+        self.tree_questoes_busca.column("tipo", width=80, anchor="w")
+        self.tree_questoes_busca.column("enunciado", width=250, anchor="w")
+        
+        self.tree_questoes_busca.pack(fill="both", expand=False)  # MUDADO: expand=False
+        scroll_q.config(command=self.tree_questoes_busca.yview)
+        
+        # Duplo clique para adicionar OU ver detalhes
+        self.tree_questoes_busca.bind("<Double-Button-1>", lambda e: self.adicionar_questao_da_busca())
+        self.tree_questoes_busca.bind("<Return>", lambda e: self.adicionar_questao_da_busca())
+        
+        # Frame de botões
+        frame_btns_busca = tk.Frame(frame_busca_q, bg=self.co0)
+        frame_btns_busca.pack(fill="x", padx=5, pady=5)
+        
         tk.Button(
-            frame_busca_q,
-            text="➕ Adicionar à Avaliação",
+            frame_btns_busca,
+            text="➕ Adicionar Selecionada",
             command=self.adicionar_questao_da_busca,
             bg=self.co2, fg="white",
-            font=("Arial", 9, "bold"),
+            font=("Arial", 8, "bold"),
             relief="flat"
-        ).pack(padx=5, pady=5)
+        ).pack(side="left", padx=2)
+        
+        tk.Button(
+            frame_btns_busca,
+            text="👁️ Ver Detalhes",
+            command=self.ver_detalhes_questao_busca,
+            bg=self.co4, fg="white",
+            font=("Arial", 8, "bold"),
+            relief="flat"
+        ).pack(side="left", padx=2)
         
         # Textos Base da Avaliação
         frame_textos = tk.LabelFrame(
             frame_esq, text="Textos Base (opcional)",
             bg=self.co0, font=("Arial", 10, "bold")
         )
-        frame_textos.pack(fill="both", expand=True, pady=5)
+        frame_textos.pack(fill="both", expand=True, pady=5)  # ESTE SIM USA expand=True
         
         # Lista de textos base vinculados
         self.textos_base_avaliacao = []  # Lista de dicts: {id, ordem, questoes_vinculadas}
@@ -1982,15 +2152,15 @@ Status: {questao.status.value if questao.status else ''}"""
         self.listbox_textos = tk.Listbox(
             frame_textos,
             yscrollcommand=scroll_textos.set,
-            height=8,
+            height=5,  # REDUZIDO DE 8 PARA 5
             font=("Arial", 9)
         )
-        self.listbox_textos.pack(fill="both", expand=True, padx=5, pady=5)
+        self.listbox_textos.pack(fill="both", expand=True, padx=5, pady=(5, 2))  # REDUZIDO pady inferior
         scroll_textos.config(command=self.listbox_textos.yview)
         
         # Botões para gerenciar textos base
         frame_btn_textos = tk.Frame(frame_textos, bg=self.co0)
-        frame_btn_textos.pack(fill="x", padx=5, pady=5)
+        frame_btn_textos.pack(fill="x", padx=5, pady=(2, 5))  # REDUZIDO pady superior
         
         tk.Button(
             frame_btn_textos,
@@ -2188,23 +2358,46 @@ Status: {questao.status.value if questao.status else ''}"""
         """Abre dialog para adicionar texto base à avaliação."""
         dialog = tk.Toplevel(self.janela)
         dialog.title("Adicionar Texto Base")
-        dialog.geometry("600x450")
+        dialog.geometry("700x650")  # AUMENTADO DE 600x450
         dialog.configure(bg=self.co0)
         dialog.grab_set()
         
-        container = tk.Frame(dialog, bg=self.co0)
-        container.pack(fill="both", expand=True, padx=20, pady=20)
+        # Frame principal com scroll
+        main_frame = tk.Frame(dialog, bg=self.co0)
+        main_frame.pack(fill="both", expand=True)
+        
+        # Canvas e scrollbar
+        canvas = tk.Canvas(main_frame, bg=self.co0)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        
+        container = tk.Frame(canvas, bg=self.co0)
+        
+        container.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=container, anchor="nw", width=680)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Habilitar scroll com mouse
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
         
         tk.Label(
             container,
             text="Selecione um Texto Base",
             font=("Arial", 12, "bold"),
             bg=self.co0, fg=self.co1
-        ).pack(anchor="w", pady=(0, 10))
+        ).pack(anchor="w", pady=(10, 10), padx=10)
         
         # Treeview para selecionar texto
         frame_tree = tk.Frame(container, bg=self.co0)
-        frame_tree.pack(fill="both", expand=True, pady=(0, 10))
+        frame_tree.pack(fill="both", expand=False, pady=(0, 10), padx=10)  # expand=False para controlar altura
         
         scroll_y = tk.Scrollbar(frame_tree, orient="vertical")
         scroll_y.pack(side="right", fill="y")
@@ -2214,7 +2407,7 @@ Status: {questao.status.value if questao.status else ''}"""
             columns=("id", "titulo", "tipo"),
             show="headings",
             yscrollcommand=scroll_y.set,
-            height=12
+            height=8  # ALTURA FIXA
         )
         
         tree_textos.heading("id", text="ID")
@@ -2237,24 +2430,91 @@ Status: {questao.status.value if questao.status else ''}"""
         except Exception as e:
             logger.error(f"Erro ao carregar textos base: {e}")
         
-        # Campo para números de questões vinculadas
+        # Campo para números de questões vinculadas - CRIAR ANTES DO PREVIEW
         frame_questoes = tk.Frame(container, bg=self.co0)
-        frame_questoes.pack(fill="x", pady=(0, 15))
+        frame_questoes.pack(fill="x", pady=(0, 10), padx=10)
         
         tk.Label(
             frame_questoes,
-            text="Questões vinculadas a este texto (ex: 1,2,3):",
+            text="Questões vinculadas a este texto (IDs separados por vírgula):",
             font=("Arial", 9),
             bg=self.co0, fg=self.co7
         ).pack(anchor="w")
         
         entry_questoes = tk.Entry(frame_questoes, font=("Arial", 10), relief="solid", bd=1)
         entry_questoes.pack(fill="x", pady=(5, 0))
-        entry_questoes.insert(0, "1")
+        entry_questoes.insert(0, "")
         
-        # Botões
+        # Preview do texto selecionado + sugestão de questões
+        frame_preview = tk.LabelFrame(container, text="Preview e Sugestões", bg=self.co0, font=("Arial", 9, "bold"))
+        frame_preview.pack(fill="x", expand=False, pady=(0, 10), padx=10)  # NÃO expand para controlar tamanho
+        
+        # Texto do conteúdo
+        preview_texto = tk.Text(frame_preview, height=5, wrap="word", font=("Arial", 9), state="disabled")  # ALTURA REDUZIDA
+        preview_texto.pack(fill="both", expand=False, padx=5, pady=5)
+        
+        # Label de sugestões
+        lbl_sugestoes = tk.Label(
+            frame_preview,
+            text="💡 Selecione um texto para ver sugestões de questões",
+            bg=self.co0, fg=self.co9, font=("Arial", 8, "italic"),
+            wraplength=500, justify="left"
+        )
+        lbl_sugestoes.pack(fill="x", padx=5, pady=5)
+        
+        def atualizar_preview(event=None):
+            """Atualiza preview do texto e sugere questões."""
+            selecionado = tree_textos.selection()
+            if not selecionado:
+                preview_texto.config(state="normal")
+                preview_texto.delete("1.0", tk.END)
+                preview_texto.config(state="disabled")
+                lbl_sugestoes.config(text="💡 Selecione um texto para ver sugestões de questões")
+                return
+            
+            item = tree_textos.item(selecionado[0])
+            texto_id = item["values"][0]
+            
+            try:
+                texto_obj = TextoBaseService.buscar_por_id(texto_id)
+                if texto_obj:
+                    # Mostrar preview
+                    preview_texto.config(state="normal")
+                    preview_texto.delete("1.0", tk.END)
+                    if texto_obj.tipo == TipoTextoBase.TEXTO:
+                        conteudo_preview = texto_obj.conteudo[:300] if texto_obj.conteudo else ""
+                        if len(texto_obj.conteudo or "") > 300:
+                            conteudo_preview += "..."
+                        preview_texto.insert("1.0", conteudo_preview)
+                    else:
+                        preview_texto.insert("1.0", f"[IMAGEM] {texto_obj.caminho_imagem or 'Sem caminho'}")
+                    preview_texto.config(state="disabled")
+                    
+                    # Sugerir questões - buscar questões já na avaliação
+                    questoes_aval = [int(self.tree_avaliacao.item(item)['values'][1]) for item in self.tree_avaliacao.get_children()]
+                    if questoes_aval:
+                        sugestao_ids = ", ".join(map(str, questoes_aval))
+                        lbl_sugestoes.config(
+                            text=f"💡 Sugestão: Você já adicionou as questões {sugestao_ids} à avaliação. "
+                                 f"Vincule as que se relacionam a este texto.",
+                            fg=self.co2
+                        )
+                        entry_questoes.delete(0, tk.END)
+                        entry_questoes.insert(0, sugestao_ids)
+                    else:
+                        lbl_sugestoes.config(
+                            text="💡 Dica: Primeiro adicione questões à avaliação (seção 'Buscar Questões'), "
+                                 "depois vincule-as aos textos base.",
+                            fg=self.co9
+                        )
+            except Exception as e:
+                logger.error(f"Erro ao carregar preview: {e}")
+        
+        tree_textos.bind("<<TreeviewSelect>>", atualizar_preview)
+        
+        # Botões - SEMPRE VISÍVEIS NO FINAL
         frame_btns = tk.Frame(container, bg=self.co0)
-        frame_btns.pack(fill="x")
+        frame_btns.pack(fill="x", pady=(15, 10), padx=10)
         
         def confirmar():
             selecionado = tree_textos.selection()
@@ -2306,15 +2566,21 @@ Status: {questao.status.value if questao.status else ''}"""
             padx=20, pady=8
         ).pack(side="left", padx=(0, 10))
         
+        def fechar():
+            canvas.unbind_all("<MouseWheel>")
+            dialog.destroy()
+        
         tk.Button(
             frame_btns,
             text="✗ Cancelar",
-            command=dialog.destroy,
+            command=fechar,
             bg=self.co9, fg="white",
             font=("Arial", 10, "bold"),
             relief="flat",
             padx=20, pady=8
         ).pack(side="left")
+        
+        dialog.protocol("WM_DELETE_WINDOW", fechar)
     
     def atualizar_listbox_textos(self):
         """Atualiza a listbox de textos base da avaliação."""
@@ -2370,79 +2636,124 @@ Status: {questao.status.value if questao.status else ''}"""
         self.listbox_textos.selection_set(novo_index)
     
     def buscar_questoes_para_avaliacao(self):
-        """Busca questões para adicionar na avaliação."""
+        """Busca questões para adicionar na avaliação com FILTROS AVANÇADOS."""
         from banco_questoes.services import QuestaoService
-        from banco_questoes.models import FiltroQuestoes, StatusQuestao
+        from banco_questoes.models import FiltroQuestoes, StatusQuestao, ComponenteCurricular, AnoEscolar, TipoQuestao
         
-        # Limpar listbox
-        self.listbox_questoes_busca.delete(0, tk.END)
+        # Limpar treeview
+        for item in self.tree_questoes_busca.get_children():
+            self.tree_questoes_busca.delete(item)
         
         try:
-            # Se informou ID específico
-            id_busca = self.busca_id_q.get().strip()
+            # Montar filtros
+            filtros = FiltroQuestoes(
+                escola_id=config.ESCOLA_ID,
+                status=StatusQuestao.APROVADA
+            )
+            
+            # Filtro por ID específico
+            id_busca = self.busca_aval_id.get().strip()
             if id_busca:
                 try:
                     questao_id = int(id_busca)
                     questao = QuestaoService.buscar_por_id(questao_id)
                     if questao:
-                        tipo_str = questao.tipo.value if questao.tipo else "?"
-                        enunciado_preview = questao.enunciado[:50] if questao.enunciado else ""
-                        self.listbox_questoes_busca.insert(
-                            tk.END,
-                            f"ID {questao.id} | {tipo_str} | {enunciado_preview}..."
+                        tipo_str = {"multipla_escolha": "Múlt. Escolha", "dissertativa": "Dissertativa", "verdadeiro_falso": "V/F"}.get(
+                            questao.tipo.value if questao.tipo else "", "?"
                         )
-                        # Guardar ID para recuperar depois
-                        self.listbox_questoes_busca.itemconfig(tk.END, {'fg': 'black'})
-                        if not hasattr(self, '_questoes_busca_map'):
-                            self._questoes_busca_map = {}
-                        self._questoes_busca_map[0] = questao.id
+                        enunciado_preview = (questao.enunciado[:80] + "...") if len(questao.enunciado or "") > 80 else (questao.enunciado or "")
+                        
+                        self.tree_questoes_busca.insert("", "end", values=(
+                            questao.id,
+                            tipo_str,
+                            enunciado_preview
+                        ))
                     else:
                         messagebox.showinfo("Não encontrado", f"Questão ID {questao_id} não encontrada.")
                 except ValueError:
                     messagebox.showwarning("Erro", "ID deve ser um número.")
                 return
             
-            # Buscar todas as questões aprovadas da escola
-            filtros = FiltroQuestoes(
-                escola_id=config.ESCOLA_ID,
-                status=StatusQuestao.APROVADA
-            )
-            questoes, _ = QuestaoService.buscar(filtros, limite=50)
+            # Filtro por componente
+            componente = self.busca_aval_comp.get()
+            if componente != "Todos":
+                try:
+                    filtros.componente_curricular = ComponenteCurricular(componente)
+                except ValueError:
+                    pass
+            
+            # Filtro por ano
+            ano = self.busca_aval_ano.get()
+            if ano != "Todos":
+                try:
+                    filtros.ano_escolar = AnoEscolar(ano)
+                except ValueError:
+                    pass
+            
+            # Filtro por tipo
+            tipo = self.busca_aval_tipo.get()
+            if tipo != "Todos":
+                tipo_map = {"Dissertativa": "dissertativa", "Múltipla Escolha": "multipla_escolha"}
+                tipo_valor = tipo_map.get(tipo)
+                if tipo_valor:
+                    try:
+                        filtros.tipo = TipoQuestao(tipo_valor)
+                    except ValueError:
+                        pass
+            
+            # Filtro por texto
+            texto = self.busca_aval_texto.get().strip()
+            if texto:
+                filtros.texto_busca = texto
+            
+            # Buscar questões
+            questoes, total = QuestaoService.buscar(filtros, limite=100)
             
             if not questoes:
-                messagebox.showinfo("Aviso", "Nenhuma questão encontrada.")
+                messagebox.showinfo("Aviso", "Nenhuma questão encontrada com os filtros aplicados.")
                 return
             
-            # Popular listbox
-            if not hasattr(self, '_questoes_busca_map'):
-                self._questoes_busca_map = {}
-            
-            for idx, questao in enumerate(questoes):
-                tipo_str = questao.tipo.value if questao.tipo else "?"
-                enunciado_preview = questao.enunciado[:50] if questao.enunciado else ""
-                self.listbox_questoes_busca.insert(
-                    tk.END,
-                    f"ID {questao.id} | {tipo_str} | {enunciado_preview}..."
+            # Popular treeview
+            for questao in questoes:
+                tipo_str = {"multipla_escolha": "Múlt. Escolha", "dissertativa": "Dissertativa", "verdadeiro_falso": "V/F"}.get(
+                    questao.tipo.value if questao.tipo else "", "?"
                 )
-                self._questoes_busca_map[idx] = questao.id
+                enunciado_preview = (questao.enunciado[:80] + "...") if len(questao.enunciado or "") > 80 else (questao.enunciado or "")
+                
+                self.tree_questoes_busca.insert("", "end", values=(
+                    questao.id,
+                    tipo_str,
+                    enunciado_preview
+                ))
+            
+            # Informar total encontrado
+            if total > len(questoes):
+                messagebox.showinfo("Resultados", f"Encontradas {total} questões. Exibindo primeiras {len(questoes)}.")
             
         except Exception as e:
             logger.error(f"Erro ao buscar questões: {e}")
             messagebox.showerror("Erro", f"Erro ao buscar questões: {e}")
     
+    def ver_detalhes_questao_busca(self):
+        """Abre janela de detalhes da questão selecionada na busca."""
+        selecao = self.tree_questoes_busca.selection()
+        if not selecao:
+            messagebox.showwarning("Aviso", "Selecione uma questão para ver detalhes.")
+            return
+        
+        item = self.tree_questoes_busca.item(selecao[0])
+        questao_id = item["values"][0]
+        self.abrir_detalhes_questao(questao_id)
+    
     def adicionar_questao_da_busca(self):
         """Adiciona a questão selecionada na busca para a avaliação."""
-        selecao = self.listbox_questoes_busca.curselection()
+        selecao = self.tree_questoes_busca.selection()
         if not selecao:
             messagebox.showwarning("Aviso", "Selecione uma questão para adicionar.")
             return
         
-        idx = selecao[0]
-        if not hasattr(self, '_questoes_busca_map') or idx not in self._questoes_busca_map:
-            messagebox.showerror("Erro", "Erro ao recuperar questão selecionada.")
-            return
-        
-        questao_id = self._questoes_busca_map[idx]
+        item = self.tree_questoes_busca.item(selecao[0])
+        questao_id = item["values"][0]
         self.adicionar_questao_avaliacao(questao_id)
     
     def atualizar_totais_avaliacao(self):
@@ -3029,6 +3340,9 @@ Status: {questao.status.value if questao.status else ''}"""
         self.tree_minhas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
+        # Duplo clique para editar
+        self.tree_minhas.bind("<Double-1>", lambda e: self.editar_minha_questao())
+        
         # Botões de ação
         frame_acoes = tk.Frame(self.frame_minhas, bg=self.co0)
         frame_acoes.pack(fill="x", padx=10, pady=5)
@@ -3040,10 +3354,35 @@ Status: {questao.status.value if questao.status else ''}"""
         ).pack(side="left", padx=5)
         
         tk.Button(
-            frame_acoes, text="🗑️ Excluir",
+            frame_acoes, text="❌ Excluir",
             command=self.excluir_minha_questao,
             bg=self.co8, fg="white"
         ).pack(side="left", padx=5)
+        
+        # WORKFLOW DE APROVAÇÃO
+        tk.Label(frame_acoes, text="|", bg=self.co0).pack(side="left", padx=5)
+        
+        tk.Button(
+            frame_acoes, text="📤 Enviar p/ Revisão",
+            command=self.enviar_questao_revisao,
+            bg="#FF8C00", fg="white"
+        ).pack(side="left", padx=5)
+        
+        if self.perfil in ['administrador', 'coordenador']:
+            tk.Button(
+                frame_acoes, text="✅ Aprovar",
+                command=self.aprovar_questao,
+                bg=self.co2, fg="white"
+            ).pack(side="left", padx=5)
+            
+            tk.Button(
+                frame_acoes, text="↩️ Devolver",
+                command=self.devolver_questao,
+                bg="#FFA500", fg="white"
+            ).pack(side="left", padx=5)
+        
+        # Carregar lista ao criar aba
+        self.janela.after(500, self.carregar_minhas_questoes)
         
         # Carregar automaticamente
         self.janela.after(500, self.carregar_minhas_questoes)
@@ -3057,12 +3396,89 @@ Status: {questao.status.value if questao.status else ''}"""
         for item in self.tree_minhas.get_children():
             self.tree_minhas.delete(item)
         
-        if not self.funcionario_id:
+        # Se perfis não estão habilitados, mostrar TODAS as questões da escola
+        if not perfis_habilitados():
+            logger.info("Perfis desabilitados - carregando todas as questões da escola")
+            try:
+                import config
+                filtros = FiltroQuestoes(escola_id=config.ESCOLA_ID)
+                questoes, total = QuestaoService.buscar(filtros, limite=100)
+                
+                logger.info(f"Carregadas {len(questoes)} questões da escola (total: {total})")
+                
+                for q in questoes:
+                    data_str = ''
+                    if q.created_at:
+                        data_str = q.created_at.strftime('%Y-%m-%d') if hasattr(q.created_at, 'strftime') else str(q.created_at)[:10]
+                    
+                    self.tree_minhas.insert("", "end", values=(
+                        q.id,
+                        q.componente_curricular.value if q.componente_curricular else '',
+                        q.ano_escolar.value if q.ano_escolar else '',
+                        q.habilidade_bncc_codigo or '',
+                        q.tipo.value if q.tipo else '',
+                        q.status.value if q.status else '',
+                        data_str
+                    ))
+                    
+                if not questoes:
+                    messagebox.showinfo(
+                        "Info", 
+                        "Nenhuma questão cadastrada na escola.\n\n"
+                        "Vá na aba '➕ Cadastrar Questão' para criar a primeira questão!"
+                    )
+                    
+            except Exception as e:
+                logger.error(f"Erro ao carregar questões da escola: {e}")
+                messagebox.showerror("Erro", f"Erro ao carregar questões: {e}")
             return
         
+        # Perfis habilitados - verificar autenticação
+        if not self.funcionario_id:
+            logger.warning("Perfis habilitados mas nenhum funcionário logado")
+            messagebox.showwarning(
+                "Aviso", 
+                "Sistema de perfis habilitado mas usuário não autenticado.\n\n"
+                "Mostrando todas as questões da escola como fallback."
+            )
+            # Fallback: carregar todas da escola
+            try:
+                import config
+                filtros = FiltroQuestoes(escola_id=config.ESCOLA_ID)
+                questoes, total = QuestaoService.buscar(filtros, limite=100)
+                
+                logger.info(f"Carregadas {len(questoes)} questões da escola (fallback - total: {total})")
+                
+                for q in questoes:
+                    data_str = ''
+                    if q.created_at:
+                        data_str = q.created_at.strftime('%Y-%m-%d') if hasattr(q.created_at, 'strftime') else str(q.created_at)[:10]
+                    
+                    self.tree_minhas.insert("", "end", values=(
+                        q.id,
+                        q.componente_curricular.value if q.componente_curricular else '',
+                        q.ano_escolar.value if q.ano_escolar else '',
+                        q.habilidade_bncc_codigo or '',
+                        q.tipo.value if q.tipo else '',
+                        q.status.value if q.status else '',
+                        data_str
+                    ))
+                    
+                if not questoes:
+                    messagebox.showinfo("Info", "Nenhuma questão encontrada no banco de dados.")
+                    
+            except Exception as e:
+                logger.error(f"Erro ao carregar questões da escola: {e}")
+                messagebox.showerror("Erro", f"Erro ao carregar questões: {e}")
+            return
+        
+        # Perfis habilitados E usuário autenticado - filtrar por autor
         try:
+            logger.info(f"Carregando questões do autor ID: {self.funcionario_id}")
             filtros = FiltroQuestoes(autor_id=self.funcionario_id)
-            questoes, _ = QuestaoService.buscar(filtros, limite=100)
+            questoes, total = QuestaoService.buscar(filtros, limite=100)
+            
+            logger.info(f"Encontradas {len(questoes)} questões do autor (total: {total})")
             
             for q in questoes:
                 data_str = ''
@@ -3078,9 +3494,17 @@ Status: {questao.status.value if questao.status else ''}"""
                     q.status.value if q.status else '',
                     data_str
                 ))
+            
+            if not questoes:
+                messagebox.showinfo(
+                    "Info", 
+                    f"Você ainda não criou nenhuma questão.\n\n"
+                    f"Vá na aba '➕ Cadastrar Questão' para criar sua primeira questão!"
+                )
                 
         except Exception as e:
             logger.error(f"Erro ao carregar questões: {e}")
+            messagebox.showerror("Erro", f"Erro ao carregar questões: {e}")
     
     def editar_minha_questao(self):
         """Abre questão para edição."""
@@ -3090,12 +3514,40 @@ Status: {questao.status.value if questao.status else ''}"""
             return
         
         item = self.tree_minhas.item(selecao[0])
-        questao_id = item['values'][0]
+        questao_id = int(item['values'][0])
         
-        messagebox.showinfo(
-            "Em desenvolvimento",
-            f"Edição da questão #{questao_id} será implementada em breve."
-        )
+        # Buscar dados da questão
+        from banco_questoes.services import QuestaoService
+        questao = QuestaoService.buscar_por_id(questao_id)
+        
+        if not questao:
+            messagebox.showerror("Erro", "Questão não encontrada.")
+            return
+        
+        # CONTROLE DE PERMISSÕES GRANULAR
+        if perfis_habilitados():
+            # Verificar se pode editar esta questão
+            pode_editar_todas = self.perfil in ['administrador', 'coordenador']
+            e_autor = (questao.autor_id == self.funcionario_id)
+            
+            if not pode_editar_todas and not e_autor:
+                messagebox.showerror(
+                    "Sem Permissão",
+                    "❌ Você não tem permissão para editar esta questão.\n\n"
+                    "Você só pode editar questões criadas por você."
+                )
+                return
+        
+        # Verificar se tem aba de cadastro
+        if not hasattr(self, 'frame_cadastro'):
+            messagebox.showwarning("Aviso", "A aba de cadastro não está disponível para o seu perfil.")
+            return
+        
+        # Mudar para aba de cadastro
+        self.notebook.select(self.frame_cadastro)
+        
+        # Preencher campos com dados da questão
+        self.carregar_questao_para_edicao(questao)
     
     def excluir_minha_questao(self):
         """Exclui a questão selecionada."""
@@ -3107,7 +3559,26 @@ Status: {questao.status.value if questao.status else ''}"""
         item = self.tree_minhas.item(selecao[0])
         questao_id = int(item['values'][0])
         
-        if not messagebox.askyesno("Confirmar", f"Deseja realmente excluir a questão #{questao_id}?"):
+        # CONTROLE DE PERMISSÕES GRANULAR
+        if perfis_habilitados():
+            try:
+                from banco_questoes.services import QuestaoService
+                questao = QuestaoService.buscar_por_id(questao_id)
+                if questao:
+                    pode_excluir_todas = self.perfil in ['administrador', 'coordenador']
+                    e_autor = (questao.autor_id == self.funcionario_id)
+                    
+                    if not pode_excluir_todas and not e_autor:
+                        messagebox.showerror(
+                            "Sem Permissão",
+                            "❌ Você não tem permissão para excluir esta questão.\n\n"
+                            "Você só pode excluir questões criadas por você."
+                        )
+                        return
+            except Exception as e:
+                logger.error(f"Erro ao verificar permissões: {e}")
+        
+        if not messagebox.askyesno("Confirmar", f"Deseja realmente excluir a questão #{questao_id}?\n\nEsta ação não pode ser desfeita."):
             return
         
         try:
@@ -3127,6 +3598,164 @@ Status: {questao.status.value if questao.status else ''}"""
         except Exception as e:
             logger.error(f"Erro ao excluir: {e}")
             messagebox.showerror("Erro", f"Erro ao excluir questão: {e}")
+    
+    # =========================================================================
+    # WORKFLOW DE APROVAÇÃO DE QUESTÕES
+    # =========================================================================
+    
+    def enviar_questao_revisao(self):
+        """Envia questão para revisão (rascunho → revisão)."""
+        selecao = self.tree_minhas.selection()
+        if not selecao:
+            messagebox.showwarning("Aviso", "Selecione uma questão para enviar para revisão.")
+            return
+        
+        item = self.tree_minhas.item(selecao[0])
+        questao_id = int(item['values'][0])
+        status_atual = item['values'][5]  # Coluna status
+        
+        if status_atual != 'rascunho':
+            messagebox.showinfo(
+                "Info",
+                f"Esta questão já está em status '{status_atual}'.\n\n"
+                "Apenas questões em rascunho podem ser enviadas para revisão."
+            )
+            return
+        
+        confirmacao = messagebox.askyesno(
+            "Confirmar Envio",
+            f"Enviar questão #{questao_id} para revisão?\n\n"
+            "A questão ficará disponível para análise do coordenador/administrador."
+        )
+        
+        if not confirmacao:
+            return
+        
+        try:
+            from banco_questoes.services import QuestaoService
+            sucesso = QuestaoService.alterar_status(questao_id, 'revisao', self.funcionario_id)
+            
+            if sucesso:
+                messagebox.showinfo(
+                    "Sucesso",
+                    "✅ Questão enviada para revisão!\n\n"
+                    "Aguarde análise da coordenação."
+                )
+                self.carregar_minhas_questoes()
+            else:
+                messagebox.showerror("Erro", "Não foi possível alterar o status da questão.")
+                
+        except Exception as e:
+            logger.error(f"Erro ao enviar questão para revisão: {e}")
+            messagebox.showerror("Erro", f"Erro ao processar solicitação: {e}")
+    
+    def aprovar_questao(self):
+        """Aprova questão (revisão → aprovada). Apenas coordenador/admin."""
+        if self.perfil not in ['administrador', 'coordenador']:
+            messagebox.showerror("Sem Permissão", "Apenas coordenadores e administradores podem aprovar questões.")
+            return
+        
+        selecao = self.tree_minhas.selection()
+        if not selecao:
+            messagebox.showwarning("Aviso", "Selecione uma questão para aprovar.")
+            return
+        
+        item = self.tree_minhas.item(selecao[0])
+        questao_id = int(item['values'][0])
+        status_atual = item['values'][5]
+        
+        if status_atual not in ['revisao', 'rascunho']:
+            messagebox.showinfo(
+                "Info",
+                f"Esta questão está em status '{status_atual}'.\n\n"
+                "Apenas questões em revisão ou rascunho podem ser aprovadas."
+            )
+            return
+        
+        # Janela de aprovação com comentário opcional
+        from tkinter import simpledialog
+        comentario = simpledialog.askstring(
+            "Aprovar Questão",
+            f"Aprovando questão #{questao_id}\n\n"
+            "Comentário (opcional):",
+            parent=self.janela
+        )
+        
+        try:
+            from banco_questoes.services import QuestaoService
+            sucesso = QuestaoService.aprovar_questao(
+                questao_id,
+                aprovador_id=self.funcionario_id,
+                comentario=comentario
+            )
+            
+            if sucesso:
+                messagebox.showinfo(
+                    "Sucesso",
+                    f"✅ Questão #{questao_id} aprovada!\n\n"
+                    "A questão está pronta para uso em avaliações."
+                )
+                self.carregar_minhas_questoes()
+            else:
+                messagebox.showerror("Erro", "Não foi possível aprovar a questão.")
+                
+        except Exception as e:
+            logger.error(f"Erro ao aprovar questão: {e}")
+            messagebox.showerror("Erro", f"Erro ao processar aprovação: {e}")
+    
+    def devolver_questao(self):
+        """Devolve questão para revisão (aprovada/revisão → rascunho). Apenas coordenador/admin."""
+        if self.perfil not in ['administrador', 'coordenador']:
+            messagebox.showerror("Sem Permissão", "Apenas coordenadores e administradores podem devolver questões.")
+            return
+        
+        selecao = self.tree_minhas.selection()
+        if not selecao:
+            messagebox.showwarning("Aviso", "Selecione uma questão para devolver.")
+            return
+        
+        item = self.tree_minhas.item(selecao[0])
+        questao_id = int(item['values'][0])
+        status_atual = item['values'][5]
+        
+        if status_atual == 'rascunho':
+            messagebox.showinfo("Info", "Esta questão já está em rascunho.")
+            return
+        
+        # Janela de devolução com motivo obrigatório
+        from tkinter import simpledialog
+        motivo = simpledialog.askstring(
+            "Devolver Questão",
+            f"Devolvendo questão #{questao_id} para revisão\n\n"
+            "Motivo da devolução (obrigatório):",
+            parent=self.janela
+        )
+        
+        if not motivo or not motivo.strip():
+            messagebox.showwarning("Aviso", "É necessário informar o motivo da devolução.")
+            return
+        
+        try:
+            from banco_questoes.services import QuestaoService
+            sucesso = QuestaoService.devolver_questao(
+                questao_id,
+                revisor_id=self.funcionario_id,
+                motivo=motivo
+            )
+            
+            if sucesso:
+                messagebox.showinfo(
+                    "Sucesso",
+                    f"↩️ Questão #{questao_id} devolvida para revisão!\n\n"
+                    "O autor será notificado sobre as correções necessárias."
+                )
+                self.carregar_minhas_questoes()
+            else:
+                messagebox.showerror("Erro", "Não foi possível devolver a questão.")
+                
+        except Exception as e:
+            logger.error(f"Erro ao devolver questão: {e}")
+            messagebox.showerror("Erro", f"Erro ao processar devolução: {e}")
     
     # =========================================================================
     # ABA: ESTATÍSTICAS
@@ -3161,97 +3790,197 @@ Status: {questao.status.value if questao.status else ''}"""
         self.janela.after(500, self.carregar_estatisticas)
     
     def carregar_estatisticas(self):
-        """Carrega estatísticas do banco de questões."""
+        """Carrega estatísticas do banco de questões com visualização aprimorada."""
         try:
-            from conexao import conectar_bd
-            conn = conectar_bd()
-            if not conn:
-                self.lbl_stats.config(text="Erro: Não foi possível conectar ao banco de dados.")
+            from banco_questoes.services import EstatisticasService
+            import config
+            
+            # Obter estatísticas gerais
+            stats = EstatisticasService.obter_estatisticas_gerais(
+                escola_id=config.ESCOLA_ID,
+                autor_id=self.funcionario_id if perfis_habilitados() else None
+            )
+            
+            if not stats:
+                self.lbl_stats.config(text="Nenhuma estatística disponível.")
                 return
+            
+            # Criar interface rica com frames
+            for widget in self.frame_estatisticas.winfo_children():
+                if widget != self.lbl_stats.master:
+                    widget.destroy()
+            
+            # Frame principal com scroll
+            canvas = tk.Canvas(self.frame_estatisticas, bg=self.co0)
+            scrollbar = ttk.Scrollbar(self.frame_estatisticas, orient="vertical", command=canvas.yview)
+            frame_scroll = tk.Frame(canvas, bg=self.co0)
+            
+            frame_scroll.bind(
+                "<Configure>",
+                lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+            )
+            
+            canvas.create_window((0, 0), window=frame_scroll, anchor="nw")
+            canvas.configure(yscrollcommand=scrollbar.set)
+            
+            canvas.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
+            
+            # Título
+            tk.Label(
+                frame_scroll,
+                text="📊 Estatísticas do Banco de Questões",
+                font=("Arial", 16, "bold"),
+                bg=self.co0, fg=self.co1
+            ).pack(pady=10)
+            
+            # Botão atualizar
+            tk.Button(
+                frame_scroll, text="🔄 Atualizar",
+                command=self.carregar_estatisticas,
+                bg=self.co4, fg="white"
+            ).pack(pady=5)
+            
+            # CARD: Total de Questões
+            frame_total = tk.LabelFrame(
+                frame_scroll, text="📚 Total de Questões",
+                bg=self.co0, font=("Arial", 11, "bold")
+            )
+            frame_total.pack(fill="x", padx=20, pady=10)
+            
+            tk.Label(
+                frame_total,
+                text=str(stats['total_questoes']),
+                font=("Arial", 32, "bold"),
+                bg=self.co0, fg=self.co2
+            ).pack(pady=10)
+            
+            # CARD: Por Status
+            frame_status = tk.LabelFrame(
+                frame_scroll, text="📋 Por Status",
+                bg=self.co0, font=("Arial", 11, "bold")
+            )
+            frame_status.pack(fill="x", padx=20, pady=10)
+            
+            cores_status = {
+                'rascunho': '#999999',
+                'revisao': '#FF8C00',
+                'aprovada': '#77B341',
+                'arquivada': '#666666'
+            }
+            
+            for status, qtd in stats['por_status'].items():
+                frame_item = tk.Frame(frame_status, bg=self.co0)
+                frame_item.pack(fill="x", padx=10, pady=5)
                 
-            cursor = conn.cursor(dictionary=True)
+                tk.Label(
+                    frame_item,
+                    text=f"{status.capitalize()}:",
+                    bg=self.co0,
+                    font=("Arial", 10)
+                ).pack(side="left")
+                
+                tk.Label(
+                    frame_item,
+                    text=str(qtd),
+                    bg=cores_status.get(status, self.co9),
+                    fg="white",
+                    font=("Arial", 10, "bold"),
+                    padx=10
+                ).pack(side="right")
             
-            # Total de questões
-            cursor.execute("SELECT COUNT(*) as total FROM questoes")
-            row = cursor.fetchone()
-            if row:
-                if isinstance(row, dict):
-                    total = row['total'] if 'total' in row else 0
-                else:
-                    try:
-                        total = row[0]
-                    except Exception:
-                        total = 0
-            else:
-                total = 0
+            # CARD: Por Tipo
+            frame_tipo = tk.LabelFrame(
+                frame_scroll, text="📝 Por Tipo",
+                bg=self.co0, font=("Arial", 11, "bold")
+            )
+            frame_tipo.pack(fill="x", padx=20, pady=10)
             
-            # Por status
-            cursor.execute("""
-                SELECT status, COUNT(*) as qtd 
-                FROM questoes 
-                GROUP BY status
-            """)
-            por_status = cursor.fetchall()
+            for tipo, qtd in stats['por_tipo'].items():
+                frame_item = tk.Frame(frame_tipo, bg=self.co0)
+                frame_item.pack(fill="x", padx=10, pady=5)
+                
+                tk.Label(
+                    frame_item,
+                    text=f"{tipo.replace('_', ' ').title()}:",
+                    bg=self.co0,
+                    font=("Arial", 10)
+                ).pack(side="left")
+                
+                tk.Label(
+                    frame_item,
+                    text=str(qtd),
+                    bg=self.co4,
+                    fg="white",
+                    font=("Arial", 10, "bold"),
+                    padx=10
+                ).pack(side="right")
             
-            # Por componente
-            cursor.execute("""
-                SELECT componente_curricular, COUNT(*) as qtd 
-                FROM questoes 
-                GROUP BY componente_curricular
-                ORDER BY qtd DESC
-            """)
-            por_componente = cursor.fetchall()
+            # CARD: Por Dificuldade
+            frame_dif = tk.LabelFrame(
+                frame_scroll, text="⚡ Por Dificuldade",
+                bg=self.co0, font=("Arial", 11, "bold")
+            )
+            frame_dif.pack(fill="x", padx=20, pady=10)
             
-            # Total de avaliações
-            cursor.execute("SELECT COUNT(*) as total FROM avaliacoes")
-            row_aval = cursor.fetchone()
-            if row_aval:
-                if isinstance(row_aval, dict):
-                    total_aval = row_aval['total'] if 'total' in row_aval else 0
-                else:
-                    try:
-                        total_aval = row_aval[0]
-                    except Exception:
-                        total_aval = 0
-            else:
-                total_aval = 0
+            cores_dif = {
+                'facil': '#77B341',
+                'media': '#FF8C00',
+                'dificil': '#BF3036'
+            }
             
-            cursor.close()
-            conn.close()
+            for dif, qtd in stats['por_dificuldade'].items():
+                frame_item = tk.Frame(frame_dif, bg=self.co0)
+                frame_item.pack(fill="x", padx=10, pady=5)
+                
+                tk.Label(
+                    frame_item,
+                    text=f"{dif.capitalize()}:",
+                    bg=self.co0,
+                    font=("Arial", 10)
+                ).pack(side="left")
+                
+                tk.Label(
+                    frame_item,
+                    text=str(qtd),
+                    bg=cores_dif.get(dif, self.co9),
+                    fg="white",
+                    font=("Arial", 10, "bold"),
+                    padx=10
+                ).pack(side="right")
             
-            # Montar texto
-            texto = f"""
-TOTAL DE QUESTÕES: {total}
-
-POR STATUS:
-"""
-            for s in por_status:
-                if isinstance(s, dict):
-                    status = s.get('status', 'N/A')
-                    qtd = s.get('qtd', 0)
-                else:
-                    # row tuple (status, qtd)
-                    status = s[0] if len(s) > 0 else 'N/A'
-                    qtd = s[1] if len(s) > 1 else 0
-                texto += f"  • {status}: {qtd}\n"
-            
-            texto += "\nPOR COMPONENTE CURRICULAR:\n"
-            for c in por_componente:
-                if isinstance(c, dict):
-                    comp = c.get('componente_curricular', 'N/A')
-                    qtdc = c.get('qtd', 0)
-                else:
-                    comp = c[0] if len(c) > 0 else 'N/A'
-                    qtdc = c[1] if len(c) > 1 else 0
-                texto += f"  • {comp}: {qtdc}\n"
-            
-            texto += f"\nTOTAL DE AVALIAÇÕES: {total_aval}"
-            
-            self.lbl_stats.config(text=texto)
+            # CARD: Questões Mais Utilizadas
+            if stats['mais_utilizadas']:
+                frame_top = tk.LabelFrame(
+                    frame_scroll, text="⭐ Questões Mais Utilizadas",
+                    bg=self.co0, font=("Arial", 11, "bold")
+                )
+                frame_top.pack(fill="x", padx=20, pady=10)
+                
+                for item in stats['mais_utilizadas'][:5]:
+                    frame_item = tk.Frame(frame_top, bg=self.co0)
+                    frame_item.pack(fill="x", padx=10, pady=3)
+                    
+                    tk.Label(
+                        frame_item,
+                        text=f"#{item['id']} - {item['enunciado']}",
+                        bg=self.co0,
+                        font=("Arial", 9),
+                        anchor="w"
+                    ).pack(side="left", fill="x", expand=True)
+                    
+                    tk.Label(
+                        frame_item,
+                        text=f"{item['vezes']}x",
+                        bg=self.co2,
+                        fg="white",
+                        font=("Arial", 9, "bold"),
+                        padx=8
+                    ).pack(side="right")
             
         except Exception as e:
             logger.error(f"Erro ao carregar estatísticas: {e}")
-            self.lbl_stats.config(text=f"Erro ao carregar: {e}")
+            messagebox.showerror("Erro", f"Erro ao carregar estatísticas:\n{e}")
     
     # =========================================================================
     # ABA TEXTOS BASE - GERENCIAMENTO DE TEXTOS/IMAGENS
@@ -4144,6 +4873,158 @@ POR STATUS:
         except Exception as e:
             logger.error(f"Erro ao carregar template: {e}")
             messagebox.showerror("Erro", f"Erro ao carregar template:\\n{e}")
+    
+    # =========================================================================
+    # IMPORTAÇÃO EM LOTE - EXCEL/CSV
+    # =========================================================================
+    
+    def importar_questoes_excel(self):
+        """Importa questões de um arquivo Excel com validação robusta."""
+        from tkinter import filedialog
+        import os
+        
+        arquivo = filedialog.askopenfilename(
+            title="Selecionar arquivo Excel",
+            filetypes=[
+                ("Arquivos Excel", "*.xlsx *.xls"),
+                ("Todos os arquivos", "*.*")
+            ]
+        )
+        
+        if not arquivo:
+            return
+        
+        try:
+            import openpyxl
+        except ImportError:
+            messagebox.showerror(
+                "Erro",
+                "Biblioteca openpyxl não instalada.\\n\\n"
+                "Execute: pip install openpyxl"
+            )
+            return
+        
+        try:
+            from banco_questoes.services import QuestaoService
+            from banco_questoes.models import (
+                Questao, QuestaoAlternativa, ComponenteCurricular, AnoEscolar,
+                TipoQuestao, DificuldadeQuestao, StatusQuestao, VisibilidadeQuestao
+            )
+            
+            wb = openpyxl.load_workbook(arquivo)
+            ws = wb.active
+            
+            # Validar cabeçalho
+            headers_esperados = [
+                'componente', 'ano', 'habilidade_bncc', 'tipo', 'dificuldade',
+                'enunciado', 'alt_a', 'alt_b', 'alt_c', 'alt_d', 'alt_e', 'gabarito'
+            ]
+            
+            headers = [cell.value.lower() if cell.value else '' for cell in ws[1]]
+            
+            if headers[:6] != headers_esperados[:6]:
+                messagebox.showerror(
+                    "Erro",
+                    "Formato de arquivo inválido.\\n\\n"
+                    "Cabeçalhos esperados:\\n" +
+                    ", ".join(headers_esperados)
+                )
+                return
+            
+            # Processar linhas
+            questoes_importadas = 0
+            erros = []
+            
+            janela_progresso = tk.Toplevel(self.janela)
+            janela_progresso.title("Importando Questões")
+            janela_progresso.geometry("500x200")
+            janela_progresso.grab_set()
+            
+            tk.Label(janela_progresso, text="Importando questões...", font=("Arial", 12)).pack(pady=10)
+            texto_log = tk.Text(janela_progresso, height=8, wrap="word")
+            texto_log.pack(fill="both", expand=True, padx=10, pady=10)
+            
+            for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                try:
+                    # Validar campos obrigatórios
+                    if not all([row[0], row[1], row[2], row[3], row[4], row[5]]):
+                        erros.append(f"Linha {idx}: Campos obrigatórios vazios")
+                        continue
+                    
+                    # Criar objeto Questão
+                    questao = Questao(
+                        componente_curricular=ComponenteCurricular(row[0]),
+                        ano_escolar=AnoEscolar(row[1]),
+                        habilidade_bncc_codigo=row[2],
+                        tipo=TipoQuestao(row[3]),
+                        dificuldade=DificuldadeQuestao(row[4]),
+                        enunciado=row[5],
+                        status=StatusQuestao.RASCUNHO,
+                        visibilidade=VisibilidadeQuestao.ESCOLA,
+                        autor_id=self.funcionario_id,
+                        escola_id=config.ESCOLA_ID
+                    )
+                    
+                    # Alternativas se for múltipla escolha
+                    if row[3] == 'multipla_escolha':
+                        alternativas = []
+                        for i, letra in enumerate(['A', 'B', 'C', 'D', 'E']):
+                            if row[6+i]:  # alt_a, alt_b, etc
+                                alt = QuestaoAlternativa(
+                                    letra=letra,
+                                    texto=row[6+i],
+                                    correta=(letra == row[11]),  # gabarito
+                                    ordem=i+1
+                                )
+                                alternativas.append(alt)
+                        
+                        if len(alternativas) < 2:
+                            erros.append(f"Linha {idx}: Mínimo 2 alternativas necessárias")
+                            continue
+                        
+                        questao.alternativas = alternativas
+                        questao.gabarito_letra = row[11]
+                    
+                    # Salvar no banco
+                    questao_id = QuestaoService.criar(questao)
+                    
+                    if questao_id:
+                        questoes_importadas += 1
+                        texto_log.insert(tk.END, f"✓ Linha {idx}: Questão #{questao_id} importada\\n")
+                        texto_log.see(tk.END)
+                        janela_progresso.update()
+                    else:
+                        erros.append(f"Linha {idx}: Falha ao salvar no banco")
+                    
+                except Exception as e:
+                    erros.append(f"Linha {idx}: {str(e)}")
+            
+            # Relatório final
+            janela_progresso.destroy()
+            
+            mensagem = f"✅ Importação concluída!\\n\\n"
+            mensagem += f"Questões importadas: {questoes_importadas}\\n"
+            
+            if erros:
+                mensagem += f"Erros: {len(erros)}\\n\\n"
+                mensagem += "Primeiros erros:\\n"
+                mensagem += "\\n".join(erros[:5])
+                if len(erros) > 5:
+                    mensagem += f"\\n... e mais {len(erros)-5} erros"
+                
+                # Salvar log completo
+                from datetime import datetime
+                log_file = os.path.join("logs", f"importacao_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt")
+                os.makedirs("logs", exist_ok=True)
+                with open(log_file, 'w', encoding='utf-8') as f:
+                    f.write("\\n".join(erros))
+                mensagem += f"\\n\\nLog completo salvo em: {log_file}"
+            
+            messagebox.showinfo("Importação Concluída", mensagem)
+            
+        except Exception as e:
+            logger.error(f"Erro ao importar questões: {e}")
+            messagebox.showerror("Erro", f"Erro ao importar questões:\\n{e}")
 
 
 def abrir_banco_questoes(janela_principal=None):
