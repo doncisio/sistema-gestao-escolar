@@ -4,13 +4,13 @@ Autor: Sistema de Gestão Escolar
 Data: 14/12/2025
 """
 
-from config_logs import get_logger
+from src.core.config_logs import get_logger
 logger = get_logger(__name__)
 
 from typing import Optional, List, Dict, Tuple
 from datetime import datetime
 from decimal import Decimal
-from conexao import conectar_bd
+from src.core.conexao import conectar_bd
 import config
 
 class RespostaService:

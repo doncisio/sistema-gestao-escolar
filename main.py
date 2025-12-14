@@ -5,12 +5,12 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Imports essenciais
-from config_logs import get_logger, setup_logging
-from config import perfis_habilitados
+from src.core.config_logs import get_logger, setup_logging
+from src.core.config import perfis_habilitados
 
 # Importar settings centralizado
 try:
-    from config.settings import settings, validate_settings
+    from src.core.config.settings import settings, validate_settings
     HAS_SETTINGS = True
 except ImportError:
     settings = None
@@ -66,13 +66,13 @@ def main():
         log_startup_info()
         
         # Importar Application após validar settings
-        from ui.app import Application
+        from src.ui.app import Application
         # Verificar se sistema de perfis está habilitado
         if perfis_habilitados():
             logger.info("🔐 Sistema de perfis habilitado - Exibindo tela de login")
             
             # Importar e exibir tela de login
-            from ui.login import LoginWindow
+            from src.ui.login import LoginWindow
             from auth import UsuarioLogado
             import tkinter as tk
             

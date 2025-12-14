@@ -12,7 +12,7 @@ class TestEstatisticaService:
     @patch('services.estatistica_service.get_cursor')
     def test_obter_estatisticas_alunos_basico(self, mock_cursor):
         """Deve retornar estatísticas básicas de alunos"""
-        from services.estatistica_service import obter_estatisticas_alunos
+        from src.services.estatistica_service import obter_estatisticas_alunos
         
         # Mock do cursor
         mock_cursor_obj = MagicMock()
@@ -42,7 +42,7 @@ class TestEstatisticaService:
     @patch('services.estatistica_service.get_cursor')
     def test_obter_estatisticas_com_erro(self, mock_cursor):
         """Deve lidar com erros no banco de dados"""
-        from services.estatistica_service import obter_estatisticas_alunos
+        from src.services.estatistica_service import obter_estatisticas_alunos
         
         mock_cursor.side_effect = Exception("Erro de conexão")
         
@@ -69,7 +69,7 @@ class TestAlunoService:
         )
         
         try:
-            from services.aluno_service import buscar_aluno_por_id
+            from src.services.aluno_service import buscar_aluno_por_id
             aluno = buscar_aluno_por_id(1)
             assert aluno is not None
         except (ImportError, AttributeError):
@@ -90,7 +90,7 @@ class TestAlunoService:
         ]
         
         try:
-            from services.aluno_service import listar_alunos
+            from src.services.aluno_service import listar_alunos
             alunos = listar_alunos(nome_filtro='João')
             assert isinstance(alunos, list)
         except (ImportError, AttributeError):
@@ -108,7 +108,7 @@ class TestBackupService:
         mock_run.return_value = Mock(returncode=0)
         
         try:
-            from services.backup_service import fazer_backup
+            from src.services.backup_service import fazer_backup
             resultado = fazer_backup('backup_test.sql')
             assert resultado is True or resultado is None
         except (ImportError, AttributeError):
@@ -120,7 +120,7 @@ class TestBackupService:
         mock_mysqldump.return_value = False
         
         try:
-            from services.backup_service import fazer_backup
+            from src.services.backup_service import fazer_backup
             resultado = fazer_backup('backup_test.sql')
             assert resultado is False or resultado is None
         except (ImportError, AttributeError):
@@ -144,7 +144,7 @@ class TestReportService:
         ]
         
         try:
-            from services.report_service import gerar_relatorio_alunos
+            from src.services.report_service import gerar_relatorio_alunos
             relatorio = gerar_relatorio_alunos()
             assert relatorio is not None
         except (ImportError, AttributeError):
@@ -157,7 +157,7 @@ class TestValidacaoService:
     def test_validar_cpf_valido(self):
         """Deve validar CPF correto"""
         try:
-            from services.validacao_service import validar_cpf
+            from src.services.validacao_service import validar_cpf
             assert validar_cpf('12345678901') in [True, False]
         except (ImportError, AttributeError):
             pytest.skip("Função validar_cpf não implementada")
@@ -165,7 +165,7 @@ class TestValidacaoService:
     def test_validar_cpf_invalido(self):
         """Deve rejeitar CPF inválido"""
         try:
-            from services.validacao_service import validar_cpf
+            from src.services.validacao_service import validar_cpf
             assert validar_cpf('00000000000') is False
             assert validar_cpf('123') is False
         except (ImportError, AttributeError):
@@ -174,7 +174,7 @@ class TestValidacaoService:
     def test_validar_email(self):
         """Deve validar formato de email"""
         try:
-            from services.validacao_service import validar_email
+            from src.services.validacao_service import validar_email
             assert validar_email('teste@email.com') is True
             assert validar_email('email_invalido') is False
         except (ImportError, AttributeError):
@@ -183,7 +183,7 @@ class TestValidacaoService:
     def test_validar_telefone(self):
         """Deve validar formato de telefone"""
         try:
-            from services.validacao_service import validar_telefone
+            from src.services.validacao_service import validar_telefone
             assert validar_telefone('(11) 98765-4321') in [True, False]
             assert validar_telefone('123') is False
         except (ImportError, AttributeError):
@@ -213,8 +213,8 @@ class TestIntegracaoServices:
         mock_aluno_obj.fetchall.return_value = [(i, f'Aluno {i}') for i in range(10)]
         
         try:
-            from services.estatistica_service import obter_estatisticas_alunos
-            from services.aluno_service import listar_alunos
+            from src.services.estatistica_service import obter_estatisticas_alunos
+            from src.services.aluno_service import listar_alunos
             
             stats = obter_estatisticas_alunos()
             alunos = listar_alunos()

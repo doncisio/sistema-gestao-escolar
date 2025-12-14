@@ -1,4 +1,4 @@
-from utils.safe import converter_para_int_seguro, _safe_get, _safe_slice
+from src.utils.safe import converter_para_int_seguro, _safe_get, _safe_slice
 
 
 def test_converter_para_int_seguro():

@@ -23,7 +23,7 @@ def test_delegates_to_mock():
     prev = sys.modules.get('NotaAta')
     try:
         sys.modules['NotaAta'] = cast(Any, mod)
-        import services.report_service as rs
+        import src.services.report_service as rs
         assert rs.gerar_relatorio_avancado_com_assinatura('1', 'Fundamental', 2025, None, False) is True
         assert called['ok'] is True
     finally:
@@ -64,7 +64,7 @@ def test__impl_uses_pdf_helper(tmp_path):
     prev = sys.modules.get('services.utils.pdf')
     try:
         sys.modules['services.utils.pdf'] = cast(Any, pdf_mod)
-        import services.report_service as rs
+        import src.services.report_service as rs
 
         dados = {'alunos': []}
         result = rs._impl_gerar_relatorio_notas_com_assinatura(dados=dados, bimestre='1', nivel_ensino='Fundamental', ano_letivo=2025)

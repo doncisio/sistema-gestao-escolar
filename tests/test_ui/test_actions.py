@@ -5,7 +5,7 @@ Testa os handlers de ações da interface.
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from ui.actions import ActionHandler
+from src.ui.actions import ActionHandler
 
 
 class TestActionHandlerInit:
@@ -417,7 +417,7 @@ class TestActionHandlerGeracaoDocumentos:
         handler = ActionHandler(app)
         
         # Simular callback on_done diretamente
-        from services.boletim_service import gerar_boletim_ou_transferencia
+        from src.services.boletim_service import gerar_boletim_ou_transferencia
         resultado = gerar_boletim_ou_transferencia(100)
         
         # Verify

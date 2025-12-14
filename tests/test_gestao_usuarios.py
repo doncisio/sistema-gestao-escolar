@@ -15,7 +15,7 @@ from tkinter import ttk
 
 # Importar módulo
 try:
-    from ui.gestao_usuarios import GestaoUsuariosWindow
+    from src.ui.gestao_usuarios import GestaoUsuariosWindow
     print("✓ Módulo gestao_usuarios importado com sucesso")
 except ImportError as e:
     print(f"✗ Erro ao importar módulo: {e}")

@@ -5,7 +5,7 @@ Testa funções de gerenciamento de séries escolares
 
 import pytest
 from unittest.mock import Mock, patch
-from services.serie_service import (
+from src.services.serie_service import (
     listar_series,
     obter_serie_por_id,
     obter_serie_por_nome,

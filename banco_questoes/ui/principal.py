@@ -4,14 +4,14 @@ Interface Principal do Banco de Questões BNCC.
 Janela principal que integra todas as funcionalidades do banco de questões.
 """
 
-from config_logs import get_logger
+from src.core.config_logs import get_logger
 logger = get_logger(__name__)
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from typing import Optional, Any
 import config
 
-from config import perfis_habilitados
+from src.core.config import perfis_habilitados
 from auth.usuario_logado import UsuarioLogado
 from banco_questoes.texto_base_service import TextoBaseService, TipoTextoBase
 
@@ -173,7 +173,7 @@ class InterfaceBancoQuestoes:
     def _carregar_habilidades_bncc(self, componente_sigla: Optional[str] = None, anos_bloco: Optional[list] = None) -> list:
         """Carrega habilidades BNCC do banco de dados filtradas por componente e ano."""
         try:
-            from conexao import conectar_bd
+            from src.core.conexao import conectar_bd
             conn = conectar_bd()
             if not conn:
                 return []
@@ -703,7 +703,7 @@ Status: {questao.status.value if questao.status else ''}"""
     def _carregar_arquivos_questao(self, questao_id: int) -> list:
         """Carrega arquivos (imagens) vinculados a uma questão."""
         try:
-            from conexao import conectar_bd
+            from src.core.conexao import conectar_bd
             conn = conectar_bd()
             if not conn:
                 return []
@@ -799,7 +799,7 @@ Status: {questao.status.value if questao.status else ''}"""
         
         try:
             from PIL import Image
-            from utilitarios.gerenciador_documentos import gerenciador
+            from src.utils.utilitarios.gerenciador_documentos import gerenciador
             
             # Garantir que o Drive esteja configurado
             if not gerenciador.service:
@@ -1683,7 +1683,7 @@ Status: {questao.status.value if questao.status else ''}"""
             if not os.path.exists(uploads_dir):
                 os.makedirs(uploads_dir)
             
-            from conexao import conectar_bd
+            from src.core.conexao import conectar_bd
             conn = conectar_bd()
             if not conn:
                 logger.error("Não foi possível conectar ao BD para salvar arquivos")
@@ -1695,7 +1695,7 @@ Status: {questao.status.value if questao.status else ''}"""
             drive_service = None
             pasta_drive_id = None
             try:
-                from utilitarios.gerenciador_documentos import gerenciador
+                from src.utils.utilitarios.gerenciador_documentos import gerenciador
                 if not gerenciador.service:
                     gerenciador.setup_google_drive()
                 drive_service = gerenciador.service

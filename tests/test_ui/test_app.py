@@ -7,7 +7,7 @@ da aplicação Tkinter, substituindo variáveis globais por atributos.
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock, call
-from ui.app import Application
+from src.ui.app import Application
 
 
 @pytest.fixture

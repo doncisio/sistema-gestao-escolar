@@ -9,8 +9,8 @@ from typing import Callable, Optional, List, Union
 from functools import wraps
 import tkinter.messagebox as mb
 
-from config import perfis_habilitados
-from config_logs import get_logger
+from src.core.config import perfis_habilitados
+from src.core.config_logs import get_logger
 from auth.usuario_logado import UsuarioLogado
 from auth.models import Perfil
 

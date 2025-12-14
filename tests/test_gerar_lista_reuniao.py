@@ -29,7 +29,7 @@ def test_gerar_lista_reuniao_delegates_to_mock():
         sys.modules['gerar_lista_reuniao'] = cast(Any, mod)
 
         # importar o serviço e chamar o wrapper
-        import services.report_service as rs
+        import src.services.report_service as rs
         # Garantir que o mock será usado no momento da chamada
         assert rs.gerar_lista_reuniao() is True
         assert called['ok'] is True
@@ -59,7 +59,7 @@ def test__impl_gerar_lista_reuniao_uses_pdf_helper_and_returns_true(tmp_path):
         sys.modules['services.utils.pdf'] = cast(Any, pdf_mod)
 
         # importar o serviço
-        import services.report_service as rs
+        import src.services.report_service as rs
 
         dados = [
             {'NOME_SERIE': '1', 'NOME_TURMA': 'A', 'TURNO': 'M', 'NOME DO ALUNO': 'Aluno Teste', 'NOME_PROFESSOR': 'Prof X', 'SITUAÇÃO': 'Ativo'}

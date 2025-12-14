@@ -1,5 +1,5 @@
-from utilitarios.conversoes import to_safe_int
-from config_logs import get_logger
+from src.utils.utilitarios.conversoes import to_safe_int
+from src.core.config_logs import get_logger
 
 logger = get_logger(__name__)
 

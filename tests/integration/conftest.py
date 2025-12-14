@@ -16,7 +16,7 @@ from unittest.mock import Mock
 ROOT_DIR = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-from config_logs import get_logger
+from src.core.config_logs import get_logger
 from db.connection import get_connection
 
 logger = get_logger(__name__)

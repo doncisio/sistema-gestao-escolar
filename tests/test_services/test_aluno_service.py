@@ -8,7 +8,7 @@ usando mocks para simular interações com o banco de dados.
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from typing import cast
-from services.aluno_service import (
+from src.services.aluno_service import (
     verificar_matricula_ativa,
     verificar_historico_matriculas,
     excluir_aluno_com_confirmacao,

@@ -24,7 +24,7 @@ def debug_get_connection():
 import db.connection
 db.connection.get_connection = debug_get_connection
 
-from services.turma_service import listar_turmas
+from src.services.turma_service import listar_turmas
 
 print("Chamando listar_turmas(aplicar_filtro_perfil=False)...")
 try:

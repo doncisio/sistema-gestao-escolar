@@ -4,7 +4,7 @@ Testes para o sistema de cache.
 
 import pytest
 import time
-from utils.cache import CacheManager, global_cache, dashboard_cache
+from src.utils.cache import CacheManager, global_cache, dashboard_cache
 
 
 def test_cache_basico():

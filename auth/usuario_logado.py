@@ -5,8 +5,8 @@ Mantém o estado do usuário durante toda a execução da aplicação.
 """
 
 from typing import List, Optional
-from config import perfis_habilitados
-from config_logs import get_logger
+from src.core.config import perfis_habilitados
+from src.core.config_logs import get_logger
 
 logger = get_logger(__name__)
 

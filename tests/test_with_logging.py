@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 # Testar a função diretamente com mais detalhes
 from db.connection import get_connection
-from config_logs import get_logger
+from src.core.config_logs import get_logger
 
 logger = get_logger(__name__)
 
@@ -50,6 +50,6 @@ resultado = test_listar_turmas()
 print(f"Resultado manual: {resultado}")
 
 print("\nAgora testando função original:")
-from services.turma_service import listar_turmas
+from src.services.turma_service import listar_turmas
 resultado2 = listar_turmas(aplicar_filtro_perfil=False)
 print(f"Resultado original: {resultado2}")

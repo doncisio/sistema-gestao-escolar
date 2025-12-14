@@ -34,7 +34,7 @@ def test_impl_gerar_relatorio_series_faltantes(monkeypatch):
         saved['path'] = path
         return path
 
-    import services.utils.pdf as pdfmod
+    import src.services.utils.pdf as pdfmod
     monkeypatch.setattr(pdfmod, 'salvar_e_abrir_pdf', fake_salvar)
 
     result = rs._impl_gerar_relatorio_series_faltantes(alunos_ativos=alunos_ativos, historico_lookup=historico_lookup, out_dir=tempfile.gettempdir())

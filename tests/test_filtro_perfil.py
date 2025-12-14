@@ -13,9 +13,9 @@ os.environ['SKIP_OPTIONAL_IMPORTS'] = '1'
 
 from auth.auth_service import AuthService
 from auth.usuario_logado import UsuarioLogado
-from services.perfil_filter_service import PerfilFilterService, get_turmas_usuario, get_sql_filtro_turmas
-from services.turma_service import listar_turmas
-from config import perfis_habilitados
+from src.services.perfil_filter_service import PerfilFilterService, get_turmas_usuario, get_sql_filtro_turmas
+from src.services.turma_service import listar_turmas
+from src.core.config import perfis_habilitados
 from db.connection import get_cursor
 
 

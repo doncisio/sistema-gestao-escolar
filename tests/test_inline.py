@@ -3,7 +3,7 @@ import sys
 sys.path.insert(0, 'c:\\gestao')
 
 from db.connection import get_connection
-from config_logs import get_logger
+from src.core.config_logs import get_logger
 
 logger = get_logger(__name__)
 

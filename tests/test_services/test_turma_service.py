@@ -5,7 +5,7 @@ Testa funções de gerenciamento de turmas
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from services.turma_service import (
+from src.services.turma_service import (
     listar_turmas,
     obter_turma_por_id,
     verificar_capacidade_turma,

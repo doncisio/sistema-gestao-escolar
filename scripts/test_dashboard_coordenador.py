@@ -171,7 +171,7 @@ def teste_queries(escola_id=60, ano_letivo=None):
 
 
 import config
-from ui.dashboard_coordenador import DashboardCoordenador
+from src.ui.dashboard_coordenador import DashboardCoordenador
 
 
 def main():

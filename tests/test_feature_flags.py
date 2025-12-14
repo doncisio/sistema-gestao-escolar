@@ -7,7 +7,7 @@ import pytest
 import json
 import os
 from pathlib import Path
-from utils.feature_flags import (
+from src.utils.feature_flags import (
     FeatureFlags,
     get_feature_flags,
     is_feature_enabled

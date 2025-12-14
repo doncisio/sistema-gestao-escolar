@@ -6,8 +6,8 @@ import pytest
 import tkinter as tk
 from tkinter import ttk
 from unittest.mock import Mock, patch, MagicMock
-from ui.actions import ActionHandler
-from ui.matricula_modal import MatriculaModal, abrir_matricula_modal
+from src.ui.actions import ActionHandler
+from src.ui.matricula_modal import MatriculaModal, abrir_matricula_modal
 
 
 @pytest.fixture

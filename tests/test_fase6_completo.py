@@ -188,8 +188,8 @@ def testar_filtro_turmas_professor():
     
     from auth.auth_service import AuthService
     from auth.usuario_logado import UsuarioLogado
-    from services.turma_service import listar_turmas
-    from services.perfil_filter_service import PerfilFilterService
+    from src.services.turma_service import listar_turmas
+    from src.services.perfil_filter_service import PerfilFilterService
     
     # Login como admin primeiro
     print_section("Admin ve todas as turmas")
@@ -237,7 +237,7 @@ def testar_coordenador_somente_leitura():
     from auth.auth_service import AuthService
     from auth.usuario_logado import UsuarioLogado
     from auth.decorators import ControleAcesso
-    from services.turma_service import listar_turmas
+    from src.services.turma_service import listar_turmas
     
     # Login como coordenador
     usuario, _ = AuthService.login("coord_teste", "Coord@123")

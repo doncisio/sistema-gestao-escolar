@@ -16,7 +16,7 @@ from datetime import datetime
 from unittest.mock import Mock, patch, MagicMock
 from typing import Dict, Any
 
-from config_logs import get_logger
+from src.core.config_logs import get_logger
 
 logger = get_logger(__name__)
 
@@ -92,7 +92,7 @@ class TestGeracaoDocumentos:
         mock_pdf.return_value = True
         
         # Importar módulo
-        import gerarPDF
+        from src.relatorios import gerar_pdf as gerarPDF
         
         # Dados de teste
         dados_turma = {
@@ -117,7 +117,7 @@ class TestGeracaoDocumentos:
         Requer dados reais no banco e bibliotecas de PDF instaladas.
         """
         try:
-            from services.report_service import gerar_boletim
+            from src.services.report_service import gerar_boletim
             
             # Buscar um aluno real para teste
             cursor = db_test_connection.cursor(dictionary=True)
@@ -331,7 +331,7 @@ class TestValidacaoDocumentos:
             
             # Mock da geração
             with patch('gerarPDF.gerar_pdf', return_value=tmp_path):
-                import gerarPDF
+                from src.relatorios import gerar_pdf as gerarPDF
                 resultado = gerarPDF.gerar_pdf({}, tipo='teste')
                 
                 if isinstance(resultado, str) and os.path.exists(resultado):

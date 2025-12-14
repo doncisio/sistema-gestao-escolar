@@ -15,7 +15,7 @@ def test_gerar_relatorio_series_faltantes_delegates_to_mock():
     mod.gerar_relatorio_series_faltantes = fake
     sys.modules['gerar_relatorio_series_faltantes'] = mod
 
-    import services.report_service as rs
+    import src.services.report_service as rs
     importlib.reload(rs)
 
     res = rs.gerar_relatorio_series_faltantes()

@@ -46,7 +46,7 @@ def test_impl_gerar_resumo_ponto_with_mocked_bases(tmp_path, monkeypatch):
         return path
 
     # monkeypatch helper
-    import services.utils.pdf as pdfmod
+    import src.services.utils.pdf as pdfmod
     monkeypatch.setattr(pdfmod, 'salvar_e_abrir_pdf', fake_salvar)
 
     # executar a implementação migrada com bases injetadas e dados em memória

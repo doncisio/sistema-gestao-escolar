@@ -9,9 +9,9 @@ from datetime import datetime, date
 from decimal import Decimal
 import json
 
-from config_logs import get_logger
+from src.core.config_logs import get_logger
 from db.connection import get_cursor
-from config import perfis_habilitados
+from src.core.config import perfis_habilitados
 from auth.usuario_logado import UsuarioLogado
 
 from .models import (

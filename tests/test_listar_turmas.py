@@ -10,7 +10,7 @@ print("Testando listar_turmas()...")
 os.environ['SKIP_OPTIONAL_IMPORTS'] = '1'
 
 try:
-    from services.turma_service import listar_turmas
+    from src.services.turma_service import listar_turmas
     
     # Desabilitar perfis temporariamente
     import json

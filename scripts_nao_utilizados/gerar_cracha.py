@@ -1,4 +1,4 @@
-from conexao import conectar_bd
+from src.core.conexao import conectar_bd
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from PyPDF2 import PdfReader, PdfWriter, PdfMerger

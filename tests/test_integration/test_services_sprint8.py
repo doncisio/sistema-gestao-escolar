@@ -4,14 +4,14 @@ Testes de integração para declaracao_service e estatistica_service
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from services.declaracao_service import (
+from src.services.declaracao_service import (
     identificar_tipo_pessoa,
     obter_dados_aluno_para_declaracao,
     obter_dados_funcionario_para_declaracao,
     validar_dados_declaracao,
     registrar_geracao_declaracao
 )
-from services.estatistica_service import (
+from src.services.estatistica_service import (
     obter_estatisticas_alunos,
     obter_estatisticas_por_ano_letivo,
     obter_alunos_por_situacao,

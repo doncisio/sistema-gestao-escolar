@@ -2,8 +2,8 @@ from contextlib import contextmanager
 from typing import Generator, Optional
 import threading
 
-from conexao import conectar_bd
-from config_logs import get_logger
+from src.core.conexao import conectar_bd
+from src.core.config_logs import get_logger
 from mysql.connector.errors import InternalError as MySQLInternalError
 
 logger = get_logger(__name__)

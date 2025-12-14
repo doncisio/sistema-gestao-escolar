@@ -9,7 +9,7 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from config_logs import (
+from src.core.config_logs import (
     setup_logging,
     get_logger,
     JSONFormatter,

@@ -4,7 +4,7 @@ Testes para ButtonFactory (Sprint 17)
 
 import pytest
 from unittest.mock import Mock, MagicMock, patch
-from ui.button_factory import ButtonFactory
+from src.ui.button_factory import ButtonFactory
 
 
 class TestButtonFactory:

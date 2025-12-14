@@ -10,8 +10,8 @@ from typing import Callable, List, Optional, Union
 import tkinter as tk
 from tkinter import messagebox
 
-from config import perfis_habilitados
-from config_logs import get_logger
+from src.core.config import perfis_habilitados
+from src.core.config_logs import get_logger
 from .usuario_logado import UsuarioLogado
 from .models import Perfil
 

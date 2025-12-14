@@ -9,7 +9,7 @@ Permite editar imagens antes de salvá-las no banco de dados, incluindo:
 - Histórico (desfazer/refazer)
 """
 
-from config_logs import get_logger
+from src.core.config_logs import get_logger
 logger = get_logger(__name__)
 
 import tkinter as tk

@@ -12,7 +12,7 @@ import concurrent.futures
 from unittest.mock import Mock, patch
 
 # Imports do sistema
-from conexao import inicializar_pool, fechar_pool
+from src.core.conexao import inicializar_pool, fechar_pool
 from db.connection import get_cursor
 
 
@@ -131,7 +131,7 @@ class TestDashboardPerformance:
     
     def test_dashboard_statistics_performance(self, setup_db):
         """Estatísticas do dashboard devem carregar rapidamente"""
-        from services.estatistica_service import obter_estatisticas_alunos
+        from src.services.estatistica_service import obter_estatisticas_alunos
         
         start = time.perf_counter()
         try:
@@ -151,7 +151,7 @@ class TestDashboardPerformance:
     
     def test_dashboard_with_cache_performance(self, setup_db):
         """Dashboard com cache deve ser muito mais rápido"""
-        from services.estatistica_service import obter_estatisticas_alunos
+        from src.services.estatistica_service import obter_estatisticas_alunos
         
         # Primeira chamada (sem cache)
         start = time.perf_counter()
@@ -263,7 +263,7 @@ class TestCachePerformance:
     
     def test_cache_hit_performance(self):
         """Cache hit deve ser quase instantâneo"""
-        from utils.cache import CacheManager
+        from src.utils.cache import CacheManager
         
         cache = CacheManager(ttl_seconds=300)
         
@@ -290,7 +290,7 @@ class TestCachePerformance:
     
     def test_cached_decorator_performance(self):
         """Decorator @cached deve melhorar performance"""
-        from utils.cache import CacheManager
+        from src.utils.cache import CacheManager
         
         cache = CacheManager(ttl_seconds=300)
         
@@ -349,7 +349,7 @@ class TestMemoryPerformance:
     
     def test_cache_memory_efficiency(self):
         """Cache não deve consumir memória excessiva"""
-        from utils.cache import CacheManager
+        from src.utils.cache import CacheManager
         import sys
         
         cache = CacheManager(ttl_seconds=300)

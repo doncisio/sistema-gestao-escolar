@@ -5,7 +5,7 @@ Testa o gerenciador de menus e suas funcionalidades.
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from ui.menu import MenuManager
+from src.ui.menu import MenuManager
 
 
 class TestMenuManagerInit:

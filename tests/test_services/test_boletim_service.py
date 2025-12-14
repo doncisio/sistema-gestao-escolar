@@ -4,7 +4,7 @@ Testes para services/boletim_service.py
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from services.boletim_service import (
+from src.services.boletim_service import (
     obter_ano_letivo_atual,
     verificar_status_matricula,
     decidir_tipo_documento,

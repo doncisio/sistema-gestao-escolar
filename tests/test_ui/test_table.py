@@ -7,7 +7,7 @@ Este módulo testa a classe TableManager que gerencia a Treeview.
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 import pandas as pd
-from ui.table import TableManager
+from src.ui.table import TableManager
 
 
 @pytest.fixture

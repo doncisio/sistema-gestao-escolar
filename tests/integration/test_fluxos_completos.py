@@ -18,7 +18,7 @@ from typing import Dict, Any, Optional
 
 # Imports do sistema
 from db.connection import get_connection
-from config_logs import get_logger
+from src.core.config_logs import get_logger
 
 logger = get_logger(__name__)
 
@@ -569,18 +569,18 @@ class TestBackupRestauracao:
         mock_backup.return_value = True
         
         # Importar e executar backup
-        import Seguranca
-        resultado = Seguranca.fazer_backup()
+        from src.core import seguranca
+        resultado = seguranca.fazer_backup()
         
         assert resultado is True
         mock_backup.assert_called_once()
     
     def test_backup_arquivo_existe(self):
         """Testa que arquivo de backup é criado."""
-        import Seguranca
+        from src.core import seguranca
         
         # Executar backup real
-        resultado = Seguranca.fazer_backup()
+        resultado = seguranca.fazer_backup()
         
         if resultado:
             # Verificar que arquivo existe
@@ -590,11 +590,11 @@ class TestBackupRestauracao:
         else:
             pytest.skip("Backup não pôde ser executado (mysqldump não disponível)")
     
-    @patch('Seguranca.fazer_backup')
+    @patch('src.core.seguranca.fazer_backup')
     @patch('schedule.every')
     def test_backup_automatico_agendado(self, mock_schedule, mock_backup):
         """Testa que backup automático é agendado corretamente."""
-        import Seguranca
+        from src.core import seguranca
         
         mock_backup.return_value = True
         

@@ -10,7 +10,7 @@ from typing import Optional, List, Tuple
 from datetime import datetime
 from enum import Enum
 
-from config_logs import get_logger
+from src.core.config_logs import get_logger
 logger = get_logger(__name__)
 
 
@@ -73,7 +73,7 @@ class TextoBaseService:
             ID do texto base criado ou None em caso de erro
         """
         try:
-            from conexao import conectar_bd
+            from src.core.conexao import conectar_bd
             conn = conectar_bd()
             if not conn:
                 return None
@@ -119,7 +119,7 @@ class TextoBaseService:
     def buscar_por_id(texto_id: int) -> Optional[TextoBase]:
         """Busca um texto base por ID."""
         try:
-            from conexao import conectar_bd
+            from src.core.conexao import conectar_bd
             conn = conectar_bd()
             if not conn:
                 return None
@@ -158,7 +158,7 @@ class TextoBaseService:
     def listar(escola_id: int, tipo: Optional[TipoTextoBase] = None, limite: int = 100) -> List[TextoBase]:
         """Lista textos base de uma escola."""
         try:
-            from conexao import conectar_bd
+            from src.core.conexao import conectar_bd
             conn = conectar_bd()
             if not conn:
                 return []
@@ -214,7 +214,7 @@ class TextoBaseService:
             Lista de tuplas (TextoBase, AvaliacaoTextoBase)
         """
         try:
-            from conexao import conectar_bd
+            from src.core.conexao import conectar_bd
             conn = conectar_bd()
             if not conn:
                 return []
@@ -274,7 +274,7 @@ class TextoBaseService:
                                  layout: LayoutTextoBase = LayoutTextoBase.COMPLETO) -> bool:
         """Vincula um texto base a uma avaliação."""
         try:
-            from conexao import conectar_bd
+            from src.core.conexao import conectar_bd
             conn = conectar_bd()
             if not conn:
                 return False
@@ -303,7 +303,7 @@ class TextoBaseService:
     def excluir(texto_id: int) -> bool:
         """Exclui um texto base (e seus vínculos por CASCADE)."""
         try:
-            from conexao import conectar_bd
+            from src.core.conexao import conectar_bd
             conn = conectar_bd()
             if not conn:
                 return False

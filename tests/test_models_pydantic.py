@@ -5,10 +5,10 @@ Testes para modelos Pydantic de validação.
 import pytest
 from datetime import date, datetime, timedelta
 from pydantic import ValidationError
-from models.aluno import AlunoCreate, AlunoUpdate
-from models.funcionario import FuncionarioCreate, FuncionarioUpdate
-from models.turma import TurmaCreate, TurmaUpdate
-from models.matricula import MatriculaCreate, MatriculaUpdate
+from src.models.aluno import AlunoCreate, AlunoUpdate
+from src.models.funcionario import FuncionarioCreate, FuncionarioUpdate
+from src.models.turma import TurmaCreate, TurmaUpdate
+from src.models.matricula import MatriculaCreate, MatriculaUpdate
 
 
 class TestAlunoModels:

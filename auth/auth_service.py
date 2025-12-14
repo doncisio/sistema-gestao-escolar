@@ -8,8 +8,8 @@ import socket
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple, cast
 
-from config_logs import get_logger
-from conexao import conectar_bd
+from src.core.config_logs import get_logger
+from src.core.conexao import conectar_bd
 
 from .models import Usuario, Perfil, Permissao
 from .password_utils import gerar_hash_senha, verificar_senha, gerar_senha_temporaria

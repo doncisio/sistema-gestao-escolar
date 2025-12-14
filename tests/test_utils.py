@@ -12,7 +12,7 @@ class TestConnectionPool:
     @patch('conexao.mysql.connector.pooling.MySQLConnectionPool')
     def test_inicializar_pool(self, mock_pool):
         """Deve inicializar pool de conexões"""
-        from conexao import inicializar_pool
+        from src.core.conexao import inicializar_pool
         
         mock_pool.return_value = MagicMock()
         
@@ -24,7 +24,7 @@ class TestConnectionPool:
     @patch('conexao.connection_pool')
     def test_fechar_pool(self, mock_pool):
         """Deve fechar pool de conexões"""
-        from conexao import fechar_pool
+        from src.core.conexao import fechar_pool
         
         mock_pool_instance = MagicMock()
         mock_pool.return_value = mock_pool_instance
@@ -37,7 +37,7 @@ class TestConnectionPool:
     @patch('conexao.connection_pool')
     def test_get_connection_from_pool(self, mock_pool):
         """Deve obter conexão do pool"""
-        from conexao import get_connection
+        from src.core.conexao import get_connection
         
         mock_connection = MagicMock()
         mock_pool_instance = MagicMock()
@@ -58,7 +58,7 @@ class TestDateUtils:
     def test_formatar_data_brasileira(self):
         """Deve formatar data no padrão brasileiro"""
         try:
-            from utils.date_utils import formatar_data_br
+            from src.utils.date_utils import formatar_data_br
             
             data = datetime(2025, 11, 21)
             resultado = formatar_data_br(data)
@@ -70,7 +70,7 @@ class TestDateUtils:
     def test_calcular_idade(self):
         """Deve calcular idade corretamente"""
         try:
-            from utils.date_utils import calcular_idade
+            from src.utils.date_utils import calcular_idade
             
             data_nascimento = datetime(2010, 11, 21)
             idade = calcular_idade(data_nascimento)
@@ -84,7 +84,7 @@ class TestDateUtils:
     def test_validar_data_futura(self):
         """Não deve aceitar datas futuras para nascimento"""
         try:
-            from utils.date_utils import validar_data_nascimento
+            from src.utils.date_utils import validar_data_nascimento
             
             data_futura = datetime.now() + timedelta(days=1)
             resultado = validar_data_nascimento(data_futura)
@@ -100,7 +100,7 @@ class TestStringUtils:
     def test_limpar_cpf(self):
         """Deve remover formatação de CPF"""
         try:
-            from utils.string_utils import limpar_cpf
+            from src.utils.string_utils import limpar_cpf
             
             assert limpar_cpf('123.456.789-01') == '12345678901'
             assert limpar_cpf('12345678901') == '12345678901'
@@ -110,7 +110,7 @@ class TestStringUtils:
     def test_formatar_cpf(self):
         """Deve formatar CPF"""
         try:
-            from utils.string_utils import formatar_cpf
+            from src.utils.string_utils import formatar_cpf
             
             resultado = formatar_cpf('12345678901')
             assert '.' in resultado and '-' in resultado
@@ -120,7 +120,7 @@ class TestStringUtils:
     def test_limpar_telefone(self):
         """Deve remover formatação de telefone"""
         try:
-            from utils.string_utils import limpar_telefone
+            from src.utils.string_utils import limpar_telefone
             
             assert limpar_telefone('(11) 98765-4321') == '11987654321'
         except (ImportError, AttributeError):
@@ -129,7 +129,7 @@ class TestStringUtils:
     def test_normalizar_string(self):
         """Deve normalizar string removendo acentos"""
         try:
-            from utils.string_utils import normalizar_string
+            from src.utils.string_utils import normalizar_string
             
             assert normalizar_string('José María') == 'Jose Maria'
             assert normalizar_string('São Paulo') == 'Sao Paulo'
@@ -146,7 +146,7 @@ class TestFileUtils:
         mock_exists.return_value = True
         
         try:
-            from utils.file_utils import arquivo_existe
+            from src.utils.file_utils import arquivo_existe
             
             resultado = arquivo_existe('teste.txt')
             assert resultado is True
@@ -160,7 +160,7 @@ class TestFileUtils:
         mock_open.return_value.__exit__ = Mock(return_value=False)
         
         try:
-            from utils.file_utils import ler_arquivo
+            from src.utils.file_utils import ler_arquivo
             
             conteudo = ler_arquivo('teste.txt')
             assert isinstance(conteudo, str)
@@ -171,7 +171,7 @@ class TestFileUtils:
     def test_criar_diretorio(self, mock_makedirs):
         """Deve criar diretório se não existir"""
         try:
-            from utils.file_utils import criar_diretorio
+            from src.utils.file_utils import criar_diretorio
             
             criar_diretorio('/path/to/dir')
             mock_makedirs.assert_called_once()
@@ -185,7 +185,7 @@ class TestConfigUtils:
     def test_carregar_config(self):
         """Deve carregar configurações do sistema"""
         try:
-            from config import DB_HOST, DB_USER, DB_NAME
+            from src.core.config import DB_HOST, DB_USER, DB_NAME
             
             assert isinstance(DB_HOST, str)
             assert isinstance(DB_USER, str)
@@ -211,7 +211,7 @@ class TestValidadores:
     
     def test_validar_cpf_algoritmo(self):
         """Deve validar CPF usando algoritmo correto"""
-        from models.aluno import AlunoCreate
+        from src.models.aluno import AlunoCreate
         from pydantic import ValidationError
         
         # CPF válido
@@ -233,7 +233,7 @@ class TestValidadores:
     
     def test_validar_idade_minima(self):
         """Deve rejeitar idade muito baixa"""
-        from models.aluno import AlunoCreate
+        from src.models.aluno import AlunoCreate
         from pydantic import ValidationError
         from datetime import date
         
@@ -258,7 +258,7 @@ class TestValidadores:
     
     def test_validar_idade_maxima(self):
         """Deve rejeitar idade muito alta"""
-        from models.aluno import AlunoCreate
+        from src.models.aluno import AlunoCreate
         from pydantic import ValidationError
         from datetime import date
         
@@ -287,7 +287,7 @@ class TestCacheInvalidation:
     
     def test_invalidar_cache_por_padrao(self):
         """Deve invalidar cache usando padrão"""
-        from utils.cache import CacheManager
+        from src.utils.cache import CacheManager
         
         cache = CacheManager()
         
@@ -305,7 +305,7 @@ class TestCacheInvalidation:
     
     def test_cache_expira_por_ttl(self):
         """Cache deve expirar após TTL"""
-        from utils.cache import CacheManager
+        from src.utils.cache import CacheManager
         import time
         
         cache = CacheManager(ttl_seconds=1)

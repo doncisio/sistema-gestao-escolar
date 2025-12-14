@@ -31,7 +31,7 @@ def test_impl_gerar_lista_reuniao_creates_pdf(monkeypatch, tmp_path):
         saved['path'] = path
         return path
 
-    import services.utils.pdf as pdfmod
+    import src.services.utils.pdf as pdfmod
     monkeypatch.setattr(pdfmod, 'salvar_e_abrir_pdf', fake_salvar)
 
     result = rs._impl_gerar_lista_reuniao(dados_aluno=dados, out_dir=str(tmp_path))

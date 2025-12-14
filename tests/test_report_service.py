@@ -99,6 +99,6 @@ if __name__ == '__main__':
     except Exception:
         pass
 
-    from config_logs import get_logger
+    from src.core.config_logs import get_logger
     logger = get_logger(__name__)
     logger.info('Run this file with pytest for best results: pytest -q tests/test_report_service.py')

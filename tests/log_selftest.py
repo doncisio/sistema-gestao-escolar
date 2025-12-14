@@ -1,6 +1,6 @@
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from config_logs import get_logger
+from src.core.config_logs import get_logger
 logger = get_logger('selftest')
 logger.debug('Teste de log DEBUG')
 logger.info('Teste de log INFO')

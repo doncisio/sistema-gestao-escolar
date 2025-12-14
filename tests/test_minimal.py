@@ -13,13 +13,13 @@ with get_connection() as conn:
     print(f"   Resultado direto: {result}")
 
 print("\n2. Teste função listar_turmas:")
-from services.turma_service import listar_turmas as lt
+from src.services.turma_service import listar_turmas as lt
 result2 = lt(aplicar_filtro_perfil=False)
 print(f"   Resultado função: {result2}")
 
 print("\n3. Reimportando e testando:")
 import importlib
-import services.turma_service as ts
+import src.services.turma_service as ts
 importlib.reload(ts)
 result3 = ts.listar_turmas(aplicar_filtro_perfil=False)
 print(f"   Resultado após reload: {result3}")

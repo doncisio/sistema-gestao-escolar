@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from utils.dates import formatar_data, formatar_data_extenso, nome_mes_pt, periodo_mes_referencia
+from src.utils.dates import formatar_data, formatar_data_extenso, nome_mes_pt, periodo_mes_referencia
 
 
 def test_formatar_data_from_datetime():

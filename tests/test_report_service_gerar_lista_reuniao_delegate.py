@@ -15,7 +15,7 @@ def test_gerar_lista_reuniao_delegates_to_mock():
     mod.gerar_lista_reuniao = fake
     sys.modules['gerar_lista_reuniao'] = mod
 
-    import services.report_service as rs
+    import src.services.report_service as rs
     importlib.reload(rs)
 
     res = rs.gerar_lista_reuniao()
