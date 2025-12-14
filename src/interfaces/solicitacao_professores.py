@@ -10,6 +10,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.lib.colors import black, white
 from src.core.conexao import conectar_bd
+from src.core.config import get_image_path
 from reportlab.lib.utils import ImageReader
 from typing import Any, cast
 
@@ -348,18 +349,13 @@ class InterfaceSolicitacaoProfessores:
 
     def _resolver_logo_path(self) -> str | None:
         try:
-            base_dir = os.path.dirname(__file__)
-            candidatos = [
-                os.path.join(base_dir, 'assets', 'images', 'logopacosemed.png'),
-                os.path.join(base_dir, 'logopacosemed.png'),
-            ]
-            for caminho in candidatos:
-                if os.path.isfile(caminho):
-                    return caminho
+            logo_path = str(get_image_path('logopacosemed.png'))
+            if os.path.isfile(logo_path):
+                return logo_path
             messagebox.showwarning(
                 "Aviso",
                 "Imagem do cabeçalho não encontrada (logopacosemed.png).\n"
-                "Coloque o arquivo em assets/images/ ou na raiz do projeto."
+                "Verifique se o arquivo está no diretório imagens/."
             )
             return None
         except Exception:
@@ -740,16 +736,14 @@ class InterfaceSolicitacaoProfessores:
             doc = SimpleDocTemplate(caminho, pagesize=A4,
                                     leftMargin=36, rightMargin=36, topMargin=36, bottomMargin=36)
 
-            # Resolver imagem de rodapé (tenta assets/images e raiz)
+            # Resolver imagem de rodapé
             def _resolver_img_rodape() -> str | None:
-                base_dir = os.path.dirname(__file__)
-                candidatos = [
-                    os.path.join(base_dir, 'assets', 'images', 'img18.jpg'),
-                    os.path.join(base_dir, 'img18.jpg'),
-                ]
-                for p in candidatos:
-                    if os.path.isfile(p):
-                        return p
+                try:
+                    img_path = str(get_image_path('img18.jpg'))
+                    if os.path.isfile(img_path):
+                        return img_path
+                except Exception:
+                    pass
                 return None
 
             img_rodape_path = _resolver_img_rodape()

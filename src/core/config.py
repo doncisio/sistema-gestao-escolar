@@ -180,7 +180,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
 
 # Diretórios de recursos
 IMAGENS_DIR = PROJECT_ROOT / 'imagens'
-ICON_DIR = PROJECT_ROOT / 'icon'
+ICON_DIR = PROJECT_ROOT / 'src' / 'icon'
 ICO_DIR = PROJECT_ROOT / 'ico'
 
 
@@ -190,7 +190,7 @@ def get_resource_path(relative_path: str) -> Path:
     
     Args:
         relative_path: Caminho relativo ao diretório raiz do projeto
-                       Ex: 'icon/learning.png', 'imagens/logopaco.png', 'ico/aa.ico'
+                       Ex: 'src/icon/learning.png', 'imagens/logopaco.png', 'ico/aa.ico'
     
     Returns:
         Path: Caminho absoluto para o recurso
@@ -200,7 +200,7 @@ def get_resource_path(relative_path: str) -> Path:
 
 def get_icon_path(icon_name: str) -> Path:
     """
-    Retorna o caminho absoluto para um ícone PNG na pasta 'icon/'.
+    Retorna o caminho absoluto para um ícone PNG na pasta 'src/icon/'.
     
     Args:
         icon_name: Nome do arquivo de ícone (com ou sem extensão)

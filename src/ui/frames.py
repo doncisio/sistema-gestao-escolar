@@ -127,7 +127,7 @@ def criar_logo(frame_logo, nome_escola, co0, co1, co7):
             app_logo_label = Label(logo_frame, image=app_logo, text=" ", bg=co0, fg=co7)
             setattr(app_logo_label, 'image', app_logo)  # Manter referência (silencia Pylance)
             app_logo_label.grid(row=0, column=0, sticky=W, padx=10)
-            logger.debug("Logo alternativo carregado: icon/book.png")
+            logger.debug(f"Logo alternativo carregado: {icon_path}")
         except Exception as e:
             # Fallback quando a imagem não é encontrada
             logger.warning(f"Nenhuma imagem de logo encontrada, usando texto: {e}")

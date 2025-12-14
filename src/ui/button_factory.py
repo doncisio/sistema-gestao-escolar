@@ -49,12 +49,14 @@ class ButtonFactory:
             # Se o caminho não for absoluto, buscar na raiz do projeto
             if not os.path.isabs(path):
                 # Obter diretório raiz do projeto (2 níveis acima de ui/)
-                project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                abs_path = os.path.join(project_root, path)
+                # c:\gestao\src\ui -> c:\gestao\src
+                src_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                abs_path = os.path.join(src_root, path)
                 
-                # Se não encontrar, tentar concatenar apenas o nome do arquivo na pasta icon
-                if not os.path.exists(abs_path) and os.path.dirname(path) == 'icon':
-                    abs_path = os.path.join(project_root, 'icon', os.path.basename(path))
+                # Se não encontrar e o caminho começa com 'icon/', procurar também em src/icon/
+                if not os.path.exists(abs_path) and path.startswith('icon/'):
+                    # Já estamos em src/, então icon/ está aqui mesmo
+                    pass
             else:
                 abs_path = path
             
@@ -1124,8 +1126,8 @@ class ButtonFactory:
     def _nota_bimestre(self, bimestre: str, preencher_nulos: bool = False):
         """Wrapper para gerar nota de bimestre (1º ao 5º ano)"""
         try:
-            import NotaAta
-            NotaAta.nota_bimestre(bimestre=bimestre, preencher_nulos=preencher_nulos)
+            from src.relatorios.nota_ata import nota_bimestre
+            nota_bimestre(bimestre=bimestre, preencher_nulos=preencher_nulos)
         except Exception as e:
             logger.exception(f"Erro ao gerar nota bimestre: {e}")
             messagebox.showerror("Erro", f"Erro ao gerar nota de bimestre: {e}")
@@ -1133,8 +1135,8 @@ class ButtonFactory:
     def _nota_bimestre2(self, bimestre: str, preencher_nulos: bool = False):
         """Wrapper para gerar nota de bimestre (6º ao 9º ano)"""
         try:
-            import NotaAta
-            NotaAta.nota_bimestre2(bimestre=bimestre, preencher_nulos=preencher_nulos)
+            from src.relatorios.nota_ata import nota_bimestre2
+            nota_bimestre2(bimestre=bimestre, preencher_nulos=preencher_nulos)
         except Exception as e:
             logger.exception(f"Erro ao gerar nota bimestre 2: {e}")
             messagebox.showerror("Erro", f"Erro ao gerar nota de bimestre: {e}")
@@ -1142,8 +1144,8 @@ class ButtonFactory:
     def _nota_bimestre_com_assinatura(self, bimestre: str, preencher_nulos: bool = False):
         """Wrapper para gerar nota de bimestre com assinatura (1º ao 5º ano)"""
         try:
-            import NotaAta
-            NotaAta.nota_bimestre_com_assinatura(bimestre=bimestre, preencher_nulos=preencher_nulos)
+            from src.relatorios.nota_ata import nota_bimestre_com_assinatura
+            nota_bimestre_com_assinatura(bimestre=bimestre, preencher_nulos=preencher_nulos)
         except Exception as e:
             logger.exception(f"Erro ao gerar nota bimestre com assinatura: {e}")
             messagebox.showerror("Erro", f"Erro ao gerar nota de bimestre: {e}")
@@ -1151,8 +1153,8 @@ class ButtonFactory:
     def _nota_bimestre2_com_assinatura(self, bimestre: str, preencher_nulos: bool = False):
         """Wrapper para gerar nota de bimestre com assinatura (6º ao 9º ano)"""
         try:
-            import NotaAta
-            NotaAta.nota_bimestre2_com_assinatura(bimestre=bimestre, preencher_nulos=preencher_nulos)
+            from src.relatorios.nota_ata import nota_bimestre2_com_assinatura
+            nota_bimestre2_com_assinatura(bimestre=bimestre, preencher_nulos=preencher_nulos)
         except Exception as e:
             logger.exception(f"Erro ao gerar nota bimestre 2 com assinatura: {e}")
             messagebox.showerror("Erro", f"Erro ao gerar nota de bimestre: {e}")
