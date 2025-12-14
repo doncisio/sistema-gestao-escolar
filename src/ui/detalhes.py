@@ -623,7 +623,7 @@ def excluir_aluno_wrapper(aluno_id):
 def abrir_historico_wrapper(aluno_id):
     """Wrapper para abrir histórico do aluno."""
     try:
-        from integrar_historico_escolar import abrir_historico_aluno
+        from scripts.migracao.integrar_historico_escolar import abrir_historico_aluno
         root = _get_default_root()
         if root:
             abrir_historico_aluno(aluno_id, root)

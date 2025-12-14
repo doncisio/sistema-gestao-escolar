@@ -360,7 +360,7 @@ class HistoricoCallbacks:
     def abrir_historico_escolar(self):
         """Abre interface de histórico escolar."""
         try:
-            from integrar_historico_escolar import abrir_interface_historico
+            from scripts.migracao.integrar_historico_escolar import abrir_interface_historico
             abrir_interface_historico(self.janela)
             logger.info("Interface de histórico escolar aberta")
         except Exception as e:
