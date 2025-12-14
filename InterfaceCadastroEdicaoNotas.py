@@ -16,6 +16,9 @@ from services.perfil_filter_service import PerfilFilterService, get_turmas_usuar
 from auth.usuario_logado import UsuarioLogado
 from auth.decorators import requer_permissao
 
+# Import para integração com banco de questões
+from banco_questoes.resposta_service import RespostaService
+
 class InterfaceCadastroEdicaoNotas:
     def __init__(self, root=None, aluno_id=None, janela_principal=None):
         # Armazenar referência à janela principal
@@ -295,13 +298,52 @@ class InterfaceCadastroEdicaoNotas:
                                       values=["1º bimestre", "2º bimestre", "3º bimestre", "4º bimestre"])
         self.cb_bimestre.grid(row=0, column=1, padx=5, pady=5, sticky="w")
         self.cb_bimestre.current(0)
-        self.cb_bimestre.bind("<<ComboboxSelected>>", self.carregar_notas_alunos)
+        self.cb_bimestre.bind("<<ComboboxSelected>>", self.carregar_avaliacoes_disponiveis)
         
         # Botão para carregar
         btn_carregar = tk.Button(frame_sec3, text="Carregar Notas", 
                                command=self.carregar_notas_alunos,
                                bg=self.co4, fg="white", font=("Arial", 10, "bold"))
         btn_carregar.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="ew")
+        
+        # ========================================================================
+        # NOVA SEÇÃO: Avaliações (Banco de Questões)
+        # ========================================================================
+        frame_avaliacao = tk.LabelFrame(
+            self.frame_selecao, text="📋 Avaliação (Banco de Questões - Opcional)", 
+            bg=self.co0, font=("Arial", 10, "bold")
+        )
+        frame_avaliacao.grid(row=1, column=0, columnspan=3, padx=5, pady=10, sticky="ew")
+        
+        tk.Label(frame_avaliacao, text="Avaliação:", bg=self.co0).grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.cb_avaliacao = ttk.Combobox(frame_avaliacao, width=50, state="readonly")
+        self.cb_avaliacao.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        self.cb_avaliacao.bind("<<ComboboxSelected>>", self.ao_selecionar_avaliacao)
+        
+        # Botões de ação para avaliações
+        tk.Button(
+            frame_avaliacao, text="📝 Registrar Respostas",
+            command=self.abrir_janela_respostas,
+            bg=self.co4, fg="white", font=("Arial", 9, "bold")
+        ).grid(row=0, column=2, padx=5)
+        
+        tk.Button(
+            frame_avaliacao, text="✍️ Fila de Correção",
+            command=self.abrir_fila_correcao,
+            bg=self.co2, fg="white", font=("Arial", 9, "bold")
+        ).grid(row=0, column=3, padx=5)
+        
+        tk.Button(
+            frame_avaliacao, text="📥 Importar CSV",
+            command=self.importar_respostas_csv,
+            bg=self.co9, fg="white", font=("Arial", 9, "bold")
+        ).grid(row=0, column=4, padx=5)
+        
+        tk.Button(
+            frame_avaliacao, text="🔄 Sincronizar Notas",
+            command=self.sincronizar_avaliacoes_para_notas,
+            bg="#FF8C00", fg="white", font=("Arial", 9, "bold")
+        ).grid(row=0, column=5, padx=5)
         
         # Carregar níveis de ensino inicialmente
         self.carregar_niveis_ensino()
@@ -3425,6 +3467,185 @@ class InterfaceCadastroEdicaoNotas:
         except Exception as e:
             logger.error(f"Erro ao tentar definir foco no campo: {e}")
             # Não propaga o erro, apenas registra no console
+    
+    # =========================================================================
+    # INTEGRAÇÃO COM BANCO DE QUESTÕES - AVALIAÇÕES
+    # =========================================================================
+    
+    def carregar_avaliacoes_disponiveis(self, event=None):
+        """Carrega avaliações aplicadas para turma/disciplina/bimestre selecionados."""
+        # Também carregar notas (comportamento original)
+        self.carregar_notas_alunos(event)
+        
+        if not self.cb_turma.get() or not self.cb_disciplina.get() or not self.cb_bimestre.get():
+            self.cb_avaliacao.set('')
+            self.cb_avaliacao['values'] = []
+            return
+        
+        conn = conectar_bd()
+        if not conn:
+            return
+        
+        try:
+            cursor = conn.cursor()
+            
+            turma_id = self.turmas_map.get(self.cb_turma.get())
+            disciplina_nome = self.cb_disciplina.get()
+            bimestre = self.cb_bimestre.get()
+            
+            query = """
+                SELECT DISTINCT
+                    av.id,
+                    av.titulo,
+                    aa.data_aplicacao,
+                    aa.status
+                FROM avaliacoes_aplicadas aa
+                INNER JOIN avaliacoes av ON aa.avaliacao_id = av.id
+                WHERE aa.turma_id = %s
+                  AND av.componente_curricular = %s
+                  AND av.bimestre = %s
+                  AND aa.status IN ('em_andamento', 'aguardando_lancamento', 'concluida')
+                ORDER BY aa.data_aplicacao DESC
+            """
+            
+            cursor.execute(query, (turma_id, disciplina_nome, bimestre))
+            avaliacoes = cursor.fetchall()
+            
+            # Preencher combobox
+            valores = [f"{av[0]} - {av[1]} ({av[2].strftime('%d/%m/%Y')})" for av in avaliacoes]
+            self.cb_avaliacao['values'] = valores
+            
+            if valores:
+                self.cb_avaliacao.current(0)
+                logger.info(f"{len(valores)} avaliação(ões) encontrada(s)")
+            else:
+                self.cb_avaliacao.set('')
+            
+            cursor.close()
+            conn.close()
+            
+        except Exception as e:
+            logger.error(f"Erro ao carregar avaliações: {e}")
+    
+    def ao_selecionar_avaliacao(self, event=None):
+        """Atualiza informações quando uma avaliação é selecionada."""
+        if not self.cb_avaliacao.get():
+            return
+        avaliacao_id = int(self.cb_avaliacao.get().split(' - ')[0])
+        logger.info(f"Avaliação selecionada: ID {avaliacao_id}")
+    
+    def abrir_janela_respostas(self):
+        """Abre janela para registrar respostas de alunos."""
+        if not self.cb_avaliacao.get():
+            messagebox.showwarning("Aviso", "Selecione uma avaliação primeiro.")
+            return
+        
+        try:
+            from JanelaRegistroRespostas import JanelaRegistroRespostas
+            
+            avaliacao_id = int(self.cb_avaliacao.get().split(' - ')[0])
+            turma_id = self.turmas_map.get(self.cb_turma.get())
+            
+            JanelaRegistroRespostas(self.root, 
+                                   avaliacao_id=avaliacao_id,
+                                   turma_id=turma_id,
+                                   ano_letivo_atual=self.ano_letivo_atual)
+        except Exception as e:
+            logger.error(f"Erro ao abrir janela de respostas: {e}")
+            messagebox.showerror("Erro", f"Erro ao abrir janela: {str(e)}")
+    
+    def abrir_fila_correcao(self):
+        """Abre janela com fila de correção de questões dissertativas."""
+        if not self.cb_avaliacao.get():
+            messagebox.showwarning("Aviso", "Selecione uma avaliação primeiro.")
+            return
+        
+        try:
+            from JanelaFilaCorrecao import JanelaFilaCorrecao
+            
+            avaliacao_id = int(self.cb_avaliacao.get().split(' - ')[0])
+            turma_id = self.turmas_map.get(self.cb_turma.get())
+            
+            JanelaFilaCorrecao(self.root,
+                             professor_id=None,  # Pode filtrar por professor se necessário
+                             turma_id=turma_id,
+                             avaliacao_id=avaliacao_id)
+        except Exception as e:
+            logger.error(f"Erro ao abrir fila de correção: {e}")
+            messagebox.showerror("Erro", f"Erro ao abrir fila: {str(e)}")
+    
+    def importar_respostas_csv(self):
+        """Importa respostas via CSV."""
+        if not self.cb_avaliacao.get():
+            messagebox.showwarning("Aviso", "Selecione uma avaliação.")
+            return
+        
+        arquivo = filedialog.askopenfilename(
+            title="CSV de Respostas",
+            filetypes=[("CSV", "*.csv"), ("Todos", "*.*")]
+        )
+        
+        if arquivo:
+            messagebox.showinfo("Em Desenvolvimento", f"Arquivo: {arquivo}\\n\\nPróxima etapa.")
+    
+    def sincronizar_avaliacoes_para_notas(self):
+        """Sincroniza notas finalizadas para tabela notas."""
+        if not self.cb_avaliacao.get():
+            messagebox.showwarning("Aviso", "Selecione uma avaliação.")
+            return
+        
+        avaliacao_id = int(self.cb_avaliacao.get().split(' - ')[0])
+        turma_id = self.turmas_map.get(self.cb_turma.get())
+        
+        if not messagebox.askyesno("Confirmar", "Sincronizar notas finalizadas para o sistema?"):
+            return
+        
+        try:
+            conn = conectar_bd()
+            cursor = conn.cursor()
+            
+            # Buscar finalizadas
+            cursor.execute("""
+                SELECT aa.aluno_id, aa.nota_total, av.componente_curricular, av.bimestre
+                FROM avaliacoes_alunos aa
+                INNER JOIN avaliacoes av ON aa.avaliacao_id = av.id
+                WHERE aa.avaliacao_id = %s AND aa.turma_id = %s 
+                  AND aa.status = 'finalizada' AND aa.presente = TRUE
+            """, (avaliacao_id, turma_id))
+            
+            avaliacoes_finalizadas = cursor.fetchall()
+            
+            if not avaliacoes_finalizadas:
+                cursor.close()
+                conn.close()
+                messagebox.showinfo("Info", "Nenhuma avaliação finalizada.")
+                return
+            
+            sincronizadas = 0
+            for aluno_id, nota, componente, bimestre in avaliacoes_finalizadas:
+                cursor.execute("SELECT id FROM disciplinas WHERE nome = %s", (componente,))
+                disciplina = cursor.fetchone()
+                if not disciplina:
+                    continue
+                
+                cursor.execute("""
+                    INSERT INTO notas (ano_letivo_id, aluno_id, disciplina_id, bimestre, nota)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE nota = VALUES(nota)
+                """, (self.ano_letivo_atual, aluno_id, disciplina[0], bimestre, nota))
+                
+                sincronizadas += 1
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            messagebox.showinfo("Sucesso", f"✅ {sincronizadas} nota(s) sincronizada(s)!")
+            self.carregar_notas_alunos()
+            
+        except Exception as e:
+            logger.error(f"Erro ao sincronizar: {e}")
+            messagebox.showerror("Erro", str(e))
 
 # Função para ser chamada a partir do sistema principal
 def abrir_interface_notas(janela_principal=None):
