@@ -3464,7 +3464,21 @@ class InterfaceCadastroEdicaoNotas:
                             log_debug(f"       ⚠️ Sem nota no banco - IGNORADO")
                         continue
 
-                    nota_id, nota_atual = resultado
+                    try:
+                        from collections.abc import Mapping
+                        if isinstance(resultado, Mapping):
+                            nota_id = resultado.get('id')
+                            nota_atual = resultado.get('nota')
+                        else:
+                            nota_id, nota_atual = resultado
+                    except Exception:
+                        nota_id = None
+                        nota_atual = None
+
+                    if nota_id is None:
+                        if log_debug:
+                            log_debug(f"       ⚠️ Resultado inesperado do SELECT: {resultado!r} - IGNORADO")
+                        continue
 
                     # Converter nota_atual para escala 0-10
                     # Usar helper seguro para converter (trata NaN, strings, Decimal etc.)
