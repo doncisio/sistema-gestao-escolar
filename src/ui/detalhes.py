@@ -716,7 +716,7 @@ def gerar_declaracao_wrapper(aluno_id):
             
             # Executar geração em background
             def _worker():
-                from Gerar_Declaracao_Aluno import gerar_declaracao_aluno
+                from src.relatorios.declaracao_aluno import gerar_declaracao_aluno
                 return gerar_declaracao_aluno(aluno_id, marcacoes, motivo_outros_texto)
             
             def _on_done(resultado):

@@ -904,8 +904,26 @@ class ButtonFactory:
     def _gerar_declaracao_generica(self):
         """Wrapper para gerar declaração genérica"""
         try:
-            from Gerar_Declaracao_Aluno import main as gerar_declaracao  # type: ignore
-            gerar_declaracao()
+            # Tenta importar o script legacy (caso exista) para compatibilidade.
+            try:
+                from Gerar_Declaracao_Aluno import main as gerar_declaracao  # type: ignore
+            except Exception:
+                # Caso não exista, usar o novo módulo de relatórios
+                from src.relatorios.declaracao_aluno import gerar_declaracao_aluno as gerar_declaracao
+
+            # Se a função for a nova `gerar_declaracao_aluno` que requer parâmetros,
+            # informar ao usuário que esta ação deve ser feita por aluno nos detalhes.
+            if gerar_declaracao is None:
+                messagebox.showinfo("Aviso", "Geração genérica de declaração não disponível neste contexto.")
+                return
+
+            # Se for a função legacy `main()` ela aceitará execução direta.
+            try:
+                gerar_declaracao()
+            except TypeError:
+                # Função requer parâmetros — informar ao usuário.
+                messagebox.showinfo("Aviso", "Esta opção não está disponível. Gere declarações por aluno na tela de detalhes.")
+
         except Exception as e:
             logger.exception(f"Erro ao gerar declaração: {e}")
             messagebox.showerror("Erro", f"Erro ao gerar declaração: {e}")

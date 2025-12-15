@@ -725,7 +725,7 @@ class ActionHandler:
             validar_dados_declaracao,
             registrar_geracao_declaracao
         )
-        from Gerar_Declaracao_Aluno import gerar_declaracao_aluno as gerar_declaracao_aluno_legacy
+        from src.relatorios.declaracao_aluno import gerar_declaracao_aluno as gerar_declaracao_aluno_legacy
         from tkinter import StringVar, OptionMenu, Entry
         
         try:
