@@ -2354,9 +2354,10 @@ class InterfaceCadastroEdicaoNotas:
         scrollbar.pack(side="right", fill="y")
         text_log.config(yscrollcommand=scrollbar.set)
         
-        # Armazenar referências
-        # (atributo `text_log` é criado quando necessário via `setattr` em tempo de execução)
-        
+        # Armazenar referências no próprio Toplevel para uso externo
+        janela.text_log = text_log
+        janela.text_log_scrollbar = scrollbar
+
         return janela
     
     def _executar_extracao_completa(self, credenciais, serie_nome, turma_nome, turma_turno, 
@@ -2557,6 +2558,26 @@ class InterfaceCadastroEdicaoNotas:
             log("\n→ Carregando alunos do banco local...")
             alunos_local = self._buscar_alunos_turma_local(self.turma_id)
             log(f"✓ {len(alunos_local)} alunos no banco local")
+
+            # Logar amostra dos nomes normalizados para depuração de mapeamento
+            try:
+                logger.info("[DEBUG_ALUNOS] Amostra dos nomes normalizados (até 50):")
+                for i, (nome_norm, id_local) in enumerate(alunos_local.items()):
+                    if i >= 50:
+                        break
+                    logger.info(f"[DEBUG_ALUNOS] {i+1:02d}: '{nome_norm}' -> {id_local}")
+
+                # Procurar por possíveis ocorrências relacionadas à aluna em questão
+                termos_busca = ('MARIA', 'CEC', 'CECI', 'CECIL', 'NAZARENO', 'CALDAS')
+                encontrados = [n for n in alunos_local.keys() if any(t in n for t in termos_busca)]
+                if encontrados:
+                    logger.info("[DEBUG_ALUNOS] Possíveis correspondências encontradas:")
+                    for n in encontrados:
+                        logger.info(f"[DEBUG_ALUNOS] -> {n} -> {alunos_local[n]}")
+                else:
+                    logger.info("[DEBUG_ALUNOS] Nenhuma correspondência clara para termos de busca encontrada.")
+            except Exception:
+                logger.exception("Erro ao gerar debug de alunos locais")
             
             # Buscar nivel_id da turma para filtrar disciplinas corretamente
             log("\n→ Identificando nível de ensino da turma...")
@@ -2920,12 +2941,34 @@ class InterfaceCadastroEdicaoNotas:
                     # Normalizar nome
                     nome_norm = normalizar_nome(nome_geduc)
 
+                    # Log detalhado para depuração
+                    logger.info(f"[DEBUG_NOTAS] Aluno GEDUC: '{nome_geduc}' | normalizado: '{nome_norm}' | media: '{nota_media}'")
+
                     # Buscar ID do aluno no banco local
                     aluno_id = alunos_local.get(nome_norm)
 
+                    # Se não encontrou por igualdade exata, tentar busca 'fuzzy' por similaridade
                     if not aluno_id:
-                        nao_encontrados.append(nome_geduc)
-                        continue
+                        try:
+                            from difflib import SequenceMatcher
+                            melhor = None
+                            melhor_score = 0.0
+                            for nome_local_norm, id_local in alunos_local.items():
+                                score = SequenceMatcher(None, nome_norm, nome_local_norm).ratio()
+                                if score > melhor_score:
+                                    melhor_score = score
+                                    melhor = (nome_local_norm, id_local)
+
+                            # Aceitar correspondência razoavelmente próxima (ajustável)
+                            if melhor and melhor_score >= 0.86:
+                                aluno_id = melhor[1]
+                                logger.info(f"Match fuzzy: '{nome_geduc}' → '{melhor[0]}' (score={melhor_score:.2f})")
+                            else:
+                                nao_encontrados.append(nome_geduc)
+                                continue
+                        except Exception:
+                            nao_encontrados.append(nome_geduc)
+                            continue
 
                     # Verificar se já existe nota
                     cursor.execute("""
@@ -2937,15 +2980,39 @@ class InterfaceCadastroEdicaoNotas:
                     """, self._norm_params((aluno_id, disciplina_id, bimestre_texto, ano_letivo_id)))
 
                     resultado = cursor.fetchone()
+                    logger.info(f"[DEBUG_NOTAS] SELECT resultado para aluno_id={aluno_id}, disciplina_id={disciplina_id}, bimestre='{bimestre_texto}': {resultado}")
 
-                    if resultado:
+                    # Determinar id da linha retornada, suportando tuplas e dicionários
+                    row_id = None
+                    try:
+                        from collections.abc import Mapping
+                        if resultado is None:
+                            row_id = None
+                        elif isinstance(resultado, Mapping):
+                            # tentar chaves comuns
+                            row_id = resultado.get('id') or resultado.get('ID') or resultado.get('Id')
+                        elif isinstance(resultado, (list, tuple)):
+                            row_id = resultado[0]
+                        else:
+                            # tentativa genérica: index 0
+                            try:
+                                row_id = resultado[0]
+                            except Exception:
+                                row_id = None
+                    except Exception:
+                        row_id = None
+
+                    logger.info(f"[DEBUG_NOTAS] determinado row_id={row_id}")
+
+                    if row_id:
                         # Atualizar
                         cursor.execute("""
                             UPDATE notas 
                             SET nota = %s 
                             WHERE id = %s
-                        """, self._norm_params((nota_media, resultado[0])))
+                        """, self._norm_params((nota_media, row_id)))
                         atualizadas += 1
+                        logger.info(f"[DEBUG_NOTAS] atualizadas incrementado -> {atualizadas}")
                     else:
                         # Inserir
                         cursor.execute("""
@@ -2953,6 +3020,7 @@ class InterfaceCadastroEdicaoNotas:
                             VALUES (%s, %s, %s, %s, %s)
                         """, self._norm_params((aluno_id, disciplina_id, bimestre_texto, nota_media, ano_letivo_id)))
                         inseridas += 1
+                        logger.info(f"[DEBUG_NOTAS] inseridas incrementado -> {inseridas}")
 
             return inseridas, atualizadas, nao_encontrados
 

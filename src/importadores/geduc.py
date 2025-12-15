@@ -496,6 +496,19 @@ class AutomacaoGEDUC:
                                     'media': nota_final  # Média final (média × 10)
                                 })
             
+            # Log para depuração: listar nomes extraídos e checar presença de aluna específica
+            try:
+                nomes_extraidos = [a.get('nome', '').upper() for a in alunos_notas]
+                logger.info(f"[DEBUG_GEDUC] Alunos extraídos ({len(nomes_extraidos)}): {', '.join(nomes_extraidos[:20])}{'...' if len(nomes_extraidos)>20 else ''}")
+                # Verificar presença de 'MARIA CECILYA' aproximada
+                encontradas = [n for n in nomes_extraidos if 'MARIA' in n and ('CECIL' in n or 'CEC' in n or 'CECI' in n)]
+                if encontradas:
+                    logger.info(f"[DEBUG_GEDUC] Possíveis ocorrências de Maria Cecilya encontradas: {encontradas}")
+                else:
+                    logger.info("[DEBUG_GEDUC] Nenhuma ocorrência clara de 'Maria Cecilya' encontrada entre os nomes extraídos.")
+            except Exception:
+                logger.exception("Erro ao gerar debug dos nomes extraídos do GEDUC")
+
             return {
                 'turma': turma,
                 'disciplina': disciplina,

@@ -477,12 +477,21 @@ def criar_menu_boletim(
         # Gerar em background para não bloquear a UI
         def _worker():
             if status == 'Transferido':
-                from transferencia import gerar_documento_transferencia
+                from src.relatorios.transferencia import gerar_documento_transferencia
                 gerar_documento_transferencia(aluno_id, ano_letivo_id)
                 return True
             else:
-                import boletim
-                return boletim.boletim(aluno_id, ano_letivo_id)
+                try:
+                    from src.relatorios.boletim import boletim as gerar_boletim
+                    return gerar_boletim(aluno_id, ano_letivo_id)
+                except Exception:
+                    # fallback para módulos legados sem package
+                    try:
+                        import importlib
+                        mod = importlib.import_module('boletim')
+                        return getattr(mod, 'boletim')(aluno_id, ano_letivo_id)
+                    except Exception as e:
+                        raise
         
         def _on_done(resultado):
             if status == 'Transferido':

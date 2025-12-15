@@ -155,8 +155,8 @@ def gerar_boletim_ou_transferencia(aluno_id: int, ano_letivo_id: Optional[int] =
         
         # Importar funções de geração (lazy import para evitar dependências circulares)
         if tipo == 'Transferência':
-            from transferencia import gerar_documento_transferencia
-            
+            from src.relatorios.transferencia import gerar_documento_transferencia
+
             gerar_documento_transferencia(aluno_id, ano_letivo_id or obter_ano_letivo_atual())
             
             mensagem = f"Documento de transferência gerado para {dados['nome_aluno']} (Ano Letivo {dados['ano_letivo']})"
@@ -165,22 +165,23 @@ def gerar_boletim_ou_transferencia(aluno_id: int, ano_letivo_id: Optional[int] =
         
         else:  # tipo == 'Boletim'
             # Importar boletim do main.py ou módulo específico
+            # Preferir importar o módulo dentro do package atual
             try:
-                from main import boletim
-                resultado = boletim(aluno_id, ano_letivo_id or obter_ano_letivo_atual())
-                
+                from src.relatorios.boletim import boletim as gerar_boletim
+                resultado = gerar_boletim(aluno_id, ano_letivo_id or obter_ano_letivo_atual())
+
                 if resultado:
                     mensagem = f"Boletim gerado para {dados['nome_aluno']} (Ano Letivo {dados['ano_letivo']})"
                     logger.info(mensagem)
                     return (True, mensagem)
                 else:
                     return (False, "Nenhum dado gerado para o boletim")
-            except ImportError:
-                # Fallback: tentar importar de boletim.py
+            except Exception:
+                # Fallback para módulos legados sem package
                 try:
-                    import boletim as boletim_module
-                    resultado = boletim_module.boletim(aluno_id, ano_letivo_id or obter_ano_letivo_atual())
-                    
+                    import importlib
+                    mod = importlib.import_module('boletim')
+                    resultado = getattr(mod, 'boletim')(aluno_id, ano_letivo_id or obter_ano_letivo_atual())
                     if resultado:
                         mensagem = f"Boletim gerado para {dados['nome_aluno']}"
                         logger.info(mensagem)
