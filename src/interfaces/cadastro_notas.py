@@ -2942,7 +2942,7 @@ class InterfaceCadastroEdicaoNotas:
                     nome_norm = normalizar_nome(nome_geduc)
 
                     # Log detalhado para depuração
-                    logger.info(f"[DEBUG_NOTAS] Aluno GEDUC: '{nome_geduc}' | normalizado: '{nome_norm}' | media: '{nota_media}'")
+                    logger.debug(f"[DEBUG_NOTAS] Aluno GEDUC: '{nome_geduc}' | normalizado: '{nome_norm}' | media: '{nota_media}'")
 
                     # Buscar ID do aluno no banco local
                     aluno_id = alunos_local.get(nome_norm)
@@ -2980,7 +2980,7 @@ class InterfaceCadastroEdicaoNotas:
                     """, self._norm_params((aluno_id, disciplina_id, bimestre_texto, ano_letivo_id)))
 
                     resultado = cursor.fetchone()
-                    logger.info(f"[DEBUG_NOTAS] SELECT resultado para aluno_id={aluno_id}, disciplina_id={disciplina_id}, bimestre='{bimestre_texto}': {resultado}")
+                    logger.debug(f"[DEBUG_NOTAS] SELECT resultado para aluno_id={aluno_id}, disciplina_id={disciplina_id}, bimestre='{bimestre_texto}': {resultado}")
 
                     # Determinar id da linha retornada, suportando tuplas e dicionários
                     row_id = None
@@ -3002,7 +3002,7 @@ class InterfaceCadastroEdicaoNotas:
                     except Exception:
                         row_id = None
 
-                    logger.info(f"[DEBUG_NOTAS] determinado row_id={row_id}")
+                    logger.debug(f"[DEBUG_NOTAS] determinado row_id={row_id}")
 
                     if row_id:
                         # Atualizar
@@ -3012,7 +3012,7 @@ class InterfaceCadastroEdicaoNotas:
                             WHERE id = %s
                         """, self._norm_params((nota_media, row_id)))
                         atualizadas += 1
-                        logger.info(f"[DEBUG_NOTAS] atualizadas incrementado -> {atualizadas}")
+                        logger.debug(f"[DEBUG_NOTAS] atualizadas incrementado -> {atualizadas}")
                     else:
                         # Inserir
                         cursor.execute("""
@@ -3020,7 +3020,7 @@ class InterfaceCadastroEdicaoNotas:
                             VALUES (%s, %s, %s, %s, %s)
                         """, self._norm_params((aluno_id, disciplina_id, bimestre_texto, nota_media, ano_letivo_id)))
                         inseridas += 1
-                        logger.info(f"[DEBUG_NOTAS] inseridas incrementado -> {inseridas}")
+                        logger.debug(f"[DEBUG_NOTAS] inseridas incrementado -> {inseridas}")
 
             return inseridas, atualizadas, nao_encontrados
 
