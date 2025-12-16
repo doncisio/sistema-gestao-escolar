@@ -323,7 +323,7 @@ def gerar_lista_9ano_historico_pdf(ano_letivo: int | None = None, escola_id: int
     # Calcula larguras dinâmicas para as 4 colunas (Nº, Aluno, Turma, Séries faltantes)
     page_width, _ = page_size
     usable_width = page_width - (left_margin + right_margin)
-    col_props = [0.06, 0.46, 0.12, 0.24]
+    col_props = [0.06, 0.46, 0.12, 0.36]
     col_widths = [usable_width * p for p in col_props]
 
     table = Table(data, colWidths=col_widths)
