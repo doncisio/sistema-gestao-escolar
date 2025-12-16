@@ -647,6 +647,12 @@ class ButtonFactory:
                 command=lambda: self._servicos_gerar_certificados_9ano(),
                 font=menu_font
             )
+            # Lista de Históricos Pendentes (novo)
+            servicos_menu.add_command(
+                label="Lista de Históricos Pendentes",
+                command=lambda: self._servicos_lista_historicos_pendentes(),
+                font=menu_font
+            )
             servicos_menu.add_command(
                 label="Crachás Alunos/Responsáveis",
                 command=lambda: self._abrir_crachas(),
@@ -973,6 +979,41 @@ class ButtonFactory:
         except Exception as e:
             logger.exception(f"Erro no processo de geração de certificados em lote: {e}")
             messagebox.showerror("Erro", f"Erro ao gerar certificados: {e}")
+
+    def _servicos_lista_historicos_pendentes(self):
+        """Gera a lista de históricos pendentes (ano letivo atual) e salva o PDF."""
+        try:
+            resposta = messagebox.askyesno(
+                "Confirmar",
+                "Gerar a Lista de Históricos Pendentes para o ano letivo atual?\n\nIsso pode demorar. Deseja continuar?"
+            )
+            if not resposta:
+                return
+
+            # Determinar ano e escola
+            try:
+                from src.core.config.settings import settings
+                from datetime import datetime
+                # Usar settings.app.ano_letivo se definido; caso contrário, usar ano atual
+                ano = getattr(settings.app, 'ano_letivo', None) or datetime.now().year
+                escola_id = getattr(settings.app, 'escola_id', 60)
+            except Exception:
+                from datetime import datetime
+                ano = datetime.now().year
+                escola_id = 60
+
+            # Gerar usando o relatório implementado
+            from src.relatorios.listas.alunos_9ano_historico import gerar_lista_9ano_historico_pdf
+
+            arquivo = gerar_lista_9ano_historico_pdf(ano_letivo=ano, escola_id=escola_id)
+            if arquivo:
+                messagebox.showinfo("Concluído", f"Lista de Históricos Pendentes gerada: {arquivo}")
+            else:
+                messagebox.showerror("Erro", "Falha ao gerar a lista. Verifique os logs.")
+
+        except Exception as e:
+            logger.exception(f"Erro ao gerar lista de históricos pendentes: {e}")
+            messagebox.showerror("Erro", f"Erro ao gerar a lista: {e}")
     
     def _abrir_relatorio_analise(self):
         """Wrapper para abrir relatório estatístico de análise de notas"""
