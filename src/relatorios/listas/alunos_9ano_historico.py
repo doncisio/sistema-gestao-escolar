@@ -220,7 +220,7 @@ def gerar_lista_9ano_historico_pdf(ano_letivo: int | None = None, escola_id: int
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
         from reportlab.lib.styles import ParagraphStyle
         from reportlab.lib.units import inch
-        from reportlab.lib.colors import black, white, grey
+        from reportlab.lib.colors import black, white, grey, red
     except Exception:
         # reportlab pode não estar instalado no ambiente de teste
         logger.exception('ReportLab não disponível para gerar PDF')
@@ -241,7 +241,18 @@ def gerar_lista_9ano_historico_pdf(ano_letivo: int | None = None, escola_id: int
         logger.error("Nenhum resultado retornado pela busca.")
         return None
 
+    # estilos de célula (definidos antes de montar os Paragraphs da tabela)
+    styles = {
+        'header': ParagraphStyle('header', fontSize=12, alignment=1),
+        'title': ParagraphStyle('title', fontSize=16, alignment=1),
+    }
+    cell_normal_style = ParagraphStyle('cell_normal', fontSize=9)
+    cell_red_style = ParagraphStyle('cell_red', fontSize=9, textColor=red)
+
     todos = resultado['completo'] + resultado['com_pendencias']
+    # ordenar alfabeticamente pelo nome do aluno
+    todos = sorted(todos, key=lambda it: (it.get('nome') or '').lower())
+
     # Constrói tabela de saída
     data: List[List[Any]] = [['Nº', 'Aluno', 'Turma', 'Séries faltantes']]
     for idx, item in enumerate(todos, start=1):
@@ -277,13 +288,23 @@ def gerar_lista_9ano_historico_pdf(ano_letivo: int | None = None, escola_id: int
                     parts.append(f"{_serie_id_para_nome(a).split()[0]} ao {_serie_id_para_nome(b)}")
             return ', '.join(parts)
 
-        faltantes_texto = _compact(faltantes_ids)
+        # Se não houver faltantes, marcar como Histórico Completo
+        if not faltantes_ids:
+            faltantes_texto = 'Histórico Completo'
+            faltantes_cell = Paragraph(faltantes_texto, cell_normal_style)
+        else:
+            faltantes_texto = _compact(faltantes_ids)
+            faltantes_cell = Paragraph(faltantes_texto, cell_red_style)
+
         turma_text = f"{item.get('serie_nome') or ''} {item.get('turma_nome') or ''}".strip()
+        aluno_cell = Paragraph(item.get('nome') or '', cell_normal_style)
+        turma_cell = Paragraph(turma_text, cell_normal_style)
+
         data.append([
             idx,
-            item.get('nome') or '',
-            turma_text,
-            faltantes_texto
+            aluno_cell,
+            turma_cell,
+            faltantes_cell
         ])
 
     # Cria PDF em buffer e usa A4 com margens reduzidas
@@ -295,10 +316,7 @@ def gerar_lista_9ano_historico_pdf(ano_letivo: int | None = None, escola_id: int
     page_size = A4
     doc = SimpleDocTemplate(buffer, pagesize=page_size, leftMargin=left_margin, rightMargin=right_margin, topMargin=top_margin, bottomMargin=bottom_margin)
 
-    styles = {
-        'header': ParagraphStyle('header', fontSize=12, alignment=1),
-        'title': ParagraphStyle('title', fontSize=16, alignment=1),
-    }
+    # styles já definidos antes
 
     elements = []
     cabecalho = [
