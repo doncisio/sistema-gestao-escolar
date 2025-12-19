@@ -128,8 +128,8 @@ QUERY_TURMA_PROXIMA_SERIE = """
 
 QUERY_TOTAL_MATRICULAS_ATIVAS = """
     SELECT COUNT(DISTINCT a.id) as total
-    FROM Alunos a
-    JOIN Matriculas m ON a.id = m.aluno_id
+    FROM alunos a
+    JOIN matriculas m ON a.id = m.aluno_id
     WHERE m.ano_letivo_id = %s
     AND m.status = 'Ativo'
     AND a.escola_id = %s
@@ -137,8 +137,8 @@ QUERY_TOTAL_MATRICULAS_ATIVAS = """
 
 QUERY_ALUNOS_CONTINUAR = """
     SELECT COUNT(DISTINCT a.id) as total
-    FROM Alunos a
-    JOIN Matriculas m ON a.id = m.aluno_id
+    FROM alunos a
+    JOIN matriculas m ON a.id = m.aluno_id
     WHERE m.ano_letivo_id = %s
     AND m.status = 'Ativo'
     AND a.escola_id = %s
@@ -147,22 +147,22 @@ QUERY_ALUNOS_CONTINUAR = """
 
 QUERY_ALUNOS_EXCLUIR = """
     SELECT COUNT(DISTINCT a.id) as total
-    FROM Alunos a
-    JOIN Matriculas m ON a.id = m.aluno_id
+    FROM alunos a
+    JOIN matriculas m ON a.id = m.aluno_id
     WHERE m.ano_letivo_id = %s
     AND m.status IN ('Transferido', 'Transferida', 'Cancelado', 'Evadido')
     AND a.escola_id = %s
 """
 
 QUERY_ENCERRAR_MATRICULAS = """
-    UPDATE Matriculas
+    UPDATE matriculas
     SET status = 'Concluído'
     WHERE ano_letivo_id = %s
     AND status = 'Ativo'
 """
 
 QUERY_CRIAR_MATRICULA = """
-    INSERT INTO Matriculas (aluno_id, turma_id, ano_letivo_id, status)
+    INSERT INTO matriculas (aluno_id, turma_id, ano_letivo_id, status)
     VALUES (%s, %s, %s, 'Ativo')
 """
 
@@ -178,8 +178,8 @@ QUERY_ALUNOS_NORMAIS = """
         s.id as serie_id,
         s.nome as serie_nome,
         s.ordem as serie_ordem
-    FROM Alunos a
-    JOIN Matriculas m ON a.id = m.aluno_id
+    FROM alunos a
+    JOIN matriculas m ON a.id = m.aluno_id
     JOIN turmas t ON m.turma_id = t.id
     JOIN series s ON t.serie_id = s.id
     WHERE m.ano_letivo_id = %s
@@ -202,8 +202,8 @@ QUERY_ALUNOS_REPROVADOS = """
             COALESCE(AVG(CASE WHEN n.bimestre = '3º bimestre' THEN n.nota END), 0) +
             COALESCE(AVG(CASE WHEN n.bimestre = '4º bimestre' THEN n.nota END), 0)
         ) / 4 as media_final
-    FROM Alunos a
-    JOIN Matriculas m ON a.id = m.aluno_id
+    FROM alunos a
+    JOIN matriculas m ON a.id = m.aluno_id
     JOIN turmas t ON m.turma_id = t.id
     JOIN series s ON t.serie_id = s.id
     LEFT JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = %s

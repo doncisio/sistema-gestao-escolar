@@ -36,7 +36,7 @@ QUERY_LISTAR_ALUNOS = """
         a.bairro,
         a.cidade,
         a.estado
-    FROM Alunos a
+    FROM alunos a
     WHERE a.escola_id = %s
     ORDER BY a.nome
 """
@@ -49,11 +49,11 @@ QUERY_BUSCAR_ALUNO_POR_ID = """
         t.nome as turma_nome,
         s.nome as serie_nome,
         al.ano as ano_letivo
-    FROM Alunos a
-    LEFT JOIN Matriculas m ON a.id = m.aluno_id AND m.status = 'Ativo'
+    FROM alunos a
+    LEFT JOIN matriculas m ON a.id = m.aluno_id AND m.status = 'Ativo'
     LEFT JOIN turmas t ON m.turma_id = t.id
     LEFT JOIN series s ON t.serie_id = s.id
-    LEFT JOIN anos_letivos al ON m.ano_letivo_id = al.id
+    LEFT JOIN anosletivos al ON m.ano_letivo_id = al.id
     WHERE a.id = %s
 """
 
@@ -68,8 +68,8 @@ QUERY_BUSCAR_ALUNOS_POR_NOME = """
         m.status as status_matricula,
         t.nome as turma,
         s.nome as serie
-    FROM Alunos a
-    LEFT JOIN Matriculas m ON a.id = m.aluno_id AND m.status = 'Ativo'
+    FROM alunos a
+    LEFT JOIN matriculas m ON a.id = m.aluno_id AND m.status = 'Ativo'
     LEFT JOIN turmas t ON m.turma_id = t.id
     LEFT JOIN series s ON t.serie_id = s.id
     WHERE a.nome LIKE %s OR a.cpf LIKE %s
@@ -86,8 +86,8 @@ QUERY_ALUNOS_ATIVOS = """
         t.nome as turma,
         s.nome as serie,
         m.status
-    FROM Alunos a
-    JOIN Matriculas m ON a.id = m.aluno_id
+    FROM alunos a
+    JOIN matriculas m ON a.id = m.aluno_id
     JOIN turmas t ON m.turma_id = t.id
     JOIN series s ON t.serie_id = s.id
     WHERE m.status = 'Ativo' AND m.ano_letivo_id = %s
@@ -110,18 +110,18 @@ QUERY_LISTAR_MATRICULAS = """
         t.nome as turma_nome,
         s.nome as serie_nome,
         al.ano as ano_letivo
-    FROM Matriculas m
-    JOIN Alunos a ON m.aluno_id = a.id
+    FROM matriculas m
+    JOIN alunos a ON m.aluno_id = a.id
     JOIN turmas t ON m.turma_id = t.id
     JOIN series s ON t.serie_id = s.id
-    JOIN anos_letivos al ON m.ano_letivo_id = al.id
+    JOIN anosletivos al ON m.ano_letivo_id = al.id
     WHERE m.ano_letivo_id = %s
     ORDER BY s.ordem, t.nome, a.nome
 """
 
 QUERY_VERIFICAR_MATRICULA_ATIVA = """
     SELECT m.id, m.status, t.nome as turma, s.nome as serie
-    FROM Matriculas m
+    FROM matriculas m
     JOIN turmas t ON m.turma_id = t.id
     JOIN series s ON t.serie_id = s.id
     WHERE m.aluno_id = %s AND m.ano_letivo_id = %s
@@ -136,10 +136,10 @@ QUERY_HISTORICO_MATRICULAS = """
         t.nome as turma,
         s.nome as serie,
         al.ano as ano_letivo
-    FROM Matriculas m
+    FROM matriculas m
     JOIN turmas t ON m.turma_id = t.id
     JOIN series s ON t.serie_id = s.id
-    JOIN anos_letivos al ON m.ano_letivo_id = al.id
+    JOIN anosletivos al ON m.ano_letivo_id = al.id
     WHERE m.aluno_id = %s
     ORDER BY al.ano DESC, m.data_matricula DESC
 """
@@ -151,8 +151,8 @@ QUERY_MATRICULAS_POR_TURMA = """
         m.status,
         a.nome as aluno_nome,
         a.data_nascimento
-    FROM Matriculas m
-    JOIN Alunos a ON m.aluno_id = a.id
+    FROM matriculas m
+    JOIN alunos a ON m.aluno_id = a.id
     WHERE m.turma_id = %s AND m.status = 'Ativo'
     ORDER BY a.nome
 """
@@ -177,8 +177,8 @@ QUERY_LISTAR_TURMAS = """
         COALESCE(COUNT(DISTINCT m.id), 0) as total_alunos
     FROM turmas t
     LEFT JOIN series s ON t.serie_id = s.id
-    LEFT JOIN anos_letivos al ON t.ano_letivo_id = al.id
-    LEFT JOIN Matriculas m ON m.turma_id = t.id AND m.status = 'Ativo'
+    LEFT JOIN anosletivos al ON t.ano_letivo_id = al.id
+    LEFT JOIN matriculas m ON m.turma_id = t.id AND m.status = 'Ativo'
     WHERE t.ano_letivo_id = %s
     GROUP BY t.id, t.nome, t.turno, t.capacidade_maxima, 
              t.ano_letivo_id, t.serie_id, t.escola_id, t.professor_id,
@@ -208,9 +208,9 @@ QUERY_TURMA_COM_DETALHES = """
         COALESCE(COUNT(DISTINCT m.id), 0) as total_alunos
     FROM turmas t
     LEFT JOIN series s ON t.serie_id = s.id
-    LEFT JOIN anos_letivos al ON t.ano_letivo_id = al.id
-    LEFT JOIN Funcionarios f ON t.professor_id = f.id
-    LEFT JOIN Matriculas m ON m.turma_id = t.id AND m.status = 'Ativo'
+    LEFT JOIN anosletivos al ON t.ano_letivo_id = al.id
+    LEFT JOIN funcionarios f ON t.professor_id = f.id
+    LEFT JOIN matriculas m ON m.turma_id = t.id AND m.status = 'Ativo'
     WHERE t.id = %s
     GROUP BY t.id, t.nome, t.turno, t.capacidade_maxima, 
              t.ano_letivo_id, t.serie_id, s.nome, s.ciclo, al.ano, f.nome
@@ -277,7 +277,7 @@ QUERY_LISTAR_FUNCIONARIOS = """
         f.telefone,
         f.email,
         f.escola_id
-    FROM Funcionarios f
+    FROM funcionarios f
     WHERE f.escola_id = %s
     ORDER BY f.nome
 """
@@ -286,7 +286,7 @@ QUERY_FUNCIONARIO_POR_ID = """
     SELECT 
         f.*,
         COUNT(DISTINCT t.id) as total_turmas
-    FROM Funcionarios f
+    FROM funcionarios f
     LEFT JOIN turmas t ON f.id = t.professor_id
     WHERE f.id = %s
     GROUP BY f.id
@@ -300,7 +300,7 @@ QUERY_BUSCAR_FUNCIONARIOS = """
         f.cargo,
         f.telefone,
         f.email
-    FROM Funcionarios f
+    FROM funcionarios f
     WHERE (f.nome LIKE %s OR f.cpf LIKE %s OR f.cargo LIKE %s)
         AND f.escola_id = %s
     ORDER BY f.nome
@@ -324,20 +324,20 @@ QUERY_FUNCIONARIOS_POR_CARGO = """
 
 QUERY_ANO_LETIVO_ATUAL = """
     SELECT id, ano, data_inicio, data_fim
-    FROM anos_letivos
+    FROM anosletivos
     WHERE CURDATE() BETWEEN data_inicio AND data_fim
     LIMIT 1
 """
 
 QUERY_LISTAR_ANOS_LETIVOS = """
     SELECT id, ano, data_inicio, data_fim
-    FROM anos_letivos
+    FROM anosletivos
     ORDER BY ano DESC
 """
 
 QUERY_ANO_LETIVO_POR_ANO = """
     SELECT id, ano, data_inicio, data_fim
-    FROM anos_letivos
+    FROM anosletivos
     WHERE ano = %s
     LIMIT 1
 """
@@ -350,8 +350,8 @@ QUERY_ESTATISTICAS_ALUNOS = """
     SELECT 
         COUNT(DISTINCT CASE WHEN m.status = 'Ativo' THEN a.id END) as total_ativos,
         COUNT(DISTINCT CASE WHEN m.status IN ('Transferido', 'Transferida') THEN a.id END) as total_transferidos
-    FROM Alunos a
-    JOIN Matriculas m ON a.id = m.aluno_id
+    FROM alunos a
+    JOIN matriculas m ON a.id = m.aluno_id
     JOIN turmas t ON m.turma_id = t.id
     WHERE m.ano_letivo_id = %s AND a.escola_id = %s
 """
