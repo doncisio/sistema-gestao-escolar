@@ -2713,81 +2713,349 @@ class InterfaceHistoricoEscolar:
                                bg=self.co0, fg=self.co1, width=15)
         btn_cancelar.pack(side=tk.LEFT, padx=5)
 
+    def _solicitar_credenciais_geduc(self):
+        """Solicita credenciais do GEDUC ao usuário"""
+        janela_cred = tk.Toplevel(self.janela)
+        janela_cred.title("Credenciais GEDUC")
+        janela_cred.geometry("400x250")
+        janela_cred.resizable(False, False)
+        janela_cred.grab_set()
+        
+        # Centralizar
+        janela_cred.update_idletasks()
+        x = (janela_cred.winfo_screenwidth() // 2) - (400 // 2)
+        y = (janela_cred.winfo_screenheight() // 2) - (250 // 2)
+        janela_cred.geometry(f'400x250+{x}+{y}')
+        
+        # Título
+        tk.Label(
+            janela_cred,
+            text="🔐 Acesso ao GEDUC",
+            font=("Arial", 14, "bold"),
+            bg=self.co3,
+            fg=self.co1
+        ).pack(fill="x", pady=(0, 20))
+        
+        # Frame para campos
+        frame_campos = tk.Frame(janela_cred)
+        frame_campos.pack(padx=20, pady=10, fill="both", expand=True)
+        
+        # Usuário
+        tk.Label(frame_campos, text="Usuário:", font=("Arial", 10)).grid(row=0, column=0, sticky="w", pady=5)
+        entry_usuario = tk.Entry(frame_campos, font=("Arial", 10), width=30)
+        entry_usuario.grid(row=0, column=1, pady=5, padx=5)
+        
+        # Senha
+        tk.Label(frame_campos, text="Senha:", font=("Arial", 10)).grid(row=1, column=0, sticky="w", pady=5)
+        entry_senha = tk.Entry(frame_campos, font=("Arial", 10), width=30, show="*")
+        entry_senha.grid(row=1, column=1, pady=5, padx=5)
+        
+        # Info
+        tk.Label(
+            frame_campos,
+            text="⚠️ Credenciais do sistema GEDUC online",
+            font=("Arial", 8),
+            fg=self.co4
+        ).grid(row=2, column=0, columnspan=2, pady=(10, 0))
+        
+        # Variável para armazenar resultado
+        resultado = {}
+        resultado['confirmado'] = False
+        
+        def confirmar():
+            usuario = entry_usuario.get().strip()
+            senha = entry_senha.get().strip()
+            
+            if not usuario or not senha:
+                messagebox.showwarning("Aviso", "Preencha usuário e senha!")
+                return
+            
+            resultado['confirmado'] = True
+            resultado['usuario'] = usuario
+            resultado['senha'] = senha
+            janela_cred.destroy()
+        
+        def cancelar():
+            janela_cred.destroy()
+        
+        # Frame de botões
+        frame_botoes = tk.Frame(frame_campos)
+        frame_botoes.grid(row=3, column=0, columnspan=2, pady=20)
+        
+        tk.Button(
+            frame_botoes,
+            text="Conectar",
+            command=confirmar,
+            bg=self.co3,
+            fg=self.co1,
+            font=("Arial", 10, "bold"),
+            width=12
+        ).pack(side="left", padx=5)
+        
+        tk.Button(
+            frame_botoes,
+            text="Cancelar",
+            command=cancelar,
+            bg=self.co6,
+            fg=self.co1,
+            font=("Arial", 10, "bold"),
+            width=12
+        ).pack(side="left", padx=5)
+        
+        entry_usuario.focus()
+        janela_cred.wait_window()
+        
+        if resultado['confirmado']:
+            return {
+                'usuario': resultado['usuario'],
+                'senha': resultado['senha']
+            }
+        return None
+    
     def exportar_para_geduc(self):
         """Exportar histórico escolar do aluno selecionado para o GEDUC"""
         if not self.aluno_id:
             messagebox.showwarning("Aviso", "Selecione um aluno primeiro!")
             return
         
-        # Importar o módulo de exportação
         try:
             from src.exportadores.geduc_exportador import exportar_historico_aluno
             
-            # Confirmar ação
-            aluno_nome = self.aluno_selecionado.get()
+            # 1. Buscar dados do aluno
+            conn = conectar_bd()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT nome, matricula 
+                FROM alunos 
+                WHERE idaluno = %s
+            """, (self.aluno_id,))
+            
+            aluno_dados = cursor.fetchone()
+            if not aluno_dados:
+                messagebox.showerror("Erro", "Aluno não encontrado no banco de dados!")
+                return
+            
+            nome_aluno, matricula_aluno = aluno_dados
+            
+            # 2. Buscar histórico escolar
+            cursor.execute("""
+                SELECT 
+                    h.id,
+                    h.disciplina_id,
+                    d.nome AS disciplina_nome,
+                    h.ano_letivo_id,
+                    al.ano_letivo,
+                    h.serie_id,
+                    s.nome AS serie_nome,
+                    h.escola_id,
+                    e.nome AS escola_nome,
+                    h.media,
+                    h.conceito,
+                    h.carga_horaria,
+                    h.faltas,
+                    h.situacao
+                FROM historico_escolar h
+                INNER JOIN disciplinas d ON h.disciplina_id = d.id
+                INNER JOIN anosletivos al ON h.ano_letivo_id = al.id
+                INNER JOIN series s ON h.serie_id = s.id
+                INNER JOIN escolas e ON h.escola_id = e.id
+                WHERE h.aluno_id = %s
+                ORDER BY al.ano_letivo DESC, s.id, d.nome
+            """, (self.aluno_id,))
+            
+            registros = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            if not registros:
+                messagebox.showwarning(
+                    "Sem Dados",
+                    f"Não há histórico escolar para {nome_aluno}.\n\n"
+                    "Cadastre pelo menos uma disciplina antes de exportar."
+                )
+                return
+            
+            # 3. Confirmar exportação
             resposta = messagebox.askyesno(
                 "Confirmar Exportação",
-                f"Deseja exportar o histórico de {aluno_nome} para o GEDUC?\n\n"
-                "Esta ação irá:\n"
-                "1. Conectar ao sistema GEDUC online\n"
-                "2. Enviar todos os registros do histórico\n"
-                "3. Registrar log de exportação\n\n"
-                "Continuar?"
+                f"📤 EXPORTAR PARA GEDUC\n\n"
+                f"Aluno: {nome_aluno}\n"
+                f"Matrícula: {matricula_aluno or 'N/A'}\n"
+                f"Registros: {len(registros)} disciplina(s)\n\n"
+                f"⚙️ Este processo irá:\n"
+                f"1. Abrir navegador Chrome\n"
+                f"2. Fazer login no GEDUC (você resolverá o reCAPTCHA)\n"
+                f"3. Buscar aluno pelo nome\n"
+                f"4. Preencher formulário de histórico\n"
+                f"5. Enviar dados\n\n"
+                f"⏱️ Tempo estimado: 2-3 minutos\n\n"
+                f"Continuar?"
             )
             
             if not resposta:
                 return
             
-            # Criar janela de progresso
+            # 4. Solicitar credenciais
+            credenciais = self._solicitar_credenciais_geduc()
+            if not credenciais:
+                return
+            
+            # 5. Montar dados para exportação
+            # IMPORTANTE: Estes valores precisam ser configurados conforme SEU ambiente GEDUC
+            # TODO: Criar tabela de mapeamento ou arquivo de configuração
+            dados_historico = {
+                'nome_aluno': nome_aluno,  # Sistema buscará ID automaticamente
+                
+                # Valores fixos (AJUSTAR CONFORME SEU GEDUC!)
+                'idinstituicao': 1318,  # TODO: Obter do config
+                'ano': datetime.now().year,  # Ano atual
+                'idcurso': 4,  # TODO: Mapear série → ID curso GEDUC
+                'idcurriculo': 69,  # TODO: Obter do GEDUC ou config
+                'tipoescola': 1,  # 1=Regular
+                'visivel': 1,  # Histórico visível
+                
+                # Disciplinas do histórico
+                'disciplinas': []
+            }
+            
+            # Converter registros para formato GEDUC
+            for registro in registros:
+                # TODO: Mapear disciplina_id local → ID GEDUC
+                # Por enquanto, usando ID local (precisa de tabela de mapeamento)
+                disciplina_geduc = {
+                    'id': str(registro[1]),  # ID da disciplina (precisa mapear!)
+                    'cht': str(registro[11] or 40),  # Carga horária total
+                    'media': str(registro[9] or ''),  # Média
+                    'falta': str(registro[12] or 0),  # Faltas
+                    'situacao': str(registro[13] or '0')  # Situação (0=Aprovado)
+                }
+                dados_historico['disciplinas'].append(disciplina_geduc)
+            
+            # 6. Criar janela de progresso
             janela_progresso = tk.Toplevel(self.janela)
             janela_progresso.title("Exportando para GEDUC")
-            janela_progresso.geometry("400x150")
+            janela_progresso.geometry("500x300")
             janela_progresso.transient(self.janela)
             janela_progresso.grab_set()
             
-            # Label de status
-            lbl_status = tk.Label(janela_progresso, text="Conectando ao GEDUC...", 
-                                 font=("Arial", 10))
-            lbl_status.pack(pady=20)
+            # Centralizar
+            janela_progresso.update_idletasks()
+            x = (janela_progresso.winfo_screenwidth() // 2) - (500 // 2)
+            y = (janela_progresso.winfo_screenheight() // 2) - (300 // 2)
+            janela_progresso.geometry(f'500x300+{x}+{y}')
+            
+            # Título
+            tk.Label(
+                janela_progresso,
+                text="🌐 Exportando para GEDUC",
+                font=("Arial", 14, "bold"),
+                bg=self.co5,
+                fg=self.co1
+            ).pack(fill="x", pady=(0, 10))
+            
+            # Área de log
+            frame_log = tk.Frame(janela_progresso)
+            frame_log.pack(fill="both", expand=True, padx=10, pady=10)
+            
+            text_log = tk.Text(frame_log, height=12, font=("Consolas", 9), bg="white", fg="black", wrap=tk.WORD)
+            text_log.pack(side="left", fill="both", expand=True)
+            
+            scrollbar = tk.Scrollbar(frame_log, command=text_log.yview)
+            scrollbar.pack(side="right", fill="y")
+            text_log.config(yscrollcommand=scrollbar.set)
             
             # Barra de progresso
             progresso = ttk.Progressbar(janela_progresso, mode='indeterminate')
             progresso.pack(pady=10, padx=20, fill=tk.X)
             progresso.start(10)
             
-            # Executar exportação em thread separada
+            # Função de callback para atualizar log
+            def atualizar_log(mensagem):
+                text_log.insert(tk.END, f"{mensagem}\n")
+                text_log.see(tk.END)
+                janela_progresso.update()
+            
+            # 7. Executar exportação em thread
             def executar_exportacao():
                 try:
+                    atualizar_log("="*50)
+                    atualizar_log(f"Aluno: {nome_aluno}")
+                    atualizar_log(f"Disciplinas: {len(dados_historico['disciplinas'])}")
+                    atualizar_log("="*50)
+                    atualizar_log("")
+                    
                     # Chamar função de exportação
-                    resultado = exportar_historico_aluno(self.aluno_id)
+                    resultado = exportar_historico_aluno(
+                        aluno_id=self.aluno_id,
+                        usuario_geduc=credenciais['usuario'],
+                        senha_geduc=credenciais['senha'],
+                        dados_historico=dados_historico,
+                        callback_progresso=atualizar_log
+                    )
                     
                     # Atualizar UI
                     self.janela.after(0, lambda: finalizar_exportacao(resultado))
                     
                 except Exception as e:
+                    _logger.exception(f"Erro durante exportação: {e}")
                     self.janela.after(0, lambda: erro_exportacao(str(e)))
             
             def finalizar_exportacao(resultado):
                 progresso.stop()
-                janela_progresso.destroy()
+                atualizar_log("")
+                atualizar_log("="*50)
                 
                 if resultado['sucesso']:
-                    messagebox.showinfo(
-                        "Sucesso",
-                        f"Histórico exportado com sucesso!\n\n"
-                        f"Registros enviados: {resultado.get('registros_enviados', 0)}\n"
-                        f"ID Exportação: {resultado.get('id_exportacao', 'N/A')}"
-                    )
+                    atualizar_log("✅ EXPORTAÇÃO CONCLUÍDA COM SUCESSO!")
+                    atualizar_log(f"Registros enviados: {resultado.get('registros_enviados', 0)}")
+                    atualizar_log(f"Mensagem: {resultado.get('mensagem', 'N/A')}")
+                    atualizar_log("="*50)
+                    
+                    # Botão fechar
+                    tk.Button(
+                        janela_progresso,
+                        text="Fechar",
+                        command=janela_progresso.destroy,
+                        bg=self.co3,
+                        fg=self.co1,
+                        font=("Arial", 10, "bold"),
+                        width=15
+                    ).pack(pady=10)
                 else:
-                    messagebox.showerror(
-                        "Erro na Exportação",
-                        f"Falha ao exportar:\n{resultado.get('erro', 'Erro desconhecido')}"
-                    )
+                    atualizar_log("❌ EXPORTAÇÃO FALHOU!")
+                    atualizar_log(f"Erro: {resultado.get('erro', 'Erro desconhecido')}")
+                    atualizar_log("="*50)
+                    
+                    # Botão fechar
+                    tk.Button(
+                        janela_progresso,
+                        text="Fechar",
+                        command=janela_progresso.destroy,
+                        bg=self.co6,
+                        fg=self.co1,
+                        font=("Arial", 10, "bold"),
+                        width=15
+                    ).pack(pady=10)
             
             def erro_exportacao(mensagem):
                 progresso.stop()
-                janela_progresso.destroy()
-                messagebox.showerror("Erro", f"Erro durante exportação:\n{mensagem}")
+                atualizar_log("")
+                atualizar_log("="*50)
+                atualizar_log("❌ ERRO INESPERADO!")
+                atualizar_log(str(mensagem))
+                atualizar_log("="*50)
+                
+                # Botão fechar
+                tk.Button(
+                    janela_progresso,
+                    text="Fechar",
+                    command=janela_progresso.destroy,
+                    bg=self.co6,
+                    fg=self.co1,
+                    font=("Arial", 10, "bold"),
+                    width=15
+                ).pack(pady=10)
             
             # Iniciar thread
             import threading
@@ -2797,11 +3065,13 @@ class InterfaceHistoricoEscolar:
         except ImportError as e:
             messagebox.showerror(
                 "Módulo não disponível",
-                "O módulo de exportação GEDUC ainda não está implementado.\n\n"
-                "Execute a Fase 1 completa do projeto primeiro."
+                f"O módulo de exportação GEDUC não está disponível.\n\n"
+                f"Erro: {str(e)}\n\n"
+                "Verifique se o arquivo src/exportadores/geduc_exportador.py existe."
             )
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro inesperado: {str(e)}")
+            _logger.exception(f"Erro inesperado: {e}")
+            messagebox.showerror("Erro", f"Erro inesperado:\n{str(e)}")
 
 
 if __name__ == "__main__":
