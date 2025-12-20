@@ -1,0 +1,9 @@
+
+        (function(d, script) {
+            script = d.createElement('script');
+            script.type = 'text/javascript';
+            script.async = true;
+            script.src = 'https://spartezchatfiles.b-cdn.net/app/widget-prod/chat-widget.js?version=ad9710e7';
+            d.getElementsByTagName('body')[0].appendChild(script);
+        }(document));
+        

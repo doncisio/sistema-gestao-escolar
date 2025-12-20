@@ -463,6 +463,10 @@ class InterfaceHistoricoEscolar:
         btn_observacoes = tk.Button(frame_botoes, text="Observações", command=self.gerenciar_observacoes, bg=self.co5, fg=self.co1, width=15)
         btn_observacoes.grid(row=0, column=6, padx=5)
         
+        # Botão para exportar para GEDUC (novo)
+        btn_exportar_geduc = tk.Button(frame_botoes, text="Exportar GEDUC", command=self.exportar_para_geduc, bg="#FF5722", fg=self.co1, width=15)
+        btn_exportar_geduc.grid(row=0, column=7, padx=5)
+        
         # Frame para a tabela de histórico do aluno
         self.frame_historico = tk.LabelFrame(self.janela, text="Histórico do Aluno", padx=10, pady=10)
         self.frame_historico.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
@@ -2708,6 +2712,97 @@ class InterfaceHistoricoEscolar:
         btn_cancelar = tk.Button(frame_botoes, text="Cancelar", command=janela_obs.destroy,
                                bg=self.co0, fg=self.co1, width=15)
         btn_cancelar.pack(side=tk.LEFT, padx=5)
+
+    def exportar_para_geduc(self):
+        """Exportar histórico escolar do aluno selecionado para o GEDUC"""
+        if not self.aluno_id:
+            messagebox.showwarning("Aviso", "Selecione um aluno primeiro!")
+            return
+        
+        # Importar o módulo de exportação
+        try:
+            from src.exportadores.geduc_exportador import exportar_historico_aluno
+            
+            # Confirmar ação
+            aluno_nome = self.aluno_selecionado.get()
+            resposta = messagebox.askyesno(
+                "Confirmar Exportação",
+                f"Deseja exportar o histórico de {aluno_nome} para o GEDUC?\n\n"
+                "Esta ação irá:\n"
+                "1. Conectar ao sistema GEDUC online\n"
+                "2. Enviar todos os registros do histórico\n"
+                "3. Registrar log de exportação\n\n"
+                "Continuar?"
+            )
+            
+            if not resposta:
+                return
+            
+            # Criar janela de progresso
+            janela_progresso = tk.Toplevel(self.janela)
+            janela_progresso.title("Exportando para GEDUC")
+            janela_progresso.geometry("400x150")
+            janela_progresso.transient(self.janela)
+            janela_progresso.grab_set()
+            
+            # Label de status
+            lbl_status = tk.Label(janela_progresso, text="Conectando ao GEDUC...", 
+                                 font=("Arial", 10))
+            lbl_status.pack(pady=20)
+            
+            # Barra de progresso
+            progresso = ttk.Progressbar(janela_progresso, mode='indeterminate')
+            progresso.pack(pady=10, padx=20, fill=tk.X)
+            progresso.start(10)
+            
+            # Executar exportação em thread separada
+            def executar_exportacao():
+                try:
+                    # Chamar função de exportação
+                    resultado = exportar_historico_aluno(self.aluno_id)
+                    
+                    # Atualizar UI
+                    self.janela.after(0, lambda: finalizar_exportacao(resultado))
+                    
+                except Exception as e:
+                    self.janela.after(0, lambda: erro_exportacao(str(e)))
+            
+            def finalizar_exportacao(resultado):
+                progresso.stop()
+                janela_progresso.destroy()
+                
+                if resultado['sucesso']:
+                    messagebox.showinfo(
+                        "Sucesso",
+                        f"Histórico exportado com sucesso!\n\n"
+                        f"Registros enviados: {resultado.get('registros_enviados', 0)}\n"
+                        f"ID Exportação: {resultado.get('id_exportacao', 'N/A')}"
+                    )
+                else:
+                    messagebox.showerror(
+                        "Erro na Exportação",
+                        f"Falha ao exportar:\n{resultado.get('erro', 'Erro desconhecido')}"
+                    )
+            
+            def erro_exportacao(mensagem):
+                progresso.stop()
+                janela_progresso.destroy()
+                messagebox.showerror("Erro", f"Erro durante exportação:\n{mensagem}")
+            
+            # Iniciar thread
+            import threading
+            thread = threading.Thread(target=executar_exportacao, daemon=True)
+            thread.start()
+            
+        except ImportError as e:
+            messagebox.showerror(
+                "Módulo não disponível",
+                "O módulo de exportação GEDUC ainda não está implementado.\n\n"
+                "Execute a Fase 1 completa do projeto primeiro."
+            )
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro inesperado: {str(e)}")
+
 
 if __name__ == "__main__":
     app = InterfaceHistoricoEscolar()
