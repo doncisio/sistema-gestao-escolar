@@ -302,22 +302,85 @@ class AutomacaoGEDUC:
         """
         try:
             assert self.driver is not None, "navegador não iniciado"
-            select_element = Select(self.driver.find_element(By.NAME, select_name))
+
+            # Estratégia 1: encontrar por NAME (mais comum)
+            try:
+                select_element = Select(self.driver.find_element(By.NAME, select_name))
+            except Exception:
+                select_element = None
+
+            # Estratégia 2: encontrar por CSS parcial no name/id
+            if select_element is None:
+                try:
+                    select_elem = self.driver.find_element(By.CSS_SELECTOR, f"select[name*='{select_name}']")
+                    select_element = Select(select_elem)
+                except Exception:
+                    select_element = None
+
+            if select_element is None:
+                try:
+                    select_elem = self.driver.find_element(By.CSS_SELECTOR, f"select[id*='{select_name}']")
+                    select_element = Select(select_elem)
+                except Exception:
+                    select_element = None
+
+            # Estratégia 3: vasculhar todos os <select> e tentar identificar pelo atributo name/id
+            if select_element is None:
+                try:
+                    selects = self.driver.find_elements(By.TAG_NAME, 'select')
+                    for s in selects:
+                        name_attr = s.get_attribute('name') or ''
+                        id_attr = s.get_attribute('id') or ''
+                        if select_name.lower() in name_attr.lower() or select_name.lower() in id_attr.lower():
+                            select_element = Select(s)
+                            break
+                except Exception:
+                    select_element = None
+
+            # Estratégia 4: fallback com BeautifulSoup (quando Selenium não encontra por atributos)
             opcoes = []
-            
-            for option in select_element.options:
-                valor = option.get_attribute('value')
-                texto = option.text.strip()
-                
-                # Pular opções vazias ou de instrução
-                if valor and valor != '' and not texto.startswith('---'):
-                    opcoes.append({
-                        'value': valor,
-                        'text': texto
-                    })
-            
+            if select_element is None:
+                try:
+                    html = self.driver.page_source
+                    soup = BeautifulSoup(html, 'html.parser')
+                    # Procurar selects cujo name/id contenha select_name
+                    candidates = []
+                    for s in soup.find_all('select'):
+                        name_attr = s.get('name') or ''
+                        id_attr = s.get('id') or ''
+                        if select_name.lower() in name_attr.lower() or select_name.lower() in id_attr.lower():
+                            candidates.append(s)
+
+                    # Se não encontrou por atributo, pegar selects com opções não-vazias
+                    if not candidates:
+                        for s in soup.find_all('select'):
+                            opts = s.find_all('option')
+                            if opts and len(opts) > 1:
+                                candidates.append(s)
+
+                    # Extrair opções do primeiro candidato
+                    if candidates:
+                        s = candidates[0]
+                        for opt in s.find_all('option'):
+                            valor = opt.get('value')
+                            texto = (opt.text or '').strip()
+                            if valor and valor != '' and not texto.startswith('---'):
+                                opcoes.append({'value': valor, 'text': texto})
+                        return opcoes
+                except Exception as e:
+                    logger.exception("✗ Erro no fallback BeautifulSoup para select '%s': %s", select_name, e)
+
+            # Se temos um Select via Selenium, extrair opções
+            if select_element is not None:
+                for option in select_element.options:
+                    valor = option.get_attribute('value')
+                    texto = option.text.strip()
+                    # Pular opções vazias ou de instrução
+                    if valor and valor != '' and not texto.startswith('---'):
+                        opcoes.append({'value': valor, 'text': texto})
+
             return opcoes
-            
+
         except Exception as e:
             logger.exception("✗ Erro ao obter opções do select '%s': %s", select_name, e)
             return []

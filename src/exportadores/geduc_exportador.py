@@ -20,8 +20,152 @@ import unicodedata
 
 from src.importadores.geduc import AutomacaoGEDUC
 from src.core.config_logs import get_logger
+from db.connection import get_connection
 
 logger = get_logger(__name__)
+
+
+class MapeadorGEDUC:
+    """
+    Helper para mapear IDs entre sistema local e GEDUC
+    """
+    
+    def __init__(self, conexao=None):
+        """
+        Inicializa mapeador
+        
+        Args:
+            conexao: Conexão MySQL (se None, cria nova)
+        """
+        # aceitar uma conexão já aberta ou usar get_connection() quando necessário
+        self.conexao = conexao
+        self._cache = {}
+    
+    def obter_id_geduc(self, tipo: str, id_local: int) -> Optional[int]:
+        """
+        Obtém ID do GEDUC a partir do ID local
+        
+        Args:
+            tipo: Tipo de dado ('escola', 'disciplina', 'serie', etc.)
+            id_local: ID no sistema local
+            
+        Returns:
+            ID correspondente no GEDUC ou None se não encontrado
+        """
+        cache_key = f"{tipo}_{id_local}"
+        
+        # Verificar cache
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+        
+        try:
+            if self.conexao is not None:
+                cursor = self.conexao.cursor(dictionary=True)
+                cursor.execute(
+                    """
+                    SELECT id_geduc 
+                    FROM mapeamento_geduc 
+                    WHERE tipo = %s AND id_local = %s
+                    LIMIT 1
+                    """,
+                    (tipo, id_local)
+                )
+                resultado = cursor.fetchone()
+            else:
+                with get_connection() as conn:
+                    cursor = conn.cursor(dictionary=True)
+                    cursor.execute(
+                        """
+                        SELECT id_geduc 
+                        FROM mapeamento_geduc 
+                        WHERE tipo = %s AND id_local = %s
+                        LIMIT 1
+                        """,
+                        (tipo, id_local)
+                    )
+                    resultado = cursor.fetchone()
+
+            if resultado:
+                id_geduc = resultado['id_geduc']
+                self._cache[cache_key] = id_geduc
+                return id_geduc
+            else:
+                logger.warning(f"Mapeamento não encontrado: {tipo} ID local {id_local}")
+                return None
+        except Exception as e:
+            logger.error(f"Erro ao buscar mapeamento {tipo}/{id_local}: {e}")
+            return None
+    
+    def obter_nome_geduc(self, tipo: str, id_local: int) -> Optional[str]:
+        """
+        Obtém nome do GEDUC a partir do ID local
+        """
+        cache_key = f"{tipo}_{id_local}_nome"
+        
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+        
+        try:
+            if self.conexao is not None:
+                cursor = self.conexao.cursor(dictionary=True)
+                cursor.execute(
+                    """
+                    SELECT nome_geduc 
+                    FROM mapeamento_geduc 
+                    WHERE tipo = %s AND id_local = %s
+                    LIMIT 1
+                    """,
+                    (tipo, id_local)
+                )
+                resultado = cursor.fetchone()
+            else:
+                with get_connection() as conn:
+                    cursor = conn.cursor(dictionary=True)
+                    cursor.execute(
+                        """
+                        SELECT nome_geduc 
+                        FROM mapeamento_geduc 
+                        WHERE tipo = %s AND id_local = %s
+                        LIMIT 1
+                        """,
+                        (tipo, id_local)
+                    )
+                    resultado = cursor.fetchone()
+
+            if resultado:
+                nome = resultado['nome_geduc']
+                self._cache[cache_key] = nome
+                return nome
+            else:
+                return None
+        except Exception as e:
+            logger.error(f"Erro ao buscar nome {tipo}/{id_local}: {e}")
+            return None
+    
+    def mapear_disciplinas(self, disciplinas_local: List[int]) -> Dict[int, int]:
+        """
+        Mapeia lista de IDs de disciplinas locais para GEDUC
+        
+        Args:
+            disciplinas_local: Lista de IDs locais
+            
+        Returns:
+            Dicionário {id_local: id_geduc}
+        """
+        mapeamento = {}
+        
+        for id_local in disciplinas_local:
+            id_geduc = self.obter_id_geduc('disciplina', id_local)
+            if id_geduc:
+                mapeamento[id_local] = id_geduc
+        
+        return mapeamento
+    
+    def validar_mapeamento(self, tipo: str, id_local: int) -> bool:
+        """
+        Verifica se existe mapeamento para um ID local
+        """
+        return self.obter_id_geduc(tipo, id_local) is not None
 
 
 class ExportadorGEDUC(AutomacaoGEDUC):
@@ -39,14 +183,16 @@ class ExportadorGEDUC(AutomacaoGEDUC):
     - Validar submissão
     """
     
-    def __init__(self, headless=False):
+    def __init__(self, headless=False, conexao=None):
         """
         Inicializa exportador
         
         Args:
             headless: Se True, executa navegador em modo headless
+            conexao: Conexão com banco de dados (para mapeamento)
         """
         super().__init__(headless=headless)
+        self.mapeador = MapeadorGEDUC(conexao=conexao)
         logger.info("Exportador GEDUC inicializado")
     
     @staticmethod

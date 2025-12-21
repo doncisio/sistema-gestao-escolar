@@ -1,0 +1,481 @@
+{
+  "extraido_em": null,
+  "escolas": [
+    {
+      "id_local": 60,
+      "nome_local": "Escola Municipal Profª Nadir Nascimento Moraes",
+      "id_geduc": 1384,
+      "nome_geduc": "EM PROFª NADIR NASCIMENTO MORAES",
+      "similaridade": "82.1%",
+      "detalhes_geduc": {
+        "NOME": "EM PROFª NADIR NASCIMENTO MORAES",
+        "ENDERECO": "RUA 65",
+        "CODIGOINEP": "21008485",
+        "TELEFONE": "98867-4132",
+        "CEP": "65.130-000",
+        "BAIRRO": "MAIOBÃO",
+        "REGIAO": "POLO V - MAIOBÃO II",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 7,
+      "nome_local": "UEB Bandeira Tribuzzi",
+      "id_geduc": 1326,
+      "nome_geduc": "EM BANDEIRA TRIBUZZI",
+      "similaridade": "92.7%",
+      "detalhes_geduc": {
+        "NOME": "EM BANDEIRA TRIBUZZI",
+        "ENDERECO": "AVENIDA 13, RUA 36, QUADRA 140",
+        "CODIGOINEP": "21008671",
+        "TELEFONE": "98910-5583",
+        "CEP": "65.130-000",
+        "BAIRRO": "MAIOBÃO",
+        "REGIAO": "POLO VI - MAIOBÃO III",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 59,
+      "nome_local": "UEB Criança Feliz",
+      "id_geduc": 1331,
+      "nome_geduc": "EM CRIANCA FELIZ",
+      "similaridade": "90.9%",
+      "detalhes_geduc": {
+        "NOME": "EM CRIANCA FELIZ",
+        "ENDERECO": "TV 5",
+        "CODIGOINEP": "21532680",
+        "TELEFONE": "98840-5371",
+        "CEP": "65.130-000",
+        "BAIRRO": "VILA SAO JOSE II",
+        "REGIAO": "POLO X - VILA SÃO JOSÉ",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 75,
+      "nome_local": "UEB Lêda Tajra",
+      "id_geduc": 1359,
+      "nome_geduc": "EM LEDA TAJRA",
+      "similaridade": "88.9%",
+      "detalhes_geduc": {
+        "NOME": "EM LEDA TAJRA",
+        "ENDERECO": "PRACA NOSSA SENHORA DA LUZ, SEDE",
+        "CODIGOINEP": "21007950",
+        "TELEFONE": "98704-3324",
+        "CEP": "65.130-000",
+        "BAIRRO": "CENTRO",
+        "REGIAO": "POLO I - SEDE",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 12,
+      "nome_local": "UEB Lima Verde",
+      "id_geduc": 1361,
+      "nome_geduc": "EM LIMA VERDE",
+      "similaridade": "88.9%",
+      "detalhes_geduc": {
+        "NOME": "EM LIMA VERDE",
+        "ENDERECO": "RUA DA ATA",
+        "CODIGOINEP": "21536678",
+        "TELEFONE": "99974-1415",
+        "CEP": "65.130-000",
+        "BAIRRO": "LIMA VERDE",
+        "REGIAO": "POLO IV - MAIOBÃO I",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 45,
+      "nome_local": "UEB Mickey Mouse",
+      "id_geduc": 1365,
+      "nome_geduc": "EM MICKEY MOUSE",
+      "similaridade": "90.3%",
+      "detalhes_geduc": {
+        "NOME": "EM MICKEY MOUSE",
+        "ENDERECO": "RUA DO PEDREIRO, QD 07",
+        "CODIGOINEP": "21261016",
+        "TELEFONE": "98833-8560",
+        "CEP": "65.130-000",
+        "BAIRRO": "CONJUNTO ROSEANA SARNEY",
+        "REGIAO": "POLO VII - VILA CAFETEIRA",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 11,
+      "nome_local": "UEB Padre Maurice Lacroix",
+      "id_geduc": 1373,
+      "nome_geduc": "EM PADRE MAURICE LACROIX",
+      "similaridade": "93.9%",
+      "detalhes_geduc": {
+        "NOME": "EM PADRE MAURICE LACROIX",
+        "ENDERECO": "AVENIDA JUSCELINO RESENDE",
+        "CODIGOINEP": "21245150",
+        "TELEFONE": "98800-8887",
+        "CEP": "65.130-000",
+        "BAIRRO": "VILA SÃO JOSE I",
+        "REGIAO": "POLO X - VILA SÃO JOSÉ",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 6,
+      "nome_local": "UEB Padre Maurício",
+      "id_geduc": 1374,
+      "nome_geduc": "EM PADRE MAURICIO",
+      "similaridade": "91.4%",
+      "detalhes_geduc": {
+        "NOME": "EM PADRE MAURICIO",
+        "ENDERECO": "RUA 61, QUADRA 123",
+        "CODIGOINEP": "21270627",
+        "TELEFONE": "98556-1135",
+        "CEP": "65.130-000",
+        "BAIRRO": "MAIOBÃO",
+        "REGIAO": "POLO IV - MAIOBÃO I",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 26,
+      "nome_local": "UEB Padre Maurício",
+      "id_geduc": 1374,
+      "nome_geduc": "EM PADRE MAURICIO",
+      "similaridade": "91.4%",
+      "detalhes_geduc": {
+        "NOME": "EM PADRE MAURICIO",
+        "ENDERECO": "RUA 61, QUADRA 123",
+        "CODIGOINEP": "21270627",
+        "TELEFONE": "98556-1135",
+        "CEP": "65.130-000",
+        "BAIRRO": "MAIOBÃO",
+        "REGIAO": "POLO IV - MAIOBÃO I",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 30,
+      "nome_local": "UEB Pão da Vida",
+      "id_geduc": 1376,
+      "nome_geduc": "EM PAO DA VIDA",
+      "similaridade": "89.7%",
+      "detalhes_geduc": {
+        "NOME": "EM PAO DA VIDA",
+        "ENDERECO": "AV. IR BIONDAN",
+        "CODIGOINEP": "21288003",
+        "TELEFONE": "98846-8840",
+        "CEP": "65.130-000",
+        "BAIRRO": "VILA CAFETEIRA ",
+        "REGIAO": "POLO VII - VILA CAFETEIRA",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 99,
+      "nome_local": "UEB Poeta Gonçalves Dias",
+      "id_geduc": 1379,
+      "nome_geduc": "EM POETA GONÇALVES DIAS",
+      "similaridade": "93.6%",
+      "detalhes_geduc": {
+        "NOME": "EM POETA GONÇALVES DIAS",
+        "ENDERECO": "AVENIDA 13",
+        "CODIGOINEP": "21007438",
+        "TELEFONE": "99969-6694",
+        "CEP": "65.130-000",
+        "BAIRRO": "LUIZ FERNANDO",
+        "REGIAO": "POLO VII - VILA CAFETEIRA",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 89,
+      "nome_local": "UEB Poeta Gonçalves Dias - CAIC",
+      "id_geduc": 1379,
+      "nome_geduc": "EM POETA GONÇALVES DIAS",
+      "similaridade": "81.5%",
+      "detalhes_geduc": {
+        "NOME": "EM POETA GONÇALVES DIAS",
+        "ENDERECO": "AVENIDA 13",
+        "CODIGOINEP": "21007438",
+        "TELEFONE": "99969-6694",
+        "CEP": "65.130-000",
+        "BAIRRO": "LUIZ FERNANDO",
+        "REGIAO": "POLO VII - VILA CAFETEIRA",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 28,
+      "nome_local": "UEB Profª Maria de Lourdes Carvalho Silva",
+      "id_geduc": 1386,
+      "nome_geduc": "EM PROFª MARIA DE LOURDES CARVALHO SILVA",
+      "similaridade": "96.3%",
+      "detalhes_geduc": {
+        "NOME": "EM PROFª MARIA DE LOURDES CARVALHO SILVA",
+        "ENDERECO": "PRACA NOSSO SENHORA DA LUZ",
+        "CODIGOINEP": "21285047",
+        "TELEFONE": "98176-9371",
+        "CEP": "65.130-000",
+        "BAIRRO": "CENTRO",
+        "REGIAO": "POLO I - SEDE",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 3,
+      "nome_local": "UEB Profª Nadir Nascimento Moraes",
+      "id_geduc": 1384,
+      "nome_geduc": "EM PROFª NADIR NASCIMENTO MORAES",
+      "similaridade": "95.4%",
+      "detalhes_geduc": {
+        "NOME": "EM PROFª NADIR NASCIMENTO MORAES",
+        "ENDERECO": "RUA 65",
+        "CODIGOINEP": "21008485",
+        "TELEFONE": "98867-4132",
+        "CEP": "65.130-000",
+        "BAIRRO": "MAIOBÃO",
+        "REGIAO": "POLO V - MAIOBÃO II",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 4,
+      "nome_local": "UEB Profº José Maria Ramos Martins",
+      "id_geduc": 1382,
+      "nome_geduc": "EM PROF. JOSE MARIA RAMOS MARTINS",
+      "similaridade": "92.5%",
+      "detalhes_geduc": {
+        "NOME": "EM PROF. JOSE MARIA RAMOS MARTINS",
+        "ENDERECO": "AV 10, QUADRA109, RUA 73",
+        "CODIGOINEP": "21008582",
+        "TELEFONE": "99607-9611",
+        "CEP": "65.130-000",
+        "BAIRRO": "MAIOBÃO",
+        "REGIAO": "POLO V - MAIOBÃO II",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 76,
+      "nome_local": "UEB Profº José Maria Ramos Martins",
+      "id_geduc": 1382,
+      "nome_geduc": "EM PROF. JOSE MARIA RAMOS MARTINS",
+      "similaridade": "92.5%",
+      "detalhes_geduc": {
+        "NOME": "EM PROF. JOSE MARIA RAMOS MARTINS",
+        "ENDERECO": "AV 10, QUADRA109, RUA 73",
+        "CODIGOINEP": "21008582",
+        "TELEFONE": "99607-9611",
+        "CEP": "65.130-000",
+        "BAIRRO": "MAIOBÃO",
+        "REGIAO": "POLO V - MAIOBÃO II",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 141,
+      "nome_local": "UEB Raio de Luz",
+      "id_geduc": 1387,
+      "nome_geduc": "EM RAIO DE LUZ",
+      "similaridade": "89.7%",
+      "detalhes_geduc": {
+        "NOME": "EM RAIO DE LUZ",
+        "ENDERECO": "RUA OLHO DAGUA",
+        "CODIGOINEP": "21277478",
+        "TELEFONE": "98864-6515",
+        "CEP": "65.130-000",
+        "BAIRRO": "VILA NAZARE",
+        "REGIAO": "POLO V - MAIOBÃO II",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 56,
+      "nome_local": "UEB Tia Dalva",
+      "id_geduc": 1355,
+      "nome_geduc": "EM TIA DALVA",
+      "similaridade": "88.0%",
+      "detalhes_geduc": {
+        "NOME": "EM TIA DALVA",
+        "ENDERECO": "AV. CARLOS AUGUSTO",
+        "CODIGOINEP": "21256446",
+        "TELEFONE": "98328-9415",
+        "CEP": "65.130-000",
+        "BAIRRO": "RESIDENCIAL CARLOS AUGUSTO",
+        "REGIAO": "POLO VII - VILA CAFETEIRA",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 88,
+      "nome_local": "UEB Tia Marly",
+      "id_geduc": 1351,
+      "nome_geduc": "EM TIA MARLY",
+      "similaridade": "88.0%",
+      "detalhes_geduc": {
+        "NOME": "EM TIA MARLY",
+        "ENDERECO": "RUA SAO JORGE",
+        "CODIGOINEP": "21260974",
+        "TELEFONE": "97006-9736",
+        "CEP": "65.130-000",
+        "BAIRRO": "AGROVILA PEDRO CARECA",
+        "REGIAO": "POLO I - SEDE",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 2,
+      "nome_local": "UEB Vereador José Ribamar Coelho",
+      "id_geduc": 1348,
+      "nome_geduc": "EM VER. JOSE RIBAMAR COELHO",
+      "similaridade": "84.7%",
+      "detalhes_geduc": {
+        "NOME": "EM VER. JOSE RIBAMAR COELHO",
+        "ENDERECO": "AV. PRINCIPAL",
+        "CODIGOINEP": "21008540",
+        "TELEFONE": "98842-0892",
+        "CEP": "65.130-000",
+        "BAIRRO": "PAU DEITADO",
+        "REGIAO": "POLO III - PAU DEITADO",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 8,
+      "nome_local": "UEB Vereador Raimundo Romualdo",
+      "id_geduc": 1350,
+      "nome_geduc": "EM VER. RAIMUNDO ROMUALDO",
+      "similaridade": "83.6%",
+      "detalhes_geduc": {
+        "NOME": "EM VER. RAIMUNDO ROMUALDO",
+        "ENDERECO": "AV 14, QUADRA  02",
+        "CODIGOINEP": "21008310",
+        "TELEFONE": "98818-4703",
+        "CEP": "65.130-000",
+        "BAIRRO": "MAIOBÃO",
+        "REGIAO": "POLO IV - MAIOBÃO I",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 156,
+      "nome_local": "UEB Vila São José",
+      "id_geduc": 1345,
+      "nome_geduc": "EM VILA SAO JOSE",
+      "similaridade": "90.9%",
+      "detalhes_geduc": {
+        "NOME": "EM VILA SAO JOSE",
+        "ENDERECO": "AVENIDA PRESIDENTE JOSE SARNEY",
+        "CODIGOINEP": "21008647",
+        "TELEFONE": "98889-3463",
+        "CEP": "65.130-000",
+        "BAIRRO": "VILA SÃO JOSÉ",
+        "REGIAO": "POLO X - VILA SÃO JOSÉ",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 32,
+      "nome_local": "UEB Vovó Filuca",
+      "id_geduc": 1344,
+      "nome_geduc": "EM VOVO FILUCA",
+      "similaridade": "89.7%",
+      "detalhes_geduc": {
+        "NOME": "EM VOVO FILUCA",
+        "ENDERECO": "RUA 03",
+        "CODIGOINEP": "21216126",
+        "TELEFONE": "98865-6787",
+        "CEP": "65.130-000",
+        "BAIRRO": "NOVO PAÇO",
+        "REGIAO": "POLO VII - VILA CAFETEIRA",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 157,
+      "nome_local": "UEB Vovô João",
+      "id_geduc": 1343,
+      "nome_geduc": "EM VOVO JOAO",
+      "similaridade": "88.0%",
+      "detalhes_geduc": {
+        "NOME": "EM VOVO JOAO",
+        "ENDERECO": "AVENIDA 04, CONVENTO NOSSA SENHORA DA PURIFICACAO",
+        "CODIGOINEP": "21263582",
+        "TELEFONE": "99905-2738",
+        "CEP": "65.130-000",
+        "BAIRRO": "MAIOBÃO",
+        "REGIAO": "POLO V - MAIOBÃO II",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 34,
+      "nome_local": "UEBI Alana Ludmila",
+      "id_geduc": 1341,
+      "nome_geduc": "EMI ALANA LUDMILA",
+      "similaridade": "91.4%",
+      "detalhes_geduc": {
+        "NOME": "EMI ALANA LUDMILA",
+        "ENDERECO": "RUA 43 QUADRA 43",
+        "CODIGOINEP": "21008698",
+        "TELEFONE": "98347-2764",
+        "CEP": "65.130-000",
+        "BAIRRO": "MAIOBÃO",
+        "REGIAO": "POLO V - MAIOBÃO II",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 77,
+      "nome_local": "UI Ministro Henrique de La Roque",
+      "id_geduc": 1366,
+      "nome_geduc": "EM MIN. HENRIQUE DE LA ROQUE",
+      "similaridade": "83.3%",
+      "detalhes_geduc": {
+        "NOME": "EM MIN. HENRIQUE DE LA ROQUE",
+        "ENDERECO": "RUA 12 QUADRA 88",
+        "CODIGOINEP": "21008663",
+        "TELEFONE": "",
+        "CEP": "",
+        "BAIRRO": "MAIOBÃO",
+        "REGIAO": "POLO VI - MAIOBÃO III",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 13,
+      "nome_local": "UI Profª Nadir Nascimento Moraes",
+      "id_geduc": 1384,
+      "nome_geduc": "EM PROFª NADIR NASCIMENTO MORAES",
+      "similaridade": "93.8%",
+      "detalhes_geduc": {
+        "NOME": "EM PROFª NADIR NASCIMENTO MORAES",
+        "ENDERECO": "RUA 65",
+        "CODIGOINEP": "21008485",
+        "TELEFONE": "98867-4132",
+        "CEP": "65.130-000",
+        "BAIRRO": "MAIOBÃO",
+        "REGIAO": "POLO V - MAIOBÃO II",
+        "IDREGIAO": null
+      }
+    },
+    {
+      "id_local": 160,
+      "nome_local": "UI Profº José Maria Ramos Martins",
+      "id_geduc": 1382,
+      "nome_geduc": "EM PROF. JOSE MARIA RAMOS MARTINS",
+      "similaridade": "90.9%",
+      "detalhes_geduc": {
+        "NOME": "EM PROF. JOSE MARIA RAMOS MARTINS",
+        "ENDERECO": "AV 10, QUADRA109, RUA 73",
+        "CODIGOINEP": "21008582",
+        "TELEFONE": "99607-9611",
+        "CEP": "65.130-000",
+        "BAIRRO": "MAIOBÃO",
+        "REGIAO": "POLO V - MAIOBÃO II",
+        "IDREGIAO": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,522 @@
+{
+  "data_extracao": "2025-12-21T11:14:06.634573",
+  "escolas": [
+    {
+      "id_geduc": 1318,
+      "nome": "CMCB 02 DE JULHO UNIDADE XII - PARANÃ"
+    },
+    {
+      "id_geduc": 1319,
+      "nome": "CMCB 02 DE JULHO UNIDADE XLI - MONTEIRO LOBATO"
+    },
+    {
+      "id_geduc": 1320,
+      "nome": "CMCB 02 DE JULHO UNIDADE XLII - TÁCITO CALDAS"
+    },
+    {
+      "id_geduc": 1321,
+      "nome": "CMCB 02 DE JULHO UNIDADE XLIII - VER. JOSE"
+    },
+    {
+      "id_geduc": 1316,
+      "nome": "CMI GERALDA MELO"
+    },
+    {
+      "id_geduc": 1317,
+      "nome": "CMI SEBASTIANA SOBREIRO OLIVEIRA"
+    },
+    {
+      "id_geduc": 1322,
+      "nome": "EM ALCILENE MORAES"
+    },
+    {
+      "id_geduc": 1323,
+      "nome": "EM ALTO DA ESPERANCA"
+    },
+    {
+      "id_geduc": 1324,
+      "nome": "EM ALTO DO LARANJAL"
+    },
+    {
+      "id_geduc": 1325,
+      "nome": "EM ANA MARIA CORDEIRO DE SOUSA"
+    },
+    {
+      "id_geduc": 1326,
+      "nome": "EM BANDEIRA TRIBUZZI"
+    },
+    {
+      "id_geduc": 1327,
+      "nome": "EM BENJAMIN PEIXOTO"
+    },
+    {
+      "id_geduc": 1328,
+      "nome": "EM BOB KENNEDY"
+    },
+    {
+      "id_geduc": 1329,
+      "nome": "EM CEFRAN"
+    },
+    {
+      "id_geduc": 1330,
+      "nome": "EM CIDADE VERDE"
+    },
+    {
+      "id_geduc": 1331,
+      "nome": "EM CRIANCA FELIZ"
+    },
+    {
+      "id_geduc": 1332,
+      "nome": "EM CUMBIQUE"
+    },
+    {
+      "id_geduc": 1333,
+      "nome": "EM DRª FATIMA OLIVEIRA"
+    },
+    {
+      "id_geduc": 1334,
+      "nome": "EM EDITH RIBEIRO"
+    },
+    {
+      "id_geduc": 1388,
+      "nome": "EM ELIAS FERREIRA"
+    },
+    {
+      "id_geduc": 1335,
+      "nome": "EM EMMANUEL AROSO"
+    },
+    {
+      "id_geduc": 1336,
+      "nome": "EM EUGENIO PEREIRA"
+    },
+    {
+      "id_geduc": 1337,
+      "nome": "EM GIRASSOL"
+    },
+    {
+      "id_geduc": 1338,
+      "nome": "EM GOVERNADOR LUIZ ROCHA"
+    },
+    {
+      "id_geduc": 1339,
+      "nome": "EM IGUAIBA"
+    },
+    {
+      "id_geduc": 1340,
+      "nome": "EM ISABEL FERREIRA"
+    },
+    {
+      "id_geduc": 1352,
+      "nome": "EM JOAO DE ASSIS MORAES"
+    },
+    {
+      "id_geduc": 1354,
+      "nome": "EM JOAO GALBERTO SOUZA REIS"
+    },
+    {
+      "id_geduc": 1356,
+      "nome": "EM JOSE RAIMUNDO RUBIM"
+    },
+    {
+      "id_geduc": 1359,
+      "nome": "EM LEDA TAJRA"
+    },
+    {
+      "id_geduc": 1360,
+      "nome": "EM LIBERALINO DE JESUS PEREIRA"
+    },
+    {
+      "id_geduc": 1361,
+      "nome": "EM LIMA VERDE"
+    },
+    {
+      "id_geduc": 1362,
+      "nome": "EM LUIS PIRES DA FONSECA"
+    },
+    {
+      "id_geduc": 1363,
+      "nome": "EM MARIA DO PERPETUO SOCORRO"
+    },
+    {
+      "id_geduc": 1364,
+      "nome": "EM MARIA FERREIRA"
+    },
+    {
+      "id_geduc": 1365,
+      "nome": "EM MICKEY MOUSE"
+    },
+    {
+      "id_geduc": 1366,
+      "nome": "EM MIN. HENRIQUE DE LA ROQUE"
+    },
+    {
+      "id_geduc": 1367,
+      "nome": "EM MORANGUINHO"
+    },
+    {
+      "id_geduc": 1368,
+      "nome": "EM NASCIMENTO MORAES"
+    },
+    {
+      "id_geduc": 1369,
+      "nome": "EM NICOLAU DINO"
+    },
+    {
+      "id_geduc": 1370,
+      "nome": "EM NOVA CANAA"
+    },
+    {
+      "id_geduc": 1371,
+      "nome": "EM O BOM ALUNO"
+    },
+    {
+      "id_geduc": 1372,
+      "nome": "EM OLAVO MELO"
+    },
+    {
+      "id_geduc": 1373,
+      "nome": "EM PADRE MAURICE LACROIX"
+    },
+    {
+      "id_geduc": 1374,
+      "nome": "EM PADRE MAURICIO"
+    },
+    {
+      "id_geduc": 1375,
+      "nome": "EM PADRE PAULO SAMPAIO"
+    },
+    {
+      "id_geduc": 1376,
+      "nome": "EM PAO DA VIDA"
+    },
+    {
+      "id_geduc": 1377,
+      "nome": "EM PARQUE HORIZONTE"
+    },
+    {
+      "id_geduc": 1378,
+      "nome": "EM PAULO FREIRE"
+    },
+    {
+      "id_geduc": 1379,
+      "nome": "EM POETA GONÇALVES DIAS"
+    },
+    {
+      "id_geduc": 1380,
+      "nome": "EM PRINCIPE MENOR"
+    },
+    {
+      "id_geduc": 1381,
+      "nome": "EM PROF. CARLOS CUNHA"
+    },
+    {
+      "id_geduc": 1382,
+      "nome": "EM PROF. JOSE MARIA RAMOS MARTINS"
+    },
+    {
+      "id_geduc": 1385,
+      "nome": "EM PROFª CONCEICAO COSTA"
+    },
+    {
+      "id_geduc": 1383,
+      "nome": "EM PROFª MARIA CAETANA COSTA"
+    },
+    {
+      "id_geduc": 1386,
+      "nome": "EM PROFª MARIA DE LOURDES CARVALHO SILVA"
+    },
+    {
+      "id_geduc": 1384,
+      "nome": "EM PROFª NADIR NASCIMENTO MORAES"
+    },
+    {
+      "id_geduc": 1387,
+      "nome": "EM RAIO DE LUZ"
+    },
+    {
+      "id_geduc": 1358,
+      "nome": "EM RESIDENCIAL PIRAMIDE"
+    },
+    {
+      "id_geduc": 1357,
+      "nome": "EM ROBERTO MACIEIRA"
+    },
+    {
+      "id_geduc": 1355,
+      "nome": "EM TIA DALVA"
+    },
+    {
+      "id_geduc": 1353,
+      "nome": "EM TIA DEDE"
+    },
+    {
+      "id_geduc": 1351,
+      "nome": "EM TIA MARLY"
+    },
+    {
+      "id_geduc": 1349,
+      "nome": "EM VER. FRANCISCO OLIVEIRA DIAS"
+    },
+    {
+      "id_geduc": 1348,
+      "nome": "EM VER. JOSE RIBAMAR COELHO"
+    },
+    {
+      "id_geduc": 1347,
+      "nome": "EM VER. JOSE VICENTE PIRES SAMPAIO"
+    },
+    {
+      "id_geduc": 1350,
+      "nome": "EM VER. RAIMUNDO ROMUALDO"
+    },
+    {
+      "id_geduc": 1346,
+      "nome": "EM VILA DO POVO"
+    },
+    {
+      "id_geduc": 1345,
+      "nome": "EM VILA SAO JOSE"
+    },
+    {
+      "id_geduc": 1344,
+      "nome": "EM VOVO FILUCA"
+    },
+    {
+      "id_geduc": 1343,
+      "nome": "EM VOVO JOAO"
+    },
+    {
+      "id_geduc": 1342,
+      "nome": "EM Y JUCA PIRAMA"
+    },
+    {
+      "id_geduc": 1341,
+      "nome": "EMI ALANA LUDMILA"
+    },
+    {
+      "id_geduc": 1,
+      "nome": "SEMED - SECRETARIA MUNICIPAL DE EDUCACAO"
+    }
+  ],
+  "disciplinas": [],
+  "cursos": [
+    {
+      "id_geduc": 1,
+      "nome": "TECNOLOGO"
+    },
+    {
+      "id_geduc": 2,
+      "nome": "GRADUAÇÃO"
+    },
+    {
+      "id_geduc": 3,
+      "nome": "PÓS-GRADUAÇÃO"
+    },
+    {
+      "id_geduc": 4,
+      "nome": "MESTRADO"
+    },
+    {
+      "id_geduc": 5,
+      "nome": "ENSINO MEDIO"
+    },
+    {
+      "id_geduc": 6,
+      "nome": "ENSINO FUNDAMENTAL I"
+    },
+    {
+      "id_geduc": 7,
+      "nome": "EDUCACAO INFANTIL"
+    },
+    {
+      "id_geduc": 8,
+      "nome": "ENSINO FUNDAMENTAL II"
+    },
+    {
+      "id_geduc": 9,
+      "nome": "MATERNAL"
+    },
+    {
+      "id_geduc": 10,
+      "nome": "CURSO LIVRE"
+    },
+    {
+      "id_geduc": 11,
+      "nome": "EJA"
+    }
+  ],
+  "curriculos": [],
+  "series": [
+    {
+      "id_geduc": 4,
+      "nome": "1º ANO"
+    },
+    {
+      "id_geduc": 17,
+      "nome": "1º/2º/3º ANO EJAI"
+    },
+    {
+      "id_geduc": 7,
+      "nome": "2º ANO"
+    },
+    {
+      "id_geduc": 8,
+      "nome": "3º ANO"
+    },
+    {
+      "id_geduc": 10,
+      "nome": "4º ANO"
+    },
+    {
+      "id_geduc": 22,
+      "nome": "4º/5º ANO EJAI"
+    },
+    {
+      "id_geduc": 12,
+      "nome": "5º ANO"
+    },
+    {
+      "id_geduc": 13,
+      "nome": "6º ANO"
+    },
+    {
+      "id_geduc": 23,
+      "nome": "6º/7º ANO EJAI"
+    },
+    {
+      "id_geduc": 14,
+      "nome": "7º ANO"
+    },
+    {
+      "id_geduc": 15,
+      "nome": "8º ANO"
+    },
+    {
+      "id_geduc": 24,
+      "nome": "8º/9º ANO EJAI"
+    },
+    {
+      "id_geduc": 16,
+      "nome": "9º ANO"
+    },
+    {
+      "id_geduc": 25,
+      "nome": "BERÇARIO"
+    },
+    {
+      "id_geduc": 31,
+      "nome": "CORREÇÃO DE FLUXO A.F"
+    },
+    {
+      "id_geduc": 30,
+      "nome": "CORREÇÃO DE FLUXO A.I"
+    },
+    {
+      "id_geduc": 32,
+      "nome": "CORREÇÃO DE FLUXO EJA"
+    },
+    {
+      "id_geduc": 2,
+      "nome": "CRECHE II"
+    },
+    {
+      "id_geduc": 18,
+      "nome": "CRECHE III"
+    },
+    {
+      "id_geduc": 3,
+      "nome": "PRÉ I"
+    },
+    {
+      "id_geduc": 1,
+      "nome": "PRÉ II"
+    }
+  ],
+  "turnos": [
+    {
+      "id_geduc": 4,
+      "nome": "1º ANO"
+    },
+    {
+      "id_geduc": 17,
+      "nome": "1º/2º/3º ANO EJAI"
+    },
+    {
+      "id_geduc": 7,
+      "nome": "2º ANO"
+    },
+    {
+      "id_geduc": 8,
+      "nome": "3º ANO"
+    },
+    {
+      "id_geduc": 10,
+      "nome": "4º ANO"
+    },
+    {
+      "id_geduc": 22,
+      "nome": "4º/5º ANO EJAI"
+    },
+    {
+      "id_geduc": 12,
+      "nome": "5º ANO"
+    },
+    {
+      "id_geduc": 13,
+      "nome": "6º ANO"
+    },
+    {
+      "id_geduc": 23,
+      "nome": "6º/7º ANO EJAI"
+    },
+    {
+      "id_geduc": 14,
+      "nome": "7º ANO"
+    },
+    {
+      "id_geduc": 15,
+      "nome": "8º ANO"
+    },
+    {
+      "id_geduc": 24,
+      "nome": "8º/9º ANO EJAI"
+    },
+    {
+      "id_geduc": 16,
+      "nome": "9º ANO"
+    },
+    {
+      "id_geduc": 25,
+      "nome": "BERÇARIO"
+    },
+    {
+      "id_geduc": 31,
+      "nome": "CORREÇÃO DE FLUXO A.F"
+    },
+    {
+      "id_geduc": 30,
+      "nome": "CORREÇÃO DE FLUXO A.I"
+    },
+    {
+      "id_geduc": 32,
+      "nome": "CORREÇÃO DE FLUXO EJA"
+    },
+    {
+      "id_geduc": 2,
+      "nome": "CRECHE II"
+    },
+    {
+      "id_geduc": 18,
+      "nome": "CRECHE III"
+    },
+    {
+      "id_geduc": 3,
+      "nome": "PRÉ I"
+    },
+    {
+      "id_geduc": 1,
+      "nome": "PRÉ II"
+    }
+  ],
+  "tipos_avaliacao": []
+}
