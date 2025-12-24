@@ -335,6 +335,14 @@ class ButtonFactory:
                     font=menu_font
                 )
 
+            # Lista de Controle de Livros (Admin, Coordenador)
+            if is_admin or is_coordenador:
+                listas_menu.add_command(
+                    label="Lista de Controle de Livros",
+                    command=lambda: self._abrir_lista_controle_livros(),
+                    font=menu_font
+                )
+
             listas_menu.add_separator()
 
             # Contatos de Responsáveis (Admin, Coordenador)
@@ -1163,6 +1171,16 @@ class ButtonFactory:
         except Exception as e:
             logger.exception(f"Erro ao abrir documento da escola: {e}")
             messagebox.showerror("Erro ao abrir documento", str(e))
+
+    def _abrir_lista_controle_livros(self):
+        """Abre/gera as listas de controle de livros (recebidos e devolvidos)."""
+        try:
+            from src.relatorios.listas import Lista_controle_livros
+            # Chama a função que gera os dois PDFs
+            Lista_controle_livros.gerar_controle_livros()
+        except Exception as e:
+            logger.exception(f"Erro ao gerar Lista de Controle de Livros: {e}")
+            messagebox.showerror("Erro", f"Erro ao gerar Lista de Controle de Livros: {e}")
     
     def configurar_interface(self):
         """
