@@ -979,7 +979,7 @@ class InterfaceTransicaoAnoLetivo:
                 caminho_pdf = None
                 if not dry_run:
                     try:
-                        from relatorio_transicao import gerar_relatorio_transicao
+                        from scripts.diagnostico.relatorio_transicao import gerar_relatorio_transicao
                         
                         dados_relatorio = {
                             'matriculas_encerradas': matriculas_encerradas,

@@ -154,7 +154,7 @@ class ReportCallbacks:
     def relatorio_tabela_docentes(self):
         """Gera tabela de docentes."""
         try:
-            from tabela_docentes import gerar_tabela_docentes
+            from src.relatorios.tabela_docentes import gerar_tabela_docentes
             gerar_tabela_docentes()
         except Exception as e:
             logger.exception(f"Erro ao gerar relatório: {e}")
@@ -394,7 +394,7 @@ class AdministrativoCallbacks:
     def abrir_horarios_escolares(self):
         """Abre interface de horários escolares."""
         try:
-            from horarios_escolares import InterfaceHorariosEscolares
+            from src.interfaces.horarios_escolares import InterfaceHorariosEscolares
             
             horarios_window = Toplevel(self.janela)
             horarios_window.title("Horários Escolares")
@@ -454,7 +454,7 @@ class AdministrativoCallbacks:
                 return
             
             # Se a senha estiver correta, abrir a interface
-            from transicao_ano_letivo import abrir_interface_transicao
+            from src.interfaces.transicao_ano_letivo import abrir_interface_transicao
             abrir_interface_transicao(janela_principal=self.janela)
             
             logger.info("Interface de transição de ano letivo aberta com sucesso")
