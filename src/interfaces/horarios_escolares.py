@@ -11,6 +11,9 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
+import json
+import os
+from src.importers.geduc_horarios import parse_horario_por_turma
 
 class InterfaceHorariosEscolares:
     def __init__(self, root=None, janela_principal=None):
@@ -197,6 +200,150 @@ class InterfaceHorariosEscolares:
             logger.error(f"Erro geral ao carregar dados: {str(e)}")
             messagebox.showwarning("Aviso", f"Ocorreu um erro ao carregar dados do banco. Usando dados padrão.")
             # Os dados padrão já foram inicializados
+    
+    def carregar_mapeamentos(self):
+        """Carrega mapeamentos locais (sinônimos) de arquivo JSON em historic_geduc_imports."""
+        self.mapeamentos = {'disciplinas': {}, 'professores': {}}
+        try:
+            path = Path(r'c:/gestao/historico_geduc_imports/mapeamentos_horarios.json')
+            if path.exists():
+                txt = path.read_text(encoding='utf-8')
+                data = json.loads(txt)
+                if isinstance(data, dict):
+                    self.mapeamentos.update(data)
+        except Exception as e:
+            logger.warning(f'Falha ao carregar mapeamentos locais: {e}')
+
+    def salvar_mapeamentos(self):
+        """Salva mapeamentos locais em arquivo JSON."""
+        try:
+            path = Path(r'c:/gestao/historico_geduc_imports')
+            path.mkdir(parents=True, exist_ok=True)
+            f = path / 'mapeamentos_horarios.json'
+            f.write_text(json.dumps(self.mapeamentos, ensure_ascii=False, indent=2), encoding='utf-8')
+        except Exception as e:
+            logger.warning(f'Erro ao salvar mapeamentos locais: {e}')
+
+    def revisar_nao_mapeados(self, nao_mapeados):
+        """Abre janela modal para revisão manual de não-mapeados.
+        nao_mapeados: lista de dicts com keys row, col, dia, horario, valor
+        """
+        if not nao_mapeados:
+            return
+
+        modal = tk.Toplevel(self.janela)
+        modal.title('Revisar não mapeados')
+        modal.geometry('700x500')
+        modal.transient(self.janela)
+        modal.grab_set()
+        modal.configure(bg=self.co0)
+
+        canvas = tk.Canvas(modal, bg=self.co0)
+        scrollbar = ttk.Scrollbar(modal, orient='vertical', command=canvas.yview)
+        frame = tk.Frame(canvas, bg=self.co0)
+        canvas.create_window((0, 0), window=frame, anchor='nw')
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+
+        # Preparar listas para Comboboxes
+        disc_names = [d['nome'] for d in (self.disciplinas or []) if isinstance(d, dict)]
+        prof_names = [p['nome'] for p in (self.professores or []) if isinstance(p, dict)]
+        if '<A DEFINIR>' not in prof_names:
+            prof_names.append('<A DEFINIR>')
+
+        entries = []
+
+        def on_frame_config(event):
+            canvas.configure(scrollregion=canvas.bbox('all'))
+
+        frame.bind('<Configure>', on_frame_config)
+
+        for idx, item in enumerate(nao_mapeados):
+            fr = tk.Frame(frame, bg=self.co0, relief='groove', bd=1)
+            fr.pack(fill='x', padx=8, pady=6)
+
+            tk.Label(fr, text=f"{item['dia']} {item['horario']}", bg=self.co0, width=20, anchor='w').pack(side='left', padx=5)
+            tk.Label(fr, text=item['valor'], bg=self.co0, width=40, anchor='w').pack(side='left', padx=5)
+
+            disc_var = tk.StringVar()
+            prof_var = tk.StringVar()
+
+            disc_cb = ttk.Combobox(fr, textvariable=disc_var, values=[''] + disc_names, width=30)
+            disc_cb.pack(side='left', padx=5)
+            prof_cb = ttk.Combobox(fr, textvariable=prof_var, values=[''] + prof_names, width=25)
+            prof_cb.pack(side='left', padx=5)
+
+            entries.append((item, disc_cb, prof_cb))
+
+        def aplicar():
+            # aplicar mapeamentos selecionados às células
+            import unicodedata
+
+            def _norm(s: str) -> str:
+                if not s:
+                    return ''
+                s = s.strip()
+                s = unicodedata.normalize('NFKD', s)
+                s = ''.join(c for c in s if not unicodedata.combining(c))
+                s = re.sub(r'[^0-9A-Za-z\s]', ' ', s)
+                s = re.sub(r'\s+', ' ', s)
+                return s.strip().upper()
+
+            for item, disc_cb, prof_cb in entries:
+                sel_disc = disc_cb.get().strip()
+                sel_prof = prof_cb.get().strip()
+
+                row = item['row']
+                col = item['col']
+                cel = self.celulas_horario.get((row, col))
+                if not cel:
+                    continue
+
+                # Atualizar texto da célula conforme seleção
+                if sel_disc and sel_prof and sel_prof != '<A DEFINIR>':
+                    primeiro = sel_prof.split()[0]
+                    novo_texto = f"{sel_disc} ({primeiro})"
+                elif sel_disc:
+                    novo_texto = sel_disc
+                elif sel_prof and sel_prof != '<A DEFINIR>':
+                    novo_texto = sel_prof
+                else:
+                    novo_texto = item['valor']
+
+                cel.delete(0, tk.END)
+                cel.insert(0, novo_texto)
+
+                # armazenar mapeamento local para futuras correspondências
+                if sel_disc:
+                    key = _norm(item['valor'])
+                    if key:
+                        # encontrar disciplina id
+                        for d in (self.disciplinas or []):
+                            if isinstance(d, dict) and d.get('nome') == sel_disc:
+                                self.mapeamentos.setdefault('disciplinas', {})[key] = d.get('id')
+                                break
+                if sel_prof and sel_prof != '<A DEFINIR>':
+                    keyp = _norm(sel_prof)
+                    if keyp:
+                        for p in (self.professores or []):
+                            if isinstance(p, dict) and p.get('nome') == sel_prof:
+                                self.mapeamentos.setdefault('professores', {})[keyp] = p.get('id')
+                                break
+
+            # salvar mapeamentos locais e fechar modal
+            try:
+                self.salvar_mapeamentos()
+            except Exception:
+                pass
+
+            modal.destroy()
+
+        btn_frame = tk.Frame(modal, bg=self.co0)
+        btn_frame.pack(fill='x', pady=8)
+        ttk.Button(btn_frame, text='Cancelar', command=modal.destroy).pack(side='right', padx=5)
+        ttk.Button(btn_frame, text='Aplicar e Salvar', command=aplicar).pack(side='right', padx=5)
+
     
     def criar_interface(self):
         # Criar frames principais
@@ -923,14 +1070,88 @@ class InterfaceHorariosEscolares:
                 'valor': valor
             })
         
-        # Aqui seria implementada a lógica para salvar no banco de dados
-        # Por enquanto, apenas mostrar mensagem de sucesso
-        messagebox.showinfo("Sucesso", f"Horários da {self.turma_atual} salvos com sucesso!")
-        
-        # Para DEBUG: mostrar os dados que seriam salvos
-        logger.info("Dados a salvar:")
+        # Carregar mapeamentos locais (se ainda não carregados)
+        try:
+            self.carregar_mapeamentos()
+        except Exception:
+            self.mapeamentos = {'disciplinas': {}, 'professores': {}}
+
+        # Função de normalização local
+        import unicodedata, re
+
+        def _norm(s: str) -> str:
+            if not s:
+                return ''
+            s = s.strip()
+            s = unicodedata.normalize('NFKD', s)
+            s = ''.join(c for c in s if not unicodedata.combining(c))
+            s = re.sub(r'[^0-9A-Za-z\s]', ' ', s)
+            s = re.sub(r'\s+', ' ', s)
+            return s.strip().upper()
+
+        # Construir lista com possíveis disciplina_id/professor_id
+        rows_to_persist = []
         for item in dados_horario:
-            logger.info(f"  {item['dia']} {item['horario']}: {item['valor']}")
+            valor = (item.get('valor') or '').strip()
+            disc_id = None
+            prof_id = None
+
+            # tentar extrair disciplina e professor do texto formatado "DISCIPLINA (Professor)"
+            if " (" in valor and ")" in valor:
+                disc_text = valor.split(" (", 1)[0].strip()
+                prof_text = valor.split(" (", 1)[1].rstrip(')')
+            else:
+                disc_text = valor
+                prof_text = ''
+
+            # procurar disciplina por nome exato
+            for d in (self.disciplinas or []):
+                if isinstance(d, dict) and d.get('nome') and d.get('nome').strip().upper() == (disc_text or '').upper():
+                    disc_id = d.get('id')
+                    break
+
+            # usar mapeamentos locais para disciplina
+            if not disc_id:
+                keyd = _norm(valor)
+                disc_id = self.mapeamentos.get('disciplinas', {}).get(keyd)
+
+            # procurar professor por nome completo ou primeiro nome
+            if prof_text:
+                for p in (self.professores or []):
+                    if not isinstance(p, dict):
+                        continue
+                    nome = p.get('nome') or ''
+                    if nome.strip().upper() == prof_text.strip().upper() or nome.startswith(prof_text):
+                        prof_id = p.get('id')
+                        break
+
+            # usar mapeamentos locais para professor
+            if not prof_id:
+                keyp = _norm(prof_text or valor)
+                prof_id = self.mapeamentos.get('professores', {}).get(keyp)
+
+            rows_to_persist.append({
+                'turma_id': item.get('turma_id'),
+                'dia': item.get('dia'),
+                'horario': item.get('horario'),
+                'valor': valor,
+                'disciplina_id': disc_id,
+                'professor_id': prof_id,
+            })
+
+        # Persistir usando upsert
+        try:
+            from src.utils.horarios_persistence import upsert_horarios
+            inserted = upsert_horarios(rows_to_persist)
+            messagebox.showinfo("Sucesso", f"Horários da {self.turma_atual} salvos com sucesso ({inserted} linhas).")
+        except Exception as e:
+            logger.error(f"Erro ao salvar horários: {e}")
+            messagebox.showerror("Erro", f"Erro ao salvar horários: {e}")
+
+        # Para DEBUG: mostrar os dados que foram persistidos
+        logger.info("Dados persistidos:")
+        for item in rows_to_persist:
+            logger.info(f"  {item['dia']} {item['horario']}: {item['valor']} -> disc_id={item['disciplina_id']} prof_id={item['professor_id']}")
     
     def imprimir_horarios(self):
         # Verificar se uma turma está selecionada
