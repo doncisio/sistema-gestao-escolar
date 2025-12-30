@@ -18,6 +18,9 @@ from auth.decorators import requer_permissao
 
 # Import para integração com banco de questões
 from banco_questoes.resposta_service import RespostaService
+from pathlib import Path
+from src.importers.local_horarios import build_local_map_from_folder, _normalize_key
+from typing import List, Any, Optional
 
 class InterfaceCadastroEdicaoNotas:
     def __init__(self, root=None, aluno_id=None, janela_principal=None):
@@ -3728,6 +3731,69 @@ class InterfaceCadastroEdicaoNotas:
         except Exception as e:
             logger.error(f"Erro ao sincronizar: {e}")
             messagebox.showerror("Erro", str(e))
+
+    def extrair_horarios_locais(self, pasta_html: str, turmas_geduc: Optional[List[Any]] = None, salvar_json: Optional[str] = None) -> Dict[str, Any]:
+        """Extrai horários do sistema local a partir de páginas HTML salvas.
+
+        Args:
+            pasta_html: pasta onde estão os HTML salvos (login.html, turmas semana.html, etc.).
+            turmas_geduc: lista de turmas do GEDUC (strings ou dicts com keys 'serie','nome','turno').
+            salvar_json: caminho opcional para salvar o mapeamento JSON.
+
+        Retorna dict mapeando nome_geduc_normalizado -> horario (ou None se não encontrado).
+        """
+        try:
+            pasta = Path(pasta_html)
+            if not pasta.exists():
+                messagebox.showerror("Erro", f"Pasta não encontrada: {pasta}")
+                return {}
+
+            local_map = build_local_map_from_folder(pasta)
+
+            # preparar a lista de turmas GEDUC a partir dos parâmetros ou do mapeamento local
+            if turmas_geduc is None:
+                # usar nomes disponíveis na interface (se houver)
+                turmas_geduc = list(getattr(self, 'turmas_map', {}).keys()) if getattr(self, 'turmas_map', None) else []
+
+            resultado: Dict[str, Any] = {}
+
+            for t in turmas_geduc:
+                if isinstance(t, dict):
+                    serie = t.get('serie', '')
+                    nome = t.get('nome') or t.get('turma') or ''
+                    turno = t.get('turno', '')
+                    raw = f"{serie}{nome}{turno}"
+                else:
+                    raw = str(t)
+
+                chave = _normalize_key(raw)
+
+                # tentativa direta
+                if chave in local_map:
+                    resultado[raw] = local_map[chave]
+                    continue
+
+                # tentativa fuzzy: procurar substring
+                found = None
+                for k, v in local_map.items():
+                    if chave and (chave in k or k in chave):
+                        found = v
+                        break
+                resultado[raw] = found
+
+            if salvar_json:
+                outp = Path(salvar_json)
+                outp.parent.mkdir(parents=True, exist_ok=True)
+                import json
+                outp.write_text(json.dumps(resultado, ensure_ascii=False, indent=2), encoding='utf-8')
+
+            messagebox.showinfo("Concluído", f"Extração concluída. Turmas mapeadas: {len([v for v in resultado.values() if v])} / {len(resultado)}")
+            return resultado
+
+        except Exception as e:
+            logger.error(f"Erro ao extrair horários locais: {e}")
+            messagebox.showerror("Erro", str(e))
+            return {}
 
 # Função para ser chamada a partir do sistema principal
 def abrir_interface_notas(janela_principal=None):

@@ -305,7 +305,7 @@ def gerar_declaracoes_9ano_combinadas(output_filename=None, ano_letivo=2025):
         elements.append(Spacer(1, 1 * inch))
         elements.append(Paragraph("______________________________________", ParagraphStyle(name='Ass', alignment=TA_CENTER)))
         elements.append(Spacer(1, 0.1 * inch))
-        elements.append(Paragraph("LEANDRO FONSECA LIMA", ParagraphStyle(name='AssNome', alignment=TA_CENTER)))
+        elements.append(Paragraph("GESTOR(A)", ParagraphStyle(name='AssNome', alignment=TA_CENTER)))
         elements.append(PageBreak())
 
     # Remover último PageBreak

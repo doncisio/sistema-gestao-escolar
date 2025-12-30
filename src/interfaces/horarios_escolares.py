@@ -13,6 +13,9 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 import json
 import os
+from pathlib import Path
+import unicodedata
+import re
 from src.importers.geduc_horarios import parse_horario_por_turma
 
 class InterfaceHorariosEscolares:
@@ -204,13 +207,64 @@ class InterfaceHorariosEscolares:
     def carregar_mapeamentos(self):
         """Carrega mapeamentos locais (sinônimos) de arquivo JSON em historic_geduc_imports."""
         self.mapeamentos = {'disciplinas': {}, 'professores': {}}
+
         try:
             path = Path(r'c:/gestao/historico_geduc_imports/mapeamentos_horarios.json')
-            if path.exists():
-                txt = path.read_text(encoding='utf-8')
+            if not path.exists():
+                return
+
+            txt = path.read_text(encoding='utf-8')
+            try:
                 data = json.loads(txt)
-                if isinstance(data, dict):
-                    self.mapeamentos.update(data)
+            except Exception as e:
+                logger.warning(f'Falha ao decodificar JSON de mapeamentos: {e}')
+                return
+
+            if not isinstance(data, dict):
+                logger.warning('Arquivo de mapeamentos não contém um objeto JSON válido (esperado dict). Ignorando.')
+                return
+
+            # Normalização de chaves para permitir matching consistente
+            def _norm_key(s: str) -> str:
+                if not s:
+                    return ''
+                s = s.strip()
+                s = unicodedata.normalize('NFKD', s)
+                s = ''.join(c for c in s if not unicodedata.combining(c))
+                s = re.sub(r'[^0-9A-Za-z\s]', ' ', s)
+                s = re.sub(r'\s+', ' ', s)
+                return s.strip().upper()
+
+            # Processar disciplinas
+            raw_disc = data.get('disciplinas') or {}
+            if isinstance(raw_disc, dict):
+                for k, v in raw_disc.items():
+                    key = _norm_key(k)
+                    if not key:
+                        continue
+                    try:
+                        val = int(v)
+                    except Exception:
+                        val = v
+                    self.mapeamentos.setdefault('disciplinas', {})[key] = val
+            else:
+                logger.warning('Campo "disciplinas" em mapeamentos não é um objeto; ignorado.')
+
+            # Processar professores
+            raw_prof = data.get('professores') or {}
+            if isinstance(raw_prof, dict):
+                for k, v in raw_prof.items():
+                    key = _norm_key(k)
+                    if not key:
+                        continue
+                    try:
+                        val = int(v)
+                    except Exception:
+                        val = v
+                    self.mapeamentos.setdefault('professores', {})[key] = val
+            else:
+                logger.warning('Campo "professores" em mapeamentos não é um objeto; ignorado.')
+
         except Exception as e:
             logger.warning(f'Falha ao carregar mapeamentos locais: {e}')
 
@@ -603,9 +657,57 @@ class InterfaceHorariosEscolares:
         try:
             # Tentar carregar dados do banco de dados se a turma tiver ID
             if self.turma_id:
-                # TODO: Implementar carregamento de horários do banco
-                # Por enquanto, usando dados fictícios
-                self.carregar_horarios_ficticios()
+                try:
+                    conn = conectar_bd()
+                    cursor = conn.cursor(dictionary=True)
+                    cursor.execute(
+                        "SELECT dia, horario, valor, disciplina_id, professor_id "
+                        "FROM horarios_importados WHERE turma_id = %s",
+                        (self.turma_id,)
+                    )
+                    rows = cursor.fetchall()
+                    cursor.close()
+                    conn.close()
+
+                    # Preencher células com os dados recuperados
+                    horarios_lista = self.horarios_matutino if self.turno_atual == "Matutino" else self.horarios_vespertino
+                    for item in rows:
+                        dia = item.get('dia')
+                        horario = item.get('horario')
+                        valor = item.get('valor')
+
+                        # localizar coluna pelo dia
+                        try:
+                            col = self.dias_semana.index(dia) + 1
+                        except ValueError:
+                            # dia não encontrado na visualização atual
+                            continue
+
+                        # localizar linha pelo horário
+                        row_index = None
+                        if horario in horarios_lista:
+                            row_index = horarios_lista.index(horario) + 1
+                        else:
+                            # suportar horários genéricos R1, R2...
+                            if isinstance(horario, str) and horario.upper().startswith('R'):
+                                try:
+                                    num = int(horario[1:])
+                                    row_index = num
+                                except Exception:
+                                    row_index = None
+
+                        if row_index is None:
+                            continue
+
+                        cel = self.celulas_horario.get((row_index, col))
+                        if cel:
+                            cel.delete(0, tk.END)
+                            cel.insert(0, valor)
+                            cel.config(bg=self.co4)
+
+                except Exception:
+                    # Em caso de problema com o banco, cair para dados fictícios
+                    self.carregar_horarios_ficticios()
             else:
                 # Se não tiver ID, usar dados fictícios
                 self.carregar_horarios_ficticios()
@@ -1040,9 +1142,14 @@ class InterfaceHorariosEscolares:
                  command=self.limpar_horarios).pack(side=tk.RIGHT, padx=5)
     
     def salvar_horarios(self):
+        """Salva os horários da turma atual no banco de dados usando upsert."""
         # Verificar se uma turma está selecionada
         if not self.turma_atual:
             messagebox.showwarning("Atenção", "Selecione uma turma antes de salvar.")
+            return
+        
+        if not self.turma_id:
+            messagebox.showerror("Erro", "ID da turma não encontrado.")
             return
         
         # Coletar todos os dados do horário
@@ -1073,63 +1180,39 @@ class InterfaceHorariosEscolares:
         # Carregar mapeamentos locais (se ainda não carregados)
         try:
             self.carregar_mapeamentos()
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Falha ao carregar mapeamentos: {e}")
             self.mapeamentos = {'disciplinas': {}, 'professores': {}}
 
-        # Função de normalização local
-        import unicodedata, re
-
-        def _norm(s: str) -> str:
-            if not s:
-                return ''
-            s = s.strip()
-            s = unicodedata.normalize('NFKD', s)
-            s = ''.join(c for c in s if not unicodedata.combining(c))
-            s = re.sub(r'[^0-9A-Za-z\s]', ' ', s)
-            s = re.sub(r'\s+', ' ', s)
-            return s.strip().upper()
-
-        # Construir lista com possíveis disciplina_id/professor_id
+        # Usar utilitário de mapeamento para construir lista de persistência
+        from src.utils.horarios_mapper import mapear_disc_prof
+        
         rows_to_persist = []
+        nao_mapeados = []
+        
         for item in dados_horario:
             valor = (item.get('valor') or '').strip()
-            disc_id = None
-            prof_id = None
-
-            # tentar extrair disciplina e professor do texto formatado "DISCIPLINA (Professor)"
-            if " (" in valor and ")" in valor:
-                disc_text = valor.split(" (", 1)[0].strip()
-                prof_text = valor.split(" (", 1)[1].rstrip(')')
-            else:
-                disc_text = valor
-                prof_text = ''
-
-            # procurar disciplina por nome exato
-            for d in (self.disciplinas or []):
-                if isinstance(d, dict) and d.get('nome') and d.get('nome').strip().upper() == (disc_text or '').upper():
-                    disc_id = d.get('id')
-                    break
-
-            # usar mapeamentos locais para disciplina
-            if not disc_id:
-                keyd = _norm(valor)
-                disc_id = self.mapeamentos.get('disciplinas', {}).get(keyd)
-
-            # procurar professor por nome completo ou primeiro nome
-            if prof_text:
-                for p in (self.professores or []):
-                    if not isinstance(p, dict):
-                        continue
-                    nome = p.get('nome') or ''
-                    if nome.strip().upper() == prof_text.strip().upper() or nome.startswith(prof_text):
-                        prof_id = p.get('id')
-                        break
-
-            # usar mapeamentos locais para professor
-            if not prof_id:
-                keyp = _norm(prof_text or valor)
-                prof_id = self.mapeamentos.get('professores', {}).get(keyp)
-
+            
+            # Pular células vazias
+            if not valor:
+                continue
+            
+            # Mapear usando o utilitário
+            disc_id, prof_id = mapear_disc_prof(
+                valor,
+                self.disciplinas,
+                self.professores,
+                self.mapeamentos
+            )
+            
+            # Registrar valores não mapeados para revisão
+            if not disc_id and not prof_id:
+                nao_mapeados.append({
+                    'dia': item['dia'],
+                    'horario': item['horario'],
+                    'valor': valor
+                })
+            
             rows_to_persist.append({
                 'turma_id': item.get('turma_id'),
                 'dia': item.get('dia'),
@@ -1138,20 +1221,43 @@ class InterfaceHorariosEscolares:
                 'disciplina_id': disc_id,
                 'professor_id': prof_id,
             })
-
+        
+        # Validar antes de persistir
+        if not rows_to_persist:
+            messagebox.showwarning("Atenção", "Nenhum horário para salvar (todas as células estão vazias).")
+            return
+        
+        # Alertar sobre valores não mapeados
+        if nao_mapeados:
+            msg = f"Atenção: {len(nao_mapeados)} valor(es) não foram mapeados para disciplina/professor:\n\n"
+            for nm in nao_mapeados[:5]:  # Mostrar apenas os primeiros 5
+                msg += f"• {nm['dia']} {nm['horario']}: {nm['valor']}\n"
+            if len(nao_mapeados) > 5:
+                msg += f"... e mais {len(nao_mapeados) - 5} outros.\n"
+            msg += "\nDeseja continuar mesmo assim?"
+            
+            if not messagebox.askyesno("Valores não mapeados", msg):
+                return
+        
         # Persistir usando upsert
         try:
             from src.utils.horarios_persistence import upsert_horarios
             inserted = upsert_horarios(rows_to_persist)
-            messagebox.showinfo("Sucesso", f"Horários da {self.turma_atual} salvos com sucesso ({inserted} linhas).")
+            
+            msg = f"Horários da {self.turma_atual} salvos com sucesso!\n\n"
+            msg += f"• Total de linhas: {inserted}\n"
+            if nao_mapeados:
+                msg += f"• Não mapeados: {len(nao_mapeados)}\n"
+            
+            messagebox.showinfo("Sucesso", msg)
+            
+            # Log detalhado
+            logger.info(f"Horários salvos para turma {self.turma_atual} (ID={self.turma_id})")
+            logger.info(f"Total de linhas: {inserted}, Não mapeados: {len(nao_mapeados)}")
+            
         except Exception as e:
-            logger.error(f"Erro ao salvar horários: {e}")
-            messagebox.showerror("Erro", f"Erro ao salvar horários: {e}")
-
-        # Para DEBUG: mostrar os dados que foram persistidos
-        logger.info("Dados persistidos:")
-        for item in rows_to_persist:
-            logger.info(f"  {item['dia']} {item['horario']}: {item['valor']} -> disc_id={item['disciplina_id']} prof_id={item['professor_id']}")
+            logger.error(f"Erro ao salvar horários: {e}", exc_info=True)
+            messagebox.showerror("Erro", f"Erro ao salvar horários:\n{str(e)}")
     
     def imprimir_horarios(self):
         # Verificar se uma turma está selecionada
