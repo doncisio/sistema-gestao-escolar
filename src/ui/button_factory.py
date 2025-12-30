@@ -993,8 +993,8 @@ class ButtonFactory:
     def _gerar_relatorio_notas_com_assinatura_wrapper(self):
         """Wrapper para gerar relatório de notas com assinatura"""
         try:
-            from abrir_relatorio_avancado_com_assinatura import main as gerar_relatorio_com_assinatura  # type: ignore
-            gerar_relatorio_com_assinatura()
+            from src.relatorios.relatorio_avancado_assinatura import abrir_relatorio_avancado_com_assinatura as gerar_relatorio_com_assinatura
+            gerar_relatorio_com_assinatura(janela=self.janela, status_label=None)
         except Exception as e:
             logger.exception(f"Erro ao gerar relatório de notas: {e}")
             messagebox.showerror("Erro", f"Erro ao gerar relatório: {e}")
@@ -1350,7 +1350,7 @@ class ButtonFactory:
     def _abrir_relatorio_avancado_com_assinatura(self):
         """Wrapper para abrir relatório avançado com assinatura"""
         try:
-            from abrir_relatorio_avancado_com_assinatura import abrir_relatorio_avancado_com_assinatura
+            from src.relatorios.relatorio_avancado_assinatura import abrir_relatorio_avancado_com_assinatura
             abrir_relatorio_avancado_com_assinatura(janela=self.janela, status_label=None)
         except Exception as e:
             logger.exception(f"Erro ao abrir relatório avançado com assinatura: {e}")
