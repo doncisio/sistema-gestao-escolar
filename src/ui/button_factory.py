@@ -910,7 +910,7 @@ class ButtonFactory:
             if os.name == 'nt' and os.path.exists(bat_path):
                 messagebox.showinfo("Atualizar Sistema", f"Executando sincronização via: {bat_path}")
                 # Executar o .bat e capturar saída
-                proc = subprocess.run([bat_path], cwd=repo_dir, capture_output=True, text=True, shell=True)
+                proc = subprocess.run([bat_path], cwd=repo_dir, capture_output=True, text=True, shell=True, encoding='utf-8', errors='replace')
                 if proc.returncode == 0:
                     messagebox.showinfo("Atualizar Sistema", "Sincronização concluída com sucesso.\nDeseja reiniciar a aplicação agora?")
                     reiniciar = messagebox.askyesno("Reiniciar", "Deseja reiniciar a aplicação agora para aplicar as atualizações?")
@@ -927,17 +927,17 @@ class ButtonFactory:
                     return
 
             # Fallback: tentar git diretamente (mesmo comportamento anterior)
-            p = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_dir, capture_output=True, text=True)
+            p = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_dir, capture_output=True, text=True, encoding='utf-8', errors='replace')
             branch = p.stdout.strip() if p.returncode == 0 else "main"
 
             messagebox.showinfo("Atualizar Sistema", "Verificando atualizações no servidor...")
-            fetch = subprocess.run(["git", "fetch", "--all"], cwd=repo_dir, capture_output=True, text=True)
+            fetch = subprocess.run(["git", "fetch", "--all"], cwd=repo_dir, capture_output=True, text=True, encoding='utf-8', errors='replace')
             if fetch.returncode != 0:
                 logger.error(f"Git fetch falhou: {fetch.stderr}")
                 messagebox.showerror("Erro", f"Falha ao verificar atualizações:\n{fetch.stderr}")
                 return
 
-            revlist = subprocess.run(["git", "rev-list", "--count", f"HEAD..origin/{branch}"], cwd=repo_dir, capture_output=True, text=True)
+            revlist = subprocess.run(["git", "rev-list", "--count", f"HEAD..origin/{branch}"], cwd=repo_dir, capture_output=True, text=True, encoding='utf-8', errors='replace')
             has_updates = False
             if revlist.returncode == 0:
                 try:
@@ -950,7 +950,7 @@ class ButtonFactory:
                 messagebox.showinfo("Atualizar Sistema", "Nenhuma atualização disponível.")
                 return
 
-            pull = subprocess.run(["git", "pull", "--rebase", "origin", branch], cwd=repo_dir, capture_output=True, text=True)
+            pull = subprocess.run(["git", "pull", "--rebase", "origin", branch], cwd=repo_dir, capture_output=True, text=True, encoding='utf-8', errors='replace')
             if pull.returncode != 0:
                 logger.error(f"Git pull falhou: {pull.stderr}")
                 messagebox.showerror("Erro ao atualizar", f"Falha ao atualizar o sistema:\n{pull.stderr}\n\nVerifique manualmente no diretório: {repo_dir}")
