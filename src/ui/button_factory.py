@@ -804,6 +804,19 @@ class ButtonFactory:
             
             menu_bar.add_cascade(label="👤 Usuário", menu=usuario_menu, font=menu_font)
         
+        # ========== MENU AJUDA: Atualizações e informações ==========
+        try:
+            ajuda_menu = Menu(menu_bar, tearoff=0, font=menu_font)
+            ajuda_menu.add_command(
+                label="Atualizar Sistema",
+                command=lambda: self._atualizar_sistema(),
+                font=menu_font
+            )
+            menu_bar.add_cascade(label="Ajuda", menu=ajuda_menu, font=menu_font)
+        except Exception:
+            # Não falhar a criação da barra inteira por conta do menu de ajuda
+            logger.exception("Falha ao criar menu Ajuda")
+
         logger.debug(f"Barra de menus criada (perfis_habilitados={perfis_habilitados()})")
         return menu_bar
     
@@ -869,6 +882,92 @@ class ButtonFactory:
         except Exception as e:
             logger.exception(f"Erro ao fazer logout: {e}")
             messagebox.showerror("Erro", f"Erro ao fazer logout: {e}")
+
+    def _atualizar_sistema(self):
+        """Atualiza o sistema.
+
+        Se estiver no Windows e existir `sync_rapido.bat` na raiz do projeto, executa-o.
+        Caso contrário, tenta o fluxo git como fallback.
+        """
+        try:
+            resposta = messagebox.askyesno(
+                "Atualizar Sistema",
+                "Deseja verificar e atualizar o sistema a partir do repositório remoto?\n\n" \
+                "Aviso: alterações locais não comitadas podem impedir a atualização."
+            )
+            if not resposta:
+                return
+
+            import subprocess
+            import os
+            import sys
+
+            # Diretório raiz do projeto (onde está sync_rapido.bat)
+            repo_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+            # Se Windows e existir batch de sincronização, usar ele
+            bat_path = os.path.join(repo_dir, 'sync_rapido.bat')
+            if os.name == 'nt' and os.path.exists(bat_path):
+                messagebox.showinfo("Atualizar Sistema", f"Executando sincronização via: {bat_path}")
+                # Executar o .bat e capturar saída
+                proc = subprocess.run([bat_path], cwd=repo_dir, capture_output=True, text=True, shell=True)
+                if proc.returncode == 0:
+                    messagebox.showinfo("Atualizar Sistema", "Sincronização concluída com sucesso.\nDeseja reiniciar a aplicação agora?")
+                    reiniciar = messagebox.askyesno("Reiniciar", "Deseja reiniciar a aplicação agora para aplicar as atualizações?")
+                    if reiniciar:
+                        try:
+                            os.execv(sys.executable, [sys.executable] + sys.argv)
+                        except Exception as e:
+                            logger.exception(f"Erro ao reiniciar: {e}")
+                            messagebox.showerror("Erro", f"Não foi possível reiniciar automaticamente: {e}")
+                    return
+                else:
+                    logger.error(f"sync_rapido.bat falhou: {proc.stdout}\n{proc.stderr}")
+                    messagebox.showerror("Erro", f"Falha ao executar sync_rapido.bat:\n{proc.stderr or proc.stdout}")
+                    return
+
+            # Fallback: tentar git diretamente (mesmo comportamento anterior)
+            p = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_dir, capture_output=True, text=True)
+            branch = p.stdout.strip() if p.returncode == 0 else "main"
+
+            messagebox.showinfo("Atualizar Sistema", "Verificando atualizações no servidor...")
+            fetch = subprocess.run(["git", "fetch", "--all"], cwd=repo_dir, capture_output=True, text=True)
+            if fetch.returncode != 0:
+                logger.error(f"Git fetch falhou: {fetch.stderr}")
+                messagebox.showerror("Erro", f"Falha ao verificar atualizações:\n{fetch.stderr}")
+                return
+
+            revlist = subprocess.run(["git", "rev-list", "--count", f"HEAD..origin/{branch}"], cwd=repo_dir, capture_output=True, text=True)
+            has_updates = False
+            if revlist.returncode == 0:
+                try:
+                    count = int(revlist.stdout.strip() or "0")
+                    has_updates = count > 0
+                except Exception:
+                    has_updates = False
+
+            if not has_updates:
+                messagebox.showinfo("Atualizar Sistema", "Nenhuma atualização disponível.")
+                return
+
+            pull = subprocess.run(["git", "pull", "--rebase", "origin", branch], cwd=repo_dir, capture_output=True, text=True)
+            if pull.returncode != 0:
+                logger.error(f"Git pull falhou: {pull.stderr}")
+                messagebox.showerror("Erro ao atualizar", f"Falha ao atualizar o sistema:\n{pull.stderr}\n\nVerifique manualmente no diretório: {repo_dir}")
+                return
+
+            messagebox.showinfo("Atualizar Sistema", "Sistema atualizado com sucesso.\nDeseja reiniciar a aplicação agora?")
+            reiniciar = messagebox.askyesno("Reiniciar", "Deseja reiniciar a aplicação agora para aplicar as atualizações?")
+            if reiniciar:
+                try:
+                    os.execv(sys.executable, [sys.executable] + sys.argv)
+                except Exception as e:
+                    logger.exception(f"Erro ao reiniciar: {e}")
+                    messagebox.showerror("Erro", f"Não foi possível reiniciar automaticamente: {e}")
+
+        except Exception as e:
+            logger.exception(f"Erro ao atualizar sistema: {e}")
+            messagebox.showerror("Erro", f"Erro ao atualizar o sistema: {e}")
     
     def _gerar_relatorio_notas_wrapper(self):
         """Wrapper para gerar relatório de notas"""
