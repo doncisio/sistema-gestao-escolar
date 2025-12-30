@@ -906,7 +906,27 @@ class ButtonFactory:
             repo_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
             # Se Windows e existir batch de sincronização, usar ele
+            # Preferir script Python cross-platform se existir
+            py_script = os.path.join(repo_dir, 'scripts', 'sync_rapido.py')
             bat_path = os.path.join(repo_dir, 'sync_rapido.bat')
+            if os.path.exists(py_script):
+                messagebox.showinfo("Atualizar Sistema", f"Executando sincronização via: {py_script}")
+                proc = subprocess.run([sys.executable, py_script], cwd=repo_dir, capture_output=True, text=True, encoding='utf-8', errors='replace')
+                if proc.returncode == 0:
+                    messagebox.showinfo("Atualizar Sistema", "Sincronização concluída com sucesso.\nDeseja reiniciar a aplicação agora?")
+                    reiniciar = messagebox.askyesno("Reiniciar", "Deseja reiniciar a aplicação agora para aplicar as atualizações?")
+                    if reiniciar:
+                        try:
+                            os.execv(sys.executable, [sys.executable] + sys.argv)
+                        except Exception as e:
+                            logger.exception(f"Erro ao reiniciar: {e}")
+                            messagebox.showerror("Erro", f"Não foi possível reiniciar automaticamente: {e}")
+                    return
+                else:
+                    logger.error(f"sync_rapido.py falhou: {proc.stdout}\n{proc.stderr}")
+                    messagebox.showerror("Erro", f"Falha ao executar sync_rapido.py:\n{proc.stderr or proc.stdout}")
+                    return
+
             if os.name == 'nt' and os.path.exists(bat_path):
                 messagebox.showinfo("Atualizar Sistema", f"Executando sincronização via: {bat_path}")
                 # Executar o .bat e capturar saída
