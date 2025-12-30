@@ -890,19 +890,11 @@ class ButtonFactory:
         Caso contrário, tenta o fluxo git como fallback.
         """
         try:
-            resposta = messagebox.askyesno(
-                "Atualizar Sistema",
-                "Deseja verificar e atualizar o sistema a partir do repositório remoto?\n\n" \
-                "Aviso: alterações locais não comitadas podem impedir a atualização."
-            )
-            if not resposta:
-                return
-
             import subprocess
             import os
             import sys
 
-            # Diretório raiz do projeto (onde está sync_rapido.bat)
+            # Diretório raiz do projeto (onde está sync_rapido.bat ou scripts/sync_rapido.py)
             repo_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
             # Se Windows e existir batch de sincronização, usar ele
