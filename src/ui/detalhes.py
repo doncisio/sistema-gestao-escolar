@@ -619,11 +619,12 @@ def editar_aluno_wrapper(aluno_id):
 def excluir_aluno_wrapper(aluno_id):
     """Wrapper para excluir aluno."""
     try:
-        import aluno
-        resposta = messagebox.askyesno("Confirmação", "Tem certeza que deseja excluir este aluno?")
-        if resposta:
-            aluno.deletar_aluno(aluno_id)  # type: ignore[attr-defined]
-            messagebox.showinfo("Sucesso", "Aluno excluído com sucesso!")
+        from src.services.aluno_service import excluir_aluno_com_confirmacao, obter_aluno_por_id
+
+        aluno = obter_aluno_por_id(aluno_id)
+        nome_aluno = aluno.get('nome') if aluno else 'Aluno'
+
+        excluir_aluno_com_confirmacao(aluno_id, nome_aluno)
     except Exception as e:
         logger.exception(f"Erro ao excluir aluno: {e}")
         messagebox.showerror("Erro", f"Erro ao excluir: {e}")
@@ -877,11 +878,14 @@ def editar_funcionario_wrapper(funcionario_id):
 def excluir_funcionario_wrapper(funcionario_id):
     """Wrapper para excluir funcionário."""
     try:
-        import Funcionario
+        from src.services.funcionario_service import excluir_funcionario
         resposta = messagebox.askyesno("Confirmação", "Tem certeza que deseja excluir este funcionário?")
         if resposta:
-            Funcionario.deletar_funcionario(funcionario_id)  # type: ignore[attr-defined]
-            messagebox.showinfo("Sucesso", "Funcionário excluído com sucesso!")
+            sucesso, mensagem = excluir_funcionario(funcionario_id, verificar_vinculos=True)
+            if sucesso:
+                messagebox.showinfo("Sucesso", mensagem)
+            else:
+                messagebox.showerror("Erro", mensagem)
     except Exception as e:
         logger.exception(f"Erro ao excluir funcionário: {e}")
         messagebox.showerror("Erro", f"Erro ao excluir: {e}")
@@ -890,8 +894,8 @@ def excluir_funcionario_wrapper(funcionario_id):
 def gerar_declaracao_funcionario_wrapper(funcionario_id):
     """Wrapper para gerar declaração do funcionário."""
     try:
-        from Funcionario import gerar_declaracao_funcionario
-        gerar_declaracao_funcionario(funcionario_id)
+        from src.models.funcionario_old import gerar_declaracao_funcionario as gerar_declaracao_funcionario_legacy
+        gerar_declaracao_funcionario_legacy(funcionario_id)
     except Exception as e:
         logger.exception(f"Erro ao gerar declaração: {e}")
         messagebox.showerror("Erro", f"Erro ao gerar declaração: {e}")

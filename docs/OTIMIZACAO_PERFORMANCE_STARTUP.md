@@ -80,7 +80,7 @@ def lista_atualizada_wrapper():
 #### Funcionario e Gerar_Declaracao_Aluno
 ```python
 # ANTES:
-from Funcionario import gerar_declaracao_funcionario
+from src.models.funcionario_old import gerar_declaracao_funcionario
 from Gerar_Declaracao_Aluno import gerar_declaracao_aluno
 
 # DEPOIS:

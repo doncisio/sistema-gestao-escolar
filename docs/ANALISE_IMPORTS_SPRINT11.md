@@ -47,13 +47,13 @@ import numpy as np
 
 ### 1.4 Imports Locais - Módulos Legados (7 módulos)
 ```python
-from Funcionario import gerar_declaracao_funcionario
+from src.models.funcionario_old import gerar_declaracao_funcionario
 import Funcionario
 from Gerar_Declaracao_Aluno import gerar_declaracao_aluno
 import Lista_atualizada
 import Lista_atualizada_semed
 import Seguranca
-import aluno
+from src.models import aluno_old as aluno
 ```
 
 **Observação:** Alguns já têm equivalentes em services/

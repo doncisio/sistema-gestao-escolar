@@ -13,16 +13,16 @@ from tkinter import TclError  # Importar TclError explicitamente para tratamento
 from PIL import ImageTk, Image
 import pandas as pd
 
-# Importa+º+Áes para o dashboard com gr+íficos
+# Importa+ï¿½+ï¿½es para o dashboard com gr+ï¿½ficos
 import matplotlib
-matplotlib.use('TkAgg')  # Backend para integra+º+úo com Tkinter
+matplotlib.use('TkAgg')  # Backend para integra+ï¿½+ï¿½o com Tkinter
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from mpl_toolkits.mplot3d import Axes3D  # Para gr+íficos 3D
-import numpy as np  # Para c+ílculos matem+íticos do gr+ífico 3D
+from mpl_toolkits.mplot3d import Axes3D  # Para gr+ï¿½ficos 3D
+import numpy as np  # Para c+ï¿½lculos matem+ï¿½ticos do gr+ï¿½fico 3D
 
-from Funcionario import gerar_declaracao_funcionario
-import Funcionario
+from src.models.funcionario_old import gerar_declaracao_funcionario
+from src.models import funcionario_old as Funcionario
 from Gerar_Declaracao_Aluno import gerar_declaracao_aluno
 import Lista_atualizada
 import Lista_atualizada_semed
@@ -31,10 +31,10 @@ from conexao import inicializar_pool, fechar_pool
 from db.connection import get_connection
 from typing import Any, cast
 from integrar_historico_escolar import abrir_interface_historico, abrir_historico_aluno
-import aluno
+from src.models import aluno_old as aluno
 from config_logs import get_logger
 
-# Logger da aplica+º+úo
+# Logger da aplica+ï¿½+ï¿½o
 logger = get_logger(__name__)
 
 import json
@@ -44,12 +44,12 @@ import json
 # Documentos: pasta base e helpers
 # -----------------------------------------------------------------------------
 def _get_documents_root() -> str:
-    """Retorna a pasta raiz onde os documentos ser+úo gerados.
-    Procura a vari+ível de ambiente `DOCUMENTS_SECRETARIA_ROOT` e, se n+úo
-    existir, usa por padr+úo o diret+¦rio da aplica+º+úo (cwd). Dessa forma a
-    estrutura final ser+í `./Documentos Secretaria {ANO}` por padr+úo.
+    """Retorna a pasta raiz onde os documentos ser+ï¿½o gerados.
+    Procura a vari+ï¿½vel de ambiente `DOCUMENTS_SECRETARIA_ROOT` e, se n+ï¿½o
+    existir, usa por padr+ï¿½o o diret+ï¿½rio da aplica+ï¿½+ï¿½o (cwd). Dessa forma a
+    estrutura final ser+ï¿½ `./Documentos Secretaria {ANO}` por padr+ï¿½o.
     """
-    # 1) Preferir vari+ível de ambiente quando definida (permite sobrepor sem alterar c+¦digo)
+    # 1) Preferir vari+ï¿½vel de ambiente quando definida (permite sobrepor sem alterar c+ï¿½digo)
     try:
         root = os.environ.get('DOCUMENTS_SECRETARIA_ROOT')
         if root:
@@ -59,7 +59,7 @@ def _get_documents_root() -> str:
 
     # 2) Fallback para constante em `config.py` (facilita usar um caminho embutido)
     try:
-        # Import local para evitar poss+¡veis efeitos colaterais na importa+º+úo do m+¦dulo
+        # Import local para evitar poss+ï¿½veis efeitos colaterais na importa+ï¿½+ï¿½o do m+ï¿½dulo
         import config as _app_config
         default = getattr(_app_config, 'DEFAULT_DOCUMENTS_SECRETARIA_ROOT', None)
         if default:
@@ -67,7 +67,7 @@ def _get_documents_root() -> str:
     except Exception:
         pass
 
-    # 3) +Ültimo recurso: diret+¦rio atual da aplica+º+úo (cwd)
+    # 3) +ï¿½ltimo recurso: diret+ï¿½rio atual da aplica+ï¿½+ï¿½o (cwd)
     return os.path.abspath(os.getcwd())
 
 
@@ -94,7 +94,7 @@ def _ensure_docs_dirs(ano: Optional[int] = None):
 
 
 # -----------------------------
-# Helpers para configura+º+úo do Drive
+# Helpers para configura+ï¿½+ï¿½o do Drive
 # -----------------------------
 LOCAL_CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'local_config.json')
 
@@ -134,14 +134,14 @@ def _extract_drive_id(s: str) -> Optional[str]:
         parts = s.split('id=')
         if len(parts) > 1:
             return parts[1].split('&')[0]
-    # prov+ível id cru
+    # prov+ï¿½vel id cru
     if len(s) >= 20 and all(c.isalnum() or c in ['-', '_'] for c in s):
         return s
     return None
 
 
 def get_drive_folder_id() -> Optional[str]:
-    # 1) vari+ível de ambiente
+    # 1) vari+ï¿½vel de ambiente
     v = os.environ.get('DOCUMENTS_DRIVE_FOLDER_ID')
     if v:
         return _extract_drive_id(v) or v
@@ -167,19 +167,19 @@ def get_drive_folder_id() -> Optional[str]:
 
 
 def _categoria_por_descricao(descricao: str) -> str:
-    """Mapeia uma descri+º+úo textual para uma subpasta de documentos."""
+    """Mapeia uma descri+ï¿½+ï¿½o textual para uma subpasta de documentos."""
     d = (descricao or '').lower()
-    if 'pend+¬n' in d or 'pendenc' in d or 'pend+¬ncias' in d:
+    if 'pend+ï¿½n' in d or 'pendenc' in d or 'pend+ï¿½ncias' in d:
         return 'Pendencias'
-    if 'assinatura' in d or 'nota' in d or 'relat+¦rio de notas' in d:
+    if 'assinatura' in d or 'nota' in d or 'relat+ï¿½rio de notas' in d:
         return 'Notas'
     if 'lista' in d or 'reuni' in d:
         return 'Listas'
-    if 'frequ+¬ncia' in d or 'frequencia' in d or 'falt' in d:
+    if 'frequ+ï¿½ncia' in d or 'frequencia' in d or 'falt' in d:
         return 'Faltas'
     if 'contato' in d or 'contatos' in d:
         return 'Contatos'
-    if 'movimenta+º+úo' in d or 'movimentacao' in d or 'servi+ºo' in d or 'servicos' in d:
+    if 'movimenta+ï¿½+ï¿½o' in d or 'movimentacao' in d or 'servi+ï¿½o' in d or 'servicos' in d:
         return 'Servicos'
     if 'geral' in d:
         return 'Relatorios Gerais'
@@ -189,7 +189,7 @@ def _categoria_por_descricao(descricao: str) -> str:
 def _run_in_documents_dir(descricao: str, fn):
     """Executa `fn()` com o cwd temporariamente alterado para a pasta apropriada.
 
-    A pasta +®: <root>/Documentos Secretaria {ano}/{categoria}
+    A pasta +ï¿½: <root>/Documentos Secretaria {ano}/{categoria}
     """
     pasta_ano = _ensure_docs_dirs()
     categoria = _categoria_por_descricao(descricao)
@@ -207,12 +207,12 @@ def _run_in_documents_dir(descricao: str, fn):
 
 
 def _run_report_in_background(fn, descricao: str):
-    # Delegar para o m+¦dulo de UI (`ui.dashboard`) que oferece janela de progresso
+    # Delegar para o m+ï¿½dulo de UI (`ui.dashboard`) que oferece janela de progresso
     try:
         from ui.dashboard import run_report_in_background
         return run_report_in_background(fn, descricao, janela=janela, status_label=status_label, co1=co1, co0=co0, co6=co6)
     except Exception:
-        # Se falhar (ex.: m+¦dulo n+úo dispon+¡vel), usar fallback m+¡nimo local
+        # Se falhar (ex.: m+ï¿½dulo n+ï¿½o dispon+ï¿½vel), usar fallback m+ï¿½nimo local
         def _worker():
             try:
                 # Executa o trabalho dentro da pasta de documentos apropriada
@@ -243,7 +243,7 @@ def _run_report_in_background(fn, descricao: str):
 
 
 def _run_report_module_returning_buffer(module_fn, descricao: str):
-    """Helper: para m+¦dulos que retornam um `BytesIO` buffer.
+    """Helper: para m+ï¿½dulos que retornam um `BytesIO` buffer.
     Chama `module_fn()` em background e, quando recebe o buffer,
     salva/abre o PDF via `gerarPDF.salvar_e_abrir_pdf` (no worker).
     Retorna o caminho do arquivo salvo para o on_done do wrapper.
@@ -254,7 +254,7 @@ def _run_report_module_returning_buffer(module_fn, descricao: str):
     except Exception:
         # Fallback local
         def _worker():
-            # Executar o m+¦dulo produtor de buffer dentro da pasta de documentos
+            # Executar o m+ï¿½dulo produtor de buffer dentro da pasta de documentos
             def _call():
                 return module_fn()
 
@@ -282,7 +282,7 @@ def relatorio_levantamento_necessidades():
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao agendar levantamento de necessidades: {e}")
     else:
-        messagebox.showerror("Erro", "Fun+º+úo 'gerar_levantamento_necessidades' n+úo dispon+¡vel. Verifique o m+¦dulo 'levantamento_necessidades'.")
+        messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'gerar_levantamento_necessidades' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'levantamento_necessidades'.")
 
 
 def relatorio_contatos_responsaveis():
@@ -293,9 +293,9 @@ def relatorio_contatos_responsaveis():
 
     if _cont and hasattr(_cont, 'gerar_pdf_contatos'):
         try:
-            # A fun+º+úo `gerar_pdf_contatos` requer o par+ómetro `ano_letivo` (ex.: 2025).
+            # A fun+ï¿½+ï¿½o `gerar_pdf_contatos` requer o par+ï¿½metro `ano_letivo` (ex.: 2025).
             # `obter_ano_letivo_atual()` retorna o ID do registro em AnosLetivos,
-            # ent+úo precisamos converter esse ID para o valor do ano (coluna `ano_letivo`)
+            # ent+ï¿½o precisamos converter esse ID para o valor do ano (coluna `ano_letivo`)
             # que o gerador espera receber.
             ano_param = None
             try:
@@ -317,16 +317,16 @@ def relatorio_contatos_responsaveis():
             except Exception:
                 ano_param = None
 
-            # Fallback: usar o ano corrente se n+úo conseguimos determinar o ano
+            # Fallback: usar o ano corrente se n+ï¿½o conseguimos determinar o ano
             if not ano_param:
                 from datetime import datetime as _dt
                 ano_param = _dt.now().year
 
-            _run_report_module_returning_buffer(lambda: _cont.gerar_pdf_contatos(ano_param), "Contatos de Respons+íveis")
+            _run_report_module_returning_buffer(lambda: _cont.gerar_pdf_contatos(ano_param), "Contatos de Respons+ï¿½veis")
         except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao agendar relat+¦rio de contatos: {e}")
+            messagebox.showerror("Erro", f"Falha ao agendar relat+ï¿½rio de contatos: {e}")
     else:
-        messagebox.showerror("Erro", "Fun+º+úo 'gerar_pdf_contatos' n+úo dispon+¡vel. Verifique o m+¦dulo 'Lista_contatos_responsaveis'.")
+        messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'gerar_pdf_contatos' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'Lista_contatos_responsaveis'.")
 
 
 def relatorio_lista_alfabetica():
@@ -337,11 +337,11 @@ def relatorio_lista_alfabetica():
 
     if _alf and hasattr(_alf, 'lista_alfabetica'):
         try:
-            _run_report_in_background(_alf.lista_alfabetica, "Lista Alfab+®tica")
+            _run_report_in_background(_alf.lista_alfabetica, "Lista Alfab+ï¿½tica")
         except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao agendar lista alfab+®tica: {e}")
+            messagebox.showerror("Erro", f"Falha ao agendar lista alfab+ï¿½tica: {e}")
     else:
-        messagebox.showerror("Erro", "Fun+º+úo 'lista_alfabetica' n+úo dispon+¡vel. Verifique o m+¦dulo 'Lista_alunos_alfabetica'.")
+        messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'lista_alfabetica' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'Lista_alunos_alfabetica'.")
 
 
 def relatorio_alunos_transtornos():
@@ -354,9 +354,9 @@ def relatorio_alunos_transtornos():
         try:
             _run_report_in_background(_tr.lista_alunos_transtornos, "Alunos com Transtornos")
         except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao agendar relat+¦rio de transtornos: {e}")
+            messagebox.showerror("Erro", f"Falha ao agendar relat+ï¿½rio de transtornos: {e}")
     else:
-        messagebox.showerror("Erro", "Fun+º+úo 'lista_alunos_transtornos' n+úo dispon+¡vel. Verifique o m+¦dulo 'Lista_alunos_transtornos'.")
+        messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'lista_alunos_transtornos' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'Lista_alunos_transtornos'.")
 
 
 def relatorio_termo_responsabilidade():
@@ -372,7 +372,7 @@ def relatorio_termo_responsabilidade():
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao agendar termo de responsabilidade: {e}")
     else:
-        messagebox.showerror("Erro", "Fun+º+úo 'gerar_termo_responsabilidade' n+úo dispon+¡vel. Verifique o m+¦dulo 'termo_responsabilidade_empresa'.")
+        messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'gerar_termo_responsabilidade' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'termo_responsabilidade_empresa'.")
 
 
 def relatorio_tabela_docentes():
@@ -387,17 +387,17 @@ def relatorio_tabela_docentes():
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao agendar tabela de docentes: {e}")
     else:
-        messagebox.showerror("Erro", "Fun+º+úo 'gerar_tabela_docentes' n+úo dispon+¡vel. Verifique o m+¦dulo 'tabela_docentes'.")
+        messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'gerar_tabela_docentes' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'tabela_docentes'.")
 
-# Import seguro para a interface de cadastro/edi+º+úo de notas
+# Import seguro para a interface de cadastro/edi+ï¿½+ï¿½o de notas
 try:
     import InterfaceCadastroEdicaoNotas as _InterfaceCadastroEdicaoNotas
 except Exception:
     _InterfaceCadastroEdicaoNotas = None
-# Import opcional de relat+¦rios de movimenta+º+úo mensal.
-# Se o m+¦dulo n+úo estiver dispon+¡vel em tempo de import, definimos a
-# vari+ível como None para evitar avisos de nome n+úo definido e permitir
-# tratamento condicional em tempo de execu+º+úo.
+# Import opcional de relat+ï¿½rios de movimenta+ï¿½+ï¿½o mensal.
+# Se o m+ï¿½dulo n+ï¿½o estiver dispon+ï¿½vel em tempo de import, definimos a
+# vari+ï¿½vel como None para evitar avisos de nome n+ï¿½o definido e permitir
+# tratamento condicional em tempo de execu+ï¿½+ï¿½o.
 try:
     import movimentomensal
 except Exception:
@@ -407,19 +407,19 @@ try:
 except Exception:
     _boletim_module = None
 
-# Import seguro para gerar listas de reuni+úo (wrapper)
+# Import seguro para gerar listas de reuni+ï¿½o (wrapper)
 try:
     import gerar_lista_reuniao as _gerar_lista_reuniao
 except Exception:
     _gerar_lista_reuniao = None
 
-# Import seguro para fun+º+Áes de notas (NotaAta)
+# Import seguro para fun+ï¿½+ï¿½es de notas (NotaAta)
 try:
     import NotaAta as _NotaAta
 except Exception:
     _NotaAta = None
 
-# Servi+ºo de relat+¦rios centralizado (m+¦dulos legados delegados para services)
+# Servi+ï¿½o de relat+ï¿½rios centralizado (m+ï¿½dulos legados delegados para services)
 try:
     from services import report_service
 except Exception:
@@ -432,37 +432,37 @@ except Exception:
     _AtaGeral = None
 
 def lista_reuniao():
-    """Wrapper seguro para gerar a lista de reuni+úo.
-    Se o m+¦dulo estiver dispon+¡vel, chama `gerar_lista_reuniao.gerar_lista_reuniao()`;
-    caso contr+írio, mostra uma mensagem de erro amig+ível.
+    """Wrapper seguro para gerar a lista de reuni+ï¿½o.
+    Se o m+ï¿½dulo estiver dispon+ï¿½vel, chama `gerar_lista_reuniao.gerar_lista_reuniao()`;
+    caso contr+ï¿½rio, mostra uma mensagem de erro amig+ï¿½vel.
     """
-    # Primeira op+º+úo: delegar para o servi+ºo centralizado, se dispon+¡vel
+    # Primeira op+ï¿½+ï¿½o: delegar para o servi+ï¿½o centralizado, se dispon+ï¿½vel
     if report_service is not None and hasattr(report_service, 'gerar_lista_reuniao'):
         try:
             logger.info("Chamando report_service.gerar_lista_reuniao() via menu")
             # Cast para Any para ajudar o verificador de tipos (Pylance) a entender
-            # que `report_service` n+úo +® None no ramo protegido pelo if acima.
+            # que `report_service` n+ï¿½o +ï¿½ None no ramo protegido pelo if acima.
             resultado = cast(Any, report_service).gerar_lista_reuniao()
             logger.info("report_service.gerar_lista_reuniao() retornou: %s", resultado)
             return resultado
         except Exception as e:
-            # Logar traceback completo para diagn+¦stico quando chamado pela UI
+            # Logar traceback completo para diagn+ï¿½stico quando chamado pela UI
             logger.exception("Erro ao chamar report_service.gerar_lista_reuniao(): %s", e)
-            # Mostrar mensagem mais informativa ao usu+írio
+            # Mostrar mensagem mais informativa ao usu+ï¿½rio
             tb = traceback.format_exc()
-            messagebox.showerror("Erro", f"Falha ao gerar lista de reuni+úo: {e}\n\nDetalhes t+®cnicos foram registrados no log.")
+            messagebox.showerror("Erro", f"Falha ao gerar lista de reuni+ï¿½o: {e}\n\nDetalhes t+ï¿½cnicos foram registrados no log.")
             return None
 
-    # Fallback: usar o m+¦dulo legado j+í importado de forma segura
+    # Fallback: usar o m+ï¿½dulo legado j+ï¿½ importado de forma segura
     if _gerar_lista_reuniao and hasattr(_gerar_lista_reuniao, 'gerar_lista_reuniao'):
         # Bind the legacy function to a local variable (cast to Any) so the
         # background worker receives a concrete callable and static analyzers
         # (Pylance) do not complain about optional member access inside a lambda.
         _fn = cast(Any, _gerar_lista_reuniao).gerar_lista_reuniao
-        _run_report_in_background(_fn, "Lista de Reuni+úo")
+        _run_report_in_background(_fn, "Lista de Reuni+ï¿½o")
         return None
     else:
-        messagebox.showerror("Erro", "Fun+º+úo 'gerar_lista_reuniao' n+úo dispon+¡vel. Verifique o m+¦dulo 'gerar_lista_reuniao'.")
+        messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'gerar_lista_reuniao' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'gerar_lista_reuniao'.")
         return None
 
 # Import seguro para lista de notas
@@ -473,9 +473,9 @@ except Exception:
 
 def lista_notas():
     """Wrapper seguro para gerar a lista de notas.
-    Chama `Lista_notas.lista_notas()` se dispon+¡vel; caso contr+írio exibe erro.
+    Chama `Lista_notas.lista_notas()` se dispon+ï¿½vel; caso contr+ï¿½rio exibe erro.
     """
-    # Tenta delegar para o servi+ºo centralizado quando dispon+¡vel
+    # Tenta delegar para o servi+ï¿½o centralizado quando dispon+ï¿½vel
     if report_service is not None and hasattr(report_service, 'gerar_lista_notas'):
         try:
             return report_service.gerar_lista_notas()
@@ -483,37 +483,37 @@ def lista_notas():
             messagebox.showerror("Erro", f"Falha ao gerar lista de notas: {e}")
             return None
 
-    # Fallback para m+¦dulo legado
+    # Fallback para m+ï¿½dulo legado
     if _lista_notas and hasattr(_lista_notas, 'lista_notas'):
         _fn = cast(Any, _lista_notas).lista_notas
         _run_report_in_background(_fn, "Lista de Notas")
         return None
     else:
-        messagebox.showerror("Erro", "Fun+º+úo 'lista_notas' n+úo dispon+¡vel. Verifique o m+¦dulo 'Lista_notas'.")
+        messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'lista_notas' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'Lista_notas'.")
         return None
 
-# Import seguro para lista de frequ+¬ncia
+# Import seguro para lista de frequ+ï¿½ncia
 try:
     import lista_frequencia as _lista_frequencia
 except Exception:
     _lista_frequencia = None
 
 def lista_frequencia():
-    """Wrapper seguro para gerar a lista de frequ+¬ncia.
-    Chama `lista_frequencia.lista_frequencia()` se dispon+¡vel; caso contr+írio exibe erro.
+    """Wrapper seguro para gerar a lista de frequ+ï¿½ncia.
+    Chama `lista_frequencia.lista_frequencia()` se dispon+ï¿½vel; caso contr+ï¿½rio exibe erro.
     """
-    # Tenta delegar para o servi+ºo centralizado quando dispon+¡vel
+    # Tenta delegar para o servi+ï¿½o centralizado quando dispon+ï¿½vel
     if report_service is not None and hasattr(report_service, 'gerar_lista_frequencia'):
         try:
             return report_service.gerar_lista_frequencia()
         except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao gerar lista de frequ+¬ncia: {e}")
+            messagebox.showerror("Erro", f"Falha ao gerar lista de frequ+ï¿½ncia: {e}")
             return None
 
-    # Fallback para m+¦dulo legado
+    # Fallback para m+ï¿½dulo legado
     if _lista_frequencia and hasattr(_lista_frequencia, 'lista_frequencia'):
         _fn = cast(Any, _lista_frequencia).lista_frequencia
-        _run_report_in_background(_fn, "Lista de Frequ+¬ncia")
+        _run_report_in_background(_fn, "Lista de Frequ+ï¿½ncia")
         return None
 
 
@@ -522,7 +522,7 @@ def lista_atualizada_wrapper():
         if hasattr(Lista_atualizada, 'lista_atualizada'):
             _run_report_in_background(Lista_atualizada.lista_atualizada, "Lista Atualizada")
         else:
-            messagebox.showerror("Erro", "Fun+º+úo 'lista_atualizada' n+úo dispon+¡vel no m+¦dulo Lista_atualizada.")
+            messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'lista_atualizada' n+ï¿½o dispon+ï¿½vel no m+ï¿½dulo Lista_atualizada.")
     except Exception as e:
         messagebox.showerror("Erro", f"Falha ao gerar Lista Atualizada: {e}")
 
@@ -532,32 +532,32 @@ def lista_atualizada_semed_wrapper():
         if hasattr(Lista_atualizada_semed, 'lista_atualizada'):
             _run_report_in_background(Lista_atualizada_semed.lista_atualizada, "Lista Atualizada SEMED")
         else:
-            messagebox.showerror("Erro", "Fun+º+úo 'lista_atualizada' n+úo dispon+¡vel no m+¦dulo Lista_atualizada_semed.")
+            messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'lista_atualizada' n+ï¿½o dispon+ï¿½vel no m+ï¿½dulo Lista_atualizada_semed.")
     except Exception as e:
         messagebox.showerror("Erro", f"Falha ao gerar Lista Atualizada SEMED: {e}")
-    # NOTE: N+úo usar `else:` aqui ÔÇö bloco `else` em `try/except/else` executa quando
-    # n+úo houve exce+º+úo, o que causava a exibi+º+úo indevida de uma mensagem de erro
-    # mesmo quando a gera+º+úo foi agendada com sucesso. Removido para comportamento correto.
+    # NOTE: N+ï¿½o usar `else:` aqui ï¿½ï¿½ï¿½ bloco `else` em `try/except/else` executa quando
+    # n+ï¿½o houve exce+ï¿½+ï¿½o, o que causava a exibi+ï¿½+ï¿½o indevida de uma mensagem de erro
+    # mesmo quando a gera+ï¿½+ï¿½o foi agendada com sucesso. Removido para comportamento correto.
 
 def gerar_relatorio_notas(*args, **kwargs):
     """Wrapper para `NotaAta.gerar_relatorio_notas`"""
-    # Primeira op+º+úo: delegar para o service centralizado quando dispon+¡vel
+    # Primeira op+ï¿½+ï¿½o: delegar para o service centralizado quando dispon+ï¿½vel
     if report_service is not None and hasattr(report_service, 'gerar_relatorio_notas'):
         try:
             return report_service.gerar_relatorio_notas(*args, **kwargs)
         except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao gerar relat+¦rio de notas: {e}")
+            messagebox.showerror("Erro", f"Falha ao gerar relat+ï¿½rio de notas: {e}")
             return None
 
-    # Fallback para o m+¦dulo legado
+    # Fallback para o m+ï¿½dulo legado
     if _NotaAta and hasattr(_NotaAta, 'gerar_relatorio_notas'):
         try:
             return _NotaAta.gerar_relatorio_notas(*args, **kwargs)
         except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao gerar relat+¦rio de notas: {e}")
+            messagebox.showerror("Erro", f"Falha ao gerar relat+ï¿½rio de notas: {e}")
             return None
     else:
-        messagebox.showerror("Erro", "Fun+º+úo 'gerar_relatorio_notas' n+úo dispon+¡vel. Verifique o m+¦dulo 'NotaAta'.")
+        messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'gerar_relatorio_notas' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'NotaAta'.")
         return None
 
 def gerar_relatorio_notas_com_assinatura(*args, **kwargs):
@@ -566,34 +566,34 @@ def gerar_relatorio_notas_com_assinatura(*args, **kwargs):
         try:
             return _NotaAta.gerar_relatorio_notas_com_assinatura(*args, **kwargs)
         except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao gerar relat+¦rio com assinatura: {e}")
+            messagebox.showerror("Erro", f"Falha ao gerar relat+ï¿½rio com assinatura: {e}")
             return None
     else:
-        messagebox.showerror("Erro", "Fun+º+úo 'gerar_relatorio_notas_com_assinatura' n+úo dispon+¡vel. Verifique o m+¦dulo 'NotaAta'.")
+        messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'gerar_relatorio_notas_com_assinatura' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'NotaAta'.")
         return None
 
 def relatorio_movimentacao_mensal(numero_mes):
-    # Tenta delegar para o servi+ºo centralizado quando dispon+¡vel
+    # Tenta delegar para o servi+ï¿½o centralizado quando dispon+ï¿½vel
     if report_service is not None and hasattr(report_service, 'gerar_relatorio_movimentacao_mensal'):
         try:
             return report_service.gerar_relatorio_movimentacao_mensal(numero_mes)
         except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao gerar relat+¦rio de movimenta+º+úo: {e}")
+            messagebox.showerror("Erro", f"Falha ao gerar relat+ï¿½rio de movimenta+ï¿½+ï¿½o: {e}")
             return None
 
-    # Fallback para m+¦dulo legado
+    # Fallback para m+ï¿½dulo legado
     if movimentomensal and hasattr(movimentomensal, 'relatorio_movimentacao_mensal'):
         try:
             return movimentomensal.relatorio_movimentacao_mensal(numero_mes)
         except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao gerar relat+¦rio de movimenta+º+úo: {e}")
+            messagebox.showerror("Erro", f"Falha ao gerar relat+ï¿½rio de movimenta+ï¿½+ï¿½o: {e}")
             return None
 
-    messagebox.showerror("Erro", "Fun+º+úo 'relatorio_movimentacao_mensal' n+úo dispon+¡vel. Verifique o m+¦dulo 'movimentomensal' ou o servi+ºo de relat+¦rios.")
+    messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'relatorio_movimentacao_mensal' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'movimentomensal' ou o servi+ï¿½o de relat+ï¿½rios.")
     return None
 
 def boletim(aluno_id, ano_letivo_id=None):
-    # Tenta delegar para o servi+ºo centralizado quando dispon+¡vel
+    # Tenta delegar para o servi+ï¿½o centralizado quando dispon+ï¿½vel
     if report_service is not None and hasattr(report_service, 'gerar_boletim'):
         try:
             report_service.gerar_boletim(aluno_id, ano_letivo_id)
@@ -602,7 +602,7 @@ def boletim(aluno_id, ano_letivo_id=None):
             messagebox.showerror("Erro", f"Falha ao gerar boletim: {e}")
             return None
 
-    # Fallback para m+¦dulo legado quando o service n+úo estiver dispon+¡vel
+    # Fallback para m+ï¿½dulo legado quando o service n+ï¿½o estiver dispon+ï¿½vel
     if _boletim_module and hasattr(_boletim_module, 'boletim'):
         try:
             return _boletim_module.boletim(aluno_id, ano_letivo_id)
@@ -610,35 +610,35 @@ def boletim(aluno_id, ano_letivo_id=None):
             messagebox.showerror("Erro", f"Falha ao gerar boletim: {e}")
             return None
 
-    messagebox.showerror("Erro", "Fun+º+úo 'boletim' n+úo dispon+¡vel. Verifique o m+¦dulo 'boletim' ou o servi+ºo de relat+¦rios.")
+    messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'boletim' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'boletim' ou o servi+ï¿½o de relat+ï¿½rios.")
     return None
 
 def nota_bimestre(bimestre=None, preencher_nulos=False):
     if _NotaAta and hasattr(_NotaAta, 'nota_bimestre'):
         return _NotaAta.nota_bimestre(bimestre, preencher_nulos=preencher_nulos)
     else:
-        messagebox.showerror("Erro", "Fun+º+úo 'nota_bimestre' n+úo dispon+¡vel. Verifique o m+¦dulo 'NotaAta'.")
+        messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'nota_bimestre' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'NotaAta'.")
         return None
 
 def nota_bimestre2(bimestre=None, preencher_nulos=False):
     if _NotaAta and hasattr(_NotaAta, 'nota_bimestre2'):
         return _NotaAta.nota_bimestre2(bimestre, preencher_nulos=preencher_nulos)
     else:
-        messagebox.showerror("Erro", "Fun+º+úo 'nota_bimestre2' n+úo dispon+¡vel. Verifique o m+¦dulo 'NotaAta'.")
+        messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'nota_bimestre2' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'NotaAta'.")
         return None
 
 def nota_bimestre_com_assinatura(bimestre=None, preencher_nulos=False):
     if _NotaAta and hasattr(_NotaAta, 'nota_bimestre_com_assinatura'):
         return _NotaAta.nota_bimestre_com_assinatura(bimestre, preencher_nulos=preencher_nulos)
     else:
-        messagebox.showerror("Erro", "Fun+º+úo 'nota_bimestre_com_assinatura' n+úo dispon+¡vel. Verifique o m+¦dulo 'NotaAta'.")
+        messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'nota_bimestre_com_assinatura' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'NotaAta'.")
         return None
 
 def nota_bimestre2_com_assinatura(bimestre=None, preencher_nulos=False):
     if _NotaAta and hasattr(_NotaAta, 'nota_bimestre2_com_assinatura'):
         return _NotaAta.nota_bimestre2_com_assinatura(bimestre, preencher_nulos=preencher_nulos)
     else:
-        messagebox.showerror("Erro", "Fun+º+úo 'nota_bimestre2_com_assinatura' n+úo dispon+¡vel. Verifique o m+¦dulo 'NotaAta'.")
+        messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'nota_bimestre2_com_assinatura' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'NotaAta'.")
         return None
 
 def abrir_interface_ata(janela_pai=None, status_label=None):
@@ -649,27 +649,27 @@ def abrir_interface_ata(janela_pai=None, status_label=None):
             messagebox.showerror("Erro", f"Falha ao abrir interface de Ata: {e}")
             return None
     else:
-        # Tenta import din+ómico como fallback
+        # Tenta import din+ï¿½mico como fallback
         try:
             from AtaGeral import abrir_interface_ata as _abrir_ata_dyn
             return _abrir_ata_dyn(janela_pai, status_label)
         except Exception as e:
-            messagebox.showerror("Erro", f"Fun+º+úo 'abrir_interface_ata' n+úo dispon+¡vel: {e}")
+            messagebox.showerror("Erro", f"Fun+ï¿½+ï¿½o 'abrir_interface_ata' n+ï¿½o dispon+ï¿½vel: {e}")
             return None
 
-# Flag de teste: quando True, desativa o sistema de backup autom+ítico
+# Flag de teste: quando True, desativa o sistema de backup autom+ï¿½tico
 # para permitir testes manuais da interface sem que o app feche automaticamente.
-# Defina para False antes de commitar para produ+º+úo.
-# Vari+íveis globais de fallback para evitar avisos est+íticos
+# Defina para False antes de commitar para produ+ï¿½+ï¿½o.
+# Vari+ï¿½veis globais de fallback para evitar avisos est+ï¿½ticos
 query = None
 
 TEST_MODE = True
 
-# Importar utilit+írios compartilhados
+# Importar utilit+ï¿½rios compartilhados
 from utils.safe import converter_para_int_seguro, _safe_get, _safe_slice
 
 def obter_ano_letivo_atual() -> int:
-    """Retorna o `id` do ano letivo atual. Se n+úo encontrar, retorna o id do ano letivo mais recente.
+    """Retorna o `id` do ano letivo atual. Se n+ï¿½o encontrar, retorna o id do ano letivo mais recente.
 
     Usa `get_connection()` para consultar a tabela `AnosLetivos`.
     Em caso de erro retorna `1` como fallback seguro.
@@ -699,25 +699,25 @@ try:
     from preencher_folha_ponto import gerar_folhas_de_ponto as _gerar_folhas_de_ponto_legacy, nome_mes_pt as nome_mes_pt_folha
 except Exception:
     _gerar_folhas_de_ponto_legacy = None
-    # Fallback: usar utilit+írio consolidado para nome do m+¬s
+    # Fallback: usar utilit+ï¿½rio consolidado para nome do m+ï¿½s
     from utils.dates import nome_mes_pt as nome_mes_pt_folha
-# Import seguro para resumo de ponto ÔÇö importamos o m+¦dulo como fallback
+# Import seguro para resumo de ponto ï¿½ï¿½ï¿½ importamos o m+ï¿½dulo como fallback
 try:
     from gerar_resumo_ponto import nome_mes_pt as nome_mes_pt_resumo  # type: ignore
     import gerar_resumo_ponto as _gerar_resumo_ponto  # type: ignore
 except Exception:
     _gerar_resumo_ponto = None
-    # Fallback: usar utilit+írio consolidado para nome do m+¬s
+    # Fallback: usar utilit+ï¿½rio consolidado para nome do m+ï¿½s
     from utils.dates import nome_mes_pt as nome_mes_pt_resumo
 
 
 def gerar_resumo_ponto(*args, **kwargs):
     """Wrapper para `gerar_resumo_ponto.gerar_resumo_ponto`.
 
-    Primeiro tenta delegar ao `report_service` se dispon+¡vel; caso contr+írio
-    usa o m+¦dulo legado `gerar_resumo_ponto` quando presente.
+    Primeiro tenta delegar ao `report_service` se dispon+ï¿½vel; caso contr+ï¿½rio
+    usa o m+ï¿½dulo legado `gerar_resumo_ponto` quando presente.
     """
-    # Delegar para service quando dispon+¡vel
+    # Delegar para service quando dispon+ï¿½vel
     if report_service is not None and hasattr(report_service, 'gerar_resumo_ponto'):
         try:
             return report_service.gerar_resumo_ponto(*args, **kwargs)
@@ -725,7 +725,7 @@ def gerar_resumo_ponto(*args, **kwargs):
             messagebox.showerror("Erro", f"Falha ao gerar resumo de ponto: {e}")
             return None
 
-    # Fallback para o m+¦dulo legado
+    # Fallback para o m+ï¿½dulo legado
     if _gerar_resumo_ponto and hasattr(_gerar_resumo_ponto, 'gerar_resumo_ponto'):
         try:
             return _gerar_resumo_ponto.gerar_resumo_ponto(*args, **kwargs)
@@ -733,17 +733,17 @@ def gerar_resumo_ponto(*args, **kwargs):
             messagebox.showerror("Erro", f"Falha ao gerar resumo de ponto: {e}")
             return None
 
-    messagebox.showerror("Erro", "Fun+º+úo 'gerar_resumo_ponto' n+úo dispon+¡vel. Verifique o m+¦dulo 'gerar_resumo_ponto' ou o servi+ºo de relat+¦rios.")
+    messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'gerar_resumo_ponto' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'gerar_resumo_ponto' ou o servi+ï¿½o de relat+ï¿½rios.")
     return None
 
 
 def gerar_folhas_de_ponto(*args, **kwargs):
     """Wrapper para `preencher_folha_ponto.gerar_folhas_de_ponto`.
 
-    Primeiro tenta delegar ao `report_service` se dispon+¡vel; caso contr+írio
-    usa o m+¦dulo legado `preencher_folha_ponto` quando presente.
+    Primeiro tenta delegar ao `report_service` se dispon+ï¿½vel; caso contr+ï¿½rio
+    usa o m+ï¿½dulo legado `preencher_folha_ponto` quando presente.
     """
-    # Delegar para service quando dispon+¡vel
+    # Delegar para service quando dispon+ï¿½vel
     if report_service is not None and hasattr(report_service, 'gerar_folhas_de_ponto'):
         try:
             return report_service.gerar_folhas_de_ponto(*args, **kwargs)
@@ -751,7 +751,7 @@ def gerar_folhas_de_ponto(*args, **kwargs):
             messagebox.showerror("Erro", f"Falha ao gerar folhas de ponto: {e}")
             return None
 
-    # Fallback para o m+¦dulo legado
+    # Fallback para o m+ï¿½dulo legado
     if _gerar_folhas_de_ponto_legacy and hasattr(_gerar_folhas_de_ponto_legacy, 'gerar_folhas_de_ponto'):
         try:
             return _gerar_folhas_de_ponto_legacy(*args, **kwargs)
@@ -759,7 +759,7 @@ def gerar_folhas_de_ponto(*args, **kwargs):
             messagebox.showerror("Erro", f"Falha ao gerar folhas de ponto: {e}")
             return None
 
-    messagebox.showerror("Erro", "Fun+º+úo 'gerar_folhas_de_ponto' n+úo dispon+¡vel. Verifique o m+¦dulo 'preencher_folha_ponto' ou o servi+ºo de relat+¦rios.")
+    messagebox.showerror("Erro", "Fun+ï¿½+ï¿½o 'gerar_folhas_de_ponto' n+ï¿½o dispon+ï¿½vel. Verifique o m+ï¿½dulo 'preencher_folha_ponto' ou o servi+ï¿½o de relat+ï¿½rios.")
     return None
 from GerenciadorDocumentosFuncionarios import GerenciadorDocumentosFuncionarios
 from declaracao_comparecimento import gerar_declaracao_comparecimento_responsavel
@@ -770,7 +770,7 @@ co0 = "#F5F5F5"  # Branco suave para o fundo (substituindo o branco puro)
 co1 = "#003A70"  # Azul escuro (mantido para identidade visual)
 co2 = "#77B341"  # Verde (mantido)
 co3 = "#E2418E"  # Rosa/Magenta (mantido)
-co4 = "#4A86E8"  # Azul mais claro (substituindo o azul m+®dio para melhor contraste)
+co4 = "#4A86E8"  # Azul mais claro (substituindo o azul m+ï¿½dio para melhor contraste)
 co5 = "#F26A25"  # Laranja (mantido)
 co6 = "#F7B731"  # Amarelo (mantido)
 co7 = "#333333"  # Cinza escuro (substituindo o preto para suavizar)
@@ -784,7 +784,7 @@ dashboard_manager = None
 
 # ============================================================================
 # MELHORIA 4: Inicializar Connection Pool
-# Inicializa o pool de conex+Áes no in+¡cio da aplica+º+úo para melhor performance
+# Inicializa o pool de conex+ï¿½es no in+ï¿½cio da aplica+ï¿½+ï¿½o para melhor performance
 # ============================================================================
 logger.info("Inicializando sistema...")
 inicializar_pool()
@@ -818,23 +818,23 @@ janela.configure(background=co1)
 janela.resizable(width=TRUE, height=TRUE)
 
 # Configurar a janela para expandir
-janela.grid_rowconfigure(0, weight=0)  # Logo (n+úo expande verticalmente)
-janela.grid_rowconfigure(1, weight=0)  # Separador (n+úo expande)
-janela.grid_rowconfigure(2, weight=0)  # Dados (n+úo expande)
-janela.grid_rowconfigure(3, weight=0)  # Separador (n+úo expande)
+janela.grid_rowconfigure(0, weight=0)  # Logo (n+ï¿½o expande verticalmente)
+janela.grid_rowconfigure(1, weight=0)  # Separador (n+ï¿½o expande)
+janela.grid_rowconfigure(2, weight=0)  # Dados (n+ï¿½o expande)
+janela.grid_rowconfigure(3, weight=0)  # Separador (n+ï¿½o expande)
 janela.grid_rowconfigure(4, weight=1)  # Detalhes (expande)
-janela.grid_rowconfigure(5, weight=0)  # Separador (n+úo expande)
+janela.grid_rowconfigure(5, weight=0)  # Separador (n+ï¿½o expande)
 janela.grid_rowconfigure(6, weight=1)  # Tabela (expande)
-janela.grid_rowconfigure(7, weight=0)  # Separador (n+úo expande)
-janela.grid_rowconfigure(8, weight=0)  # Rodap+® (n+úo expande)
+janela.grid_rowconfigure(7, weight=0)  # Separador (n+ï¿½o expande)
+janela.grid_rowconfigure(8, weight=0)  # Rodap+ï¿½ (n+ï¿½o expande)
 
-# Configura+º+úo da coluna principal para expandir
+# Configura+ï¿½+ï¿½o da coluna principal para expandir
 janela.grid_columnconfigure(0, weight=1)  # Coluna principal (expande horizontalmente)
 
 style = Style(janela)
 style.theme_use("clam")
 
-# Configura+º+úo de estilos personalizados
+# Configura+ï¿½+ï¿½o de estilos personalizados
 style.configure("TButton", background=co4, foreground=co0, font=('Ivy', 10))
 style.configure("TLabel", background=co1, foreground=co0, font=('Ivy', 10))
 style.configure("TEntry", background=co0, font=('Ivy', 10))
@@ -848,8 +848,8 @@ def criar_frames():
     # Criar os frames
     frame_logo = Frame(janela, height=70, bg=co0)  # Alterado para fundo branco (co0) e aumentado a altura
     frame_logo.grid(row=0, column=0, pady=0, padx=0, sticky=NSEW)
-    frame_logo.grid_propagate(False)  # Impede que o frame mude de tamanho com base no conte+¦do
-    frame_logo.grid_columnconfigure(0, weight=1)  # Permite que o conte+¦do do frame se expanda horizontalmente
+    frame_logo.grid_propagate(False)  # Impede que o frame mude de tamanho com base no conte+ï¿½do
+    frame_logo.grid_columnconfigure(0, weight=1)  # Permite que o conte+ï¿½do do frame se expanda horizontalmente
 
     ttk.Separator(janela, orient=HORIZONTAL).grid(row=1, columnspan=1, sticky=EW)
 
@@ -871,18 +871,18 @@ def criar_frames():
     # Configurar frame_tabela para expandir
     frame_tabela.grid_columnconfigure(0, weight=1)
     
-    # Separador 4 (entre a tabela e o rodap+®)
+    # Separador 4 (entre a tabela e o rodap+ï¿½)
     ttk.Separator(janela, orient=HORIZONTAL).grid(row=7, column=0, sticky=EW)
 
 # ============================================================================
-# MELHORIA 1: Dashboard com Gr+ífico de Pizza
+# MELHORIA 1: Dashboard com Gr+ï¿½fico de Pizza
 # ============================================================================
 
-# Vari+ível global para controlar o canvas do dashboard
+# Vari+ï¿½vel global para controlar o canvas do dashboard
 dashboard_canvas = None
 
 def criar_dashboard():
-    # Delega a cria+º+úo do dashboard ao DashboardManager (instanciado mais abaixo).
+    # Delega a cria+ï¿½+ï¿½o do dashboard ao DashboardManager (instanciado mais abaixo).
     try:
         if 'dashboard_manager' in globals() and dashboard_manager:
             return dashboard_manager.criar_dashboard()
@@ -892,7 +892,7 @@ def criar_dashboard():
 
 def atualizar_dashboard():
     """
-    For+ºa a atualiza+º+úo do cache e recria o dashboard.
+    For+ï¿½a a atualiza+ï¿½+ï¿½o do cache e recria o dashboard.
     """
     try:
         if 'dashboard_manager' in globals() and dashboard_manager:
@@ -902,7 +902,7 @@ def atualizar_dashboard():
     except Exception:
         pass
 
-    # Fallback: limpar cache e recriar via fun+º+úo antiga
+    # Fallback: limpar cache e recriar via fun+ï¿½+ï¿½o antiga
     _cache_estatisticas_dashboard['timestamp'] = None
     _cache_estatisticas_dashboard['dados'] = None
     criar_dashboard()
@@ -910,13 +910,13 @@ def atualizar_dashboard():
 
 def criar_tabela():
     global treeview, tabela_frame
-    # Nota: Esta fun+º+úo n+úo realiza opera+º+Áes diretas ao banco de dados.
-    # Dados e exibi+º+úo s+úo constru+¡dos a partir de estruturas em mem+¦ria (ex.: `df`).
-    # N+úo +® necess+írio abrir/fechar conex+Áes aqui; manter o padr+úo de conex+Áes curtas em outras fun+º+Áes.
+    # Nota: Esta fun+ï¿½+ï¿½o n+ï¿½o realiza opera+ï¿½+ï¿½es diretas ao banco de dados.
+    # Dados e exibi+ï¿½+ï¿½o s+ï¿½o constru+ï¿½dos a partir de estruturas em mem+ï¿½ria (ex.: `df`).
+    # N+ï¿½o +ï¿½ necess+ï¿½rio abrir/fechar conex+ï¿½es aqui; manter o padr+ï¿½o de conex+ï¿½es curtas em outras fun+ï¿½+ï¿½es.
     
     # Frame para conter a tabela e sua barra de rolagem
     tabela_frame = Frame(frame_tabela)
-    # N+âO fazer pack aqui - ser+í controlado pelo sistema de pesquisa
+    # N+ï¿½O fazer pack aqui - ser+ï¿½ controlado pelo sistema de pesquisa
     
     # Configurando o gerenciador de layout
     tabela_frame.grid_rowconfigure(0, weight=1)
@@ -934,15 +934,15 @@ def criar_tabela():
     
     style.layout("mystyle.Treeview", [('mystyle.Treeview.treearea', {'sticky': 'nswe'})])
     
-    # Garantir colunas e df padr+úo caso n+úo estejam definidos ainda
+    # Garantir colunas e df padr+ï¿½o caso n+ï¿½o estejam definidos ainda
     global colunas, df
-    # Usar globals().get para evitar refer+¬ncia a vari+ível possivelmente n+úo associada
+    # Usar globals().get para evitar refer+ï¿½ncia a vari+ï¿½vel possivelmente n+ï¿½o associada
     if 'colunas' not in globals() or not globals().get('colunas'):
         colunas = ['ID', 'Nome']
     if 'df' not in globals() or globals().get('df') is None:
         df = pd.DataFrame(columns=colunas)
 
-    # Cria+º+úo do Treeview com barras de rolagem
+    # Cria+ï¿½+ï¿½o do Treeview com barras de rolagem
     treeview = ttk.Treeview(tabela_frame, style="mystyle.Treeview", columns=colunas, show='headings')
     
     # Configurar barras de rolagem
@@ -955,7 +955,7 @@ def criar_tabela():
     vsb.grid(row=0, column=1, sticky=NS)
     hsb.grid(row=1, column=0, sticky=EW)
     
-    # Configura+º+úo das colunas
+    # Configura+ï¿½+ï¿½o das colunas
     for col in colunas:
         treeview.heading(col, text=col, anchor=W)
         treeview.column(col, width=120, anchor=W)
@@ -963,7 +963,7 @@ def criar_tabela():
     # Adicionar dados iniciais
     for i, row in df.iterrows():
         row = list(row)
-        # Padronizar data de nascimento (+¡ndice 4)
+        # Padronizar data de nascimento (+ï¿½ndice 4)
         if row[4]:
             try:
                 if isinstance(row[4], str):
@@ -972,17 +972,17 @@ def criar_tabela():
                 elif isinstance(row[4], (datetime, date)):
                     data = row[4]
                 else:
-                    continue  # Pula se n+úo for um tipo de data v+ílido
+                    continue  # Pula se n+ï¿½o for um tipo de data v+ï¿½lido
                 row[4] = data.strftime('%d/%m/%Y')
             except Exception:
-                pass  # Se n+úo conseguir converter, deixa como est+í
+                pass  # Se n+ï¿½o conseguir converter, deixa como est+ï¿½
         treeview.insert("", "end", values=row)
     
-    # Vincular evento de clique +¦nico e duplo
+    # Vincular evento de clique +ï¿½nico e duplo
     treeview.bind("<ButtonRelease-1>", selecionar_item)
     treeview.bind("<Double-1>", selecionar_item)
     
-    # Vincular eventos de teclado para navega+º+úo
+    # Vincular eventos de teclado para navega+ï¿½+ï¿½o
     treeview.bind("<Up>", on_select)
     treeview.bind("<Down>", on_select)
     treeview.bind("<Prior>", on_select)  # Page Up
@@ -990,16 +990,16 @@ def criar_tabela():
     treeview.bind("<Home>", on_select)   # Home
     treeview.bind("<End>", on_select)    # End
     
-    # Adicionar dica/instru+º+úo visual para o usu+írio
+    # Adicionar dica/instru+ï¿½+ï¿½o visual para o usu+ï¿½rio
     instrucao_label = Label(frame_tabela, text="Clique ou use as setas do teclado para selecionar um item", 
                          font=('Ivy 10 italic'), bg=co1, fg=co0)
-    # N+âO fazer pack do label - ser+í mostrado junto com a tabela quando necess+írio
+    # N+ï¿½O fazer pack do label - ser+ï¿½ mostrado junto com a tabela quando necess+ï¿½rio
     
-    # IMPORTANTE: Exibir dashboard por padr+úo ao inv+®s da tabela
+    # IMPORTANTE: Exibir dashboard por padr+ï¿½o ao inv+ï¿½s da tabela
     criar_dashboard()
 
 def selecionar_item(event):
-    # Obt+®m o item selecionado
+    # Obt+ï¿½m o item selecionado
     item = treeview.identify_row(event.y)
     if not item:
         return
@@ -1007,28 +1007,28 @@ def selecionar_item(event):
     # Seleciona o item na tabela visualmente
     treeview.selection_set(item)
     
-    # Obt+®m os valores do item
+    # Obt+ï¿½m os valores do item
     valores = treeview.item(item, "values")
     if not valores:
         return
     
-    # Obt+®m o ID e o tipo (aluno ou funcion+írio)
+    # Obt+ï¿½m o ID e o tipo (aluno ou funcion+ï¿½rio)
     id_item = valores[0]
     tipo_item = valores[2]
     
-    # Primeiro, definir o t+¡tulo no frame_logo e limpar apenas o frame_detalhes
-    # N+úo redefinimos todos os frames para evitar recriar a pesquisa
+    # Primeiro, definir o t+ï¿½tulo no frame_logo e limpar apenas o frame_detalhes
+    # N+ï¿½o redefinimos todos os frames para evitar recriar a pesquisa
     for widget in frame_detalhes.winfo_children():
         widget.destroy()
     
-    # Carregar a nova imagem e definir o t+¡tulo apropriado
+    # Carregar a nova imagem e definir o t+ï¿½tulo apropriado
     global app_lp, app_img_voltar
     
-    # Limpar o frame do logo antes de adicionar o t+¡tulo
+    # Limpar o frame do logo antes de adicionar o t+ï¿½tulo
     for widget in frame_logo.winfo_children():
         widget.destroy()
     
-    # Criar um frame dentro do frame_logo para o t+¡tulo
+    # Criar um frame dentro do frame_logo para o t+ï¿½tulo
     titulo_frame = Frame(frame_logo, bg=co0)  # Alterado para fundo branco
     titulo_frame.pack(fill=BOTH, expand=True)
     
@@ -1038,19 +1038,19 @@ def selecionar_item(event):
         app_lp = ImageTk.PhotoImage(app_lp)
         app_logo = Label(titulo_frame, image=app_lp, text=f"Detalhes: {valores[1]}", compound=LEFT,
                         anchor=W, font=('Ivy 15 bold'), bg=co0, fg=co1, padx=10, pady=5)  # Alterado para fundo branco e texto azul
-        # Manter refer+¬ncia +á imagem para evitar garbage collection
+        # Manter refer+ï¿½ncia +ï¿½ imagem para evitar garbage collection
         setattr(app_logo, '_image_ref', app_lp)
         app_logo.pack(fill=X, expand=True)
     except:
-        # Fallback sem +¡cone
+        # Fallback sem +ï¿½cone
         app_logo = Label(titulo_frame, text=f"Detalhes: {valores[1]}", 
                         anchor=W, font=('Ivy 15 bold'), bg=co0, fg=co1, padx=10, pady=5)  # Alterado para fundo branco e texto azul
         app_logo.pack(fill=X, expand=True)
     
-    # Adiciona os bot+Áes de a+º+Áes espec+¡ficas para o item selecionado
+    # Adiciona os bot+ï¿½es de a+ï¿½+ï¿½es espec+ï¿½ficas para o item selecionado
     criar_botoes_frame_detalhes(tipo_item, valores)
     
-    # Mostra outros detalhes do item em formato de grid (m+¦ltiplas colunas)
+    # Mostra outros detalhes do item em formato de grid (m+ï¿½ltiplas colunas)
     detalhes_info_frame = Frame(frame_detalhes, bg=co1)
     detalhes_info_frame.pack(fill=BOTH, expand=True, padx=10, pady=5)
     
@@ -1069,45 +1069,45 @@ def selecionar_item(event):
               font=('Ivy 10'), anchor=W).grid(row=1, column=0, sticky=EW, padx=5, pady=3)
         
         # ============================================================================
-        # OTIMIZA+ç+âO 3: Consulta consolidada em uma +¦nica query
-        # Busca respons+íveis E matr+¡cula em uma +¦nica ida ao banco
+        # OTIMIZA+ï¿½+ï¿½O 3: Consulta consolidada em uma +ï¿½nica query
+        # Busca respons+ï¿½veis E matr+ï¿½cula em uma +ï¿½nica ida ao banco
         # ============================================================================
         cursor = None
         try:
             with get_connection() as conn:
                 if conn is None:
-                    logger.error("Erro: N+úo foi poss+¡vel conectar ao banco de dados.")
+                    logger.error("Erro: N+ï¿½o foi poss+ï¿½vel conectar ao banco de dados.")
                     return
                 cursor = conn.cursor()
 
                 # Usar o ano letivo do cache
                 ano_letivo_id = obter_ano_letivo_atual()
 
-                # CONSULTA OTIMIZADA: Buscar todos os dados necess+írios de uma s+¦ vez
+                # CONSULTA OTIMIZADA: Buscar todos os dados necess+ï¿½rios de uma s+ï¿½ vez
                 cursor.execute("""
                 SELECT 
-                    -- Dados da matr+¡cula
+                    -- Dados da matr+ï¿½cula
                     m.status, 
                     m.data_matricula,
                     s.nome as serie_nome,
                     t.nome as turma_nome,
                     t.id as turma_id,
-                    -- Data de transfer+¬ncia (subquery)
+                    -- Data de transfer+ï¿½ncia (subquery)
                     (SELECT hm.data_mudanca 
                      FROM historico_matricula hm 
                      WHERE hm.matricula_id = m.id 
                      AND hm.status_novo IN ('Transferido', 'Transferida')
                      ORDER BY hm.data_mudanca DESC 
                      LIMIT 1) as data_transferencia,
-                    -- Respons+íveis (usando GROUP_CONCAT para pegar em uma query)
-                    GROUP_CONCAT(DISTINCT CASE WHEN r.grau_parentesco = 'M+úe' THEN r.nome END) as nome_mae,
+                    -- Respons+ï¿½veis (usando GROUP_CONCAT para pegar em uma query)
+                    GROUP_CONCAT(DISTINCT CASE WHEN r.grau_parentesco = 'M+ï¿½e' THEN r.nome END) as nome_mae,
                     GROUP_CONCAT(DISTINCT CASE WHEN r.grau_parentesco = 'Pai' THEN r.nome END) as nome_pai
                 FROM alunos a
                 LEFT JOIN matriculas m ON a.id = m.aluno_id AND m.ano_letivo_id = %s AND m.status IN ('Ativo', 'Transferido')
                 LEFT JOIN turmas t ON m.turma_id = t.id AND t.escola_id = 60
                 LEFT JOIN series s ON t.serie_id = s.id
                 LEFT JOIN responsaveisalunos ra ON a.id = ra.aluno_id
-                LEFT JOIN responsaveis r ON ra.responsavel_id = r.id AND r.grau_parentesco IN ('M+úe', 'Pai')
+                LEFT JOIN responsaveis r ON ra.responsavel_id = r.id AND r.grau_parentesco IN ('M+ï¿½e', 'Pai')
                 WHERE a.id = %s
                 GROUP BY m.id, m.status, m.data_matricula, s.nome, t.nome, t.id
                 ORDER BY m.data_matricula DESC
@@ -1116,13 +1116,13 @@ def selecionar_item(event):
             
             resultado = cursor.fetchone()
             
-            # Processar respons+íveis (extra+º+úo segura)
+            # Processar respons+ï¿½veis (extra+ï¿½+ï¿½o segura)
             nome_mae = _safe_get(resultado, 6)
             nome_pai = _safe_get(resultado, 7)
             
             # Exibir nomes dos pais na linha 2
             if nome_mae:
-                Label(detalhes_info_frame, text=f"M+úe: {nome_mae}", bg=co1, fg=co0, 
+                Label(detalhes_info_frame, text=f"M+ï¿½e: {nome_mae}", bg=co1, fg=co0, 
                       font=('Ivy 10'), anchor=W).grid(row=2, column=0, columnspan=2, sticky=EW, padx=5, pady=3)
             
             if nome_pai:
@@ -1135,10 +1135,10 @@ def selecionar_item(event):
                     vals = vals + [None] * (6 - len(vals))
                 status, data_matricula, serie_nome, turma_nome, turma_id, data_transferencia = vals
 
-                row_atual = 3  # Come+ºar na linha 3, pois linhas 0, 1 e 2 j+í foram usadas
+                row_atual = 3  # Come+ï¿½ar na linha 3, pois linhas 0, 1 e 2 j+ï¿½ foram usadas
 
                 if status == 'Ativo' and data_matricula:
-                    # Formatar data de matr+¡cula adequadamente
+                    # Formatar data de matr+ï¿½cula adequadamente
                     try:
                         if isinstance(data_matricula, str):
                             data_formatada = datetime.strptime(data_matricula, '%Y-%m-%d').strftime('%d/%m/%Y')
@@ -1150,13 +1150,13 @@ def selecionar_item(event):
                         data_formatada = str(data_matricula)
 
                     Label(detalhes_info_frame, 
-                          text=f"Data de Matr+¡cula: {data_formatada}", 
+                          text=f"Data de Matr+ï¿½cula: {data_formatada}", 
                           bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
 
-                    # Adicionar informa+º+Áes de s+®rie e turma para alunos ativos
+                    # Adicionar informa+ï¿½+ï¿½es de s+ï¿½rie e turma para alunos ativos
                     if serie_nome:
                         Label(detalhes_info_frame, 
-                              text=f"S+®rie: {serie_nome}", 
+                              text=f"S+ï¿½rie: {serie_nome}", 
                               bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
 
                     if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
@@ -1164,15 +1164,15 @@ def selecionar_item(event):
                               text=f"Turma: {turma_nome}", 
                               bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
                     else:
-                        # Se o nome da turma estiver vazio, mostrar "Turma +Ünica" ou o ID
-                        # J+í temos o turma_id da consulta anterior
-                        turma_texto = f"Turma: Turma {turma_id}" if turma_id else "Turma: N+úo definida"
+                        # Se o nome da turma estiver vazio, mostrar "Turma +ï¿½nica" ou o ID
+                        # J+ï¿½ temos o turma_id da consulta anterior
+                        turma_texto = f"Turma: Turma {turma_id}" if turma_id else "Turma: N+ï¿½o definida"
                         Label(detalhes_info_frame, 
                               text=turma_texto, 
                               bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
 
                 elif status == 'Transferido' and data_transferencia:
-                    # Formatar data de transfer+¬ncia adequadamente
+                    # Formatar data de transfer+ï¿½ncia adequadamente
                     try:
                         if isinstance(data_transferencia, str):
                             data_transf_formatada = datetime.strptime(data_transferencia, '%Y-%m-%d').strftime('%d/%m/%Y')
@@ -1184,29 +1184,29 @@ def selecionar_item(event):
                         data_transf_formatada = str(data_transferencia)
 
                     Label(detalhes_info_frame, 
-                          text=f"Data de Transfer+¬ncia: {data_transf_formatada}", 
+                          text=f"Data de Transfer+ï¿½ncia: {data_transf_formatada}", 
                           bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
 
-                    # Para alunos transferidos, tamb+®m mostrar a s+®rie/turma da +¦ltima matr+¡cula
+                    # Para alunos transferidos, tamb+ï¿½m mostrar a s+ï¿½rie/turma da +ï¿½ltima matr+ï¿½cula
                     if serie_nome:
                         Label(detalhes_info_frame, 
-                              text=f"+Ültima S+®rie: {serie_nome}", 
+                              text=f"+ï¿½ltima S+ï¿½rie: {serie_nome}", 
                               bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
 
                     if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
                         Label(detalhes_info_frame, 
-                              text=f"+Ültima Turma: {turma_nome}", 
+                              text=f"+ï¿½ltima Turma: {turma_nome}", 
                               bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
                     else:
-                        # Se o nome da turma estiver vazio, mostrar "Turma +Ünica" ou o ID
-                        # J+í temos o turma_id da consulta anterior
-                        turma_texto = f"+Ültima Turma: Turma {turma_id}" if turma_id else "+Ültima Turma: N+úo definida"
+                        # Se o nome da turma estiver vazio, mostrar "Turma +ï¿½nica" ou o ID
+                        # J+ï¿½ temos o turma_id da consulta anterior
+                        turma_texto = f"+ï¿½ltima Turma: Turma {turma_id}" if turma_id else "+ï¿½ltima Turma: N+ï¿½o definida"
                         Label(detalhes_info_frame, 
                               text=turma_texto, 
                               bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
         
         except Exception as e:
-            logger.error(f"Erro ao verificar matr+¡cula: {str(e)}")
+            logger.error(f"Erro ao verificar matr+ï¿½cula: {str(e)}")
         finally:
             try:
                 if cursor:
@@ -1214,7 +1214,7 @@ def selecionar_item(event):
             except Exception:
                 pass
                 
-    elif tipo_item == "Funcion+írio":
+    elif tipo_item == "Funcion+ï¿½rio":
         # Linha 1: ID e Nome
         Label(detalhes_info_frame, text=f"ID: {valores[0]}", bg=co1, fg=co0, 
               font=('Ivy 10 bold'), anchor=W).grid(row=0, column=0, sticky=EW, padx=5, pady=3)
@@ -1228,33 +1228,33 @@ def selecionar_item(event):
               font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
 
 def on_select(event):
-    # Fun+º+úo para eventos de teclado - aguarda um pouco para a sele+º+úo ser atualizada
-    # Usa after() para garantir que a sele+º+úo do treeview seja atualizada primeiro
+    # Fun+ï¿½+ï¿½o para eventos de teclado - aguarda um pouco para a sele+ï¿½+ï¿½o ser atualizada
+    # Usa after() para garantir que a sele+ï¿½+ï¿½o do treeview seja atualizada primeiro
     def processar_selecao():
-        # Obt+®m o item atualmente selecionado
+        # Obt+ï¿½m o item atualmente selecionado
         selected_items = treeview.selection()
         if not selected_items:
             return
         
         item = selected_items[0]
         
-        # Obt+®m os valores do item
+        # Obt+ï¿½m os valores do item
         valores = treeview.item(item, "values")
         if not valores:
             return
         
-        # Obt+®m o ID e o tipo (aluno ou funcion+írio)
+        # Obt+ï¿½m o ID e o tipo (aluno ou funcion+ï¿½rio)
         id_item = valores[0]
         tipo_item = valores[2]
         
-        # Limpar frames necess+írios
+        # Limpar frames necess+ï¿½rios
         for widget in frame_logo.winfo_children():
             widget.destroy()
         
         for widget in frame_detalhes.winfo_children():
             widget.destroy()
         
-        # Criar um frame dentro do frame_logo para o t+¡tulo
+        # Criar um frame dentro do frame_logo para o t+ï¿½tulo
         titulo_frame = Frame(frame_logo, bg=co0)
         titulo_frame.pack(fill=BOTH, expand=True)
         
@@ -1265,7 +1265,7 @@ def on_select(event):
             titulo_texto = f"Detalhes do {tipo_item}"
             app_logo = Label(titulo_frame, image=app_lp, text=titulo_texto, compound=LEFT,
                             anchor=W, font=('Ivy 15 bold'), bg=co0, fg=co1, padx=10, pady=5)
-            # Manter refer+¬ncia +á imagem para evitar garbage collection
+            # Manter refer+ï¿½ncia +ï¿½ imagem para evitar garbage collection
             setattr(app_logo, '_image_ref', app_lp)
             app_logo.pack(fill=X, expand=True)
         except:
@@ -1274,10 +1274,10 @@ def on_select(event):
                             anchor=W, font=('Ivy 15 bold'), bg=co0, fg=co1, padx=10, pady=5)
             app_logo.pack(fill=X, expand=True)
         
-        # Criar bot+Áes de a+º+úo primeiro (no topo)
+        # Criar bot+ï¿½es de a+ï¿½+ï¿½o primeiro (no topo)
         criar_botoes_frame_detalhes(tipo_item, valores)
         
-        # Frame para exibir os detalhes em grid (abaixo dos bot+Áes)
+        # Frame para exibir os detalhes em grid (abaixo dos bot+ï¿½es)
         detalhes_info_frame = Frame(frame_detalhes, bg=co1)
         detalhes_info_frame.pack(fill=BOTH, expand=True, padx=10, pady=5)
         
@@ -1285,7 +1285,7 @@ def on_select(event):
         for i in range(3):
             detalhes_info_frame.grid_columnconfigure(i, weight=1, uniform="col")
         
-        # Exibir informa+º+Áes conforme o tipo
+        # Exibir informa+ï¿½+ï¿½es conforme o tipo
         if tipo_item == "Aluno":
             # Linha 1: ID, Nome
             Label(detalhes_info_frame, text=f"ID: {valores[0]}", bg=co1, fg=co0, 
@@ -1297,44 +1297,44 @@ def on_select(event):
                   font=('Ivy 10'), anchor=W).grid(row=1, column=0, sticky=EW, padx=5, pady=3)
             
             # ============================================================================
-            # OTIMIZA+ç+âO 3: Consulta consolidada (mesmo padr+úo da fun+º+úo selecionar_item)
+            # OTIMIZA+ï¿½+ï¿½O 3: Consulta consolidada (mesmo padr+ï¿½o da fun+ï¿½+ï¿½o selecionar_item)
             # ============================================================================
             cursor = None
             try:
                 with get_connection() as conn:
                     if conn is None:
-                        logger.error("Erro: N+úo foi poss+¡vel conectar ao banco de dados.")
+                        logger.error("Erro: N+ï¿½o foi poss+ï¿½vel conectar ao banco de dados.")
                         return
                     cursor = conn.cursor()
 
                     # Usar o ano letivo do cache
                     ano_letivo_id = obter_ano_letivo_atual()
 
-                    # CONSULTA OTIMIZADA: Buscar todos os dados necess+írios de uma s+¦ vez
+                    # CONSULTA OTIMIZADA: Buscar todos os dados necess+ï¿½rios de uma s+ï¿½ vez
                     cursor.execute("""
                     SELECT 
-                        -- Dados da matr+¡cula
+                        -- Dados da matr+ï¿½cula
                         m.status, 
                         m.data_matricula,
                         s.nome as serie_nome,
                         t.nome as turma_nome,
                         t.id as turma_id,
-                        -- Data de transfer+¬ncia (subquery)
+                        -- Data de transfer+ï¿½ncia (subquery)
                         (SELECT hm.data_mudanca 
                          FROM historico_matricula hm 
                          WHERE hm.matricula_id = m.id 
                          AND hm.status_novo IN ('Transferido', 'Transferida')
                          ORDER BY hm.data_mudanca DESC 
                          LIMIT 1) as data_transferencia,
-                        -- Respons+íveis
-                        GROUP_CONCAT(DISTINCT CASE WHEN r.grau_parentesco = 'M+úe' THEN r.nome END) as nome_mae,
+                        -- Respons+ï¿½veis
+                        GROUP_CONCAT(DISTINCT CASE WHEN r.grau_parentesco = 'M+ï¿½e' THEN r.nome END) as nome_mae,
                         GROUP_CONCAT(DISTINCT CASE WHEN r.grau_parentesco = 'Pai' THEN r.nome END) as nome_pai
                     FROM alunos a
                     LEFT JOIN matriculas m ON a.id = m.aluno_id AND m.ano_letivo_id = %s AND m.status IN ('Ativo', 'Transferido')
                     LEFT JOIN turmas t ON m.turma_id = t.id AND t.escola_id = 60
                     LEFT JOIN series s ON t.serie_id = s.id
                     LEFT JOIN responsaveisalunos ra ON a.id = ra.aluno_id
-                    LEFT JOIN responsaveis r ON ra.responsavel_id = r.id AND r.grau_parentesco IN ('M+úe', 'Pai')
+                    LEFT JOIN responsaveis r ON ra.responsavel_id = r.id AND r.grau_parentesco IN ('M+ï¿½e', 'Pai')
                     WHERE a.id = %s
                     GROUP BY m.id, m.status, m.data_matricula, s.nome, t.nome, t.id
                     ORDER BY m.data_matricula DESC
@@ -1343,13 +1343,13 @@ def on_select(event):
                 
                 resultado = cursor.fetchone()
                 
-                # Processar respons+íveis (extra+º+úo segura)
+                # Processar respons+ï¿½veis (extra+ï¿½+ï¿½o segura)
                 nome_mae = _safe_get(resultado, 6)
                 nome_pai = _safe_get(resultado, 7)
                 
                 # Exibir nomes dos pais na linha 2
                 if nome_mae:
-                    Label(detalhes_info_frame, text=f"M+úe: {nome_mae}", bg=co1, fg=co0, 
+                    Label(detalhes_info_frame, text=f"M+ï¿½e: {nome_mae}", bg=co1, fg=co0, 
                           font=('Ivy 10'), anchor=W).grid(row=2, column=0, columnspan=2, sticky=EW, padx=5, pady=3)
                 
                 if nome_pai:
@@ -1363,7 +1363,7 @@ def on_select(event):
                     status, data_matricula, serie_nome, turma_nome, turma_id, data_transferencia = vals
                     
                     if status == 'Ativo' and data_matricula:
-                        # Formatar data de matr+¡cula adequadamente
+                        # Formatar data de matr+ï¿½cula adequadamente
                         try:
                             if isinstance(data_matricula, str):
                                 data_formatada = datetime.strptime(data_matricula, '%Y-%m-%d').strftime('%d/%m/%Y')
@@ -1375,13 +1375,13 @@ def on_select(event):
                             data_formatada = str(data_matricula)
                             
                         Label(detalhes_info_frame, 
-                              text=f"Data de Matr+¡cula: {data_formatada}", 
+                              text=f"Data de Matr+ï¿½cula: {data_formatada}", 
                               bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
                         
-                        # Adicionar informa+º+Áes de s+®rie e turma para alunos ativos
+                        # Adicionar informa+ï¿½+ï¿½es de s+ï¿½rie e turma para alunos ativos
                         if serie_nome:
                             Label(detalhes_info_frame, 
-                                  text=f"S+®rie: {serie_nome}", 
+                                  text=f"S+ï¿½rie: {serie_nome}", 
                                   bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
                         
                         if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
@@ -1390,13 +1390,13 @@ def on_select(event):
                                   bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
                         else:
                             # Se o nome da turma estiver vazio, usar o ID
-                            turma_texto = f"Turma: Turma {turma_id}" if turma_id else "Turma: N+úo definida"
+                            turma_texto = f"Turma: Turma {turma_id}" if turma_id else "Turma: N+ï¿½o definida"
                             Label(detalhes_info_frame, 
                                   text=turma_texto, 
                                   bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=3, column=0, sticky=EW, padx=5, pady=3)
                     
                     elif status == 'Transferido' and data_transferencia:
-                        # Formatar data de transfer+¬ncia adequadamente
+                        # Formatar data de transfer+ï¿½ncia adequadamente
                         try:
                             if isinstance(data_transferencia, str):
                                 data_transf_formatada = datetime.strptime(data_transferencia, '%Y-%m-%d').strftime('%d/%m/%Y')
@@ -1408,28 +1408,28 @@ def on_select(event):
                             data_transf_formatada = str(data_transferencia)
                             
                         Label(detalhes_info_frame, 
-                              text=f"Data de Transfer+¬ncia: {data_transf_formatada}", 
+                              text=f"Data de Transfer+ï¿½ncia: {data_transf_formatada}", 
                               bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=1, sticky=EW, padx=5, pady=3)
                         
-                        # Para alunos transferidos, tamb+®m mostrar a s+®rie/turma da +¦ltima matr+¡cula
+                        # Para alunos transferidos, tamb+ï¿½m mostrar a s+ï¿½rie/turma da +ï¿½ltima matr+ï¿½cula
                         if serie_nome:
                             Label(detalhes_info_frame, 
-                                  text=f"+Ültima S+®rie: {serie_nome}", 
+                                  text=f"+ï¿½ltima S+ï¿½rie: {serie_nome}", 
                                   bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
                         
                         if turma_nome and isinstance(turma_nome, str) and turma_nome.strip():
                             Label(detalhes_info_frame, 
-                                  text=f"+Ültima Turma: {turma_nome}", 
+                                  text=f"+ï¿½ltima Turma: {turma_nome}", 
                                   bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
                         else:
                             # Se o nome da turma estiver vazio, usar o ID
-                            turma_texto = f"+Ültima Turma: Turma {turma_id}" if turma_id else "+Ültima Turma: N+úo definida"
+                            turma_texto = f"+ï¿½ltima Turma: Turma {turma_id}" if turma_id else "+ï¿½ltima Turma: N+ï¿½o definida"
                             Label(detalhes_info_frame, 
                                   text=turma_texto, 
                                   bg=co1, fg=co0, font=('Ivy 10'), anchor=W).grid(row=2, column=0, sticky=EW, padx=5, pady=3)
             
             except Exception as e:
-                logger.error(f"Erro ao verificar matr+¡cula: {str(e)}")
+                logger.error(f"Erro ao verificar matr+ï¿½cula: {str(e)}")
             finally:
                 try:
                     if cursor:
@@ -1437,7 +1437,7 @@ def on_select(event):
                 except Exception:
                     pass
                     
-        elif tipo_item == "Funcion+írio":
+        elif tipo_item == "Funcion+ï¿½rio":
             # Linha 1: ID e Nome
             Label(detalhes_info_frame, text=f"ID: {valores[0]}", bg=co1, fg=co0, 
                   font=('Ivy 10 bold'), anchor=W).grid(row=0, column=0, sticky=EW, padx=5, pady=3)
@@ -1450,110 +1450,110 @@ def on_select(event):
             Label(detalhes_info_frame, text=f"Data de Nascimento: {valores[4]}", bg=co1, fg=co0, 
                   font=('Ivy 10'), anchor=W).grid(row=1, column=2, sticky=EW, padx=5, pady=3)
     
-    # Agendar processamento ap+¦s a sele+º+úo ser atualizada
+    # Agendar processamento ap+ï¿½s a sele+ï¿½+ï¿½o ser atualizada
     treeview.after(10, processar_selecao)
 
 def criar_botoes_frame_detalhes(tipo, values):
-    # Limpa quaisquer bot+Áes existentes antes de criar novos
+    # Limpa quaisquer bot+ï¿½es existentes antes de criar novos
     for widget in frame_detalhes.winfo_children():
         widget.destroy()
 
-    # Frame para os bot+Áes
+    # Frame para os bot+ï¿½es
     acoes_frame = Frame(frame_detalhes, bg=co1)
     acoes_frame.pack(fill=X, padx=10, pady=10)
 
-    # Configurar grid do frame de a+º+Áes
-    for i in range(6):  # Aumentado para 6 colunas para acomodar o bot+úo de matr+¡cula
+    # Configurar grid do frame de a+ï¿½+ï¿½es
+    for i in range(6):  # Aumentado para 6 colunas para acomodar o bot+ï¿½o de matr+ï¿½cula
         acoes_frame.grid_columnconfigure(i, weight=1)
 
     # Obter o ID do item selecionado
     id_item = values[0]
 
     if tipo == "Aluno":
-        # Verifica se o aluno possui matr+¡cula ativa ou transferida no ano letivo atual
+        # Verifica se o aluno possui matr+ï¿½cula ativa ou transferida no ano letivo atual
         tem_matricula_ativa = verificar_matricula_ativa(id_item)
         
-        # Verifica se o aluno possui hist+¦rico de matr+¡culas em qualquer ano letivo
+        # Verifica se o aluno possui hist+ï¿½rico de matr+ï¿½culas em qualquer ano letivo
         tem_historico, _ = verificar_historico_matriculas(id_item)
         
-        # Bot+Áes para alunos
+        # Bot+ï¿½es para alunos
         Button(acoes_frame, text="Editar", command=lambda: editar_aluno_e_destruir_frames(),
                width=10, overrelief=RIDGE, font=('Ivy 9'), bg=co4, fg=co0).grid(row=0, column=0, padx=5, pady=5)
         
         Button(acoes_frame, text="Excluir", command=lambda: excluir_aluno_com_confirmacao(id_item),
                width=10, overrelief=RIDGE, font=('Ivy 9'), bg=co8, fg=co0).grid(row=0, column=1, padx=5, pady=5)
         
-        # Hist+¦rico sempre aparece
-        Button(acoes_frame, text="Hist+¦rico", command=lambda: abrir_historico_aluno(id_item, janela),
+        # Hist+ï¿½rico sempre aparece
+        Button(acoes_frame, text="Hist+ï¿½rico", command=lambda: abrir_historico_aluno(id_item, janela),
                width=10, overrelief=RIDGE, font=('Ivy 9'), bg=co5, fg=co0).grid(row=0, column=2, padx=5, pady=5)
         
-        # Se tem matr+¡cula ativa ou hist+¦rico, mostrar bot+úo de Boletim
+        # Se tem matr+ï¿½cula ativa ou hist+ï¿½rico, mostrar bot+ï¿½o de Boletim
         if tem_matricula_ativa or tem_historico:
-            # Substituir o bot+úo de Boletim por um menu suspenso
+            # Substituir o bot+ï¿½o de Boletim por um menu suspenso
             criar_menu_boletim(acoes_frame, id_item, tem_matricula_ativa)
             
-            # Se tem matr+¡cula ativa, mostrar tamb+®m bot+úo de Declara+º+úo e Editar Matr+¡cula
+            # Se tem matr+ï¿½cula ativa, mostrar tamb+ï¿½m bot+ï¿½o de Declara+ï¿½+ï¿½o e Editar Matr+ï¿½cula
             if tem_matricula_ativa:
-                Button(acoes_frame, text="Declara+º+úo", command=lambda: gerar_declaracao(id_item),
+                Button(acoes_frame, text="Declara+ï¿½+ï¿½o", command=lambda: gerar_declaracao(id_item),
                        width=10, overrelief=RIDGE, font=('Ivy 9'), bg=co2, fg=co0).grid(row=0, column=4, padx=5, pady=5)
                        
-                # Adicionar bot+úo Editar Matr+¡cula em vez de Matricular
-                Button(acoes_frame, text="Editar Matr+¡cula", command=lambda: editar_matricula(id_item),
+                # Adicionar bot+ï¿½o Editar Matr+ï¿½cula em vez de Matricular
+                Button(acoes_frame, text="Editar Matr+ï¿½cula", command=lambda: editar_matricula(id_item),
                        width=12, overrelief=RIDGE, font=('Ivy 9 bold'), bg=co3, fg=co0).grid(row=0, column=5, padx=5, pady=5)
-            # Se n+úo tem matr+¡cula ativa mas tem hist+¦rico, mostrar bot+úo de Matricular
+            # Se n+ï¿½o tem matr+ï¿½cula ativa mas tem hist+ï¿½rico, mostrar bot+ï¿½o de Matricular
             else:
                 Button(acoes_frame, text="Matricular", command=lambda: matricular_aluno(id_item),
                       width=10, overrelief=RIDGE, font=('Ivy 9 bold'), bg=co3, fg=co0).grid(row=0, column=4, padx=5, pady=5)
-        # Se n+úo tem nem matr+¡cula ativa nem hist+¦rico
+        # Se n+ï¿½o tem nem matr+ï¿½cula ativa nem hist+ï¿½rico
         else:
-            # Adiciona bot+úo de Matr+¡cula
+            # Adiciona bot+ï¿½o de Matr+ï¿½cula
             Button(acoes_frame, text="Matricular", command=lambda: matricular_aluno(id_item),
                   width=10, overrelief=RIDGE, font=('Ivy 9 bold'), bg=co3, fg=co0).grid(row=0, column=3, padx=5, pady=5)
     
-    elif tipo == "Funcion+írio":
-        # Bot+Áes para funcion+írios
+    elif tipo == "Funcion+ï¿½rio":
+        # Bot+ï¿½es para funcion+ï¿½rios
         Button(acoes_frame, text="Editar", command=lambda: editar_funcionario_e_destruir_frames(),
                width=10, overrelief=RIDGE, font=('Ivy 9'), bg=co4, fg=co0).grid(row=0, column=0, padx=5, pady=5)
         
         Button(acoes_frame, text="Excluir", command=lambda: excluir_funcionario_com_confirmacao(id_item),
                width=10, overrelief=RIDGE, font=('Ivy 9'), bg=co8, fg=co0).grid(row=0, column=1, padx=5, pady=5)
         
-        Button(acoes_frame, text="Declara+º+úo", command=lambda: gerar_declaracao_funcionario(id_item),
+        Button(acoes_frame, text="Declara+ï¿½+ï¿½o", command=lambda: gerar_declaracao_funcionario(id_item),
                width=10, overrelief=RIDGE, font=('Ivy 9'), bg=co2, fg=co0).grid(row=0, column=2, padx=5, pady=5)
 
 def verificar_matricula_ativa(aluno_id):
     """
-    Verifica se o aluno possui matr+¡cula ativa ou transferida na escola com ID 60 no ano letivo atual.
+    Verifica se o aluno possui matr+ï¿½cula ativa ou transferida na escola com ID 60 no ano letivo atual.
     
     Args:
         aluno_id: ID do aluno a ser verificado
         
     Returns:
-        bool: True se o aluno possui matr+¡cula ativa ou transferida, False caso contr+írio
+        bool: True se o aluno possui matr+ï¿½cula ativa ou transferida, False caso contr+ï¿½rio
     """
     try:
-        # Usar o context manager para garantir fechamento da conex+úo
+        # Usar o context manager para garantir fechamento da conex+ï¿½o
         with get_connection() as conn:
             if conn is None:
                 return False
             cursor = conn.cursor()
             try:
-                # Obt+®m o ID do ano letivo atual
+                # Obt+ï¿½m o ID do ano letivo atual
                 cursor.execute("SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
                 resultado_ano = cursor.fetchone()
 
                 if not resultado_ano:
-                    # Se n+úo encontrar o ano letivo atual, tenta obter o ano letivo mais recente
+                    # Se n+ï¿½o encontrar o ano letivo atual, tenta obter o ano letivo mais recente
                     cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
                     resultado_ano = cursor.fetchone()
 
                 if not resultado_ano:
-                    messagebox.showwarning("Aviso", "N+úo foi poss+¡vel determinar o ano letivo atual.")
+                    messagebox.showwarning("Aviso", "N+ï¿½o foi poss+ï¿½vel determinar o ano letivo atual.")
                     return False
 
                 ano_letivo_id = resultado_ano[0]
 
-                # Verifica se o aluno possui matr+¡cula ativa ou transferida na escola 60 no ano letivo atual
+                # Verifica se o aluno possui matr+ï¿½cula ativa ou transferida na escola 60 no ano letivo atual
                 cursor.execute("""
                     SELECT m.id 
                     FROM matriculas m
@@ -1573,24 +1573,24 @@ def verificar_matricula_ativa(aluno_id):
                 except Exception:
                     pass
     except Exception as e:
-        messagebox.showerror("Erro", f"Erro ao verificar matr+¡cula: {str(e)}")
-        logger.error(f"Erro ao verificar matr+¡cula: {str(e)}")
+        messagebox.showerror("Erro", f"Erro ao verificar matr+ï¿½cula: {str(e)}")
+        logger.error(f"Erro ao verificar matr+ï¿½cula: {str(e)}")
         return False
 
 def verificar_historico_matriculas(aluno_id):
     """
-    Verifica se o aluno j+í teve alguma matr+¡cula em qualquer escola e em qualquer ano letivo.
+    Verifica se o aluno j+ï¿½ teve alguma matr+ï¿½cula em qualquer escola e em qualquer ano letivo.
         SELECT 
         f.id AS id,
         f.nome AS nome,
-        'Funcion+írio' AS tipo,
+        'Funcion+ï¿½rio' AS tipo,
         f.cargo AS cargo,
         f.data_nascimento AS data_nascimento
     FROM 
         Funcionarios f
     WHERE 
         f.cargo IN ('Administrador do Sistemas','Gestor Escolar','Professor@','Auxiliar administrativo',
-            'Agente de Portaria','Merendeiro','Auxiliar de servi+ºos gerais','T+®cnico em Administra+º+úo Escolar',
+            'Agente de Portaria','Merendeiro','Auxiliar de servi+ï¿½os gerais','T+ï¿½cnico em Administra+ï¿½+ï¿½o Escolar',
             'Especialista (Coordenadora)','Tutor/Cuidador', 'Interprete de Libras')
     UNION
     SELECT
@@ -1610,8 +1610,8 @@ def verificar_historico_matriculas(aluno_id):
         aluno_id: ID do aluno a ser verificado
         
     Returns:
-        bool: True se o aluno possui hist+¦rico de matr+¡cula, False caso contr+írio
-        list: Lista de tuplas (ano_letivo, ano_letivo_id) com matr+¡cula (vazio se n+úo houver)
+        bool: True se o aluno possui hist+ï¿½rico de matr+ï¿½cula, False caso contr+ï¿½rio
+        list: Lista de tuplas (ano_letivo, ano_letivo_id) com matr+ï¿½cula (vazio se n+ï¿½o houver)
     """
     try:
         with get_connection() as conn:
@@ -1619,7 +1619,7 @@ def verificar_historico_matriculas(aluno_id):
                 return False, []
             cursor = cast(Any, conn).cursor()
             try:
-                # Verifica se o aluno possui matr+¡cula em qualquer ano letivo
+                # Verifica se o aluno possui matr+ï¿½cula em qualquer ano letivo
                 cursor.execute("""
                     SELECT DISTINCT al.ano_letivo, al.id, m.status
                     FROM matriculas m
@@ -1632,12 +1632,12 @@ def verificar_historico_matriculas(aluno_id):
 
                 resultados = cursor.fetchall()
 
-                # Se n+úo houver resultados, verificar diretamente se h+í o ano letivo 2024 (ID=1)
+                # Se n+ï¿½o houver resultados, verificar diretamente se h+ï¿½ o ano letivo 2024 (ID=1)
                 if not resultados:
                     cursor.execute("SELECT ano_letivo, id FROM anosletivos WHERE id = 1")
                     ano_2024 = cursor.fetchone()
                     if ano_2024:
-                        # Verificar se o aluno tem qualquer matr+¡cula para este ano
+                        # Verificar se o aluno tem qualquer matr+ï¿½cula para este ano
                         cursor.execute("""
                             SELECT COUNT(*) FROM matriculas 
                             WHERE aluno_id = %s AND ano_letivo_id = 1
@@ -1653,7 +1653,7 @@ def verificar_historico_matriculas(aluno_id):
                     anos_letivos = [(ano, id_ano) for ano, id_ano, _ in resultados]
                     return True, anos_letivos
                 else:
-                    # Se ainda n+úo encontrou, busca todos os anos letivos dispon+¡veis
+                    # Se ainda n+ï¿½o encontrou, busca todos os anos letivos dispon+ï¿½veis
                     cursor.execute("SELECT ano_letivo, id FROM anosletivos ORDER BY ano_letivo DESC")
                     todos_anos = cursor.fetchall()
 
@@ -1666,8 +1666,8 @@ def verificar_historico_matriculas(aluno_id):
                 except Exception:
                     pass
     except Exception as e:
-        messagebox.showerror("Erro", f"Erro ao verificar hist+¦rico de matr+¡culas: {str(e)}")
-        logger.error(f"Erro ao verificar hist+¦rico de matr+¡culas: {str(e)}")
+        messagebox.showerror("Erro", f"Erro ao verificar hist+ï¿½rico de matr+ï¿½culas: {str(e)}")
+        logger.error(f"Erro ao verificar hist+ï¿½rico de matr+ï¿½culas: {str(e)}")
         return False, []
 
 def matricular_aluno(aluno_id):
@@ -1677,7 +1677,7 @@ def matricular_aluno(aluno_id):
         aluno_id: ID do aluno a ser matriculado
     """
     try:
-        # Obter informa+º+Áes do aluno e do ano letivo atual usando conex+Áes curtas
+        # Obter informa+ï¿½+ï¿½es do aluno e do ano letivo atual usando conex+ï¿½es curtas
         with get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT nome FROM alunos WHERE id = %s", (int(str(aluno_id)),))
@@ -1685,7 +1685,7 @@ def matricular_aluno(aluno_id):
             cursor.close()
 
         if resultado_nome is None:
-            messagebox.showerror("Erro", "Aluno n+úo encontrado.")
+            messagebox.showerror("Erro", "Aluno n+ï¿½o encontrado.")
             return
         nome_aluno = resultado_nome[0]
 
@@ -1699,12 +1699,12 @@ def matricular_aluno(aluno_id):
             cursor.close()
 
         if not resultado_ano:
-            messagebox.showwarning("Aviso", "N+úo foi poss+¡vel determinar o ano letivo atual.")
+            messagebox.showwarning("Aviso", "N+ï¿½o foi poss+ï¿½vel determinar o ano letivo atual.")
             return
 
         ano_letivo_id, ano_letivo = resultado_ano
 
-        # Cria a janela de matr+¡cula
+        # Cria a janela de matr+ï¿½cula
         janela_matricula = Toplevel(janela)
         janela_matricula.title(f"Matricular Aluno - {nome_aluno}")
         janela_matricula.geometry("500x450")
@@ -1717,11 +1717,11 @@ def matricular_aluno(aluno_id):
         frame_matricula = Frame(janela_matricula, bg=co1, padx=20, pady=20)
         frame_matricula.pack(fill=BOTH, expand=True)
 
-        # T+¡tulo
-        Label(frame_matricula, text=f"Matr+¡cula de Aluno", 
+        # T+ï¿½tulo
+        Label(frame_matricula, text=f"Matr+ï¿½cula de Aluno", 
               font=("Arial", 14, "bold"), bg=co1, fg=co7).pack(pady=(0, 20))
 
-        # Informa+º+Áes do aluno
+        # Informa+ï¿½+ï¿½es do aluno
         info_frame = Frame(frame_matricula, bg=co1)
         info_frame.pack(fill=X, pady=10)
 
@@ -1731,11 +1731,11 @@ def matricular_aluno(aluno_id):
         Label(info_frame, text=f"Ano Letivo: {ano_letivo}", 
               font=("Arial", 12), bg=co1, fg=co4).pack(anchor=W)
 
-        # Selecionar S+®rie
+        # Selecionar S+ï¿½rie
         serie_frame = Frame(frame_matricula, bg=co1)
         serie_frame.pack(fill=X, pady=10)
 
-        Label(serie_frame, text="S+®rie:", bg=co1, fg=co4).pack(anchor=W, pady=(5, 0))
+        Label(serie_frame, text="S+ï¿½rie:", bg=co1, fg=co4).pack(anchor=W, pady=(5, 0))
         serie_var = StringVar()
         cb_serie = ttk.Combobox(serie_frame, textvariable=serie_var, width=40)
         cb_serie.pack(fill=X, pady=(0, 5))
@@ -1749,23 +1749,23 @@ def matricular_aluno(aluno_id):
         cb_turma = ttk.Combobox(turma_frame, textvariable=turma_var, width=40)
         cb_turma.pack(fill=X, pady=(0, 5))
 
-        # Data da matr+¡cula
+        # Data da matr+ï¿½cula
         data_frame = Frame(frame_matricula, bg=co1)
         data_frame.pack(fill=X, pady=10)
 
-        Label(data_frame, text="Data da Matr+¡cula (dd/mm/aaaa):", bg=co1, fg=co4).pack(anchor=W, pady=(5, 0))
+        Label(data_frame, text="Data da Matr+ï¿½cula (dd/mm/aaaa):", bg=co1, fg=co4).pack(anchor=W, pady=(5, 0))
         data_matricula_var = StringVar()
-        # Definir data atual como padr+úo
+        # Definir data atual como padr+ï¿½o
         from datetime import datetime
         data_matricula_var.set(datetime.now().strftime('%d/%m/%Y'))
         entry_data_matricula = Entry(data_frame, textvariable=data_matricula_var, width=42, font=("Arial", 10))
         entry_data_matricula.pack(fill=X, pady=(0, 5))
 
-        # Dicion+írios para mapear nomes para IDs
+        # Dicion+ï¿½rios para mapear nomes para IDs
         series_map = {}
         turmas_map = {}
 
-        # Fun+º+úo para carregar s+®ries
+        # Fun+ï¿½+ï¿½o para carregar s+ï¿½ries
         def carregar_series():
             try:
                 with get_connection() as conn:
@@ -1782,7 +1782,7 @@ def matricular_aluno(aluno_id):
                     cursor.close()
 
                 if not series:
-                    messagebox.showwarning("Aviso", "N+úo foram encontradas s+®ries para a escola selecionada no ano letivo atual.")
+                    messagebox.showwarning("Aviso", "N+ï¿½o foram encontradas s+ï¿½ries para a escola selecionada no ano letivo atual.")
                     return
 
                 series_map.clear()
@@ -1791,29 +1791,29 @@ def matricular_aluno(aluno_id):
 
                 cb_serie['values'] = list(series_map.keys())
 
-                # Limpar sele+º+úo de turma
+                # Limpar sele+ï¿½+ï¿½o de turma
                 cb_turma.set("")
                 cb_turma['values'] = []
 
-                # Selecionar automaticamente se houver apenas uma s+®rie
+                # Selecionar automaticamente se houver apenas uma s+ï¿½rie
                 if len(series_map) == 1:
                     serie_nome = list(series_map.keys())[0]
                     cb_serie.set(serie_nome)
-                    # Carregar turmas automaticamente para a +¦nica s+®rie
+                    # Carregar turmas automaticamente para a +ï¿½nica s+ï¿½rie
                     carregar_turmas()
 
             except Exception as e:
-                messagebox.showerror("Erro", f"Erro ao carregar s+®ries: {str(e)}")
+                messagebox.showerror("Erro", f"Erro ao carregar s+ï¿½ries: {str(e)}")
 
-        # Fun+º+úo para carregar turmas com base na s+®rie selecionada
+        # Fun+ï¿½+ï¿½o para carregar turmas com base na s+ï¿½rie selecionada
         def carregar_turmas(event=None):
             serie_nome = serie_var.get()
             if not serie_nome:
-                logger.warning("S+®rie n+úo selecionada")
+                logger.warning("S+ï¿½rie n+ï¿½o selecionada")
                 return
 
             if serie_nome not in series_map:
-                logger.warning(f"S+®rie '{serie_nome}' n+úo encontrada no mapeamento: {series_map}")
+                logger.warning(f"S+ï¿½rie '{serie_nome}' n+ï¿½o encontrada no mapeamento: {series_map}")
                 return
 
             serie_id = series_map[serie_nome]
@@ -1832,7 +1832,7 @@ def matricular_aluno(aluno_id):
                     cursor.close()
 
                 if not turmas:
-                    messagebox.showwarning("Aviso", f"N+úo foram encontradas turmas para a s+®rie {serie_nome}.")
+                    messagebox.showwarning("Aviso", f"N+ï¿½o foram encontradas turmas para a s+ï¿½rie {serie_nome}.")
                     return
 
                 turmas_map.clear()
@@ -1840,7 +1840,7 @@ def matricular_aluno(aluno_id):
                     turma_id, turma_nome, turma_serie_id = turma
                     if not turma_nome or str(turma_nome).strip() == "":
                         if len(turmas) == 1:
-                            turma_nome = f"Turma +Ünica"
+                            turma_nome = f"Turma +ï¿½nica"
                         else:
                             turma_nome = f"Turma {turma_id}"
                     turmas_map[turma_nome] = turma_id
@@ -1861,18 +1861,18 @@ def matricular_aluno(aluno_id):
                 messagebox.showerror("Erro", f"Erro ao carregar turmas: {str(e)}")
                 logger.error(f"Erro detalhado: {str(e)}")
 
-        # Vincular evento ao combobox de s+®rie
+        # Vincular evento ao combobox de s+ï¿½rie
         cb_serie.bind("<<ComboboxSelected>>", carregar_turmas)
 
-        # Fun+º+úo para salvar a matr+¡cula
+        # Fun+ï¿½+ï¿½o para salvar a matr+ï¿½cula
         def salvar_matricula():
             serie_nome = serie_var.get()
             turma_nome = turma_var.get()
             data_str = data_matricula_var.get()
 
-            logger.debug(f"S+®rie selecionada: '{serie_nome}', Turma selecionada: '{turma_nome}'")
-            logger.debug(f"S+®ries dispon+¡veis: {list(series_map.keys())}")
-            logger.debug(f"Turmas dispon+¡veis: {list(turmas_map.keys())}")
+            logger.debug(f"S+ï¿½rie selecionada: '{serie_nome}', Turma selecionada: '{turma_nome}'")
+            logger.debug(f"S+ï¿½ries dispon+ï¿½veis: {list(series_map.keys())}")
+            logger.debug(f"Turmas dispon+ï¿½veis: {list(turmas_map.keys())}")
 
             if len(turmas_map) == 1 and (not turma_nome or turma_nome not in turmas_map):
                 turma_nome = list(turmas_map.keys())[0]
@@ -1880,11 +1880,11 @@ def matricular_aluno(aluno_id):
                 logger.info(f"Turma ajustada automaticamente para: '{turma_nome}'")
 
             if not serie_nome or serie_nome not in series_map:
-                messagebox.showwarning("Aviso", "Por favor, selecione uma s+®rie v+ílida.")
+                messagebox.showwarning("Aviso", "Por favor, selecione uma s+ï¿½rie v+ï¿½lida.")
                 return
 
             if not turma_nome or turma_nome not in turmas_map:
-                messagebox.showwarning("Aviso", f"Por favor, selecione uma turma v+ílida. Valor atual: '{turma_nome}'")
+                messagebox.showwarning("Aviso", f"Por favor, selecione uma turma v+ï¿½lida. Valor atual: '{turma_nome}'")
                 return
 
             # Validar data
@@ -1893,7 +1893,7 @@ def matricular_aluno(aluno_id):
                 data_obj = datetime.strptime(data_str, '%d/%m/%Y')
                 data_formatada = data_obj.strftime('%Y-%m-%d')
             except ValueError:
-                messagebox.showerror("Erro", "Data inv+ílida! Use o formato dd/mm/aaaa (exemplo: 28/10/2025)")
+                messagebox.showerror("Erro", "Data inv+ï¿½lida! Use o formato dd/mm/aaaa (exemplo: 28/10/2025)")
                 return
 
             turma_id = turmas_map[turma_nome]
@@ -1932,7 +1932,7 @@ def matricular_aluno(aluno_id):
                                 (int(str(matricula_id)) if matricula_id is not None else 0, str(status_atual) if status_atual is not None else '', 'Ativo', data_formatada)
                             )
                         except Exception as hist_err:
-                            logger.error(f"Falha ao registrar hist+¦rico da matr+¡cula (update): {hist_err}")
+                            logger.error(f"Falha ao registrar hist+ï¿½rico da matr+ï¿½cula (update): {hist_err}")
                     else:
                         cursor.execute(
                             """
@@ -1952,7 +1952,7 @@ def matricular_aluno(aluno_id):
                                 (novo_matricula_id, None, 'Ativo', data_formatada)
                             )
                         except Exception as hist_err:
-                            logger.error(f"Falha ao registrar hist+¦rico da matr+¡cula (insert): {hist_err}")
+                            logger.error(f"Falha ao registrar hist+ï¿½rico da matr+ï¿½cula (insert): {hist_err}")
 
                     conn.commit()
                     cursor.close()
@@ -1966,16 +1966,16 @@ def matricular_aluno(aluno_id):
                     conn.rollback()
                 except Exception:
                     pass
-                messagebox.showerror("Erro", f"Erro ao realizar matr+¡cula: {str(e)}")
+                messagebox.showerror("Erro", f"Erro ao realizar matr+ï¿½cula: {str(e)}")
 
-        # Fun+º+úo ao fechar a janela de matr+¡cula
+        # Fun+ï¿½+ï¿½o ao fechar a janela de matr+ï¿½cula
         def ao_fechar_janela():
             janela_matricula.destroy()
 
-        # Configurar a+º+úo de fechamento da janela
+        # Configurar a+ï¿½+ï¿½o de fechamento da janela
         janela_matricula.protocol("WM_DELETE_WINDOW", ao_fechar_janela)
 
-        # Bot+Áes
+        # Bot+ï¿½es
         botoes_frame = Frame(frame_matricula, bg=co1)
         botoes_frame.pack(fill=X, pady=20)
 
@@ -1985,64 +1985,64 @@ def matricular_aluno(aluno_id):
         Button(botoes_frame, text="Cancelar", command=ao_fechar_janela,
               font=('Ivy 10'), bg=co6, fg=co1, width=15).pack(side=RIGHT, padx=5)
 
-        # Carregar s+®ries ao abrir a janela
+        # Carregar s+ï¿½ries ao abrir a janela
         carregar_series()
 
     except Exception as e:
-        messagebox.showerror("Erro", f"Erro ao preparar matr+¡cula: {str(e)}")
+        messagebox.showerror("Erro", f"Erro ao preparar matr+ï¿½cula: {str(e)}")
 
 def excluir_aluno_com_confirmacao(aluno_id):
-    # Pergunta ao usu+írio para confirmar a exclus+úo
-    resposta = messagebox.askyesno("Confirma+º+úo", "Tem certeza que deseja excluir este aluno?")
+    # Pergunta ao usu+ï¿½rio para confirmar a exclus+ï¿½o
+    resposta = messagebox.askyesno("Confirma+ï¿½+ï¿½o", "Tem certeza que deseja excluir este aluno?")
     
     if resposta:
         try:
-            # Executa a exclus+úo
+            # Executa a exclus+ï¿½o
             # `aluno.excluir_aluno` aceita `query` por compatibilidade, mas
-            # n+úo usa o par+ómetro internamente. Passar `None` evita
-            # refer+¬ncia a vari+ível indefinida aqui e mant+®m a chamada v+ílida.
+            # n+ï¿½o usa o par+ï¿½metro internamente. Passar `None` evita
+            # refer+ï¿½ncia a vari+ï¿½vel indefinida aqui e mant+ï¿½m a chamada v+ï¿½lida.
             resultado = aluno.excluir_aluno(aluno_id, treeview, None)
             
             if resultado:
-                messagebox.showinfo("Sucesso", "Aluno exclu+¡do com sucesso.")
+                messagebox.showinfo("Sucesso", "Aluno exclu+ï¿½do com sucesso.")
                 # Atualizar a tabela principal
                 atualizar_tabela_principal()
                 # Volta para a tela principal
                 voltar()
             else:
-                messagebox.showerror("Erro", "N+úo foi poss+¡vel excluir o aluno.")
+                messagebox.showerror("Erro", "N+ï¿½o foi poss+ï¿½vel excluir o aluno.")
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao excluir aluno: {str(e)}")
             logger.error(f"Erro ao excluir aluno: {str(e)}")
 
 def excluir_funcionario_com_confirmacao(funcionario_id):
-    # Pergunta ao usu+írio para confirmar a exclus+úo
-    resposta = messagebox.askyesno("Confirma+º+úo", "Tem certeza que deseja excluir este funcion+írio?")
+    # Pergunta ao usu+ï¿½rio para confirmar a exclus+ï¿½o
+    resposta = messagebox.askyesno("Confirma+ï¿½+ï¿½o", "Tem certeza que deseja excluir este funcion+ï¿½rio?")
     
     if resposta:
         try:
             with get_connection() as conexao:
                 if conexao is None:
-                    messagebox.showerror("Erro", "N+úo foi poss+¡vel conectar ao banco de dados.")
+                    messagebox.showerror("Erro", "N+ï¿½o foi poss+ï¿½vel conectar ao banco de dados.")
                     return False
                 cursor = conexao.cursor()
                 try:
-                    # Verifica se o funcion+írio existe
+                    # Verifica se o funcion+ï¿½rio existe
                     cursor.execute("SELECT nome FROM funcionarios WHERE id = %s", (funcionario_id,))
                     funcionario = cursor.fetchone()
 
                     if not funcionario:
-                        messagebox.showerror("Erro", "Funcion+írio n+úo encontrado.")
+                        messagebox.showerror("Erro", "Funcion+ï¿½rio n+ï¿½o encontrado.")
                         return False
 
-                    # Exclui associa+º+Áes com funcionario_disciplinas
+                    # Exclui associa+ï¿½+ï¿½es com funcionario_disciplinas
                     cursor.execute("DELETE FROM funcionario_disciplinas WHERE funcionario_id = %s", (funcionario_id,))
 
-                    # Exclui o funcion+írio
+                    # Exclui o funcion+ï¿½rio
                     cursor.execute("DELETE FROM funcionarios WHERE id = %s", (funcionario_id,))
                     conexao.commit()
 
-                    messagebox.showinfo("Sucesso", "Funcion+írio exclu+¡do com sucesso.")
+                    messagebox.showinfo("Sucesso", "Funcion+ï¿½rio exclu+ï¿½do com sucesso.")
 
                     # Atualizar a tabela principal
                     atualizar_tabela_principal()
@@ -2057,8 +2057,8 @@ def excluir_funcionario_com_confirmacao(funcionario_id):
                         conexao.rollback()
                     except Exception:
                         pass
-                    messagebox.showerror("Erro", f"Erro ao excluir funcion+írio: {str(e)}")
-                    logger.error(f"Erro ao excluir funcion+írio: {str(e)}")
+                    messagebox.showerror("Erro", f"Erro ao excluir funcion+ï¿½rio: {str(e)}")
+                    logger.error(f"Erro ao excluir funcion+ï¿½rio: {str(e)}")
                     return False
                 finally:
                     try:
@@ -2066,8 +2066,8 @@ def excluir_funcionario_com_confirmacao(funcionario_id):
                     except Exception:
                         pass
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao excluir funcion+írio: {str(e)}")
-            logger.error(f"Erro ao excluir funcion+írio: {str(e)}")
+            messagebox.showerror("Erro", f"Erro ao excluir funcion+ï¿½rio: {str(e)}")
+            logger.error(f"Erro ao excluir funcion+ï¿½rio: {str(e)}")
             return False
 
 def editar_aluno_e_destruir_frames():
@@ -2080,41 +2080,41 @@ def editar_aluno_e_destruir_frames():
             messagebox.showwarning("Aviso", "Selecione um aluno para editar")
             return
         
-        aluno_id = valores[0]  # Assumindo que o ID +® o primeiro valor
+        aluno_id = valores[0]  # Assumindo que o ID +ï¿½ o primeiro valor
         
-        # Abrir a interface de edi+º+úo em uma nova janela
+        # Abrir a interface de edi+ï¿½+ï¿½o em uma nova janela
         janela_edicao = Toplevel(janela)
         from InterfaceEdicaoAluno import InterfaceEdicaoAluno
         
-        # Configurar a janela de edi+º+úo antes de criar a interface
+        # Configurar a janela de edi+ï¿½+ï¿½o antes de criar a interface
         janela_edicao.title(f"Editar Aluno - ID: {aluno_id}")
         janela_edicao.geometry('950x670')
         janela_edicao.configure(background=co1)
-        janela_edicao.focus_set()  # Dar foco +á nova janela
+        janela_edicao.focus_set()  # Dar foco +ï¿½ nova janela
         janela_edicao.grab_set()   # Torna a janela modal
         
         # Esconder a janela principal
         janela.withdraw()
         
-        # Criar a interface de edi+º+úo ap+¦s configurar a janela
+        # Criar a interface de edi+ï¿½+ï¿½o ap+ï¿½s configurar a janela
         app_edicao = InterfaceEdicaoAluno(janela_edicao, aluno_id, janela_principal=janela)
         
-        # Atualizar a tabela quando a janela de edi+º+úo for fechada
+        # Atualizar a tabela quando a janela de edi+ï¿½+ï¿½o for fechada
         def ao_fechar_edicao():
             # Restaurar a janela principal
             janela.deiconify()
-            # Atualizar a tabela para refletir as altera+º+Áes
+            # Atualizar a tabela para refletir as altera+ï¿½+ï¿½es
             atualizar_tabela_principal()
-            # Destruir a janela de edi+º+úo
+            # Destruir a janela de edi+ï¿½+ï¿½o
             janela_edicao.destroy()
         
         # Configurar evento para quando a janela for fechada
         janela_edicao.protocol("WM_DELETE_WINDOW", ao_fechar_edicao)
         
     except Exception as e:
-        messagebox.showerror("Erro", f"Erro ao abrir interface de edi+º+úo: {str(e)}")
-        logger.error(f"Erro ao abrir interface de edi+º+úo: {str(e)}")
-        # Se ocorrer erro, garantir que a janela principal esteja vis+¡vel
+        messagebox.showerror("Erro", f"Erro ao abrir interface de edi+ï¿½+ï¿½o: {str(e)}")
+        logger.error(f"Erro ao abrir interface de edi+ï¿½+ï¿½o: {str(e)}")
+        # Se ocorrer erro, garantir que a janela principal esteja vis+ï¿½vel
         janela.deiconify()
 
 def gerar_declaracao(id_pessoa=None):
@@ -2123,18 +2123,18 @@ def gerar_declaracao(id_pessoa=None):
     # Declarar tipo_pessoa no escopo externo
     tipo_pessoa = None
     
-    # Se o ID n+úo foi fornecido, tenta obter do item selecionado
+    # Se o ID n+ï¿½o foi fornecido, tenta obter do item selecionado
     if id_pessoa is None:
         selected_item = treeview.focus()
         if not selected_item:
-            messagebox.showerror("Erro", "Nenhum usu+írio selecionado.")
+            messagebox.showerror("Erro", "Nenhum usu+ï¿½rio selecionado.")
             return
             
         item = treeview.item(selected_item)
         values = item['values']
         
         if len(values) < 3:
-            messagebox.showerror("Erro", "N+úo foi poss+¡vel obter os dados do usu+írio selecionado.")
+            messagebox.showerror("Erro", "N+ï¿½o foi poss+ï¿½vel obter os dados do usu+ï¿½rio selecionado.")
             return
             
         id_pessoa, tipo_pessoa = values[0], values[2]
@@ -2143,21 +2143,21 @@ def gerar_declaracao(id_pessoa=None):
         try:
             with get_connection() as conn:
                 if conn is None:
-                    messagebox.showerror("Erro", "N+úo foi poss+¡vel conectar ao banco de dados.")
+                    messagebox.showerror("Erro", "N+ï¿½o foi poss+ï¿½vel conectar ao banco de dados.")
                     return
                 cursor = conn.cursor()
                 try:
-                    # Verificar se +® um aluno
+                    # Verificar se +ï¿½ um aluno
                     cursor.execute("SELECT id FROM alunos WHERE id = %s", (id_pessoa,))
                     if cursor.fetchone():
                         tipo_pessoa = 'Aluno'
                     else:
-                        # Verificar se +® um funcion+írio
+                        # Verificar se +ï¿½ um funcion+ï¿½rio
                         cursor.execute("SELECT id FROM funcionarios WHERE id = %s", (id_pessoa,))
                         if cursor.fetchone():
-                            tipo_pessoa = 'Funcion+írio'
+                            tipo_pessoa = 'Funcion+ï¿½rio'
                         else:
-                            messagebox.showerror("Erro", "ID n+úo corresponde a nenhum usu+írio cadastrado.")
+                            messagebox.showerror("Erro", "ID n+ï¿½o corresponde a nenhum usu+ï¿½rio cadastrado.")
                             return
                 finally:
                     try:
@@ -2165,30 +2165,30 @@ def gerar_declaracao(id_pessoa=None):
                     except Exception:
                         pass
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao verificar o tipo de usu+írio: {str(e)}")
+            messagebox.showerror("Erro", f"Erro ao verificar o tipo de usu+ï¿½rio: {str(e)}")
             return
 
     marcacoes = [[False] * 4 for _ in range(1)]
     motivo_outros = ""
 
-    # Criar uma janela de di+ílogo para selecionar o tipo de declara+º+úo
+    # Criar uma janela de di+ï¿½logo para selecionar o tipo de declara+ï¿½+ï¿½o
     dialog = Toplevel(janela)
-    dialog.title("Tipo de Declara+º+úo")
+    dialog.title("Tipo de Declara+ï¿½+ï¿½o")
     dialog.geometry("380x220")
     dialog.transient(janela)
     dialog.focus_force()
     dialog.grab_set()
     dialog.configure(bg=co0)
     
-    # Vari+ível para armazenar a op+º+úo selecionada
+    # Vari+ï¿½vel para armazenar a op+ï¿½+ï¿½o selecionada
     opcao = StringVar(dialog)
-    opcao.set("Transfer+¬ncia")  # Valor padr+úo
+    opcao.set("Transfer+ï¿½ncia")  # Valor padr+ï¿½o
     
     opcoes = [
-        "Transfer+¬ncia", "Bolsa Fam+¡lia", "Trabalho", "Outros"
+        "Transfer+ï¿½ncia", "Bolsa Fam+ï¿½lia", "Trabalho", "Outros"
     ]
     
-    Label(dialog, text="Selecione o tipo de declara+º+úo:", font=("Ivy", 12), bg=co0, fg=co7).pack(pady=10)
+    Label(dialog, text="Selecione o tipo de declara+ï¿½+ï¿½o:", font=("Ivy", 12), bg=co0, fg=co7).pack(pady=10)
     
     option_menu = OptionMenu(dialog, opcao, *opcoes)
     option_menu.config(bg=co0, fg=co7)
@@ -2205,7 +2205,7 @@ def gerar_declaracao(id_pessoa=None):
     # Inicialmente oculta o frame de motivo
     motivo_frame.pack_forget()
     
-    # Fun+º+úo para atualizar a visibilidade do campo de motivo
+    # Fun+ï¿½+ï¿½o para atualizar a visibilidade do campo de motivo
     def atualizar_interface(*args):
         if opcao.get() == "Outros":
             motivo_frame.pack(pady=5, fill='x', padx=20)
@@ -2215,11 +2215,11 @@ def gerar_declaracao(id_pessoa=None):
             motivo_frame.pack_forget()
             dialog.geometry("380x170")
     
-    # Associar a fun+º+úo ao evento de mudan+ºa da op+º+úo
+    # Associar a fun+ï¿½+ï¿½o ao evento de mudan+ï¿½a da op+ï¿½+ï¿½o
     opcao.trace_add("write", atualizar_interface)
     
     def confirmar():
-        # Declarar acesso +á vari+ível do escopo externo
+        # Declarar acesso +ï¿½ vari+ï¿½vel do escopo externo
         nonlocal tipo_pessoa
         
         opcao_selecionada = opcao.get()
@@ -2230,7 +2230,7 @@ def gerar_declaracao(id_pessoa=None):
             coluna = index
             marcacoes[linha][coluna] = True
         
-        # Capturar o motivo se for a op+º+úo "Outros"
+        # Capturar o motivo se for a op+ï¿½+ï¿½o "Outros"
         motivo_outros = ""
         if opcao_selecionada == "Outros":
             motivo_outros = motivo_entry.get().strip()
@@ -2238,37 +2238,37 @@ def gerar_declaracao(id_pessoa=None):
                 messagebox.showwarning("Aviso", "Por favor, especifique o motivo.")
                 return
         
-        # Executar gera+º+úo da declara+º+úo em background para n+úo bloquear a UI
+        # Executar gera+ï¿½+ï¿½o da declara+ï¿½+ï¿½o em background para n+ï¿½o bloquear a UI
         def _worker():
             if tipo_pessoa == 'Aluno':
                 return gerar_declaracao_aluno(id_pessoa, marcacoes, motivo_outros)
-            elif tipo_pessoa == 'Funcion+írio':
+            elif tipo_pessoa == 'Funcion+ï¿½rio':
                 return gerar_declaracao_funcionario(id_pessoa)
             else:
-                raise RuntimeError('Tipo de usu+írio desconhecido')
+                raise RuntimeError('Tipo de usu+ï¿½rio desconhecido')
 
         def _on_done(resultado):
             try:
                 if resultado is True or resultado is None:
-                    # Alguns geradores retornam None; considerar sucesso se n+úo houve exce+º+úo
+                    # Alguns geradores retornam None; considerar sucesso se n+ï¿½o houve exce+ï¿½+ï¿½o
                     if status_label is not None:
-                        status_label.config(text="Declara+º+úo gerada com sucesso.")
-                    messagebox.showinfo("Conclu+¡do", "Declara+º+úo gerada com sucesso.")
+                        status_label.config(text="Declara+ï¿½+ï¿½o gerada com sucesso.")
+                    messagebox.showinfo("Conclu+ï¿½do", "Declara+ï¿½+ï¿½o gerada com sucesso.")
                 else:
-                    # Se o worker retornou caminho ou objeto, mostrar informa+º+úo gen+®rica
+                    # Se o worker retornou caminho ou objeto, mostrar informa+ï¿½+ï¿½o gen+ï¿½rica
                     if status_label is not None:
-                        status_label.config(text="Declara+º+úo gerada com sucesso.")
-                    messagebox.showinfo("Conclu+¡do", f"Declara+º+úo gerada: {resultado}")
+                        status_label.config(text="Declara+ï¿½+ï¿½o gerada com sucesso.")
+                    messagebox.showinfo("Conclu+ï¿½do", f"Declara+ï¿½+ï¿½o gerada: {resultado}")
             except Exception:
-                # Evitar que exce+º+Áes aqui quebrem a UI
+                # Evitar que exce+ï¿½+ï¿½es aqui quebrem a UI
                 pass
 
         def _on_error(exc):
-            messagebox.showerror("Erro", f"Falha ao gerar declara+º+úo: {exc}")
+            messagebox.showerror("Erro", f"Falha ao gerar declara+ï¿½+ï¿½o: {exc}")
             if status_label is not None:
                 status_label.config(text="")
 
-        # Fechar di+ílogo antes de submeter a tarefa de background
+        # Fechar di+ï¿½logo antes de submeter a tarefa de background
         dialog.destroy()
 
         try:
@@ -2299,23 +2299,23 @@ def criar_logo():
     for widget in frame_logo.winfo_children():
         widget.destroy()
         
-    # Frame para o cabe+ºalho/logo
+    # Frame para o cabe+ï¿½alho/logo
     logo_frame = Frame(frame_logo, bg=co0)  # Alterado para fundo branco (co0)
     logo_frame.pack(fill=BOTH, expand=True, padx=0, pady=0)
     
     # Configura para expandir
     logo_frame.grid_columnconfigure(0, weight=1)  # Logo (menor peso)
-    logo_frame.grid_columnconfigure(1, weight=5)  # T+¡tulo (maior peso)
+    logo_frame.grid_columnconfigure(1, weight=5)  # T+ï¿½tulo (maior peso)
     
     # Logo
     global app_logo
     try:
         # Tenta carregar a imagem do logo
         app_img = Image.open('logopaco.png')  # Tenta usar um logo existente
-        app_img = app_img.resize((200, 50))  # Aumentado o tamanho para melhor visualiza+º+úo
+        app_img = app_img.resize((200, 50))  # Aumentado o tamanho para melhor visualiza+ï¿½+ï¿½o
         app_logo = ImageTk.PhotoImage(app_img)
         
-        # +ìcone da escola
+        # +ï¿½cone da escola
         app_logo_label = Label(logo_frame, image=app_logo, text=" ", bg=co0, fg=co7)  # Alterado o fundo para branco
         app_logo_label.grid(row=0, column=0, sticky=W, padx=10)
     except FileNotFoundError:
@@ -2325,15 +2325,15 @@ def criar_logo():
             app_img = app_img.resize((45, 45))
             app_logo = ImageTk.PhotoImage(app_img)
             
-            # +ìcone da escola
+            # +ï¿½cone da escola
             app_logo_label = Label(logo_frame, image=app_logo, text=" ", bg=co0, fg=co7)  # Alterado o fundo para branco
             app_logo_label.grid(row=0, column=0, sticky=W, padx=10)
         except:
-            # Fallback quando a imagem n+úo +® encontrada
+            # Fallback quando a imagem n+ï¿½o +ï¿½ encontrada
             app_logo_label = Label(logo_frame, text="LOGO", font=("Ivy 15 bold"), bg=co0, fg=co7)  # Alterado o fundo para branco
             app_logo_label.grid(row=0, column=0, sticky=W, padx=10)
 
-    # T+¡tulo da escola
+    # T+ï¿½tulo da escola
     escola_label = Label(logo_frame, text=str(nome_escola).upper(), font=("Ivy 15 bold"), bg=co0, fg=co1)  # Alterado o fundo para branco e texto para azul
     escola_label.grid(row=0, column=1, sticky=W, padx=10)
 
@@ -2344,28 +2344,28 @@ def criar_pesquisa():
     
     # Configura pesquisa_frame para expandir horizontalmente
     pesquisa_frame.grid_columnconfigure(0, weight=3)  # Entrada de pesquisa
-    pesquisa_frame.grid_columnconfigure(1, weight=1)  # Bot+úo de pesquisa
+    pesquisa_frame.grid_columnconfigure(1, weight=1)  # Bot+ï¿½o de pesquisa
     
     # Entrada para pesquisa
     global e_nome_pesquisa
     e_nome_pesquisa = Entry(pesquisa_frame, width=45, justify='left', relief=SOLID, bg=co0)
     e_nome_pesquisa.grid(row=0, column=0, padx=5, pady=5, sticky=EW)
     
-    # Vincula o evento de pressionar Enter +á fun+º+úo de pesquisa
+    # Vincula o evento de pressionar Enter +ï¿½ fun+ï¿½+ï¿½o de pesquisa
     e_nome_pesquisa.bind("<Return>", pesquisar)
 
-    # Bot+úo para pesquisar
+    # Bot+ï¿½o para pesquisar
     botao_pesquisar = Button(pesquisa_frame, command=lambda:pesquisar(), text="Pesquisar", 
                             font=('Ivy 10 bold'), relief=RAISED, overrelief=RIDGE, bg=co4, fg=co0)
     botao_pesquisar.grid(row=0, column=1, padx=5, pady=5, sticky=EW)
 
 def pesquisar(event=None):
-    texto_pesquisa = e_nome_pesquisa.get().strip()  # Obt+®m o texto da pesquisa (sem lower() para FULLTEXT)
+    texto_pesquisa = e_nome_pesquisa.get().strip()  # Obt+ï¿½m o texto da pesquisa (sem lower() para FULLTEXT)
 
-    # Garantir que vamos manipular as vari+íveis globais corretamente
+    # Garantir que vamos manipular as vari+ï¿½veis globais corretamente
     global tabela_frame, treeview, dashboard_canvas
 
-    # Garantir que os componentes da tabela existam (cria se necess+írio)
+    # Garantir que os componentes da tabela existam (cria se necess+ï¿½rio)
     try:
         if 'tabela_frame' not in globals() or tabela_frame is None:
             criar_tabela()
@@ -2377,7 +2377,7 @@ def pesquisar(event=None):
         return
 
     if not texto_pesquisa:  # Se a busca estiver vazia, mostrar dashboard
-        # Ocultar tabela se estiver vis+¡vel
+        # Ocultar tabela se estiver vis+ï¿½vel
         try:
             if tabela_frame.winfo_ismapped():
                 tabela_frame.pack_forget()
@@ -2399,9 +2399,9 @@ def pesquisar(event=None):
         return
 
 
-    # H+í texto de pesquisa: garantir que dashboard ou outros widgets n+úo cubram a tabela
+    # H+ï¿½ texto de pesquisa: garantir que dashboard ou outros widgets n+ï¿½o cubram a tabela
     try:
-        # Remover tudo em frame_tabela e recriar a tabela limpa para evitar sobreposi+º+úo
+        # Remover tudo em frame_tabela e recriar a tabela limpa para evitar sobreposi+ï¿½+ï¿½o
         for widget in list(frame_tabela.winfo_children()):
             try:
                 widget.destroy()
@@ -2419,7 +2419,7 @@ def pesquisar(event=None):
                 except Exception:
                     pass
 
-        # resetar refer+¬ncia global ao canvas do dashboard
+        # resetar refer+ï¿½ncia global ao canvas do dashboard
         try:
             dashboard_canvas = None
         except Exception:
@@ -2432,8 +2432,8 @@ def pesquisar(event=None):
         except Exception:
             pass
     except Exception as e:
-        logger.exception("Falha ao preparar +írea da tabela: %s", e)
-        messagebox.showerror("Erro", f"Falha ao preparar +írea da tabela: {e}")
+        logger.exception("Falha ao preparar +ï¿½rea da tabela: %s", e)
+        messagebox.showerror("Erro", f"Falha ao preparar +ï¿½rea da tabela: {e}")
         return
 
     # Limpa o Treeview primeiro
@@ -2441,12 +2441,12 @@ def pesquisar(event=None):
         for item in treeview.get_children():
             treeview.delete(item)
     except Exception:
-        # Se n+úo existir itens ou treeview, continuar
+        # Se n+ï¿½o existir itens ou treeview, continuar
         pass
     
     # ============================================================================
-    # OTIMIZA+ç+âO 5: Pesquisa com FULLTEXT (mais r+ípida que LIKE)
-    # Busca diretamente no banco com +¡ndice FULLTEXT para melhor performance
+    # OTIMIZA+ï¿½+ï¿½O 5: Pesquisa com FULLTEXT (mais r+ï¿½pida que LIKE)
+    # Busca diretamente no banco com +ï¿½ndice FULLTEXT para melhor performance
     # ============================================================================
     resultados_filtrados = []
     try:
@@ -2455,15 +2455,15 @@ def pesquisar(event=None):
                 raise Exception("Falha ao conectar ao banco de dados")
             cursor = conn.cursor()
             try:
-                # Tentar usar FULLTEXT primeiro (mais r+ípido)
-                # Se falhar (+¡ndice n+úo existe), usar LIKE tradicional
+                # Tentar usar FULLTEXT primeiro (mais r+ï¿½pido)
+                # Se falhar (+ï¿½ndice n+ï¿½o existe), usar LIKE tradicional
                 try:
                     # Query otimizada com FULLTEXT
                     query_fulltext = """
                     SELECT 
                         f.id AS id,
                         f.nome AS nome,
-                        'Funcion+írio' AS tipo,
+                        'Funcion+ï¿½rio' AS tipo,
                         f.cargo AS cargo,
                         f.data_nascimento AS data_nascimento,
                         MATCH(f.nome) AGAINST(%s IN NATURAL LANGUAGE MODE) AS relevancia
@@ -2472,7 +2472,7 @@ def pesquisar(event=None):
                     WHERE 
                         MATCH(f.nome) AGAINST(%s IN NATURAL LANGUAGE MODE)
                         AND f.cargo IN ('Administrador do Sistemas','Gestor Escolar','Professor@','Auxiliar administrativo',
-                            'Agente de Portaria','Merendeiro','Auxiliar de servi+ºos gerais','T+®cnico em Administra+º+úo Escolar',
+                            'Agente de Portaria','Merendeiro','Auxiliar de servi+ï¿½os gerais','T+ï¿½cnico em Administra+ï¿½+ï¿½o Escolar',
                             'Especialista (Coordenadora)','Tutor/Cuidador', 'Interprete de Libras')
                     UNION ALL
                     SELECT
@@ -2494,10 +2494,10 @@ def pesquisar(event=None):
                     cursor.execute(query_fulltext, (texto_pesquisa, texto_pesquisa, texto_pesquisa, texto_pesquisa))
                     resultados_filtrados = cursor.fetchall()
 
-                    # Remover coluna de relev+óncia antes de exibir
+                    # Remover coluna de relev+ï¿½ncia antes de exibir
                     resultados_filtrados = [row[:-1] for row in resultados_filtrados]
 
-                # `Error` n+úo estava importado aqui; capturamos qualquer exce+º+úo
+                # `Error` n+ï¿½o estava importado aqui; capturamos qualquer exce+ï¿½+ï¿½o
                 # e tratamos o caso de FULLTEXT como fallback para LIKE.
                 except Exception as e:
                     # Se FULLTEXT falhar, usar LIKE tradicional (fallback)
@@ -2506,7 +2506,7 @@ def pesquisar(event=None):
                         SELECT 
                             f.id AS id,
                             f.nome AS nome,
-                            'Funcion+írio' AS tipo,
+                            'Funcion+ï¿½rio' AS tipo,
                             f.cargo AS cargo,
                             f.data_nascimento AS data_nascimento
                         FROM 
@@ -2514,7 +2514,7 @@ def pesquisar(event=None):
                         WHERE 
                             f.nome LIKE %s
                             AND f.cargo IN ('Administrador do Sistemas','Gestor Escolar','Professor@','Auxiliar administrativo',
-                                'Agente de Portaria','Merendeiro','Auxiliar de servi+ºos gerais','T+®cnico em Administra+º+úo Escolar',
+                                'Agente de Portaria','Merendeiro','Auxiliar de servi+ï¿½os gerais','T+ï¿½cnico em Administra+ï¿½+ï¿½o Escolar',
                                 'Especialista (Coordenadora)','Tutor/Cuidador', 'Interprete de Libras')
                         UNION ALL
                         SELECT
@@ -2536,7 +2536,7 @@ def pesquisar(event=None):
                         cursor.execute(query_like, (termo_like, termo_like))
                         resultados_filtrados = cursor.fetchall()
                     else:
-                        raise  # Re-lan+ºar outros erros
+                        raise  # Re-lan+ï¿½ar outros erros
             finally:
                 try:
                     cursor.close()
@@ -2558,7 +2558,7 @@ def pesquisar(event=None):
             else:
                 resultado = [resultado]
 
-            # Verifica se h+í campo de data na posi+º+úo 4 e formata
+            # Verifica se h+ï¿½ campo de data na posi+ï¿½+ï¿½o 4 e formata
             if len(resultado) > 4 and resultado[4]:
                 try:
                     if isinstance(resultado[4], str):
@@ -2580,7 +2580,7 @@ def pesquisar(event=None):
             except Exception as e:
                 logger.exception("Erro ao inserir resultado na treeview: %s - Resultado: %s", e, resultado)
 
-        # For+ºar atualiza+º+úo visual e foco no primeiro item
+        # For+ï¿½ar atualiza+ï¿½+ï¿½o visual e foco no primeiro item
         try:
             treeview.update_idletasks()
             if primeira_chave:
@@ -2590,12 +2590,12 @@ def pesquisar(event=None):
         except Exception:
             pass
     else:
-        # Exibe mensagem quando n+úo h+í resultados
+        # Exibe mensagem quando n+ï¿½o h+ï¿½ resultados
         messagebox.showinfo("Pesquisa", "Nenhum resultado encontrado para a pesquisa.")
 
-# Fun+º+úo para redefinir os frames
+# Fun+ï¿½+ï¿½o para redefinir os frames
 def redefinir_frames(titulo):
-    # Destruir widgets espec+¡ficos nos frames, preservando os bot+Áes no frame_dados
+    # Destruir widgets espec+ï¿½ficos nos frames, preservando os bot+ï¿½es no frame_dados
     for widget in frame_logo.winfo_children():
         widget.destroy()
     
@@ -2606,13 +2606,13 @@ def redefinir_frames(titulo):
         widget.destroy()
         
     # No frame_dados, preservamos a barra de pesquisa
-    # Vamos identificar e guardar o frame de pesquisa para n+úo destru+¡-lo
+    # Vamos identificar e guardar o frame de pesquisa para n+ï¿½o destru+ï¿½-lo
     search_frame_to_preserve = None
     for widget in frame_dados.winfo_children():
         if isinstance(widget, Frame) and widget.winfo_children():
             for child in widget.winfo_children():
                 if isinstance(child, Entry):
-                    # Este +® provavelmente o frame de pesquisa
+                    # Este +ï¿½ provavelmente o frame de pesquisa
                     search_frame_to_preserve = widget
                     break
     
@@ -2621,10 +2621,10 @@ def redefinir_frames(titulo):
         if widget != search_frame_to_preserve:
             widget.destroy()
     
-    # Carregar a nova imagem e definir o t+¡tulo apropriado
+    # Carregar a nova imagem e definir o t+ï¿½tulo apropriado
     global app_lp, app_img_voltar
     
-    # Criar um frame dentro do frame_logo para o t+¡tulo
+    # Criar um frame dentro do frame_logo para o t+ï¿½tulo
     titulo_frame = Frame(frame_logo, bg=co0)  # Alterado para fundo branco
     titulo_frame.pack(fill=BOTH, expand=True)
     
@@ -2636,12 +2636,12 @@ def redefinir_frames(titulo):
                         anchor=W, font=('Ivy 15 bold'), bg=co0, fg=co1, padx=10, pady=5)  # Alterado para fundo branco e texto azul
         app_logo.pack(fill=X, expand=True)
     except:
-        # Fallback sem +¡cone
+        # Fallback sem +ï¿½cone
         app_logo = Label(titulo_frame, text=titulo, 
                         anchor=W, font=('Ivy 15 bold'), bg=co0, fg=co1, padx=10, pady=5)  # Alterado para fundo branco e texto azul
         app_logo.pack(fill=X, expand=True)
     
-    # Criar um frame separado para o bot+úo de voltar
+    # Criar um frame separado para o bot+ï¿½o de voltar
     voltar_frame = Frame(frame_dados, bg=co1)
     voltar_frame.pack(side=LEFT, padx=10, pady=5)
     
@@ -2652,37 +2652,37 @@ def redefinir_frames(titulo):
         app_voltar = Button(voltar_frame, command=voltar, image=app_img_voltar,
                         compound=LEFT, overrelief=RIDGE, bg=co1, fg=co0)
     except FileNotFoundError:
-        app_voltar = Button(voltar_frame, command=voltar, text="ÔåÉ",
+        app_voltar = Button(voltar_frame, command=voltar, text="ï¿½ï¿½ï¿½",
                         overrelief=RIDGE, bg=co1, fg=co0, font=('Ivy 12 bold'))
     app_voltar.pack(side=LEFT)
     
-    # Garantir que o frame_detalhes esteja vis+¡vel
+    # Garantir que o frame_detalhes esteja vis+ï¿½vel
     frame_detalhes.pack_propagate(False)
-    frame_detalhes.config(width=850, height=200)  # Definir altura m+¡nima para o frame de detalhes
+    frame_detalhes.config(width=850, height=200)  # Definir altura m+ï¿½nima para o frame de detalhes
 
 def criar_acoes():
-    # Frame para os bot+Áes de a+º+úo
+    # Frame para os bot+ï¿½es de a+ï¿½+ï¿½o
     botoes_frame = Frame(frame_dados, bg=co1)
     botoes_frame.pack(fill=X, expand=True, padx=10, pady=5)
     
-    # Configurar grid do frame de bot+Áes
-    for i in range(7):  # 7 colunas para acomodar todos os bot+Áes
+    # Configurar grid do frame de bot+ï¿½es
+    for i in range(7):  # 7 colunas para acomodar todos os bot+ï¿½es
         botoes_frame.grid_columnconfigure(i, weight=1)
 
-    # Fun+º+úo para cadastrar novo aluno
+    # Fun+ï¿½+ï¿½o para cadastrar novo aluno
     def cadastrar_novo_aluno():
         # Abrir a interface de cadastro em uma nova janela
         from InterfaceCadastroAluno import InterfaceCadastroAluno
         cadastro_window = Toplevel(janela)
         cadastro_window.title("Cadastro de Aluno")
         cadastro_window.geometry('950x670')
-        cadastro_window.focus_set()  # Dar foco +á nova janela
+        cadastro_window.focus_set()  # Dar foco +ï¿½ nova janela
         cadastro_window.grab_set()   # Torna a janela modal
         
-        # Criar inst+óncia da interface de cadastro passando a janela principal
+        # Criar inst+ï¿½ncia da interface de cadastro passando a janela principal
         app_cadastro = InterfaceCadastroAluno(cadastro_window, janela)
         
-        # Definir fun+º+úo para atualizar os dados quando a janela de cadastro for fechada
+        # Definir fun+ï¿½+ï¿½o para atualizar os dados quando a janela de cadastro for fechada
         def ao_fechar_cadastro():
             # Verificar se um aluno foi cadastrado
             if hasattr(app_cadastro, 'aluno_cadastrado') and app_cadastro.aluno_cadastrado:
@@ -2696,27 +2696,27 @@ def criar_acoes():
             cadastro_window.destroy()
         
         # Configurar evento para quando a janela for fechada
-        # Obs: Este evento s+¦ ser+í executado se o usu+írio fechar a janela pelo X, 
-        # e n+úo atrav+®s do bot+úo de salvar ou voltar
+        # Obs: Este evento s+ï¿½ ser+ï¿½ executado se o usu+ï¿½rio fechar a janela pelo X, 
+        # e n+ï¿½o atrav+ï¿½s do bot+ï¿½o de salvar ou voltar
         cadastro_window.protocol("WM_DELETE_WINDOW", ao_fechar_cadastro)
 
-    # Fun+º+úo para cadastrar novo funcion+írio
+    # Fun+ï¿½+ï¿½o para cadastrar novo funcion+ï¿½rio
     def cadastrar_novo_funcionario():
         # Abrir a interface de cadastro em uma nova janela
         from InterfaceCadastroFuncionario import InterfaceCadastroFuncionario
         cadastro_window = Toplevel(janela)
-        cadastro_window.title("Cadastro de Funcion+írio")
+        cadastro_window.title("Cadastro de Funcion+ï¿½rio")
         cadastro_window.geometry('950x670')
-        cadastro_window.focus_set()  # Dar foco +á nova janela
+        cadastro_window.focus_set()  # Dar foco +ï¿½ nova janela
         
-        # Criar inst+óncia da interface de cadastro passando a janela principal
+        # Criar inst+ï¿½ncia da interface de cadastro passando a janela principal
         app_cadastro = InterfaceCadastroFuncionario(cadastro_window, janela)
 
-    # Fun+º+úo para abrir a interface de hist+¦rico escolar
+    # Fun+ï¿½+ï¿½o para abrir a interface de hist+ï¿½rico escolar
     def abrir_historico():
         abrir_interface_historico(janela)
 
-    # Bot+Áes de a+º+úo
+    # Bot+ï¿½es de a+ï¿½+ï¿½o
     global app_img_cadastro
     try:
         app_img_cadastro = Image.open('icon/plus.png')
@@ -2737,10 +2737,10 @@ def criar_acoes():
         app_img_funcionario = app_img_funcionario.resize((18, 18))
         app_img_funcionario = ImageTk.PhotoImage(app_img_funcionario)
         app_funcionario = Button(botoes_frame, command=cadastrar_novo_funcionario, image=app_img_funcionario,
-                                text="Novo Funcion+írio", compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
+                                text="Novo Funcion+ï¿½rio", compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                                 bg=co3, fg=co0)
     except FileNotFoundError:
-        app_funcionario = Button(botoes_frame, command=cadastrar_novo_funcionario, text="+ Novo Funcion+írio", 
+        app_funcionario = Button(botoes_frame, command=cadastrar_novo_funcionario, text="+ Novo Funcion+ï¿½rio", 
                                 compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                                 bg=co3, fg=co0)
     app_funcionario.grid(row=0, column=1, padx=5, pady=5, sticky=EW)
@@ -2753,45 +2753,45 @@ def criar_acoes():
         app_img_matricula = app_img_matricula.resize((18, 18))
         app_img_matricula = ImageTk.PhotoImage(app_img_matricula)
     except FileNotFoundError:
-        # Cria uma imagem vazia para evitar erros em bot+Áes que usam app_img_matricula
+        # Cria uma imagem vazia para evitar erros em bot+ï¿½es que usam app_img_matricula
         app_img_matricula = None
         
-    # Bot+úo para acessar a interface de hist+¦rico escolar
+    # Bot+ï¿½o para acessar a interface de hist+ï¿½rico escolar
     global app_img_historico
     try:
         app_img_historico = Image.open('icon/history.png')
         app_img_historico = app_img_historico.resize((18, 18))
         app_img_historico = ImageTk.PhotoImage(app_img_historico)
         app_historico = Button(botoes_frame, command=abrir_historico, image=app_img_historico,
-                              text="Hist+¦rico Escolar", compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
+                              text="Hist+ï¿½rico Escolar", compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                               bg=co4, fg=co0)
     except FileNotFoundError:
-        app_historico = Button(botoes_frame, command=abrir_historico, text="Hist+¦rico Escolar", 
+        app_historico = Button(botoes_frame, command=abrir_historico, text="Hist+ï¿½rico Escolar", 
                               compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                               bg=co4, fg=co0)
     app_historico.grid(row=0, column=2, padx=5, pady=5, sticky=EW)
     if 'app_img_historico' in locals():
         setattr(app_historico, '_image_ref', app_img_historico)
     
-    # Fun+º+úo para abrir a interface administrativa
+    # Fun+ï¿½+ï¿½o para abrir a interface administrativa
     def abrir_interface_administrativa():
         from interface_administrativa import InterfaceAdministrativa
         admin_window = Toplevel(janela)
-        admin_window.title("Administra+º+úo - Escolas, Disciplinas e Cargas Hor+írias")
+        admin_window.title("Administra+ï¿½+ï¿½o - Escolas, Disciplinas e Cargas Hor+ï¿½rias")
         admin_window.geometry('950x670')
         InterfaceAdministrativa(admin_window, janela)
 
-    # Bot+úo para acessar a interface administrativa
+    # Bot+ï¿½o para acessar a interface administrativa
     global app_img_admin
     try:
         app_img_admin = Image.open('icon/settings.png')
         app_img_admin = app_img_admin.resize((18, 18))
         app_img_admin = ImageTk.PhotoImage(app_img_admin)
         app_admin = Button(botoes_frame, command=abrir_interface_administrativa, image=app_img_admin,
-                          text="Administra+º+úo", compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
+                          text="Administra+ï¿½+ï¿½o", compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                           bg=co5, fg=co0)
     except FileNotFoundError:
-        app_admin = Button(botoes_frame, command=abrir_interface_administrativa, text="Administra+º+úo", 
+        app_admin = Button(botoes_frame, command=abrir_interface_administrativa, text="Administra+ï¿½+ï¿½o", 
                           compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                           bg=co5, fg=co0)
     app_admin.grid(row=0, column=3, padx=5, pady=5, sticky=EW)
@@ -2802,19 +2802,19 @@ def criar_acoes():
         # Criar menu de meses
         menu_meses = Menu(janela, tearoff=0)
         
-        # Obter m+¬s atual
+        # Obter m+ï¿½s atual
         mes_atual = datetime.now().month
         
-        # Lista de meses (gerada a partir do utilit+írio compartilhado)
+        # Lista de meses (gerada a partir do utilit+ï¿½rio compartilhado)
         try:
             meses = [nome_mes_pt_folha(i) for i in range(1, 13)]
         except Exception:
             meses = [
-                "Janeiro", "Fevereiro", "Mar+ºo", "Abril", "Maio", "Junho",
+                "Janeiro", "Fevereiro", "Mar+ï¿½o", "Abril", "Maio", "Junho",
                 "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
             ]
         
-        # Filtrar apenas os meses at+® o atual
+        # Filtrar apenas os meses at+ï¿½ o atual
         meses_disponiveis = meses[:mes_atual]
         
         # Adicionar meses ao menu
@@ -2825,17 +2825,17 @@ def criar_acoes():
                 command=lambda m=i: relatorio_movimentacao_mensal(m)
             )
         
-        # Mostrar o menu na posi+º+úo do mouse
+        # Mostrar o menu na posi+ï¿½+ï¿½o do mouse
         try:
             x = janela.winfo_pointerx()
             y = janela.winfo_pointery()
             menu_meses.post(x, y)
         except:
-            # Se n+úo conseguir obter a posi+º+úo do mouse, mostrar no centro da janela
+            # Se n+ï¿½o conseguir obter a posi+ï¿½+ï¿½o do mouse, mostrar no centro da janela
             menu_meses.post(janela.winfo_rootx() + 100, janela.winfo_rooty() + 100)
 
     # Definindo a fonte para o menu
-    menu_font = ('Ivy', 12)  # Altere o tamanho conforme necess+írio
+    menu_font = ('Ivy', 12)  # Altere o tamanho conforme necess+ï¿½rio
 
     # Criar o menu
     menu_bar = Menu(janela)
@@ -2845,39 +2845,39 @@ def criar_acoes():
     # Adicionando o menu "Listas"
     listas_menu = Menu(menu_bar, tearoff=0)
 
-    # Aplicando a fonte +ás op+º+Áes do menu
+    # Aplicando a fonte +ï¿½s op+ï¿½+ï¿½es do menu
     listas_menu.add_command(label="Lista Atualizada", command=lambda: lista_atualizada_wrapper(), font=menu_font)
     listas_menu.add_command(label="Lista Atualizada SEMED", command=lambda: lista_atualizada_semed_wrapper(), font=menu_font)
-    listas_menu.add_command(label="Lista de Reuni+úo", command=lambda: lista_reuniao(), font=menu_font)
+    listas_menu.add_command(label="Lista de Reuni+ï¿½o", command=lambda: lista_reuniao(), font=menu_font)
     listas_menu.add_command(label="Lista de Notas", command=lambda: lista_notas(), font=menu_font)
-    listas_menu.add_command(label="Lista de Frequ+¬ncias", command=lambda: lista_frequencia(), font=menu_font)
+    listas_menu.add_command(label="Lista de Frequ+ï¿½ncias", command=lambda: lista_frequencia(), font=menu_font)
     listas_menu.add_separator()
-    listas_menu.add_command(label="Contatos de Respons+íveis", command=lambda: relatorio_contatos_responsaveis(), font=menu_font)
+    listas_menu.add_command(label="Contatos de Respons+ï¿½veis", command=lambda: relatorio_contatos_responsaveis(), font=menu_font)
     listas_menu.add_command(label="Levantamento de Necessidades", command=lambda: relatorio_levantamento_necessidades(), font=menu_font)
-    listas_menu.add_command(label="Lista Alfab+®tica", command=lambda: relatorio_lista_alfabetica(), font=menu_font)
+    listas_menu.add_command(label="Lista Alfab+ï¿½tica", command=lambda: relatorio_lista_alfabetica(), font=menu_font)
     listas_menu.add_command(label="Alunos com Transtornos", command=lambda: relatorio_alunos_transtornos(), font=menu_font)
     listas_menu.add_separator()
     listas_menu.add_command(label="Termo de Responsabilidade", command=lambda: relatorio_termo_responsabilidade(), font=menu_font)
     listas_menu.add_command(label="Tabela de Docentes", command=lambda: relatorio_tabela_docentes(), font=menu_font)
     
-    # (Movimento Mensal transferido para o menu 'Servi+ºos')
+    # (Movimento Mensal transferido para o menu 'Servi+ï¿½os')
 
-    # Adicionando o menu +á barra de menus
+    # Adicionando o menu +ï¿½ barra de menus
     menu_bar.add_cascade(label="Listas", menu=listas_menu)
 
     # Adicionando o menu "Notas"
     notas_menu = Menu(menu_bar, tearoff=0)
     notas_menu.add_command(label="Cadastrar/Editar Notas", command=lambda: abrir_cadastro_notas(), font=menu_font)
-    notas_menu.add_command(label="Relat+¦rio Estat+¡stico de Notas", command=lambda: abrir_relatorio_analise(), font=menu_font)
+    notas_menu.add_command(label="Relat+ï¿½rio Estat+ï¿½stico de Notas", command=lambda: abrir_relatorio_analise(), font=menu_font)
     
-    # Fun+º+úo para abrir a interface de cadastro de notas
+    # Fun+ï¿½+ï¿½o para abrir a interface de cadastro de notas
     def abrir_cadastro_notas():
         # Esconder a janela principal
         janela.withdraw()
         
-        # Criar janela de n+¡vel superior
+        # Criar janela de n+ï¿½vel superior
         janela_notas = Toplevel()
-        janela_notas.title("Cadastro/Edi+º+úo de Notas")
+        janela_notas.title("Cadastro/Edi+ï¿½+ï¿½o de Notas")
         janela_notas.geometry("1000x600")
         janela_notas.grab_set()  # Torna a janela modal
         janela_notas.focus_force()
@@ -2898,22 +2898,22 @@ def criar_acoes():
                 janela.deiconify()
                 return
         else:
-            # Tenta import din+ómico como fallback e mostra erro amig+ível se falhar
+            # Tenta import din+ï¿½mico como fallback e mostra erro amig+ï¿½vel se falhar
             try:
                 from InterfaceCadastroEdicaoNotas import InterfaceCadastroEdicaoNotas as _ICEN
                 app_notas = _ICEN(janela_notas, janela_principal=janela)
             except Exception as e:
-                messagebox.showerror("Erro", f"N+úo foi poss+¡vel abrir a interface de cadastro/edi+º+úo de notas: {e}")
+                messagebox.showerror("Erro", f"N+ï¿½o foi poss+ï¿½vel abrir a interface de cadastro/edi+ï¿½+ï¿½o de notas: {e}")
                 janela.deiconify()
                 return
     
-    # Fun+º+úo para abrir o relat+¦rio estat+¡stico de an+ílise de notas
+    # Fun+ï¿½+ï¿½o para abrir o relat+ï¿½rio estat+ï¿½stico de an+ï¿½lise de notas
     def abrir_relatorio_analise():
         try:
             from relatorio_analise_notas import abrir_relatorio_analise_notas
             abrir_relatorio_analise_notas(janela_principal=janela)
         except Exception as e:
-            messagebox.showerror("Erro", f"N+úo foi poss+¡vel abrir o relat+¦rio: {e}")
+            messagebox.showerror("Erro", f"N+ï¿½o foi poss+ï¿½vel abrir o relat+ï¿½rio: {e}")
             import traceback
             traceback.print_exc()
 
@@ -2921,7 +2921,7 @@ def criar_acoes():
         # Esconder a janela principal
         janela.withdraw()
         
-        # Criar janela de n+¡vel superior
+        # Criar janela de n+ï¿½vel superior
         janela_horarios = Toplevel()
         
         # Configurar evento de fechamento da janela
@@ -2931,21 +2931,21 @@ def criar_acoes():
             
         janela_horarios.protocol("WM_DELETE_WINDOW", ao_fechar)
         
-        # Criar interface de hor+írios escolares
+        # Criar interface de hor+ï¿½rios escolares
         app_horarios = InterfaceHorariosEscolares(
             janela_horarios, janela_principal=janela)
 
-    # Adicionando o menu +á barra de menus
+    # Adicionando o menu +ï¿½ barra de menus
     menu_bar.add_cascade(label="Gerenciamento de Notas", menu=notas_menu)
 
     # =========================
-    # Servi+ºos
+    # Servi+ï¿½os
     # =========================
     servicos_menu = Menu(menu_bar, tearoff=0)
 
     # Criar submenu para Movimento Mensal (moved from 'Listas')
     movimento_mensal_menu = Menu(servicos_menu, tearoff=0)
-    movimento_mensal_menu.add_command(label="Gerar Relat+¦rio", command=selecionar_mes_movimento, font=menu_font)
+    movimento_mensal_menu.add_command(label="Gerar Relat+ï¿½rio", command=selecionar_mes_movimento, font=menu_font)
     servicos_menu.add_cascade(label="Movimento Mensal", menu=movimento_mensal_menu, font=menu_font)
 
     def abrir_solicitacao_professores():
@@ -2953,21 +2953,21 @@ def criar_acoes():
             from InterfaceSolicitacaoProfessores import abrir_interface_solicitacao
             abrir_interface_solicitacao(janela_principal=janela)
         except Exception as e:
-            messagebox.showerror("Erro", f"N+úo foi poss+¡vel abrir a solicita+º+úo: {e}")
+            messagebox.showerror("Erro", f"N+ï¿½o foi poss+ï¿½vel abrir a solicita+ï¿½+ï¿½o: {e}")
 
-    # Fun+º+úo para abrir o gerenciador de documentos de funcion+írios
+    # Fun+ï¿½+ï¿½o para abrir o gerenciador de documentos de funcion+ï¿½rios
     def abrir_gerenciador_documentos():
         # Esconder a janela principal
         janela.withdraw()
         
         # Criar janela do gerenciador
         janela_docs = Toplevel(janela)
-        janela_docs.title("Gerenciador de Documentos de Funcion+írios")
+        janela_docs.title("Gerenciador de Documentos de Funcion+ï¿½rios")
         app = GerenciadorDocumentosFuncionarios(janela_docs)
         janela_docs.focus_force()
         janela_docs.grab_set()
         
-        # Fun+º+úo para quando a janela for fechada
+        # Fun+ï¿½+ï¿½o para quando a janela for fechada
         def ao_fechar():
             janela.deiconify()  # Mostrar a janela principal novamente
             janela_docs.destroy()
@@ -2975,7 +2975,7 @@ def criar_acoes():
         # Configurar o evento de fechamento
         janela_docs.protocol("WM_DELETE_WINDOW", ao_fechar)
 
-    # Fun+º+úo para abrir o gerenciador de documentos do sistema
+    # Fun+ï¿½+ï¿½o para abrir o gerenciador de documentos do sistema
     def abrir_gerenciador_documentos_sistema():
         # Esconder a janela principal
         janela.withdraw()
@@ -2988,7 +2988,7 @@ def criar_acoes():
         janela_docs.focus_force()
         janela_docs.grab_set()
         
-        # Fun+º+úo para quando a janela for fechada
+        # Fun+ï¿½+ï¿½o para quando a janela for fechada
         def ao_fechar():
             janela.deiconify()  # Mostrar a janela principal novamente
             janela_docs.destroy()
@@ -2997,13 +2997,13 @@ def criar_acoes():
         janela_docs.protocol("WM_DELETE_WINDOW", ao_fechar)
 
     servicos_menu.add_command(
-        label="Solicita+º+úo de Professores e Coordenadores",
+        label="Solicita+ï¿½+ï¿½o de Professores e Coordenadores",
         command=abrir_solicitacao_professores,
         font=menu_font
     )
 
     servicos_menu.add_command(
-        label="Gerenciador de Documentos de Funcion+írios",
+        label="Gerenciador de Documentos de Funcion+ï¿½rios",
         command=abrir_gerenciador_documentos,
         font=menu_font
     )
@@ -3014,9 +3014,9 @@ def criar_acoes():
         font=menu_font
     )
 
-    # Fun+º+úo para abrir a interface de declara+º+úo de comparecimento
+    # Fun+ï¿½+ï¿½o para abrir a interface de declara+ï¿½+ï¿½o de comparecimento
     def abrir_interface_declaracao_comparecimento_menu():
-        """Abre interface para selecionar aluno e gerar declara+º+úo de comparecimento"""
+        """Abre interface para selecionar aluno e gerar declara+ï¿½+ï¿½o de comparecimento"""
         from tkinter import Toplevel, Frame, Label, Entry, Button, Listbox, Scrollbar, END
         from tkcalendar import DateEntry
         
@@ -3025,7 +3025,7 @@ def criar_acoes():
         
         # Criar janela
         janela_decl = Toplevel(janela)
-        janela_decl.title("Declara+º+úo de Comparecimento de Respons+ível")
+        janela_decl.title("Declara+ï¿½+ï¿½o de Comparecimento de Respons+ï¿½vel")
         janela_decl.geometry("600x600")
         janela_decl.configure(bg=co1)
         
@@ -3040,8 +3040,8 @@ def criar_acoes():
         frame_principal = Frame(janela_decl, bg=co1, padx=20, pady=20)
         frame_principal.pack(fill='both', expand=True)
         
-        # T+¡tulo
-        Label(frame_principal, text="Gerar Declara+º+úo de Comparecimento", 
+        # T+ï¿½tulo
+        Label(frame_principal, text="Gerar Declara+ï¿½+ï¿½o de Comparecimento", 
               font=("Arial", 14, "bold"), bg=co1, fg=co0).pack(pady=(0, 15))
         
         # Frame de pesquisa
@@ -3070,13 +3070,13 @@ def criar_acoes():
         listbox_alunos.pack(fill='both', expand=True)
         scrollbar.config(command=listbox_alunos.yview)
         
-        # Dicion+írio para mapear +¡ndice -> ID do aluno
+        # Dicion+ï¿½rio para mapear +ï¿½ndice -> ID do aluno
         alunos_dict = {}
         
-        # Vari+ível para armazenar o aluno selecionado
+        # Vari+ï¿½vel para armazenar o aluno selecionado
         aluno_selecionado_id = {'id': None}
         
-        # Fun+º+úo para carregar alunos
+        # Fun+ï¿½+ï¿½o para carregar alunos
         def carregar_alunos(filtro=""):
             listbox_alunos.delete(0, END)
             alunos_dict.clear()
@@ -3084,7 +3084,7 @@ def criar_acoes():
             try:
                 with get_connection() as conn:
                     if conn is None:
-                        messagebox.showerror("Erro", "N+úo foi poss+¡vel conectar ao banco de dados.")
+                        messagebox.showerror("Erro", "N+ï¿½o foi poss+ï¿½vel conectar ao banco de dados.")
                         return
                     cursor = conn.cursor()
                     try:
@@ -3157,7 +3157,7 @@ def criar_acoes():
         
         pesquisa_entry.bind("<KeyRelease>", pesquisar)
         
-        # Frame para par+ómetros
+        # Frame para par+ï¿½metros
         frame_params = Frame(frame_principal, bg=co1)
         frame_params.pack(fill='x', pady=(10, 0))
         
@@ -3169,8 +3169,8 @@ def criar_acoes():
                                        bg=co1, fg=co2, font=("Arial", 10))
         aluno_selecionado_label.grid(row=1, column=0, sticky='w', pady=5, columnspan=2)
         
-        # Sele+º+úo de Respons+ível
-        Label(frame_params, text="Respons+ível:", bg=co1, fg=co0, 
+        # Sele+ï¿½+ï¿½o de Respons+ï¿½vel
+        Label(frame_params, text="Respons+ï¿½vel:", bg=co1, fg=co0, 
               font=("Arial", 11)).grid(row=2, column=0, sticky='w', pady=5)
         
         responsavel_var = StringVar()
@@ -3179,7 +3179,7 @@ def criar_acoes():
         combo_responsavel.grid(row=2, column=1, sticky='w', padx=(10, 0), pady=5)
         
         # Turno
-        Label(frame_params, text="Turno da Reuni+úo:", bg=co1, fg=co0, 
+        Label(frame_params, text="Turno da Reuni+ï¿½o:", bg=co1, fg=co0, 
               font=("Arial", 11)).grid(row=3, column=0, sticky='w', pady=5)
         
         turno_var = StringVar(value="Matutino")
@@ -3200,10 +3200,10 @@ def criar_acoes():
               font=("Arial", 11)).grid(row=5, column=0, sticky='w', pady=5)
         
         motivo_entry = Entry(frame_params, width=30, font=("Arial", 11))
-        motivo_entry.insert(0, "reuni+úo escolar")
+        motivo_entry.insert(0, "reuni+ï¿½o escolar")
         motivo_entry.grid(row=5, column=1, sticky='w', padx=(10, 0), pady=5)
         
-        # Fun+º+úo para carregar respons+íveis quando um aluno for selecionado
+        # Fun+ï¿½+ï¿½o para carregar respons+ï¿½veis quando um aluno for selecionado
         def on_aluno_select(event):
             selecao = listbox_alunos.curselection()
             if not selecao:
@@ -3217,17 +3217,17 @@ def criar_acoes():
             
             # Mostrar nome do aluno selecionado
             nome_aluno = listbox_alunos.get(idx)
-            aluno_selecionado_label.config(text=f"Ô£ô {nome_aluno}", fg=co2)
+            aluno_selecionado_label.config(text=f"Ô£ï¿½ {nome_aluno}", fg=co2)
             
             if aluno_id:
                 try:
                     with get_connection() as conn:
                         if conn is None:
-                            logger.error("Erro: N+úo foi poss+¡vel conectar ao banco de dados.")
+                            logger.error("Erro: N+ï¿½o foi poss+ï¿½vel conectar ao banco de dados.")
                             return
                         cursor = conn.cursor()
                         try:
-                            # Buscar respons+íveis do aluno
+                            # Buscar respons+ï¿½veis do aluno
                             query = """
                                 SELECT DISTINCT 
                                     r.nome,
@@ -3240,7 +3240,7 @@ def criar_acoes():
                             resultados = cursor.fetchall()
 
                             responsaveis = []
-                            # Adicionar todos os respons+íveis encontrados
+                            # Adicionar todos os respons+ï¿½veis encontrados
                             for row in resultados:
                                 if row and row[0]:
                                     responsaveis.append(row[0])
@@ -3255,17 +3255,17 @@ def criar_acoes():
                         combo_responsavel['values'] = responsaveis
                         combo_responsavel.set(responsaveis[0])
                     else:
-                        combo_responsavel['values'] = ["Respons+ível n+úo cadastrado"]
-                        combo_responsavel.set("Respons+ível n+úo cadastrado")
+                        combo_responsavel['values'] = ["Respons+ï¿½vel n+ï¿½o cadastrado"]
+                        combo_responsavel.set("Respons+ï¿½vel n+ï¿½o cadastrado")
                 except Exception as e:
-                    logger.error(f"Erro ao carregar respons+íveis: {str(e)}")
+                    logger.error(f"Erro ao carregar respons+ï¿½veis: {str(e)}")
         
-        # Vincular evento de sele+º+úo
+        # Vincular evento de sele+ï¿½+ï¿½o
         listbox_alunos.bind("<<ListboxSelect>>", on_aluno_select)
         
-        # Fun+º+úo para gerar
+        # Fun+ï¿½+ï¿½o para gerar
         def gerar():
-            # Usar o ID do aluno salvo em vez da sele+º+úo da listbox
+            # Usar o ID do aluno salvo em vez da sele+ï¿½+ï¿½o da listbox
             aluno_id = aluno_selecionado_id['id']
             
             if not aluno_id:
@@ -3273,19 +3273,19 @@ def criar_acoes():
                 return
             
             responsavel_selecionado = responsavel_var.get()
-            if not responsavel_selecionado or responsavel_selecionado == "Respons+ível n+úo cadastrado":
-                messagebox.showwarning("Aviso", "Por favor, selecione um respons+ível v+ílido.")
+            if not responsavel_selecionado or responsavel_selecionado == "Respons+ï¿½vel n+ï¿½o cadastrado":
+                messagebox.showwarning("Aviso", "Por favor, selecione um respons+ï¿½vel v+ï¿½lido.")
                 return
             
             turno_selecionado = turno_var.get()
             if not turno_selecionado:
-                messagebox.showwarning("Aviso", "Por favor, selecione o turno da reuni+úo.")
+                messagebox.showwarning("Aviso", "Por favor, selecione o turno da reuni+ï¿½o.")
                 return
             
             data_selecionada = data_entry.get_date()
             motivo = motivo_entry.get()
             
-            # Passar os novos par+ómetros para a fun+º+úo
+            # Passar os novos par+ï¿½metros para a fun+ï¿½+ï¿½o
             gerar_declaracao_comparecimento_responsavel(
                 aluno_id, data_selecionada, motivo, 
                 responsavel_selecionado, turno_selecionado
@@ -3295,11 +3295,11 @@ def criar_acoes():
             janela_decl.destroy()
             janela.deiconify()
         
-        # Bot+Áes
+        # Bot+ï¿½es
         frame_botoes = Frame(frame_principal, bg=co1)
         frame_botoes.pack(fill='x', pady=(15, 0))
         
-        Button(frame_botoes, text="Gerar Declara+º+úo", command=gerar, 
+        Button(frame_botoes, text="Gerar Declara+ï¿½+ï¿½o", command=gerar, 
                bg=co2, fg=co0, font=("Arial", 11, "bold"), 
                width=18).pack(side='left', padx=5)
         
@@ -3310,22 +3310,22 @@ def criar_acoes():
     servicos_menu.add_separator()
     
     servicos_menu.add_command(
-        label="Declara+º+úo de Comparecimento (Respons+ível)",
+        label="Declara+ï¿½+ï¿½o de Comparecimento (Respons+ï¿½vel)",
         command=abrir_interface_declaracao_comparecimento_menu,
         font=menu_font
     )
 
-    # Fun+º+úo para gerar crach+ís
+    # Fun+ï¿½+ï¿½o para gerar crach+ï¿½s
     def abrir_interface_crachas():
-        """Abre uma interface para gerar crach+ís de alunos e respons+íveis de forma n+úo bloqueante.
+        """Abre uma interface para gerar crach+ï¿½s de alunos e respons+ï¿½veis de forma n+ï¿½o bloqueante.
 
-        Cria a janela de progresso no thread principal e executa a gera+º+úo em background.
+        Cria a janela de progresso no thread principal e executa a gera+ï¿½+ï¿½o em background.
         """
         resposta = messagebox.askyesno(
-            "Gerar Crach+ís",
-            "Deseja gerar crach+ís para todos os alunos ativos?\n\n"
-            "Os crach+ís ser+úo salvos na pasta 'Cracha_Anos_Iniciais', "
-            "organizados por s+®rie e turma."
+            "Gerar Crach+ï¿½s",
+            "Deseja gerar crach+ï¿½s para todos os alunos ativos?\n\n"
+            "Os crach+ï¿½s ser+ï¿½o salvos na pasta 'Cracha_Anos_Iniciais', "
+            "organizados por s+ï¿½rie e turma."
         )
 
         if not resposta:
@@ -3336,7 +3336,7 @@ def criar_acoes():
 
         # Criar janela de progresso (UI deve ser criada no thread principal)
         janela_progresso = Toplevel(janela)
-        janela_progresso.title("Gerando Crach+ís")
+        janela_progresso.title("Gerando Crach+ï¿½s")
         janela_progresso.geometry("400x150")
         janela_progresso.resizable(False, False)
         janela_progresso.configure(bg=co1)
@@ -3350,7 +3350,7 @@ def criar_acoes():
         frame_prog = Frame(janela_progresso, bg=co1, padx=20, pady=20)
         frame_prog.pack(fill=BOTH, expand=True)
 
-        Label(frame_prog, text="Gerando crach+ís...", font=("Arial", 12, "bold"), bg=co1, fg=co0).pack(pady=10)
+        Label(frame_prog, text="Gerando crach+ï¿½s...", font=("Arial", 12, "bold"), bg=co1, fg=co0).pack(pady=10)
         Label(frame_prog, text="Aguarde, isso pode levar alguns minutos.", font=("Arial", 10), bg=co1, fg=co0).pack(pady=5)
 
         progresso = Progressbar(frame_prog, mode='indeterminate', length=300)
@@ -3368,7 +3368,7 @@ def criar_acoes():
             error_msg = None
             caminho = None
             try:
-                # Usar o servi+ºo centralizado para gerar crach+ís
+                # Usar o servi+ï¿½o centralizado para gerar crach+ï¿½s
                 from services.report_service import gerar_crachas_para_todos_os_alunos as service_gerar
                 caminho = service_gerar()
                 success = True
@@ -3394,18 +3394,18 @@ def criar_acoes():
 
                 if not success:
                     if isinstance(error_msg, ImportError):
-                        messagebox.showerror("Erro de Importa+º+úo", f"N+úo foi poss+¡vel importar o m+¦dulo de gera+º+úo de crach+ís:\n{error_msg}")
+                        messagebox.showerror("Erro de Importa+ï¿½+ï¿½o", f"N+ï¿½o foi poss+ï¿½vel importar o m+ï¿½dulo de gera+ï¿½+ï¿½o de crach+ï¿½s:\n{error_msg}")
                     else:
-                        messagebox.showerror("Erro", f"Erro ao gerar crach+ís:\n{error_msg}")
+                        messagebox.showerror("Erro", f"Erro ao gerar crach+ï¿½s:\n{error_msg}")
                     return
 
                 # Sucesso: avisar e abrir pasta
                 caminho_crachas = caminho or os.path.join(os.getcwd(), "Cracha_Anos_Iniciais")
                 messagebox.showinfo(
                     "Sucesso",
-                    f"Crach+ís gerados com sucesso!\n\n"
+                    f"Crach+ï¿½s gerados com sucesso!\n\n"
                     f"Os arquivos foram salvos em:\n{caminho_crachas}\n\n"
-                    f"A pasta ser+í aberta automaticamente."
+                    f"A pasta ser+ï¿½ aberta automaticamente."
                 )
 
                 try:
@@ -3418,8 +3418,8 @@ def criar_acoes():
                     else:
                         subprocess.Popen(['xdg-open', caminho_crachas])
                 except Exception:
-                    # Problema ao abrir a pasta n+úo +® cr+¡tico
-                    logger.warning(f"N+úo foi poss+¡vel abrir a pasta dos crach+ís: {caminho_crachas}")
+                    # Problema ao abrir a pasta n+ï¿½o +ï¿½ cr+ï¿½tico
+                    logger.warning(f"N+ï¿½o foi poss+ï¿½vel abrir a pasta dos crach+ï¿½s: {caminho_crachas}")
 
             janela.after(0, _on_done)
 
@@ -3431,37 +3431,37 @@ def criar_acoes():
             Thread(target=_worker, daemon=True).start()
 
     servicos_menu.add_command(
-        label="Crach+ís Alunos/Respons+íveis",
+        label="Crach+ï¿½s Alunos/Respons+ï¿½veis",
         command=abrir_interface_crachas,
         font=menu_font
     )
 
-    # Fun+º+úo para abrir importa+º+úo de notas do HTML
+    # Fun+ï¿½+ï¿½o para abrir importa+ï¿½+ï¿½o de notas do HTML
     def abrir_importacao_notas_html():
         """Abre interface para importar notas de arquivo HTML do GEDUC"""
         try:
             # Ocultar janela principal
             janela.withdraw()
             
-            # Importar e executar o m+¦dulo de importa+º+úo
+            # Importar e executar o m+ï¿½dulo de importa+ï¿½+ï¿½o
             from importar_notas_html import interface_importacao
             
-            # Passa a refer+¬ncia da janela principal
+            # Passa a refer+ï¿½ncia da janela principal
             interface_importacao(janela_pai=janela)
             
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao abrir importa+º+úo de notas: {e}")
+            messagebox.showerror("Erro", f"Erro ao abrir importa+ï¿½+ï¿½o de notas: {e}")
             janela.deiconify()
 
     servicos_menu.add_command(
-        label="Importar Notas do GEDUC (HTML ÔåÆ Excel)",
+        label="Importar Notas do GEDUC (HTML ï¿½ï¿½ï¿½ Excel)",
         command=abrir_importacao_notas_html,
         font=menu_font
     )
     
-    # Fun+º+úo para abrir a transi+º+úo de ano letivo
+    # Fun+ï¿½+ï¿½o para abrir a transi+ï¿½+ï¿½o de ano letivo
     def abrir_transicao_ano_letivo():
-        """Abre interface para transi+º+úo de ano letivo"""
+        """Abre interface para transi+ï¿½+ï¿½o de ano letivo"""
         import os
         from dotenv import load_dotenv
         from tkinter import simpledialog
@@ -3470,14 +3470,14 @@ def criar_acoes():
         load_dotenv()
         senha_correta = os.getenv('DB_PASSWORD')
         
-        # Solicitar senha ao usu+írio
+        # Solicitar senha ao usu+ï¿½rio
         senha_digitada = simpledialog.askstring(
-            "Autentica+º+úo Necess+íria",
-            "Digite a senha do banco de dados para acessar a Transi+º+úo de Ano Letivo:",
+            "Autentica+ï¿½+ï¿½o Necess+ï¿½ria",
+            "Digite a senha do banco de dados para acessar a Transi+ï¿½+ï¿½o de Ano Letivo:",
             show='*'
         )
         
-        # Verificar se o usu+írio cancelou
+        # Verificar se o usu+ï¿½rio cancelou
         if senha_digitada is None:
             return
         
@@ -3485,8 +3485,8 @@ def criar_acoes():
         if senha_digitada != senha_correta:
             messagebox.showerror(
                 "Acesso Negado",
-                "Senha incorreta! A transi+º+úo de ano letivo +® uma opera+º+úo cr+¡tica\n"
-                "e requer autentica+º+úo para prosseguir."
+                "Senha incorreta! A transi+ï¿½+ï¿½o de ano letivo +ï¿½ uma opera+ï¿½+ï¿½o cr+ï¿½tica\n"
+                "e requer autentica+ï¿½+ï¿½o para prosseguir."
             )
             return
         
@@ -3495,17 +3495,17 @@ def criar_acoes():
             from transicao_ano_letivo import abrir_interface_transicao
             abrir_interface_transicao(janela_principal=janela)
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao abrir transi+º+úo de ano letivo: {e}")
+            messagebox.showerror("Erro", f"Erro ao abrir transi+ï¿½+ï¿½o de ano letivo: {e}")
             traceback.print_exc()
     
     servicos_menu.add_separator()
     servicos_menu.add_command(
-        label="­ƒöä Transi+º+úo de Ano Letivo",
+        label="ï¿½ï¿½ï¿½ï¿½ Transi+ï¿½+ï¿½o de Ano Letivo",
         command=abrir_transicao_ano_letivo,
         font=menu_font
     )
 
-    menu_bar.add_cascade(label="Servi+ºos", menu=servicos_menu)
+    menu_bar.add_cascade(label="Servi+ï¿½os", menu=servicos_menu)
 
     # =========================
     # Gerenciamento de Faltas
@@ -3527,13 +3527,13 @@ def criar_acoes():
         frame = Frame(dialog, padx=15, pady=15)
         frame.pack(fill=BOTH, expand=True)
 
-        Label(frame, text="M+¬s:").grid(row=0, column=0, sticky=W, pady=5)
+        Label(frame, text="M+ï¿½s:").grid(row=0, column=0, sticky=W, pady=5)
         ttk.Spinbox(frame, from_=1, to=12, width=5, textvariable=mes_var).grid(row=0, column=1, sticky=W)
 
         Label(frame, text="Ano:").grid(row=1, column=0, sticky=W, pady=5)
         ttk.Spinbox(frame, from_=2020, to=2100, width=7, textvariable=ano_var).grid(row=1, column=1, sticky=W)
 
-        Label(frame, text="Pasta de sa+¡da:").grid(row=2, column=0, sticky=W, pady=5)
+        Label(frame, text="Pasta de sa+ï¿½da:").grid(row=2, column=0, sticky=W, pady=5)
         entrada_pasta = Entry(frame, textvariable=pasta_var, width=28)
         entrada_pasta.grid(row=2, column=1, sticky=W)
 
@@ -3542,7 +3542,7 @@ def criar_acoes():
             if pasta:
                 pasta_var.set(pasta)
 
-        Button(frame, text="EscolherÔÇª", command=escolher_pasta).grid(row=2, column=2, padx=5)
+        Button(frame, text="Escolherï¿½Çª", command=escolher_pasta).grid(row=2, column=2, padx=5)
 
         def gerar():
             dialog.destroy()
@@ -3555,24 +3555,24 @@ def criar_acoes():
                     if not os.path.isfile(base_pdf):
                         base_pdf = os.path.join(os.getcwd(), "folha de ponto.pdf")
                 if not os.path.isfile(base_pdf):
-                    messagebox.showerror("Erro", f"Arquivo base n+úo encontrado: {base_pdf}")
+                    messagebox.showerror("Erro", f"Arquivo base n+ï¿½o encontrado: {base_pdf}")
                     return
                 mes = mes_var.get()
                 ano = ano_var.get()
                 nome_mes = nome_mes_pt_folha(mes)
                 saida = os.path.join(pasta_var.get(), f"Folhas_de_Ponto_{nome_mes}_{ano}.pdf")
                 if status_label is not None:
-                    status_label.config(text=f"Gerando folhas de ponto de {nome_mes}/{ano}ÔÇª")
+                    status_label.config(text=f"Gerando folhas de ponto de {nome_mes}/{ano}ï¿½Çª")
 
                 def _worker():
-                    # Executa a gera+º+úo em background e retorna o caminho de sa+¡da
+                    # Executa a gera+ï¿½+ï¿½o em background e retorna o caminho de sa+ï¿½da
                     gerar_folhas_de_ponto(base_pdf, saida, mes_referencia=mes, ano_referencia=ano)
                     return saida
 
                 try:
                     _run_report_in_background(_worker, f"Folhas de Ponto {nome_mes}/{ano}")
                 except Exception as e:
-                    messagebox.showerror("Erro", f"Falha ao agendar gera+º+úo das folhas de ponto: {e}")
+                    messagebox.showerror("Erro", f"Falha ao agendar gera+ï¿½+ï¿½o das folhas de ponto: {e}")
             except Exception as e:
                 if status_label is not None:
                     status_label.config(text="")
@@ -3597,7 +3597,7 @@ def criar_acoes():
         frame = Frame(dialog, padx=15, pady=15)
         frame.pack(fill=BOTH, expand=True)
 
-        Label(frame, text="M+¬s:").grid(row=0, column=0, sticky=W, pady=5)
+        Label(frame, text="M+ï¿½s:").grid(row=0, column=0, sticky=W, pady=5)
         ttk.Spinbox(frame, from_=1, to=12, width=5, textvariable=mes_var).grid(row=0, column=1, sticky=W)
 
         Label(frame, text="Ano:").grid(row=1, column=0, sticky=W, pady=5)
@@ -3610,7 +3610,7 @@ def criar_acoes():
                 ano = ano_var.get()
                 nome_mes = nome_mes_pt_resumo(mes)
                 if status_label is not None:
-                    status_label.config(text=f"Gerando resumo de ponto de {nome_mes}/{ano}ÔÇª")
+                    status_label.config(text=f"Gerando resumo de ponto de {nome_mes}/{ano}ï¿½Çª")
 
                 def _worker():
                     gerar_resumo_ponto(mes, ano)
@@ -3630,13 +3630,13 @@ def criar_acoes():
         Button(botoes, text="Cancelar", command=dialog.destroy).pack(side=RIGHT, padx=5)
         Button(botoes, text="Gerar", command=gerar, bg=co5, fg=co0).pack(side=RIGHT)
 
-    # Cadastrar/Editar Faltas de Funcion+írios
+    # Cadastrar/Editar Faltas de Funcion+ï¿½rios
     def abrir_cadastro_faltas():
         try:
             from InterfaceCadastroEdicaoFaltas import abrir_interface_faltas
             abrir_interface_faltas(janela_principal=janela)
         except Exception as e:
-            messagebox.showerror("Erro", f"N+úo foi poss+¡vel abrir a interface de faltas: {e}")
+            messagebox.showerror("Erro", f"N+ï¿½o foi poss+ï¿½vel abrir a interface de faltas: {e}")
 
     faltas_menu.add_command(label="Cadastrar/Editar Faltas", command=abrir_cadastro_faltas, font=menu_font)
     faltas_menu.add_separator()
@@ -3645,7 +3645,7 @@ def criar_acoes():
 
     menu_bar.add_cascade(label="Gerenciamento de Faltas", menu=faltas_menu)
     
-    # --- Menu: Documentos da Escola (posicionado ap+¦s Gerenciamento de Faltas) ---
+    # --- Menu: Documentos da Escola (posicionado ap+ï¿½s Gerenciamento de Faltas) ---
     documentos_menu = Menu(menu_bar, tearoff=0)
 
     def abrir_documento_da_escola(chave):
@@ -3658,7 +3658,7 @@ def criar_acoes():
 
         link = links.get(chave)
         if not link:
-            messagebox.showwarning("Documento n+úo configurado", "Documento n+úo encontrado.")
+            messagebox.showwarning("Documento n+ï¿½o configurado", "Documento n+ï¿½o encontrado.")
             return
 
         try:
@@ -3672,18 +3672,18 @@ def criar_acoes():
 
     menu_bar.add_cascade(label="Documentos da Escola", menu=documentos_menu)
 
-    # Fun+º+úo para abrir interface de relat+¦rio avan+ºado
+    # Fun+ï¿½+ï¿½o para abrir interface de relat+ï¿½rio avan+ï¿½ado
     def abrir_relatorio_avancado():
-        # Criar janela para configura+º+úo de relat+¦rio avan+ºado
+        # Criar janela para configura+ï¿½+ï¿½o de relat+ï¿½rio avan+ï¿½ado
         janela_relatorio = Toplevel(janela)
-        janela_relatorio.title("Relat+¦rio de Notas - Op+º+Áes Avan+ºadas")
+        janela_relatorio.title("Relat+ï¿½rio de Notas - Op+ï¿½+ï¿½es Avan+ï¿½adas")
         janela_relatorio.geometry("550x480")
         janela_relatorio.resizable(False, False)
         janela_relatorio.transient(janela)  # Torna a janela dependente da principal
         janela_relatorio.grab_set()  # Torna a janela modal
         
-        # Vari+íveis para armazenar as op+º+Áes
-        bimestre_var = StringVar(value="1-¦ bimestre")
+        # Vari+ï¿½veis para armazenar as op+ï¿½+ï¿½es
+        bimestre_var = StringVar(value="1-ï¿½ bimestre")
         nivel_var = StringVar(value="iniciais")
         ano_letivo_var = IntVar(value=2025)
         status_var = StringVar(value="Ativo")
@@ -3694,21 +3694,21 @@ def criar_acoes():
         frame_principal = Frame(janela_relatorio, padx=20, pady=20)
         frame_principal.pack(fill=BOTH, expand=True)
         
-        # T+¡tulo
-        Label(frame_principal, text="Configurar Relat+¦rio de Notas", font=("Arial", 12, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 15), sticky=W)
+        # T+ï¿½tulo
+        Label(frame_principal, text="Configurar Relat+ï¿½rio de Notas", font=("Arial", 12, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 15), sticky=W)
         
         # Bimestre
         Label(frame_principal, text="Bimestre:", anchor=W).grid(row=1, column=0, sticky=W, pady=5)
-        bimestres = ["1-¦ bimestre", "2-¦ bimestre", "3-¦ bimestre", "4-¦ bimestre"]
+        bimestres = ["1-ï¿½ bimestre", "2-ï¿½ bimestre", "3-ï¿½ bimestre", "4-ï¿½ bimestre"]
         combo_bimestre = ttk.Combobox(frame_principal, textvariable=bimestre_var, values=bimestres, state="readonly", width=20)
         combo_bimestre.grid(row=1, column=1, sticky=W, pady=5)
         
-        # N+¡vel de ensino
-        Label(frame_principal, text="N+¡vel de ensino:", anchor=W).grid(row=2, column=0, sticky=W, pady=5)
+        # N+ï¿½vel de ensino
+        Label(frame_principal, text="N+ï¿½vel de ensino:", anchor=W).grid(row=2, column=0, sticky=W, pady=5)
         frame_nivel = Frame(frame_principal)
         frame_nivel.grid(row=2, column=1, sticky=W, pady=5)
-        Radiobutton(frame_nivel, text="S+®ries iniciais (1-¦ ao 5-¦)", variable=nivel_var, value="iniciais").pack(anchor=W)
-        Radiobutton(frame_nivel, text="S+®ries finais (6-¦ ao 9-¦)", variable=nivel_var, value="finais").pack(anchor=W)
+        Radiobutton(frame_nivel, text="S+ï¿½ries iniciais (1-ï¿½ ao 5-ï¿½)", variable=nivel_var, value="iniciais").pack(anchor=W)
+        Radiobutton(frame_nivel, text="S+ï¿½ries finais (6-ï¿½ ao 9-ï¿½)", variable=nivel_var, value="finais").pack(anchor=W)
         
         # Ano letivo
         Label(frame_principal, text="Ano letivo:", anchor=W).grid(row=3, column=0, sticky=W, pady=5)
@@ -3716,31 +3716,31 @@ def criar_acoes():
         combo_ano = ttk.Combobox(frame_principal, textvariable=ano_letivo_var, values=anos, state="readonly", width=20)
         combo_ano.grid(row=3, column=1, sticky=W, pady=5)
         
-        # Status de matr+¡cula
-        Label(frame_principal, text="Status de matr+¡cula:", anchor=W).grid(row=4, column=0, sticky=W, pady=5)
+        # Status de matr+ï¿½cula
+        Label(frame_principal, text="Status de matr+ï¿½cula:", anchor=W).grid(row=4, column=0, sticky=W, pady=5)
         frame_status = Frame(frame_principal)
         frame_status.grid(row=4, column=1, sticky=W, pady=5)
         Radiobutton(frame_status, text="Apenas ativos", variable=status_var, value="Ativo").pack(anchor=W)
         Checkbutton(frame_status, text="Incluir transferidos", variable=incluir_transferidos).pack(anchor=W)
         
-        # Op+º+Áes de exibi+º+úo
-        Label(frame_principal, text="Op+º+Áes de exibi+º+úo:", anchor=W).grid(row=5, column=0, sticky=W, pady=5)
+        # Op+ï¿½+ï¿½es de exibi+ï¿½+ï¿½o
+        Label(frame_principal, text="Op+ï¿½+ï¿½es de exibi+ï¿½+ï¿½o:", anchor=W).grid(row=5, column=0, sticky=W, pady=5)
         frame_opcoes = Frame(frame_principal)
         frame_opcoes.grid(row=5, column=1, sticky=W, pady=5)
         Checkbutton(frame_opcoes, text="Preencher notas em branco com zeros", variable=preencher_zeros).pack(anchor=W)
         
-        # Frame para bot+Áes
+        # Frame para bot+ï¿½es
         frame_botoes = Frame(janela_relatorio, padx=20, pady=15)
         frame_botoes.pack(fill=X)
         
-        # Fun+º+úo para gerar o relat+¦rio
+        # Fun+ï¿½+ï¿½o para gerar o relat+ï¿½rio
         def gerar_relatorio():
             bimestre = bimestre_var.get()
             nivel = nivel_var.get()
             ano = ano_letivo_var.get()
             preencher_com_zeros = preencher_zeros.get()
             
-            # Configurar status de matr+¡cula
+            # Configurar status de matr+ï¿½cula
             if incluir_transferidos.get():
                 status = ["Ativo", "Transferido"]
             else:
@@ -3749,12 +3749,12 @@ def criar_acoes():
             # Fechar a janela
             janela_relatorio.destroy()
             
-            # Exibir feedback ao usu+írio
+            # Exibir feedback ao usu+ï¿½rio
             if status_label is not None:
-                status_label.config(text=f"Gerando relat+¦rio de notas para {bimestre} ({nivel})...")
+                status_label.config(text=f"Gerando relat+ï¿½rio de notas para {bimestre} ({nivel})...")
             janela.update()
             
-            # Gerar o relat+¦rio
+            # Gerar o relat+ï¿½rio
             try:
                 resultado = gerar_relatorio_notas(
                     bimestre=bimestre,
@@ -3766,63 +3766,63 @@ def criar_acoes():
                 
                 if resultado:
                     if status_label is not None:
-                        status_label.config(text=f"Relat+¦rio gerado com sucesso!")
+                        status_label.config(text=f"Relat+ï¿½rio gerado com sucesso!")
                 else:
                     if status_label is not None:
-                        status_label.config(text=f"Nenhum dado encontrado para o relat+¦rio.")
-                    messagebox.showwarning("Sem dados", f"N+úo foram encontrados dados para o {bimestre} no n+¡vel {nivel}.")
+                        status_label.config(text=f"Nenhum dado encontrado para o relat+ï¿½rio.")
+                    messagebox.showwarning("Sem dados", f"N+ï¿½o foram encontrados dados para o {bimestre} no n+ï¿½vel {nivel}.")
             except Exception as e:
-                messagebox.showerror("Erro", f"Falha ao gerar relat+¦rio: {str(e)}")
+                messagebox.showerror("Erro", f"Falha ao gerar relat+ï¿½rio: {str(e)}")
                 if status_label is not None:
                     status_label.config(text="")
         
-        # Bot+Áes
+        # Bot+ï¿½es
         Button(frame_botoes, text="Cancelar", command=janela_relatorio.destroy, width=10).pack(side=RIGHT, padx=5)
         Button(frame_botoes, text="Gerar", command=gerar_relatorio, width=10, bg=co5, fg=co0).pack(side=RIGHT, padx=5)
     
-    # Adicionar as op+º+Áes dos bimestres e Ata Geral ao menu
+    # Adicionar as op+ï¿½+ï¿½es dos bimestres e Ata Geral ao menu
     notas_menu.add_separator()
-    notas_menu.add_command(label="1-¦ bimestre", command=lambda: nota_bimestre("1-¦ bimestre"), font=menu_font)
-    notas_menu.add_command(label="2-¦ bimestre", command=lambda: nota_bimestre("2-¦ bimestre"), font=menu_font)
-    notas_menu.add_command(label="3-¦ bimestre", command=lambda: nota_bimestre("3-¦ bimestre"), font=menu_font)
-    notas_menu.add_command(label="4-¦ bimestre", command=lambda: nota_bimestre("4-¦ bimestre"), font=menu_font)
+    notas_menu.add_command(label="1-ï¿½ bimestre", command=lambda: nota_bimestre("1-ï¿½ bimestre"), font=menu_font)
+    notas_menu.add_command(label="2-ï¿½ bimestre", command=lambda: nota_bimestre("2-ï¿½ bimestre"), font=menu_font)
+    notas_menu.add_command(label="3-ï¿½ bimestre", command=lambda: nota_bimestre("3-ï¿½ bimestre"), font=menu_font)
+    notas_menu.add_command(label="4-ï¿½ bimestre", command=lambda: nota_bimestre("4-ï¿½ bimestre"), font=menu_font)
     
-    # Adicionando separador para as op+º+Áes de s+®ries finais
+    # Adicionando separador para as op+ï¿½+ï¿½es de s+ï¿½ries finais
     notas_menu.add_separator()
-    notas_menu.add_command(label="1-¦ bimestre (6-¦ ao 9-¦ ano)", command=lambda: nota_bimestre2("1-¦ bimestre"), font=menu_font)
-    notas_menu.add_command(label="2-¦ bimestre (6-¦ ao 9-¦ ano)", command=lambda: nota_bimestre2("2-¦ bimestre"), font=menu_font)
-    notas_menu.add_command(label="3-¦ bimestre (6-¦ ao 9-¦ ano)", command=lambda: nota_bimestre2("3-¦ bimestre"), font=menu_font)
-    notas_menu.add_command(label="4-¦ bimestre (6-¦ ao 9-¦ ano)", command=lambda: nota_bimestre2("4-¦ bimestre"), font=menu_font)
+    notas_menu.add_command(label="1-ï¿½ bimestre (6-ï¿½ ao 9-ï¿½ ano)", command=lambda: nota_bimestre2("1-ï¿½ bimestre"), font=menu_font)
+    notas_menu.add_command(label="2-ï¿½ bimestre (6-ï¿½ ao 9-ï¿½ ano)", command=lambda: nota_bimestre2("2-ï¿½ bimestre"), font=menu_font)
+    notas_menu.add_command(label="3-ï¿½ bimestre (6-ï¿½ ao 9-ï¿½ ano)", command=lambda: nota_bimestre2("3-ï¿½ bimestre"), font=menu_font)
+    notas_menu.add_command(label="4-ï¿½ bimestre (6-ï¿½ ao 9-ï¿½ ano)", command=lambda: nota_bimestre2("4-ï¿½ bimestre"), font=menu_font)
     notas_menu.add_separator()
-    notas_menu.add_command(label="Relat+¦rio Avan+ºado", command=abrir_relatorio_avancado, font=menu_font)
+    notas_menu.add_command(label="Relat+ï¿½rio Avan+ï¿½ado", command=abrir_relatorio_avancado, font=menu_font)
     
-    # Adicionar submenu para relat+¦rios com assinatura de respons+íveis
+    # Adicionar submenu para relat+ï¿½rios com assinatura de respons+ï¿½veis
     relatorios_assinatura_menu = Menu(notas_menu, tearoff=0)
-    relatorios_assinatura_menu.add_command(label="1-¦ bimestre", command=lambda: nota_bimestre_com_assinatura("1-¦ bimestre"), font=menu_font)
-    relatorios_assinatura_menu.add_command(label="2-¦ bimestre", command=lambda: nota_bimestre_com_assinatura("2-¦ bimestre"), font=menu_font)
-    relatorios_assinatura_menu.add_command(label="3-¦ bimestre", command=lambda: nota_bimestre_com_assinatura("3-¦ bimestre"), font=menu_font)
-    relatorios_assinatura_menu.add_command(label="4-¦ bimestre", command=lambda: nota_bimestre_com_assinatura("4-¦ bimestre"), font=menu_font)
+    relatorios_assinatura_menu.add_command(label="1-ï¿½ bimestre", command=lambda: nota_bimestre_com_assinatura("1-ï¿½ bimestre"), font=menu_font)
+    relatorios_assinatura_menu.add_command(label="2-ï¿½ bimestre", command=lambda: nota_bimestre_com_assinatura("2-ï¿½ bimestre"), font=menu_font)
+    relatorios_assinatura_menu.add_command(label="3-ï¿½ bimestre", command=lambda: nota_bimestre_com_assinatura("3-ï¿½ bimestre"), font=menu_font)
+    relatorios_assinatura_menu.add_command(label="4-ï¿½ bimestre", command=lambda: nota_bimestre_com_assinatura("4-ï¿½ bimestre"), font=menu_font)
     relatorios_assinatura_menu.add_separator()
-    relatorios_assinatura_menu.add_command(label="1-¦ bimestre (6-¦ ao 9-¦ ano)", command=lambda: nota_bimestre2_com_assinatura("1-¦ bimestre"), font=menu_font)
-    relatorios_assinatura_menu.add_command(label="2-¦ bimestre (6-¦ ao 9-¦ ano)", command=lambda: nota_bimestre2_com_assinatura("2-¦ bimestre"), font=menu_font)
-    relatorios_assinatura_menu.add_command(label="3-¦ bimestre (6-¦ ao 9-¦ ano)", command=lambda: nota_bimestre2_com_assinatura("3-¦ bimestre"), font=menu_font)
-    relatorios_assinatura_menu.add_command(label="4-¦ bimestre (6-¦ ao 9-¦ ano)", command=lambda: nota_bimestre2_com_assinatura("4-¦ bimestre"), font=menu_font)
+    relatorios_assinatura_menu.add_command(label="1-ï¿½ bimestre (6-ï¿½ ao 9-ï¿½ ano)", command=lambda: nota_bimestre2_com_assinatura("1-ï¿½ bimestre"), font=menu_font)
+    relatorios_assinatura_menu.add_command(label="2-ï¿½ bimestre (6-ï¿½ ao 9-ï¿½ ano)", command=lambda: nota_bimestre2_com_assinatura("2-ï¿½ bimestre"), font=menu_font)
+    relatorios_assinatura_menu.add_command(label="3-ï¿½ bimestre (6-ï¿½ ao 9-ï¿½ ano)", command=lambda: nota_bimestre2_com_assinatura("3-ï¿½ bimestre"), font=menu_font)
+    relatorios_assinatura_menu.add_command(label="4-ï¿½ bimestre (6-ï¿½ ao 9-ï¿½ ano)", command=lambda: nota_bimestre2_com_assinatura("4-ï¿½ bimestre"), font=menu_font)
     relatorios_assinatura_menu.add_separator()
-    relatorios_assinatura_menu.add_command(label="Relat+¦rio Avan+ºado", command=abrir_relatorio_avancado_com_assinatura, font=menu_font)
+    relatorios_assinatura_menu.add_command(label="Relat+ï¿½rio Avan+ï¿½ado", command=abrir_relatorio_avancado_com_assinatura, font=menu_font)
     
-    notas_menu.add_cascade(label="Relat+¦rios com Assinatura", menu=relatorios_assinatura_menu, font=menu_font)
+    notas_menu.add_cascade(label="Relat+ï¿½rios com Assinatura", menu=relatorios_assinatura_menu, font=menu_font)
     
     notas_menu.add_separator()
     notas_menu.add_command(label="Ata Geral", command=lambda: abrir_interface_ata(janela, status_label), font=menu_font)
     notas_menu.add_separator()
-    # Submenu para Relat+¦rios de Pend+¬ncias (gerar PDF direto por bimestre/n+¡vel + abrir interface)
+    # Submenu para Relat+ï¿½rios de Pend+ï¿½ncias (gerar PDF direto por bimestre/n+ï¿½vel + abrir interface)
     relatorios_pendencias_menu = Menu(notas_menu, tearoff=0)
 
     def _gerar_pendencias_em_bg(bimestre: str, nivel: str):
-        """Gera relat+¦rio de pend+¬ncias em background para evitar bloquear a UI."""
+        """Gera relat+ï¿½rio de pend+ï¿½ncias em background para evitar bloquear a UI."""
         try:
             if status_label is not None:
-                status_label.config(text=f"Gerando pend+¬ncias: {bimestre} ({nivel})...")
+                status_label.config(text=f"Gerando pend+ï¿½ncias: {bimestre} ({nivel})...")
             janela.update()
         except Exception:
             pass
@@ -3835,19 +3835,19 @@ def criar_acoes():
                     try:
                         if ok:
                             if status_label is not None:
-                                status_label.config(text=f"Pend+¬ncias geradas: {bimestre} ({nivel})")
-                            messagebox.showinfo("Conclu+¡do", f"Relat+¦rio de pend+¬ncias gerado: {bimestre} ({nivel})")
+                                status_label.config(text=f"Pend+ï¿½ncias geradas: {bimestre} ({nivel})")
+                            messagebox.showinfo("Conclu+ï¿½do", f"Relat+ï¿½rio de pend+ï¿½ncias gerado: {bimestre} ({nivel})")
                         else:
                             if status_label is not None:
-                                status_label.config(text="Nenhuma pend+¬ncia encontrada.")
-                            messagebox.showinfo("Sem pend+¬ncias", f"Nenhuma pend+¬ncia encontrada para {bimestre} ({nivel}).")
+                                status_label.config(text="Nenhuma pend+ï¿½ncia encontrada.")
+                            messagebox.showinfo("Sem pend+ï¿½ncias", f"Nenhuma pend+ï¿½ncia encontrada para {bimestre} ({nivel}).")
                     except Exception:
                         pass
 
                 janela.after(0, _on_done)
             except Exception as e:
                 def _on_error():
-                    messagebox.showerror("Erro", f"Falha ao gerar pend+¬ncias: {e}")
+                    messagebox.showerror("Erro", f"Falha ao gerar pend+ï¿½ncias: {e}")
                     try:
                         if status_label is not None:
                             status_label.config(text="")
@@ -3863,25 +3863,25 @@ def criar_acoes():
             Thread(target=_worker, daemon=True).start()
 
     # Itens por bimestre (iniciais)
-    relatorios_pendencias_menu.add_command(label="1-¦ bimestre", command=lambda: _gerar_pendencias_em_bg("1-¦ bimestre", "iniciais"), font=menu_font)
-    relatorios_pendencias_menu.add_command(label="2-¦ bimestre", command=lambda: _gerar_pendencias_em_bg("2-¦ bimestre", "iniciais"), font=menu_font)
-    relatorios_pendencias_menu.add_command(label="3-¦ bimestre", command=lambda: _gerar_pendencias_em_bg("3-¦ bimestre", "iniciais"), font=menu_font)
-    relatorios_pendencias_menu.add_command(label="4-¦ bimestre", command=lambda: _gerar_pendencias_em_bg("4-¦ bimestre", "iniciais"), font=menu_font)
+    relatorios_pendencias_menu.add_command(label="1-ï¿½ bimestre", command=lambda: _gerar_pendencias_em_bg("1-ï¿½ bimestre", "iniciais"), font=menu_font)
+    relatorios_pendencias_menu.add_command(label="2-ï¿½ bimestre", command=lambda: _gerar_pendencias_em_bg("2-ï¿½ bimestre", "iniciais"), font=menu_font)
+    relatorios_pendencias_menu.add_command(label="3-ï¿½ bimestre", command=lambda: _gerar_pendencias_em_bg("3-ï¿½ bimestre", "iniciais"), font=menu_font)
+    relatorios_pendencias_menu.add_command(label="4-ï¿½ bimestre", command=lambda: _gerar_pendencias_em_bg("4-ï¿½ bimestre", "iniciais"), font=menu_font)
     relatorios_pendencias_menu.add_separator()
-    # Itens por bimestre (6-¦ ao 9-¦)
-    relatorios_pendencias_menu.add_command(label="1-¦ bimestre (6-¦ ao 9-¦ ano)", command=lambda: _gerar_pendencias_em_bg("1-¦ bimestre", "finais"), font=menu_font)
-    relatorios_pendencias_menu.add_command(label="2-¦ bimestre (6-¦ ao 9-¦ ano)", command=lambda: _gerar_pendencias_em_bg("2-¦ bimestre", "finais"), font=menu_font)
-    relatorios_pendencias_menu.add_command(label="3-¦ bimestre (6-¦ ao 9-¦ ano)", command=lambda: _gerar_pendencias_em_bg("3-¦ bimestre", "finais"), font=menu_font)
-    relatorios_pendencias_menu.add_command(label="4-¦ bimestre (6-¦ ao 9-¦ ano)", command=lambda: _gerar_pendencias_em_bg("4-¦ bimestre", "finais"), font=menu_font)
+    # Itens por bimestre (6-ï¿½ ao 9-ï¿½)
+    relatorios_pendencias_menu.add_command(label="1-ï¿½ bimestre (6-ï¿½ ao 9-ï¿½ ano)", command=lambda: _gerar_pendencias_em_bg("1-ï¿½ bimestre", "finais"), font=menu_font)
+    relatorios_pendencias_menu.add_command(label="2-ï¿½ bimestre (6-ï¿½ ao 9-ï¿½ ano)", command=lambda: _gerar_pendencias_em_bg("2-ï¿½ bimestre", "finais"), font=menu_font)
+    relatorios_pendencias_menu.add_command(label="3-ï¿½ bimestre (6-ï¿½ ao 9-ï¿½ ano)", command=lambda: _gerar_pendencias_em_bg("3-ï¿½ bimestre", "finais"), font=menu_font)
+    relatorios_pendencias_menu.add_command(label="4-ï¿½ bimestre (6-ï¿½ ao 9-ï¿½ ano)", command=lambda: _gerar_pendencias_em_bg("4-ï¿½ bimestre", "finais"), font=menu_font)
     relatorios_pendencias_menu.add_separator()
     relatorios_pendencias_menu.add_command(label="Abrir interface", command=abrir_relatorio_pendencias, font=menu_font)
 
-    notas_menu.add_cascade(label="Relat+¦rios de Pend+¬ncias", menu=relatorios_pendencias_menu, font=menu_font)
+    notas_menu.add_cascade(label="Relat+ï¿½rios de Pend+ï¿½ncias", menu=relatorios_pendencias_menu, font=menu_font)
 
     # Configurando o menu na janela
     janela.config(menu=menu_bar)
 
-    # Bot+úo de Backup usando o mesmo padr+úo dos outros bot+Áes
+    # Bot+ï¿½o de Backup usando o mesmo padr+ï¿½o dos outros bot+ï¿½es
     if app_img_matricula:
         backup_button = Button(botoes_frame, command=lambda: Seguranca.fazer_backup(), image=app_img_matricula,
                            text="Backup", compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
@@ -3891,7 +3891,7 @@ def criar_acoes():
                            overrelief=RIDGE, font=('Ivy 11'), bg=co6, fg=co7)
     backup_button.grid(row=0, column=4, padx=5, pady=5, sticky=EW)
 
-    # Bot+úo de Restaurar usando o mesmo padr+úo
+    # Bot+ï¿½o de Restaurar usando o mesmo padr+ï¿½o
     if app_img_matricula:
         restaurar_button = Button(botoes_frame, command=lambda: Seguranca.restaurar_backup(), image=app_img_matricula,
                               text="Restaurar", compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
@@ -3901,51 +3901,51 @@ def criar_acoes():
                               overrelief=RIDGE, font=('Ivy 11'), bg=co9, fg=co0)
     restaurar_button.grid(row=0, column=5, padx=5, pady=5, sticky=EW)
     
-    # Bot+úo de Hor+írios (NOVO)
+    # Bot+ï¿½o de Hor+ï¿½rios (NOVO)
     try:
         app_img_horarios = Image.open("icon/plus-square-fill.png")
         app_img_horarios = app_img_horarios.resize((18, 18))
         app_img_horarios = ImageTk.PhotoImage(app_img_horarios)
         app_horarios = Button(botoes_frame, command=abrir_gerenciador_horarios, image=app_img_horarios,
-                             text="Hor+írios", compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
+                             text="Hor+ï¿½rios", compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                              bg=co3, fg=co0)
     except FileNotFoundError:
-        app_horarios = Button(botoes_frame, command=abrir_gerenciador_horarios, text="Hor+írios",
+        app_horarios = Button(botoes_frame, command=abrir_gerenciador_horarios, text="Hor+ï¿½rios",
                              compound=LEFT, overrelief=RIDGE, font=('Ivy 11'),
                              bg=co3, fg=co0)
     app_horarios.grid(row=0, column=6, padx=5, pady=5, sticky=EW)
     if 'app_img_horarios' in locals():
         setattr(app_horarios, '_image_ref', app_img_horarios)
 
-    # Remover o OptionMenu e vari+íveis relacionadas
+    # Remover o OptionMenu e vari+ï¿½veis relacionadas
     def opcao_selecionada(value):
         if value == "Ata Geral":
             abrir_interface_ata(janela, status_label)
         else:
             nota_bimestre(value)
 
-    # Rodap+®
+    # Rodap+ï¿½
     criar_rodape()
 
 def criar_rodape():
-    """Cria o rodap+® na parte inferior da janela."""
+    """Cria o rodap+ï¿½ na parte inferior da janela."""
     global label_rodape, status_label
     
-    # Remove qualquer rodap+® existente
+    # Remove qualquer rodap+ï¿½ existente
     if label_rodape is not None:
         label_rodape.destroy()
     
-    # Cria um frame para o rodap+®
+    # Cria um frame para o rodap+ï¿½
     frame_rodape = Frame(janela, bg=co1)
     frame_rodape.grid(row=8, column=0, pady=5, sticky=EW)
     
-    # Cria o novo rodap+®
-    label_rodape = Label(frame_rodape, text="Criado por Tarcisio Sousa de Almeida, T+®cnico em Administra+º+úo Escolar", 
+    # Cria o novo rodap+ï¿½
+    label_rodape = Label(frame_rodape, text="Criado por Tarcisio Sousa de Almeida, T+ï¿½cnico em Administra+ï¿½+ï¿½o Escolar", 
                          font=('Ivy 10'), bg=co1, fg=co0)
     label_rodape.pack(side=LEFT, padx=10)
     
-    # Indicador de backup autom+ítico
-    backup_status = Label(frame_rodape, text="­ƒöä Backup autom+ítico: ATIVO (14:05 e 17:00 + ao fechar)", 
+    # Indicador de backup autom+ï¿½tico
+    backup_status = Label(frame_rodape, text="ï¿½ï¿½ï¿½ï¿½ Backup autom+ï¿½tico: ATIVO (14:05 e 17:00 + ao fechar)", 
                          font=('Ivy 9 italic'), bg=co1, fg=co2)
     backup_status.pack(side=LEFT, padx=20)
     
@@ -3963,11 +3963,11 @@ def destruir_frames():
     for widget in frame_logo.winfo_children():
         widget.destroy()
         
-    # Recria o rodap+® para garantir que ele seja sempre exibido
+    # Recria o rodap+ï¿½ para garantir que ele seja sempre exibido
     criar_rodape()
 
 def voltar():
-    # Limpar apenas os conte+¦dos necess+írios
+    # Limpar apenas os conte+ï¿½dos necess+ï¿½rios
     for widget in frame_detalhes.winfo_children():
         widget.destroy()
     for widget in frame_tabela.winfo_children():
@@ -3980,7 +3980,7 @@ def voltar():
     
     criar_logo()
     
-    # Verificar se j+í existe um campo de pesquisa
+    # Verificar se j+ï¿½ existe um campo de pesquisa
     pesquisa_existe = False
     for widget in frame_dados.winfo_children():
         if isinstance(widget, Frame) and widget.winfo_children():
@@ -3990,63 +3990,63 @@ def voltar():
                     pesquisa_existe = True
                     break
     
-    # Remover widgets que n+úo s+úo a pesquisa
+    # Remover widgets que n+ï¿½o s+ï¿½o a pesquisa
     for widget in frame_dados.winfo_children():
         if isinstance(widget, Frame) and not any(isinstance(child, Entry) for child in widget.winfo_children()):
             widget.destroy()
         elif not isinstance(widget, Frame):
             widget.destroy()
     
-    # Criar pesquisa apenas se n+úo existir
+    # Criar pesquisa apenas se n+ï¿½o existir
     if not pesquisa_existe:
         criar_pesquisa()
     
-    # Atualizar a tabela com os dados mais recentes ao inv+®s de apenas recriar
+    # Atualizar a tabela com os dados mais recentes ao inv+ï¿½s de apenas recriar
     atualizar_tabela_principal()
     
     # Garantir que o frame_detalhes esteja limpo e com tamanho adequado
     frame_detalhes.config(height=100)
     
-    # Adicionar uma mensagem de instru+º+úo no frame_detalhes
-    instrucao_label = Label(frame_detalhes, text="Selecione um item na tabela para visualizar as op+º+Áes dispon+¡veis", 
+    # Adicionar uma mensagem de instru+ï¿½+ï¿½o no frame_detalhes
+    instrucao_label = Label(frame_detalhes, text="Selecione um item na tabela para visualizar as op+ï¿½+ï¿½es dispon+ï¿½veis", 
                          font=('Ivy 11 italic'), bg=co1, fg=co0)
     instrucao_label.pack(pady=20)
 
 def verificar_e_gerar_boletim(aluno_id, ano_letivo_id=None):
     """
     Verifica o status do aluno e gera o documento apropriado.
-    Se o aluno estiver transferido, gera o documento de transfer+¬ncia,
-    caso contr+írio, gera o boletim normal.
+    Se o aluno estiver transferido, gera o documento de transfer+ï¿½ncia,
+    caso contr+ï¿½rio, gera o boletim normal.
     
     Args:
         aluno_id: ID do aluno
-        ano_letivo_id: ID opcional do ano letivo. Se n+úo for fornecido, usar+í o ano letivo atual.
+        ano_letivo_id: ID opcional do ano letivo. Se n+ï¿½o for fornecido, usar+ï¿½ o ano letivo atual.
     """
     cursor = None
     try:
         with get_connection() as conn:
             if conn is None:
-                messagebox.showerror("Erro", "N+úo foi poss+¡vel conectar ao banco de dados.")
+                messagebox.showerror("Erro", "N+ï¿½o foi poss+ï¿½vel conectar ao banco de dados.")
                 return
             cursor = conn.cursor()
 
-            # Se o ano_letivo_id n+úo foi fornecido, obt+®m o ID do ano letivo atual
+            # Se o ano_letivo_id n+ï¿½o foi fornecido, obt+ï¿½m o ID do ano letivo atual
             if ano_letivo_id is None:
                 cursor.execute("SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
                 resultado_ano = cursor.fetchone()
 
                 if not resultado_ano:
-                    # Se n+úo encontrar o ano letivo atual, tenta obter o ano letivo mais recente
+                    # Se n+ï¿½o encontrar o ano letivo atual, tenta obter o ano letivo mais recente
                     cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
                     resultado_ano = cursor.fetchone()
 
                 if not resultado_ano:
-                    messagebox.showwarning("Aviso", "N+úo foi poss+¡vel determinar o ano letivo atual.")
+                    messagebox.showwarning("Aviso", "N+ï¿½o foi poss+ï¿½vel determinar o ano letivo atual.")
                     return False
 
                 ano_letivo_id = _safe_get(resultado_ano, 0, 1)
 
-            # Verifica o status da matr+¡cula do aluno no ano letivo especificado
+            # Verifica o status da matr+ï¿½cula do aluno no ano letivo especificado
             cursor.execute("""
             SELECT m.status, a.nome, al.ano_letivo
             FROM matriculas m
@@ -4064,7 +4064,7 @@ def verificar_e_gerar_boletim(aluno_id, ano_letivo_id=None):
         resultado = cursor.fetchone()
         
         if not resultado:
-            messagebox.showwarning("Aviso", "N+úo foi poss+¡vel determinar o status da matr+¡cula do aluno para o ano letivo selecionado.")
+            messagebox.showwarning("Aviso", "N+ï¿½o foi poss+ï¿½vel determinar o status da matr+ï¿½cula do aluno para o ano letivo selecionado.")
             return False
         
         status_matricula = _safe_get(resultado, 0)
@@ -4072,7 +4072,7 @@ def verificar_e_gerar_boletim(aluno_id, ano_letivo_id=None):
         ano_letivo = _safe_get(resultado, 2)
         
         # Decidir qual documento gerar baseado no status
-        # Gerar em background para n+úo bloquear a UI
+        # Gerar em background para n+ï¿½o bloquear a UI
         def _worker():
             if status_matricula == 'Transferido':
                 from transferencia import gerar_documento_transferencia
@@ -4084,13 +4084,13 @@ def verificar_e_gerar_boletim(aluno_id, ano_letivo_id=None):
         def _on_done(resultado):
             if status_matricula == 'Transferido':
                 messagebox.showinfo("Aluno Transferido", 
-                                    f"O aluno {nome_aluno} est+í com status 'Transferido' no ano letivo {ano_letivo}.\n"
-                                    f"Documento de transfer+¬ncia gerado com sucesso.")
+                                    f"O aluno {nome_aluno} est+ï¿½ com status 'Transferido' no ano letivo {ano_letivo}.\n"
+                                    f"Documento de transfer+ï¿½ncia gerado com sucesso.")
             else:
                 if resultado:
                     if status_label is not None:
                         status_label.config(text="Boletim gerado com sucesso.")
-                    messagebox.showinfo("Conclu+¡do", "Boletim gerado com sucesso.")
+                    messagebox.showinfo("Conclu+ï¿½do", "Boletim gerado com sucesso.")
                 else:
                     if status_label is not None:
                         status_label.config(text="")
@@ -4145,7 +4145,7 @@ def criar_menu_contextual():
     treeview.bind("<Button-3>", mostrar_menu)  # Clique direito
 
 # ============================================================================
-# OTIMIZA+ç+âO 4: Cache de resultados para atualiza+º+úo incremental
+# OTIMIZA+ï¿½+ï¿½O 4: Cache de resultados para atualiza+ï¿½+ï¿½o incremental
 # ============================================================================
 from typing import Dict, List, Any, Optional
 
@@ -4156,8 +4156,8 @@ _cache_dados_tabela: Dict[str, Any] = {
 }
 
 # ============================================================================
-# MELHORIA 1: Dashboard com Estat+¡sticas de Alunos
-# Cache para dados estat+¡sticos do dashboard (atualiza+º+úo a cada 5 minutos)
+# MELHORIA 1: Dashboard com Estat+ï¿½sticas de Alunos
+# Cache para dados estat+ï¿½sticos do dashboard (atualiza+ï¿½+ï¿½o a cada 5 minutos)
 # ============================================================================
 _cache_estatisticas_dashboard: Dict[str, Any] = {
     'timestamp': None,
@@ -4166,7 +4166,7 @@ _cache_estatisticas_dashboard: Dict[str, Any] = {
 
 def obter_estatisticas_alunos():
     """
-    Retorna estat+¡sticas de alunos matriculados e ativos do ano corrente.
+    Retorna estat+ï¿½sticas de alunos matriculados e ativos do ano corrente.
     Usa cache de 5 minutos para melhorar performance.
     
     Returns:
@@ -4187,7 +4187,7 @@ def obter_estatisticas_alunos():
         if tempo_decorrido < 300:  # 5 minutos
             return _cache_estatisticas_dashboard['dados']
     
-    # Buscar dados atualizados usando o context manager de conex+úo
+    # Buscar dados atualizados usando o context manager de conex+ï¿½o
     try:
         with get_connection() as conn:
             if conn is None:
@@ -4199,7 +4199,7 @@ def obter_estatisticas_alunos():
 
                 escola_id = 60  # ID fixo da escola
 
-                # Query otimizada para obter todas as estat+¡sticas de uma vez
+                # Query otimizada para obter todas as estat+ï¿½sticas de uma vez
                 cursor.execute("""
                     SELECT 
                         COUNT(DISTINCT CASE WHEN m.status = 'Ativo' THEN a.id END) as total_ativos,
@@ -4219,7 +4219,7 @@ def obter_estatisticas_alunos():
                 else:
                     total_ativos = 0
                     total_transferidos = 0
-                # garantir inteiros v+ílidos
+                # garantir inteiros v+ï¿½lidos
                 try:
                     total_ativos = int(total_ativos)
                 except Exception:
@@ -4230,7 +4230,7 @@ def obter_estatisticas_alunos():
                     total_transferidos = 0
                 total_matriculados = total_ativos + total_transferidos
 
-                # Estat+¡sticas por s+®rie E TURMA - conta ALUNOS +ÜNICOS e ATIVOS
+                # Estat+ï¿½sticas por s+ï¿½rie E TURMA - conta ALUNOS +ï¿½NICOS e ATIVOS
                 cursor.execute("""
                     SELECT 
                         CONCAT(s.nome, ' ', t.nome) as serie_turma,
@@ -4280,11 +4280,11 @@ def obter_estatisticas_alunos():
                 except Exception:
                     pass
     except Exception as e:
-        logger.error(f"Erro ao obter estat+¡sticas: {str(e)}")
+        logger.error(f"Erro ao obter estat+ï¿½sticas: {str(e)}")
         return None
 
 
-# Instanciar o DashboardManager se poss+¡vel (injeta depend+¬ncias necess+írias)
+# Instanciar o DashboardManager se poss+ï¿½vel (injeta depend+ï¿½ncias necess+ï¿½rias)
 try:
     from ui.dashboard import DashboardManager
     from services.db_service import DbService
@@ -4297,59 +4297,59 @@ except Exception:
 def atualizar_tabela_principal(forcar_atualizacao=False):
     """
     Atualiza a tabela principal com os dados mais recentes do banco de dados.
-    +Ütil para refletir altera+º+Áes como novos cadastros, edi+º+Áes ou exclus+Áes.
+    +ï¿½til para refletir altera+ï¿½+ï¿½es como novos cadastros, edi+ï¿½+ï¿½es ou exclus+ï¿½es.
     
     Args:
-        forcar_atualizacao (bool): Se True, ignora o cache e for+ºa a atualiza+º+úo
+        forcar_atualizacao (bool): Se True, ignora o cache e for+ï¿½a a atualiza+ï¿½+ï¿½o
     """
     try:
-        # Verificar se temos uma treeview v+ílida antes de tentar atualizar
+        # Verificar se temos uma treeview v+ï¿½lida antes de tentar atualizar
         if 'treeview' not in globals() or not treeview.winfo_exists():
-            logger.warning("Treeview n+úo existe, n+úo +® poss+¡vel atualizar")
+            logger.warning("Treeview n+ï¿½o existe, n+ï¿½o +ï¿½ poss+ï¿½vel atualizar")
             return False
         
-        # Verificar cache (evita recargas desnecess+írias)
+        # Verificar cache (evita recargas desnecess+ï¿½rias)
         import time
         import hashlib
         
         tempo_atual = time.time()
         
-        # Se a +¦ltima atualiza+º+úo foi h+í menos de 2 segundos, n+úo atualizar
+        # Se a +ï¿½ltima atualiza+ï¿½+ï¿½o foi h+ï¿½ menos de 2 segundos, n+ï¿½o atualizar
         if not forcar_atualizacao and _cache_dados_tabela['timestamp']:
             tempo_decorrido = tempo_atual - _cache_dados_tabela['timestamp']
             if tempo_decorrido < 2.0:
-                logger.debug(f"Cache ainda v+ílido ({tempo_decorrido:.1f}s), pulando atualiza+º+úo")
+                logger.debug(f"Cache ainda v+ï¿½lido ({tempo_decorrido:.1f}s), pulando atualiza+ï¿½+ï¿½o")
                 return True
             
         # Conectar ao banco de dados
         cursor = None
         with get_connection() as conn:
                 if conn is None:
-                    messagebox.showerror("Erro", "N+úo foi poss+¡vel conectar ao banco de dados.")
+                    messagebox.showerror("Erro", "N+ï¿½o foi poss+ï¿½vel conectar ao banco de dados.")
                     return False
                 cursor = conn.cursor()
 
                 # Executar a consulta otimizada para obter dados atualizados
-                # Se a vari+ível global 'query' n+úo estiver definida, n+úo atualizar
+                # Se a vari+ï¿½vel global 'query' n+ï¿½o estiver definida, n+ï¿½o atualizar
                 if 'query' not in globals() or not globals().get('query'):
-                    logger.warning("Vari+ível 'query' n+úo definida; pulando atualiza+º+úo de tabela")
+                    logger.warning("Vari+ï¿½vel 'query' n+ï¿½o definida; pulando atualiza+ï¿½+ï¿½o de tabela")
                     return False
-                # Usar a vari+ível global `query` via globals() e assegurar ao verificador de tipos
-                # que se trata de uma string (cast) ÔÇö j+í garantimos acima que 'query' existe e +® truthy.
+                # Usar a vari+ï¿½vel global `query` via globals() e assegurar ao verificador de tipos
+                # que se trata de uma string (cast) ï¿½ï¿½ï¿½ j+ï¿½ garantimos acima que 'query' existe e +ï¿½ truthy.
                 _q = globals().get('query')
                 cursor.execute(cast(str, _q))
 
-                # Atualizar a vari+ível global de resultados
+                # Atualizar a vari+ï¿½vel global de resultados
                 global resultados
                 novos_resultados = cursor.fetchall()
 
-                # Calcular hash dos novos dados para verificar mudan+ºas
+                # Calcular hash dos novos dados para verificar mudan+ï¿½as
                 dados_str = str(novos_resultados)
                 novo_hash = hashlib.md5(dados_str.encode()).hexdigest()
 
-                # Se os dados n+úo mudaram, n+úo precisa atualizar a interface
+                # Se os dados n+ï¿½o mudaram, n+ï¿½o precisa atualizar a interface
                 if not forcar_atualizacao and _cache_dados_tabela['hash'] == novo_hash:
-                    logger.debug("Dados n+úo mudaram, mantendo interface atual")
+                    logger.debug("Dados n+ï¿½o mudaram, mantendo interface atual")
                     _cache_dados_tabela['timestamp'] = tempo_atual
                     return True
 
@@ -4360,7 +4360,7 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
 
                 resultados = novos_resultados
             
-        # Limpar tabela atual usando try/except para cada opera+º+úo cr+¡tica
+        # Limpar tabela atual usando try/except para cada opera+ï¿½+ï¿½o cr+ï¿½tica
         try:
             # Verificar se tem itens antes de tentar limpar
             if treeview.get_children():
@@ -4368,7 +4368,7 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
                     treeview.delete(item)
         except TclError as tcl_e:
             logger.error(f"Erro ao limpar treeview: {str(tcl_e)}")
-            raise  # Relan+ºar para ser tratado pelo bloco de exce+º+úo principal
+            raise  # Relan+ï¿½ar para ser tratado pelo bloco de exce+ï¿½+ï¿½o principal
             
         # Inserir os novos dados
         try:
@@ -4387,9 +4387,9 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
                 treeview.insert("", "end", values=resultado)
         except TclError as tcl_e:
             logger.error(f"Erro ao inserir dados na treeview: {str(tcl_e)}")
-            raise  # Relan+ºar para ser tratado pelo bloco de exce+º+úo principal
+            raise  # Relan+ï¿½ar para ser tratado pelo bloco de exce+ï¿½+ï¿½o principal
             
-        # Fechar cursor (a conex+úo +® fechada pelo context manager)
+        # Fechar cursor (a conex+ï¿½o +ï¿½ fechada pelo context manager)
         try:
             if cursor:
                 cursor.close()
@@ -4400,72 +4400,72 @@ def atualizar_tabela_principal(forcar_atualizacao=False):
         return True
         
     except TclError as e:
-        # Tratamento espec+¡fico para erros do Tkinter
+        # Tratamento espec+ï¿½fico para erros do Tkinter
         logger.error(f"Erro do Tkinter ao atualizar tabela: {str(e)}")
         
-        # Fechar conex+Áes primeiro
+        # Fechar conex+ï¿½es primeiro
         if 'cursor' in locals() and cursor:
             cursor.close()
             
-        # N+úo tentar recriar a interface, apenas registrar o erro
+        # N+ï¿½o tentar recriar a interface, apenas registrar o erro
         return False
     
     except Exception as e:
         logger.error(f"Erro ao atualizar tabela: {str(e)}")
-        # N+úo mostrar messagebox para evitar loops de erro
+        # N+ï¿½o mostrar messagebox para evitar loops de erro
         
-        # Garantir que a conex+úo seja fechada mesmo em caso de erro
+        # Garantir que a conex+ï¿½o seja fechada mesmo em caso de erro
         if 'cursor' in locals() and cursor:
             cursor.close()
         
         return False
 
 def editar_funcionario_e_destruir_frames():
-    # Obter o ID do funcion+írio selecionado na tabela
+    # Obter o ID do funcion+ï¿½rio selecionado na tabela
     try:
         item_selecionado = treeview.focus()
         valores = treeview.item(item_selecionado, "values")
         
         if not valores:
-            messagebox.showwarning("Aviso", "Selecione um funcion+írio para editar")
+            messagebox.showwarning("Aviso", "Selecione um funcion+ï¿½rio para editar")
             return
         
-        funcionario_id = valores[0]  # Assumindo que o ID +® o primeiro valor
+        funcionario_id = valores[0]  # Assumindo que o ID +ï¿½ o primeiro valor
         
-        # Abrir a interface de edi+º+úo em uma nova janela
+        # Abrir a interface de edi+ï¿½+ï¿½o em uma nova janela
         janela_edicao = Toplevel(janela)
         from InterfaceEdicaoFuncionario import InterfaceEdicaoFuncionario
         
-        # Configurar a janela de edi+º+úo antes de criar a interface
-        janela_edicao.title(f"Editar Funcion+írio - ID: {funcionario_id}")
+        # Configurar a janela de edi+ï¿½+ï¿½o antes de criar a interface
+        janela_edicao.title(f"Editar Funcion+ï¿½rio - ID: {funcionario_id}")
         janela_edicao.geometry('950x670')
         janela_edicao.configure(background=co1)
-        janela_edicao.focus_set()  # Dar foco +á nova janela
+        janela_edicao.focus_set()  # Dar foco +ï¿½ nova janela
         
-        # Criar a interface de edi+º+úo ap+¦s configurar a janela
-        # A classe InterfaceEdicaoFuncionario j+í gerencia o fechamento e atualiza+º+úo
+        # Criar a interface de edi+ï¿½+ï¿½o ap+ï¿½s configurar a janela
+        # A classe InterfaceEdicaoFuncionario j+ï¿½ gerencia o fechamento e atualiza+ï¿½+ï¿½o
         app_edicao = InterfaceEdicaoFuncionario(janela_edicao, funcionario_id, janela_principal=janela)
         
     except Exception as e:
-        messagebox.showerror("Erro", f"Erro ao abrir interface de edi+º+úo: {str(e)}")
-        logger.error(f"Erro ao abrir interface de edi+º+úo: {str(e)}")
-        # Se ocorrer erro, garantir que a janela principal esteja vis+¡vel
+        messagebox.showerror("Erro", f"Erro ao abrir interface de edi+ï¿½+ï¿½o: {str(e)}")
+        logger.error(f"Erro ao abrir interface de edi+ï¿½+ï¿½o: {str(e)}")
+        # Se ocorrer erro, garantir que a janela principal esteja vis+ï¿½vel
         if janela.winfo_viewable() == 0:
             janela.deiconify()
 
 def selecionar_ano_para_boletim(aluno_id):
     """
-    Exibe uma janela com um menu suspenso para o usu+írio selecionar o ano letivo antes de gerar o boletim.
+    Exibe uma janela com um menu suspenso para o usu+ï¿½rio selecionar o ano letivo antes de gerar o boletim.
     
     Args:
         aluno_id: ID do aluno
     """
-    # Obter informa+º+Áes do aluno e anos letivos dentro do contexto de conex+úo
+    # Obter informa+ï¿½+ï¿½es do aluno e anos letivos dentro do contexto de conex+ï¿½o
     cursor = None
     try:
         with get_connection() as conn:
             if conn is None:
-                messagebox.showerror("Erro", "N+úo foi poss+¡vel conectar ao banco de dados.")
+                messagebox.showerror("Erro", "N+ï¿½o foi poss+ï¿½vel conectar ao banco de dados.")
                 return
             cursor = conn.cursor()
 
@@ -4473,18 +4473,18 @@ def selecionar_ano_para_boletim(aluno_id):
             cursor.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
             resultado_nome = cursor.fetchone()
             if resultado_nome is None:
-                messagebox.showerror("Erro", "Aluno n+úo encontrado.")
+                messagebox.showerror("Erro", "Aluno n+ï¿½o encontrado.")
                 return
             nome_aluno = resultado_nome[0]
 
-            # Obter anos letivos nos quais o aluno teve matr+¡cula
+            # Obter anos letivos nos quais o aluno teve matr+ï¿½cula
             tem_historico, anos_letivos = verificar_historico_matriculas(aluno_id)
 
             if not tem_historico or not anos_letivos:
-                messagebox.showwarning("Aviso", "N+úo foram encontradas matr+¡culas para este aluno.")
+                messagebox.showwarning("Aviso", "N+ï¿½o foram encontradas matr+ï¿½culas para este aluno.")
                 return
 
-            # Preparar janela de sele+º+úo (a interface n+úo depende de manter a conex+úo aberta)
+            # Preparar janela de sele+ï¿½+ï¿½o (a interface n+ï¿½o depende de manter a conex+ï¿½o aberta)
             janela_selecao = Toplevel(janela)
             janela_selecao.title(f"Selecionar Ano Letivo - {nome_aluno}")
             janela_selecao.geometry("400x300")
@@ -4497,21 +4497,21 @@ def selecionar_ano_para_boletim(aluno_id):
         frame_selecao = Frame(janela_selecao, bg=co1, padx=20, pady=20)
         frame_selecao.pack(fill=BOTH, expand=True)
         
-        # T+¡tulo
+        # T+ï¿½tulo
         titulo = Label(frame_selecao, text=f"Selecionar Ano Letivo para Boletim", 
                      font=("Arial", 14, "bold"), bg=co1, fg=co0)
         titulo.pack(pady=(0, 20))
         
-        # Informa+º+Áes do aluno
+        # Informa+ï¿½+ï¿½es do aluno
         Label(frame_selecao, text=f"Aluno: {nome_aluno}", 
              font=("Arial", 12), bg=co1, fg=co0).pack(anchor=W, pady=5)
         
-        # Criar dicion+írio para mapear anos letivos e status
+        # Criar dicion+ï¿½rio para mapear anos letivos e status
         anos_info = {}
         for ano_info in anos_letivos:
             ano_letivo, ano_letivo_id = ano_info
             
-            # Obter o status da matr+¡cula para este ano letivo
+            # Obter o status da matr+ï¿½cula para este ano letivo
             cursor.execute("""
                 SELECT m.status
                 FROM matriculas m
@@ -4525,7 +4525,7 @@ def selecionar_ano_para_boletim(aluno_id):
             status_result = cursor.fetchone()
             status = status_result[0] if status_result else "Desconhecido"
             
-            # Armazenar informa+º+Áes no dicion+írio
+            # Armazenar informa+ï¿½+ï¿½es no dicion+ï¿½rio
             anos_info[f"{ano_letivo} - {status}"] = (ano_letivo_id, status)
         
         # Frame para o combobox
@@ -4535,7 +4535,7 @@ def selecionar_ano_para_boletim(aluno_id):
         Label(combo_frame, text="Selecione o ano letivo:", 
              font=("Arial", 11), bg=co1, fg=co0).pack(anchor=W, pady=(0, 5))
         
-        # Criar vari+ível para armazenar a sele+º+úo
+        # Criar vari+ï¿½vel para armazenar a sele+ï¿½+ï¿½o
         selected_ano = StringVar()
         
         # Lista de anos para mostrar no combobox
@@ -4546,55 +4546,55 @@ def selecionar_ano_para_boletim(aluno_id):
                                 font=("Arial", 11), state="readonly", width=30)
         combo_anos.pack(fill=X, pady=5)
         
-        # Selecionar o primeiro item por padr+úo
+        # Selecionar o primeiro item por padr+ï¿½o
         if anos_display:
             combo_anos.current(0)
         
-        # Frame para informa+º+Áes (mostrar status da matr+¡cula selecionada)
+        # Frame para informa+ï¿½+ï¿½es (mostrar status da matr+ï¿½cula selecionada)
         info_frame = Frame(frame_selecao, bg=co1)
         info_frame.pack(fill=X, pady=10)
         
         status_label = Label(info_frame, text="", font=("Arial", 11), bg=co1, fg=co0)
         status_label.pack(anchor=W, pady=5)
         
-        # Atualizar informa+º+Áes quando o usu+írio selecionar um ano letivo
+        # Atualizar informa+ï¿½+ï¿½es quando o usu+ï¿½rio selecionar um ano letivo
         def atualizar_info(*args):
             selected = selected_ano.get()
             if selected in anos_info:
                 _, status = anos_info[selected]
                 if status == "Transferido":
-                    status_label.config(text=f"Observa+º+úo: Aluno transferido no ano letivo selecionado")
+                    status_label.config(text=f"Observa+ï¿½+ï¿½o: Aluno transferido no ano letivo selecionado")
                 else:
                     status_label.config(text="")
         
-        # Vincular fun+º+úo ao evento de sele+º+úo
+        # Vincular fun+ï¿½+ï¿½o ao evento de sele+ï¿½+ï¿½o
         selected_ano.trace_add("write", atualizar_info)
         
-        # Chamar fun+º+úo uma vez para configura+º+úo inicial
+        # Chamar fun+ï¿½+ï¿½o uma vez para configura+ï¿½+ï¿½o inicial
         atualizar_info()
         
-        # Frame para bot+Áes
+        # Frame para bot+ï¿½es
         botoes_frame = Frame(frame_selecao, bg=co1)
         botoes_frame.pack(fill=X, pady=15)
         
-        # Fun+º+úo para gerar o boletim com o ano letivo selecionado
+        # Fun+ï¿½+ï¿½o para gerar o boletim com o ano letivo selecionado
         def gerar_boletim_selecionado():
             selected = selected_ano.get()
             if not selected or selected not in anos_info:
-                messagebox.showwarning("Aviso", "Por favor, selecione um ano letivo v+ílido.")
+                messagebox.showwarning("Aviso", "Por favor, selecione um ano letivo v+ï¿½lido.")
                 return
             
             ano_letivo_id, status = anos_info[selected]
             
-            # Fechar a janela de sele+º+úo
+            # Fechar a janela de sele+ï¿½+ï¿½o
             janela_selecao.destroy()
             
             # Decidir qual tipo de documento gerar com base no status
-            # Gerar em background para n+úo bloquear a UI
+            # Gerar em background para n+ï¿½o bloquear a UI
             def _worker():
                 if status == 'Transferido':
                     ano_letivo = selected.split(' - ')[0]
-                    # Nota: comunica+º+úo ao usu+írio ser+í feita no on_done
+                    # Nota: comunica+ï¿½+ï¿½o ao usu+ï¿½rio ser+ï¿½ feita no on_done
                     from transferencia import gerar_documento_transferencia
                     gerar_documento_transferencia(aluno_id, ano_letivo_id)
                     return True
@@ -4605,12 +4605,12 @@ def selecionar_ano_para_boletim(aluno_id):
                 if status == 'Transferido':
                     messagebox.showinfo("Aluno Transferido", 
                                         f"O aluno {nome_aluno} teve status 'Transferido' no ano {selected.split(' - ')[0]}.\n"
-                                        f"Documento de transfer+¬ncia gerado com sucesso.")
+                                        f"Documento de transfer+ï¿½ncia gerado com sucesso.")
                 else:
                     if resultado:
                         if status_label is not None:
                             status_label.config(text="Boletim gerado com sucesso.")
-                        messagebox.showinfo("Conclu+¡do", "Boletim gerado com sucesso.")
+                        messagebox.showinfo("Conclu+ï¿½do", "Boletim gerado com sucesso.")
                     else:
                         if status_label is not None:
                             status_label.config(text="")
@@ -4642,7 +4642,7 @@ def selecionar_ano_para_boletim(aluno_id):
                 from threading import Thread
                 Thread(target=_thread_worker, daemon=True).start()
         
-        # Bot+Áes
+        # Bot+ï¿½es
         Button(botoes_frame, text="Gerar Boletim", command=gerar_boletim_selecionado,
               font=('Ivy 10 bold'), bg=co6, fg=co7, width=15).pack(side=LEFT, padx=5)
         
@@ -4650,8 +4650,8 @@ def selecionar_ano_para_boletim(aluno_id):
               font=('Ivy 10'), bg=co8, fg=co0, width=15).pack(side=RIGHT, padx=5)
         
     except Exception as e:
-        messagebox.showerror("Erro", f"Erro ao preparar sele+º+úo de ano letivo: {str(e)}")
-        logger.error(f"Erro ao preparar sele+º+úo de ano letivo: {str(e)}")
+        messagebox.showerror("Erro", f"Erro ao preparar sele+ï¿½+ï¿½o de ano letivo: {str(e)}")
+        logger.error(f"Erro ao preparar sele+ï¿½+ï¿½o de ano letivo: {str(e)}")
     finally:
         try:
             if cursor:
@@ -4661,39 +4661,39 @@ def selecionar_ano_para_boletim(aluno_id):
 
 def criar_menu_boletim(parent_frame, aluno_id, tem_matricula_ativa):
     """
-    Cria um menu suspenso (Combobox) para sele+º+úo do ano letivo diretamente na interface principal.
+    Cria um menu suspenso (Combobox) para sele+ï¿½+ï¿½o do ano letivo diretamente na interface principal.
     
     Args:
-        parent_frame: Frame onde o menu ser+í adicionado
+        parent_frame: Frame onde o menu ser+ï¿½ adicionado
         aluno_id: ID do aluno
-        tem_matricula_ativa: Flag que indica se o aluno tem matr+¡cula ativa
+        tem_matricula_ativa: Flag que indica se o aluno tem matr+ï¿½cula ativa
     """
-    # Obter anos letivos nos quais o aluno teve matr+¡cula
+    # Obter anos letivos nos quais o aluno teve matr+ï¿½cula
     tem_historico, anos_letivos = verificar_historico_matriculas(aluno_id)
     
     if not tem_historico or not anos_letivos:
-        # Se n+úo tem hist+¦rico, simplesmente adicionar um bot+úo desabilitado
+        # Se n+ï¿½o tem hist+ï¿½rico, simplesmente adicionar um bot+ï¿½o desabilitado
         Button(parent_frame, text="Boletim", state=DISABLED,
                width=10, overrelief=RIDGE, font=('Ivy 9'), bg=co6, fg=co7).grid(row=0, column=3, padx=5, pady=5)
         return
     
-    # Criar frame para conter o bot+úo e o combobox
+    # Criar frame para conter o bot+ï¿½o e o combobox
     boletim_frame = Frame(parent_frame, bg=co1)
     boletim_frame.grid(row=0, column=3, padx=5, pady=5)
     
-    # Criar dicion+írio para mapear anos letivos e status
+    # Criar dicion+ï¿½rio para mapear anos letivos e status
     anos_info = {}
     
     cursor = None
     try:
         with get_connection() as conn:
             if conn is None:
-                messagebox.showerror("Erro", "N+úo foi poss+¡vel conectar ao banco de dados.")
+                messagebox.showerror("Erro", "N+ï¿½o foi poss+ï¿½vel conectar ao banco de dados.")
                 return
             cursor = conn.cursor()
 
             for ano_letivo, ano_letivo_id in anos_letivos:
-                # Obter o status da matr+¡cula para este ano letivo
+                # Obter o status da matr+ï¿½cula para este ano letivo
                 cursor.execute("""
                     SELECT m.status
                     FROM matriculas m
@@ -4707,12 +4707,12 @@ def criar_menu_boletim(parent_frame, aluno_id, tem_matricula_ativa):
                 status_result = cursor.fetchone()
                 status = status_result[0] if status_result else "Desconhecido"
 
-                # Armazenar informa+º+Áes no dicion+írio
+                # Armazenar informa+ï¿½+ï¿½es no dicion+ï¿½rio
                 anos_info[f"{ano_letivo} - {status}"] = (ano_letivo_id, status)
 
     except Exception as e:
-        messagebox.showerror("Erro", f"Erro ao obter informa+º+Áes de anos letivos: {str(e)}")
-        logger.error(f"Erro ao obter informa+º+Áes de anos letivos: {str(e)}")
+        messagebox.showerror("Erro", f"Erro ao obter informa+ï¿½+ï¿½es de anos letivos: {str(e)}")
+        logger.error(f"Erro ao obter informa+ï¿½+ï¿½es de anos letivos: {str(e)}")
     finally:
         try:
             if cursor:
@@ -4723,10 +4723,10 @@ def criar_menu_boletim(parent_frame, aluno_id, tem_matricula_ativa):
     # Lista de anos para mostrar no combobox
     anos_display = list(anos_info.keys())
     
-    # Criar vari+ível para armazenar a sele+º+úo
+    # Criar vari+ï¿½vel para armazenar a sele+ï¿½+ï¿½o
     selected_ano = StringVar()
     
-    # Label para o bot+úo
+    # Label para o bot+ï¿½o
     Label(boletim_frame, text="Boletim:", font=('Ivy 9'), bg=co1, fg=co0).pack(side=LEFT, padx=(0, 5))
     
     # Configurar o combobox
@@ -4734,21 +4734,21 @@ def criar_menu_boletim(parent_frame, aluno_id, tem_matricula_ativa):
                             font=('Ivy 9'), state="readonly", width=15)
     combo_anos.pack(side=LEFT)
     
-    # Selecionar o primeiro item por padr+úo
+    # Selecionar o primeiro item por padr+ï¿½o
     if anos_display:
         combo_anos.current(0)
     
-    # Fun+º+úo para gerar o boletim quando um ano letivo for selecionado
+    # Fun+ï¿½+ï¿½o para gerar o boletim quando um ano letivo for selecionado
     def gerar_boletim_selecionado(event=None):
         selected = selected_ano.get()
         if not selected or selected not in anos_info:
-            messagebox.showwarning("Aviso", "Por favor, selecione um ano letivo v+ílido.")
+            messagebox.showwarning("Aviso", "Por favor, selecione um ano letivo v+ï¿½lido.")
             return
         
         ano_letivo_id, status = anos_info[selected]
         
         # Decidir qual tipo de documento gerar com base no status
-        # Gerar em background para n+úo bloquear a UI
+        # Gerar em background para n+ï¿½o bloquear a UI
         def _worker():
             if status == 'Transferido':
                 from transferencia import gerar_documento_transferencia
@@ -4761,12 +4761,12 @@ def criar_menu_boletim(parent_frame, aluno_id, tem_matricula_ativa):
             if status == 'Transferido':
                 messagebox.showinfo("Aluno Transferido", 
                                     f"O aluno teve status 'Transferido' no ano {selected.split(' - ')[0]}.\n"
-                                    f"Documento de transfer+¬ncia gerado com sucesso.")
+                                    f"Documento de transfer+ï¿½ncia gerado com sucesso.")
             else:
                 if resultado:
                     if status_label is not None:
                         status_label.config(text="Boletim gerado com sucesso.")
-                    messagebox.showinfo("Conclu+¡do", "Boletim gerado com sucesso.")
+                    messagebox.showinfo("Conclu+ï¿½do", "Boletim gerado com sucesso.")
                 else:
                     if status_label is not None:
                         status_label.config(text="")
@@ -4797,32 +4797,32 @@ def criar_menu_boletim(parent_frame, aluno_id, tem_matricula_ativa):
             from threading import Thread
             Thread(target=_thread_worker, daemon=True).start()
     
-    # Vincular a fun+º+úo ao evento de sele+º+úo no combobox
+    # Vincular a fun+ï¿½+ï¿½o ao evento de sele+ï¿½+ï¿½o no combobox
     combo_anos.bind("<<ComboboxSelected>>", gerar_boletim_selecionado)
     
-    # Adicionar um bot+úo de gerar para melhor usabilidade
+    # Adicionar um bot+ï¿½o de gerar para melhor usabilidade
     Button(boletim_frame, text="Gerar", command=gerar_boletim_selecionado,
            font=('Ivy 9'), bg=co6, fg=co7, width=5).pack(side=LEFT, padx=(5, 0))
 
 def editar_matricula(aluno_id):
     """
-    Abre uma janela para editar a matr+¡cula do aluno.
+    Abre uma janela para editar a matr+ï¿½cula do aluno.
     
     Args:
         aluno_id: ID do aluno a ser editado
     """
-    # Inicializa vari+íveis que ser+úo usadas pela UI
+    # Inicializa vari+ï¿½veis que ser+ï¿½o usadas pela UI
     try:
-        # Buscar informa+º+Áes iniciais em conex+úo curta
+        # Buscar informa+ï¿½+ï¿½es iniciais em conex+ï¿½o curta
         with get_connection() as conn_init:
             if conn_init is None:
-                messagebox.showerror("Erro", "N+úo foi poss+¡vel conectar ao banco de dados.")
+                messagebox.showerror("Erro", "N+ï¿½o foi poss+ï¿½vel conectar ao banco de dados.")
                 return
             cur_init = conn_init.cursor()
             cur_init.execute("SELECT nome FROM alunos WHERE id = %s", (aluno_id,))
             resultado_nome = cur_init.fetchone()
             if not resultado_nome:
-                messagebox.showerror("Erro", "Aluno n+úo encontrado.")
+                messagebox.showerror("Erro", "Aluno n+ï¿½o encontrado.")
                 try:
                     cur_init.close()
                 except Exception:
@@ -4841,11 +4841,11 @@ def editar_matricula(aluno_id):
                     cur_init.close()
                 except Exception:
                     pass
-                messagebox.showwarning("Aviso", "N+úo foi poss+¡vel determinar o ano letivo atual.")
+                messagebox.showwarning("Aviso", "N+ï¿½o foi poss+ï¿½vel determinar o ano letivo atual.")
                 return
             ano_letivo_id, ano_letivo = resultado_ano
 
-            # Obter matr+¡cula mais recente do aluno para o ano letivo (independente do status)
+            # Obter matr+ï¿½cula mais recente do aluno para o ano letivo (independente do status)
             cur_init.execute("""
                 SELECT m.id, m.turma_id, m.status, t.nome as turma_nome, s.nome as serie_nome, s.id as serie_id
                 FROM matriculas m
@@ -4862,14 +4862,14 @@ def editar_matricula(aluno_id):
                 pass
 
         if not resultado_matricula:
-            messagebox.showwarning("Aviso", "N+úo foi encontrada matr+¡cula para este aluno no ano letivo atual.")
+            messagebox.showwarning("Aviso", "N+ï¿½o foi encontrada matr+ï¿½cula para este aluno no ano letivo atual.")
             return
 
         matricula_id, turma_id_atual, status_atual, turma_nome_atual, serie_nome_atual, serie_id_atual = resultado_matricula
 
-        # Cria a janela de edi+º+úo de matr+¡cula
+        # Cria a janela de edi+ï¿½+ï¿½o de matr+ï¿½cula
         janela_matricula = Toplevel(janela)
-        janela_matricula.title(f"Editar Matr+¡cula - {nome_aluno}")
+        janela_matricula.title(f"Editar Matr+ï¿½cula - {nome_aluno}")
         janela_matricula.geometry("500x600")
         janela_matricula.configure(background=co1)
         janela_matricula.transient(janela)
@@ -4880,18 +4880,18 @@ def editar_matricula(aluno_id):
         frame_matricula = Frame(janela_matricula, bg=co1, padx=20, pady=20)
         frame_matricula.pack(fill=BOTH, expand=True)
 
-        # T+¡tulo e informa+º+Áes iniciais
-        Label(frame_matricula, text=f"Edi+º+úo de Matr+¡cula", font=("Arial", 14, "bold"), bg=co1, fg=co7).pack(pady=(0, 20))
+        # T+ï¿½tulo e informa+ï¿½+ï¿½es iniciais
+        Label(frame_matricula, text=f"Edi+ï¿½+ï¿½o de Matr+ï¿½cula", font=("Arial", 14, "bold"), bg=co1, fg=co7).pack(pady=(0, 20))
         info_frame = Frame(frame_matricula, bg=co1)
         info_frame.pack(fill=X, pady=10)
         Label(info_frame, text=f"Aluno: {nome_aluno}", font=("Arial", 12), bg=co1, fg=co4).pack(anchor=W)
         Label(info_frame, text=f"Ano Letivo: {ano_letivo}", font=("Arial", 12), bg=co1, fg=co4).pack(anchor=W)
         Label(info_frame, text=f"Status Atual: {status_atual}", font=("Arial", 12), bg=co1, fg=co4).pack(anchor=W)
 
-        # S+®ries / Turmas / Status UI
+        # S+ï¿½ries / Turmas / Status UI
         serie_frame = Frame(frame_matricula, bg=co1)
         serie_frame.pack(fill=X, pady=10)
-        Label(serie_frame, text="S+®rie:", bg=co1, fg=co4).pack(anchor=W, pady=(5, 0))
+        Label(serie_frame, text="S+ï¿½rie:", bg=co1, fg=co4).pack(anchor=W, pady=(5, 0))
         serie_var = StringVar()
         cb_serie = ttk.Combobox(serie_frame, textvariable=serie_var, width=40)
         cb_serie.pack(fill=X, pady=(0, 5))
@@ -4907,15 +4907,15 @@ def editar_matricula(aluno_id):
         status_frame.pack(fill=X, pady=10)
         Label(status_frame, text="Novo Status:", bg=co1, fg=co4).pack(anchor=W, pady=(5, 0))
         status_var = StringVar()
-        status_opcoes = ['Ativo', 'Evadido', 'Cancelado', 'Transferido', 'Conclu+¡do']
+        status_opcoes = ['Ativo', 'Evadido', 'Cancelado', 'Transferido', 'Conclu+ï¿½do']
         cb_status = ttk.Combobox(status_frame, textvariable=status_var, values=status_opcoes, width=40)
         cb_status.pack(fill=X, pady=(0, 5))
         status_var.set(str(status_atual) if status_atual is not None else "")
 
-        # Data da mudan+ºa de status
+        # Data da mudan+ï¿½a de status
         data_frame = Frame(frame_matricula, bg=co1)
         data_frame.pack(fill=X, pady=10)
-        Label(data_frame, text="Data da Mudan+ºa de Status (dd/mm/aaaa):", bg=co1, fg=co4).pack(anchor=W, pady=(5, 0))
+        Label(data_frame, text="Data da Mudan+ï¿½a de Status (dd/mm/aaaa):", bg=co1, fg=co4).pack(anchor=W, pady=(5, 0))
         data_mudanca_var = StringVar()
         from datetime import datetime
         data_mudanca_var.set(datetime.now().strftime('%d/%m/%Y'))
@@ -4925,13 +4925,13 @@ def editar_matricula(aluno_id):
         series_map = {}
         turmas_map = {}
 
-        # Fun+º+úo para carregar s+®ries (usa conex+úo curta)
+        # Fun+ï¿½+ï¿½o para carregar s+ï¿½ries (usa conex+ï¿½o curta)
         def carregar_series():
             nonlocal series_map, turmas_map
             try:
                 with get_connection() as conn:
                     if conn is None:
-                        messagebox.showerror("Erro", "N+úo foi poss+¡vel conectar ao banco de dados.")
+                        messagebox.showerror("Erro", "N+ï¿½o foi poss+ï¿½vel conectar ao banco de dados.")
                         return
                     cur = conn.cursor()
                     cur.execute("""
@@ -4949,7 +4949,7 @@ def editar_matricula(aluno_id):
                         pass
 
                 if not series:
-                    messagebox.showwarning("Aviso", "N+úo foram encontradas s+®ries para a escola selecionada no ano letivo atual.")
+                    messagebox.showwarning("Aviso", "N+ï¿½o foram encontradas s+ï¿½ries para a escola selecionada no ano letivo atual.")
                     return
 
                 series_map.clear()
@@ -4957,7 +4957,7 @@ def editar_matricula(aluno_id):
                     series_map[serie[1]] = serie[0]
                 cb_serie['values'] = list(series_map.keys())
 
-                # Selecionar a s+®rie atual do aluno
+                # Selecionar a s+ï¿½rie atual do aluno
                 if serie_nome_atual in series_map:
                     serie_var.set(str(serie_nome_atual) if serie_nome_atual is not None else "")
                     carregar_turmas()
@@ -4967,9 +4967,9 @@ def editar_matricula(aluno_id):
                     carregar_turmas()
 
             except Exception as e:
-                messagebox.showerror("Erro", f"Erro ao carregar s+®ries: {str(e)}")
+                messagebox.showerror("Erro", f"Erro ao carregar s+ï¿½ries: {str(e)}")
 
-        # Fun+º+úo para carregar turmas com base na s+®rie selecionada (usa conex+úo curta)
+        # Fun+ï¿½+ï¿½o para carregar turmas com base na s+ï¿½rie selecionada (usa conex+ï¿½o curta)
         def carregar_turmas(event=None):
             nonlocal turmas_map
             serie_nome = serie_var.get()
@@ -4981,7 +4981,7 @@ def editar_matricula(aluno_id):
             try:
                 with get_connection() as conn:
                     if conn is None:
-                        messagebox.showerror("Erro", "N+úo foi poss+¡vel conectar ao banco de dados.")
+                        messagebox.showerror("Erro", "N+ï¿½o foi poss+ï¿½vel conectar ao banco de dados.")
                         return
                     cur = conn.cursor()
                     cur.execute("""
@@ -4997,14 +4997,14 @@ def editar_matricula(aluno_id):
                         pass
 
                 if not turmas:
-                    messagebox.showwarning("Aviso", f"N+úo foram encontradas turmas para a s+®rie {serie_nome}.")
+                    messagebox.showwarning("Aviso", f"N+ï¿½o foram encontradas turmas para a s+ï¿½rie {serie_nome}.")
                     return
 
                 turmas_map.clear()
                 for turma in turmas:
                     turma_id, turma_nome, turma_serie_id = turma
                     if not turma_nome or str(turma_nome).strip() == "":
-                        turma_nome = f"Turma {turma_id}" if len(turmas) > 1 else "Turma +Ünica"
+                        turma_nome = f"Turma {turma_id}" if len(turmas) > 1 else "Turma +ï¿½nica"
                     turmas_map[turma_nome] = turma_id
 
                 turmas_nomes = list(turmas_map.keys())
@@ -5022,7 +5022,7 @@ def editar_matricula(aluno_id):
 
         cb_serie.bind("<<ComboboxSelected>>", carregar_turmas)
 
-        # Fun+º+úo para salvar a edi+º+úo da matr+¡cula (usa conex+úo curta com commit)
+        # Fun+ï¿½+ï¿½o para salvar a edi+ï¿½+ï¿½o da matr+ï¿½cula (usa conex+ï¿½o curta com commit)
         def salvar_edicao_matricula():
             serie_nome = serie_var.get()
             turma_nome = turma_var.get()
@@ -5030,13 +5030,13 @@ def editar_matricula(aluno_id):
             data_str = data_mudanca_var.get()
 
             if not serie_nome or serie_nome not in series_map:
-                messagebox.showwarning("Aviso", "Por favor, selecione uma s+®rie v+ílida.")
+                messagebox.showwarning("Aviso", "Por favor, selecione uma s+ï¿½rie v+ï¿½lida.")
                 return
             if not turma_nome or turma_nome not in turmas_map:
-                messagebox.showwarning("Aviso", f"Por favor, selecione uma turma v+ílida. Valor atual: '{turma_nome}'")
+                messagebox.showwarning("Aviso", f"Por favor, selecione uma turma v+ï¿½lida. Valor atual: '{turma_nome}'")
                 return
             if not novo_status:
-                messagebox.showwarning("Aviso", "Por favor, selecione um status v+ílido.")
+                messagebox.showwarning("Aviso", "Por favor, selecione um status v+ï¿½lido.")
                 return
 
             try:
@@ -5044,7 +5044,7 @@ def editar_matricula(aluno_id):
                 data_obj = datetime.strptime(data_str, '%d/%m/%Y')
                 data_formatada = data_obj.strftime('%Y-%m-%d')
             except ValueError:
-                messagebox.showerror("Erro", "Data inv+ílida! Use o formato dd/mm/aaaa (exemplo: 28/10/2025)")
+                messagebox.showerror("Erro", "Data inv+ï¿½lida! Use o formato dd/mm/aaaa (exemplo: 28/10/2025)")
                 return
 
             turma_id = turmas_map[turma_nome]
@@ -5052,7 +5052,7 @@ def editar_matricula(aluno_id):
             try:
                 with get_connection() as conn:
                     if conn is None:
-                        messagebox.showerror("Erro", "N+úo foi poss+¡vel conectar ao banco de dados.")
+                        messagebox.showerror("Erro", "N+ï¿½o foi poss+ï¿½vel conectar ao banco de dados.")
                         return
                     cur = conn.cursor()
                     cur.execute("""
@@ -5102,12 +5102,12 @@ def editar_matricula(aluno_id):
                     except Exception:
                         pass
 
-                messagebox.showinfo("Sucesso", f"Matr+¡cula do aluno {nome_aluno} atualizada com sucesso!")
+                messagebox.showinfo("Sucesso", f"Matr+ï¿½cula do aluno {nome_aluno} atualizada com sucesso!")
                 janela_matricula.destroy()
                 criar_botoes_frame_detalhes("Aluno", [aluno_id, nome_aluno, "Aluno", None, None])
 
             except Exception as e:
-                messagebox.showerror("Erro", f"Erro ao atualizar matr+¡cula: {str(e)}")
+                messagebox.showerror("Erro", f"Erro ao atualizar matr+ï¿½cula: {str(e)}")
 
         def ao_fechar_janela():
             try:
@@ -5115,7 +5115,7 @@ def editar_matricula(aluno_id):
             except Exception:
                 pass
 
-        # Bot+Áes
+        # Bot+ï¿½es
         botoes_frame = Frame(frame_matricula, bg=co1)
         botoes_frame.pack(fill=X, pady=20)
         Button(botoes_frame, text="Salvar", command=salvar_edicao_matricula,
@@ -5123,20 +5123,20 @@ def editar_matricula(aluno_id):
         Button(botoes_frame, text="Cancelar", command=ao_fechar_janela,
               font=('Ivy 10'), width=10, bg=co8, fg=co0, overrelief=RIDGE).pack(side=LEFT, padx=10)
 
-        # Carregar s+®ries ao iniciar
+        # Carregar s+ï¿½ries ao iniciar
         carregar_series()
 
         # Callback de fechamento
         janela_matricula.protocol("WM_DELETE_WINDOW", ao_fechar_janela)
 
     except Exception as e:
-        messagebox.showerror("Erro", f"Erro ao abrir edi+º+úo de matr+¡cula: {str(e)}")
+        messagebox.showerror("Erro", f"Erro ao abrir edi+ï¿½+ï¿½o de matr+ï¿½cula: {str(e)}")
         logger.error(f"Erro detalhado: {str(e)}")
 
 def selecionar_mes_movimento():
     # Criar uma nova janela
     janela_mes = Toplevel()
-    janela_mes.title("Selecionar M+¬s")
+    janela_mes.title("Selecionar M+ï¿½s")
     janela_mes.geometry("300x200")
     janela_mes.configure(background=co1)
     janela_mes.resizable(False, False)
@@ -5145,55 +5145,55 @@ def selecionar_mes_movimento():
     janela_mes.transient(janela)
     janela_mes.grab_set()
     
-    # Frame para o conte+¦do
+    # Frame para o conte+ï¿½do
     frame_mes = Frame(janela_mes, bg=co1)
     frame_mes.pack(expand=True, fill=BOTH, padx=20, pady=20)
     
-    # Label de instru+º+úo
-    Label(frame_mes, text="Selecione o m+¬s para o relat+¦rio:", 
+    # Label de instru+ï¿½+ï¿½o
+    Label(frame_mes, text="Selecione o m+ï¿½s para o relat+ï¿½rio:", 
           font=('Ivy', 12), bg=co1, fg=co0).pack(pady=10)
     
-    # Lista de meses (gerada a partir do utilit+írio centralizado)
+    # Lista de meses (gerada a partir do utilit+ï¿½rio centralizado)
     try:
         meses = [nome_mes_pt_folha(i) for i in range(1, 13)]
     except Exception:
         meses = [
-            "Janeiro", "Fevereiro", "Mar+ºo", "Abril", "Maio", "Junho",
+            "Janeiro", "Fevereiro", "Mar+ï¿½o", "Abril", "Maio", "Junho",
             "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
         ]
     
-    # Obter m+¬s atual
+    # Obter m+ï¿½s atual
     mes_atual = datetime.now().month
     
-    # Filtrar apenas os meses at+® o atual
+    # Filtrar apenas os meses at+ï¿½ o atual
     meses_disponiveis = meses[:mes_atual]
     
-    # Vari+ível para armazenar a sele+º+úo
+    # Vari+ï¿½vel para armazenar a sele+ï¿½+ï¿½o
     mes_selecionado = StringVar(value=meses[mes_atual - 1])
     
-    # Criar combobox com os meses dispon+¡veis
+    # Criar combobox com os meses dispon+ï¿½veis
     combo_mes = ttk.Combobox(frame_mes, values=meses_disponiveis, 
                             textvariable=mes_selecionado,
                             state="readonly",
                             font=('Ivy', 12))
-    combo_mes.current(mes_atual - 1)  # -1 porque o +¡ndice come+ºa em 0
+    combo_mes.current(mes_atual - 1)  # -1 porque o +ï¿½ndice come+ï¿½a em 0
     combo_mes.pack(pady=10)
     
     def confirmar():
-        # Converter o nome do m+¬s para seu n+¦mero correspondente
+        # Converter o nome do m+ï¿½s para seu n+ï¿½mero correspondente
         nome_mes = mes_selecionado.get()
-        numero_mes = meses.index(nome_mes) + 1  # +1 porque o +¡ndice come+ºa em 0
+        numero_mes = meses.index(nome_mes) + 1  # +1 porque o +ï¿½ndice come+ï¿½a em 0
         janela_mes.destroy()
         relatorio_movimentacao_mensal(numero_mes)
     
     def cancelar():
         janela_mes.destroy()
     
-    # Frame para os bot+Áes
+    # Frame para os bot+ï¿½es
     frame_botoes = Frame(frame_mes, bg=co1)
     frame_botoes.pack(pady=20)
     
-    # Bot+Áes
+    # Bot+ï¿½es
     Button(frame_botoes, text="Confirmar", command=confirmar,
            font=('Ivy', 10), bg=co2, fg=co0, width=10).pack(side=LEFT, padx=5)
     Button(frame_botoes, text="Cancelar", command=cancelar,
@@ -5203,19 +5203,19 @@ def relatorio():
     # Criar menu de meses
     menu_meses = Menu(janela, tearoff=0)
     
-    # Obter m+¬s atual
+    # Obter m+ï¿½s atual
     mes_atual = datetime.now().month
     
-    # Lista de meses (gerada a partir do utilit+írio centralizado)
+    # Lista de meses (gerada a partir do utilit+ï¿½rio centralizado)
     try:
         meses = [nome_mes_pt_folha(i) for i in range(1, 13)]
     except Exception:
         meses = [
-            "Janeiro", "Fevereiro", "Mar+ºo", "Abril", "Maio", "Junho",
+            "Janeiro", "Fevereiro", "Mar+ï¿½o", "Abril", "Maio", "Junho",
             "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
         ]
     
-    # Filtrar apenas os meses at+® o atual
+    # Filtrar apenas os meses at+ï¿½ o atual
     meses_disponiveis = meses[:mes_atual]
     
     # Adicionar meses ao menu
@@ -5225,65 +5225,65 @@ def relatorio():
             command=lambda m=i: relatorio_movimentacao_mensal(m)
         )
     
-    # Mostrar o menu na posi+º+úo do mouse
+    # Mostrar o menu na posi+ï¿½+ï¿½o do mouse
     try:
         x = janela.winfo_pointerx()
         y = janela.winfo_pointery()
         menu_meses.post(x, y)
     except:
-        # Se n+úo conseguir obter a posi+º+úo do mouse, mostrar no centro da janela
+        # Se n+ï¿½o conseguir obter a posi+ï¿½+ï¿½o do mouse, mostrar no centro da janela
         menu_meses.post(janela.winfo_rootx() + 100, janela.winfo_rooty() + 100)
 
 def abrir_relatorio_avancado_com_assinatura():
-    # Criar janela para configura+º+úo de relat+¦rio avan+ºado (padronizada com Pend+¬ncias)
+    # Criar janela para configura+ï¿½+ï¿½o de relat+ï¿½rio avan+ï¿½ado (padronizada com Pend+ï¿½ncias)
     janela_relatorio = Toplevel(janela)
-    janela_relatorio.title("Relat+¦rio de Notas com Assinatura - Op+º+Áes Avan+ºadas")
+    janela_relatorio.title("Relat+ï¿½rio de Notas com Assinatura - Op+ï¿½+ï¿½es Avan+ï¿½adas")
     janela_relatorio.geometry("500x550")
     janela_relatorio.resizable(False, False)
     janela_relatorio.transient(janela)
     janela_relatorio.grab_set()
     janela_relatorio.configure(bg=co0)
 
-    # Vari+íveis para armazenar as op+º+Áes
-    bimestre_var = StringVar(value="1-¦ bimestre")
+    # Vari+ï¿½veis para armazenar as op+ï¿½+ï¿½es
+    bimestre_var = StringVar(value="1-ï¿½ bimestre")
     nivel_var = StringVar(value="iniciais")
     ano_letivo_var = IntVar(value=2025)
     status_var = StringVar(value="Ativo")
     incluir_transferidos = BooleanVar(value=False)
     preencher_zeros = BooleanVar(value=False)
 
-    # Usar grid no Toplevel para garantir comportamento previs+¡vel (cabecalho, conteudo, rodape)
+    # Usar grid no Toplevel para garantir comportamento previs+ï¿½vel (cabecalho, conteudo, rodape)
     janela_relatorio.grid_rowconfigure(0, weight=0)
     janela_relatorio.grid_rowconfigure(1, weight=1)
     janela_relatorio.grid_rowconfigure(2, weight=0)
     janela_relatorio.grid_columnconfigure(0, weight=1)
 
-    # Cabe+ºalho com destaque (mesmo visual de Pend+¬ncias)
+    # Cabe+ï¿½alho com destaque (mesmo visual de Pend+ï¿½ncias)
     frame_cabecalho = Frame(janela_relatorio, bg=co1, pady=15)
     frame_cabecalho.grid(row=0, column=0, sticky=EW)
-    Label(frame_cabecalho, text="­ƒôä RELAT+ôRIO COM ASSINATURA", font=("Arial", 13, "bold"), bg=co1, fg=co0).pack()
-    Label(frame_cabecalho, text="Configura+º+Áes avan+ºadas para gera+º+úo do relat+¦rio de notas com assinatura",
+    Label(frame_cabecalho, text="ï¿½ï¿½ï¿½ï¿½ RELAT+ï¿½RIO COM ASSINATURA", font=("Arial", 13, "bold"), bg=co1, fg=co0).pack()
+    Label(frame_cabecalho, text="Configura+ï¿½+ï¿½es avan+ï¿½adas para gera+ï¿½+ï¿½o do relat+ï¿½rio de notas com assinatura",
           font=("Arial", 9), bg=co1, fg=co9).pack(pady=(6, 0))
 
-    # Frame principal (conte+¦do) - visual igual ao de pend+¬ncias
+    # Frame principal (conte+ï¿½do) - visual igual ao de pend+ï¿½ncias
     frame_principal = Frame(janela_relatorio, bg=co0, padx=25, pady=18)
     frame_principal.grid(row=1, column=0, sticky=NSEW)
 
     # Bimestre
     Label(frame_principal, text="Bimestre:", anchor=W, bg=co0, font=("Arial", 10, "bold")).grid(row=0, column=0, sticky=W, pady=8, padx=(0, 10))
-    bimestres = ["1-¦ bimestre", "2-¦ bimestre", "3-¦ bimestre", "4-¦ bimestre"]
+    bimestres = ["1-ï¿½ bimestre", "2-ï¿½ bimestre", "3-ï¿½ bimestre", "4-ï¿½ bimestre"]
     combo_bimestre = ttk.Combobox(frame_principal, textvariable=bimestre_var, values=bimestres, state="readonly", width=22, font=("Arial", 10))
     combo_bimestre.grid(row=0, column=1, sticky=W, pady=8)
 
     # Separador visual
     Frame(frame_principal, height=1, bg=co9).grid(row=1, column=0, columnspan=2, sticky=EW, pady=8)
 
-    # N+¡vel de ensino
-    Label(frame_principal, text="N+¡vel de ensino:", anchor=W, bg=co0, font=("Arial", 10, "bold")).grid(row=2, column=0, sticky=W, pady=8, padx=(0, 10))
+    # N+ï¿½vel de ensino
+    Label(frame_principal, text="N+ï¿½vel de ensino:", anchor=W, bg=co0, font=("Arial", 10, "bold")).grid(row=2, column=0, sticky=W, pady=8, padx=(0, 10))
     frame_nivel = Frame(frame_principal, bg=co0)
     frame_nivel.grid(row=2, column=1, sticky=W, pady=8)
-    Radiobutton(frame_nivel, text="S+®ries iniciais (1-¦ ao 5-¦)", variable=nivel_var, value="iniciais", bg=co0, font=("Arial", 9), activebackground=co0, selectcolor=co4).pack(anchor=W, pady=2)
-    Radiobutton(frame_nivel, text="S+®ries finais (6-¦ ao 9-¦)", variable=nivel_var, value="finais", bg=co0, font=("Arial", 9), activebackground=co0, selectcolor=co4).pack(anchor=W, pady=2)
+    Radiobutton(frame_nivel, text="S+ï¿½ries iniciais (1-ï¿½ ao 5-ï¿½)", variable=nivel_var, value="iniciais", bg=co0, font=("Arial", 9), activebackground=co0, selectcolor=co4).pack(anchor=W, pady=2)
+    Radiobutton(frame_nivel, text="S+ï¿½ries finais (6-ï¿½ ao 9-ï¿½)", variable=nivel_var, value="finais", bg=co0, font=("Arial", 9), activebackground=co0, selectcolor=co4).pack(anchor=W, pady=2)
 
     # Separador
     Frame(frame_principal, height=1, bg=co9).grid(row=3, column=0, columnspan=2, sticky=EW, pady=8)
@@ -5294,41 +5294,41 @@ def abrir_relatorio_avancado_com_assinatura():
     combo_ano = ttk.Combobox(frame_principal, textvariable=ano_letivo_var, values=anos, state="readonly", width=22, font=("Arial", 10))
     combo_ano.grid(row=4, column=1, sticky=W, pady=8)
 
-    # Status de matr+¡cula e op+º+úo incluir transferidos
-    Label(frame_principal, text="Status de matr+¡cula:", anchor=W, bg=co0, font=("Arial", 10, "bold")).grid(row=5, column=0, sticky=W, pady=8, padx=(0, 10))
+    # Status de matr+ï¿½cula e op+ï¿½+ï¿½o incluir transferidos
+    Label(frame_principal, text="Status de matr+ï¿½cula:", anchor=W, bg=co0, font=("Arial", 10, "bold")).grid(row=5, column=0, sticky=W, pady=8, padx=(0, 10))
     frame_status = Frame(frame_principal, bg=co0)
     frame_status.grid(row=5, column=1, sticky=W, pady=8)
     Radiobutton(frame_status, text="Apenas ativos", variable=status_var, value="Ativo", bg=co0, font=("Arial", 9), activebackground=co0).pack(anchor=W)
     Checkbutton(frame_status, text="Incluir transferidos", variable=incluir_transferidos, bg=co0).pack(anchor=W)
 
-    # Op+º+Áes de exibi+º+úo
-    Label(frame_principal, text="Op+º+Áes de exibi+º+úo:", anchor=W, bg=co0, font=("Arial", 10, "bold")).grid(row=6, column=0, sticky=W, pady=8, padx=(0, 10))
+    # Op+ï¿½+ï¿½es de exibi+ï¿½+ï¿½o
+    Label(frame_principal, text="Op+ï¿½+ï¿½es de exibi+ï¿½+ï¿½o:", anchor=W, bg=co0, font=("Arial", 10, "bold")).grid(row=6, column=0, sticky=W, pady=8, padx=(0, 10))
     frame_opcoes = Frame(frame_principal, bg=co0)
     frame_opcoes.grid(row=6, column=1, sticky=W, pady=8)
     Checkbutton(frame_opcoes, text="Preencher notas em branco com zeros", variable=preencher_zeros, bg=co0).pack(anchor=W)
 
-    # Observa+º+úo
-    Label(frame_principal, text="Observa+º+úo:", anchor=W, font=("Arial", 10, "bold"), bg=co0).grid(row=7, column=0, sticky=W, pady=(12, 0))
-    Label(frame_principal, text="Este relat+¦rio inclui uma coluna para assinatura dos\nrespons+íveis e +® gerado em modo paisagem.", anchor=W, justify=LEFT, bg=co0).grid(row=7, column=1, sticky=W, pady=(12, 0))
+    # Observa+ï¿½+ï¿½o
+    Label(frame_principal, text="Observa+ï¿½+ï¿½o:", anchor=W, font=("Arial", 10, "bold"), bg=co0).grid(row=7, column=0, sticky=W, pady=(12, 0))
+    Label(frame_principal, text="Este relat+ï¿½rio inclui uma coluna para assinatura dos\nrespons+ï¿½veis e +ï¿½ gerado em modo paisagem.", anchor=W, justify=LEFT, bg=co0).grid(row=7, column=1, sticky=W, pady=(12, 0))
 
-    # Frame para bot+Áes (na base) - padronizado com Pend+¬ncias
+    # Frame para bot+ï¿½es (na base) - padronizado com Pend+ï¿½ncias
     frame_botoes = Frame(janela_relatorio, bg=co0, padx=25, pady=12)
     frame_botoes.grid(row=2, column=0, sticky=EW)
-    # Reservar altura fixa para o rodap+® para evitar sobreposi+º+úo com o conte+¦do
+    # Reservar altura fixa para o rodap+ï¿½ para evitar sobreposi+ï¿½+ï¿½o com o conte+ï¿½do
     try:
         frame_botoes.grid_propagate(False)
         frame_botoes.configure(height=60)
     except Exception:
         pass
 
-    # Fun+º+úo para gerar o relat+¦rio
+    # Fun+ï¿½+ï¿½o para gerar o relat+ï¿½rio
     def gerar_relatorio():
         bimestre = bimestre_var.get()
         nivel = nivel_var.get()
         ano = ano_letivo_var.get()
         preencher_com_zeros = preencher_zeros.get()
 
-        # Configurar status de matr+¡cula
+        # Configurar status de matr+ï¿½cula
         if incluir_transferidos.get():
             status = ["Ativo", "Transferido"]
         else:
@@ -5337,12 +5337,12 @@ def abrir_relatorio_avancado_com_assinatura():
         # Fechar a janela
         janela_relatorio.destroy()
 
-        # Exibir feedback ao usu+írio
+        # Exibir feedback ao usu+ï¿½rio
         if status_label is not None:
-            status_label.config(text=f"Gerando relat+¦rio de notas com assinatura para {bimestre} ({nivel})...")
+            status_label.config(text=f"Gerando relat+ï¿½rio de notas com assinatura para {bimestre} ({nivel})...")
         janela.update()
 
-        # Gerar o relat+¦rio em background
+        # Gerar o relat+ï¿½rio em background
         def _worker():
             try:
                 from services.report_service import gerar_relatorio_avancado_com_assinatura as service_gerar
@@ -5357,16 +5357,16 @@ def abrir_relatorio_avancado_com_assinatura():
                 def _on_done():
                     if resultado:
                         if status_label is not None:
-                            status_label.config(text="Relat+¦rio com assinatura gerado com sucesso!")
+                            status_label.config(text="Relat+ï¿½rio com assinatura gerado com sucesso!")
                     else:
                         if status_label is not None:
-                            status_label.config(text="Nenhum dado encontrado para o relat+¦rio.")
-                        messagebox.showwarning("Sem dados", f"N+úo foram encontrados dados para o {bimestre} no n+¡vel {nivel}.")
+                            status_label.config(text="Nenhum dado encontrado para o relat+ï¿½rio.")
+                        messagebox.showwarning("Sem dados", f"N+ï¿½o foram encontrados dados para o {bimestre} no n+ï¿½vel {nivel}.")
 
                 janela.after(0, _on_done)
             except Exception as e:
                 def _on_error():
-                    messagebox.showerror("Erro", f"Falha ao gerar relat+¦rio: {str(e)}")
+                    messagebox.showerror("Erro", f"Falha ao gerar relat+ï¿½rio: {str(e)}")
                     if status_label is not None:
                         status_label.config(text="")
 
@@ -5381,37 +5381,37 @@ def abrir_relatorio_avancado_com_assinatura():
 
     # Criar estilos locais para garantir visibilidade em temas do sistema
     style_rel = ttk.Style(janela_relatorio)
-    # Estilo do bot+úo Gerar
+    # Estilo do bot+ï¿½o Gerar
     try:
         style_rel.configure("Rel.TButton", background=co5, foreground=co0, font=("Arial", 10, "bold"))
         style_rel.map("Rel.TButton", background=[('active', co6)])
     except Exception:
         pass
 
-    # Estilo do bot+úo Cancelar
+    # Estilo do bot+ï¿½o Cancelar
     try:
         style_rel.configure("Cancel.TButton", background=co7, foreground=co0, font=("Arial", 10, "bold"))
         style_rel.map("Cancel.TButton", background=[('active', co8)])
     except Exception:
         pass
 
-    # Bot+Áes usando ttk (mais consistente com temas do Windows)
-    btn_cancelar_rel = ttk.Button(frame_botoes, text="Ô£û Cancelar", command=janela_relatorio.destroy, style="Cancel.TButton")
+    # Bot+ï¿½es usando ttk (mais consistente com temas do Windows)
+    btn_cancelar_rel = ttk.Button(frame_botoes, text="Ô£ï¿½ Cancelar", command=janela_relatorio.destroy, style="Cancel.TButton")
     btn_cancelar_rel.pack(side=RIGHT, padx=6)
 
-    btn_gerar_rel = ttk.Button(frame_botoes, text="­ƒôä Gerar", command=gerar_relatorio, style="Rel.TButton")
+    btn_gerar_rel = ttk.Button(frame_botoes, text="ï¿½ï¿½ï¿½ï¿½ Gerar", command=gerar_relatorio, style="Rel.TButton")
     btn_gerar_rel.pack(side=RIGHT, padx=6)
 
-    # Adicionar log para confirmar cria+º+úo dos bot+Áes (ajuda em debugging)
+    # Adicionar log para confirmar cria+ï¿½+ï¿½o dos bot+ï¿½es (ajuda em debugging)
     try:
-        logger.debug("Bot+Áes do Relat+¦rio Avan+ºado criados: gerar=%s cancelar=%s", btn_gerar_rel, btn_cancelar_rel)
+        logger.debug("Bot+ï¿½es do Relat+ï¿½rio Avan+ï¿½ado criados: gerar=%s cancelar=%s", btn_gerar_rel, btn_cancelar_rel)
     except Exception:
         try:
-            logger.debug("Bot+Áes do Relat+¦rio Avan+ºado criados (fallback)")
+            logger.debug("Bot+ï¿½es do Relat+ï¿½rio Avan+ï¿½ado criados (fallback)")
         except Exception:
             pass
 
-    # Hover: ajustar estilos dinamicamente caso o tema n+úo respeite map()
+    # Hover: ajustar estilos dinamicamente caso o tema n+ï¿½o respeite map()
     def _on_enter_gerar(e):
         try:
             style_rel.configure("Rel.TButton", background=co6)
@@ -5441,7 +5441,7 @@ def abrir_relatorio_avancado_com_assinatura():
     btn_cancelar_rel.bind("<Enter>", _on_enter_cancelar)
     btn_cancelar_rel.bind("<Leave>", _on_leave_cancelar)
 
-    # Diagnostic: log estado dos bot+Áes ap+¦s a janela renderizar
+    # Diagnostic: log estado dos bot+ï¿½es ap+ï¿½s a janela renderizar
     def _log_button_stats():
         try:
             vals = {
@@ -5463,9 +5463,9 @@ def abrir_relatorio_avancado_com_assinatura():
                 vals.update({'rel_bg': bg_rel, 'rel_fg': fg_rel, 'cancel_bg': bg_cancel, 'cancel_fg': fg_cancel})
             except Exception:
                 pass
-            logger.debug("Relat+¦rio Avan+ºado - stats: %s", vals)
+            logger.debug("Relat+ï¿½rio Avan+ï¿½ado - stats: %s", vals)
         except Exception as e:
-            logger.exception("Erro ao logar stats dos bot+Áes: %s", e)
+            logger.exception("Erro ao logar stats dos bot+ï¿½es: %s", e)
 
     try:
         janela_relatorio.after(200, _log_button_stats)
@@ -5485,7 +5485,7 @@ def abrir_relatorio_avancado_com_assinatura():
                 'principal_manager': frame_principal.winfo_manager() if 'frame_principal' in locals() else None,
                 'toplevel_children': janela_relatorio.winfo_children()
             }
-            logger.debug("Relat+¦rio Avan+ºado - parent frames: %s", stats)
+            logger.debug("Relat+ï¿½rio Avan+ï¿½ado - parent frames: %s", stats)
         except Exception as e:
             logger.exception("Erro ao logar parent frames: %s", e)
 
@@ -5497,29 +5497,29 @@ def abrir_relatorio_avancado_com_assinatura():
 
 def abrir_relatorio_pendencias():
     """
-    Abre interface para gerar relat+¦rio de pend+¬ncias de notas
+    Abre interface para gerar relat+ï¿½rio de pend+ï¿½ncias de notas
     """
     # Criar janela
     janela_pendencias = Toplevel(janela)
-    janela_pendencias.title("Relat+¦rio de Pend+¬ncias de Notas")
+    janela_pendencias.title("Relat+ï¿½rio de Pend+ï¿½ncias de Notas")
     janela_pendencias.geometry("600x480")
     janela_pendencias.resizable(False, False)
     janela_pendencias.transient(janela)
     janela_pendencias.grab_set()
     janela_pendencias.configure(bg=co0)
     
-    # Vari+íveis
-    bimestre_var = StringVar(value="3-¦ bimestre")
+    # Vari+ï¿½veis
+    bimestre_var = StringVar(value="3-ï¿½ bimestre")
     nivel_var = StringVar(value="iniciais")
     ano_letivo_var = IntVar(value=2025)
     
-    # Frame de cabe+ºalho com cor destaque
+    # Frame de cabe+ï¿½alho com cor destaque
     frame_cabecalho = Frame(janela_pendencias, bg=co1, pady=15)
     frame_cabecalho.pack(fill=X)
     
-    Label(frame_cabecalho, text="­ƒôè RELAT+ôRIO DE PEND+èNCIAS", 
+    Label(frame_cabecalho, text="ï¿½ï¿½ï¿½ï¿½ RELAT+ï¿½RIO DE PEND+ï¿½NCIAS", 
           font=("Arial", 14, "bold"), bg=co1, fg=co0).pack()
-    Label(frame_cabecalho, text="Identifique alunos sem notas e disciplinas n+úo lan+ºadas", 
+    Label(frame_cabecalho, text="Identifique alunos sem notas e disciplinas n+ï¿½o lan+ï¿½adas", 
           font=("Arial", 9), bg=co1, fg=co9).pack(pady=(5, 0))
     
     # Frame principal
@@ -5529,7 +5529,7 @@ def abrir_relatorio_pendencias():
     # Bimestre
     Label(frame_principal, text="Bimestre:", anchor=W, bg=co0, 
           font=("Arial", 10, "bold")).grid(row=0, column=0, sticky=W, pady=8, padx=(0, 10))
-    bimestres = ["1-¦ bimestre", "2-¦ bimestre", "3-¦ bimestre", "4-¦ bimestre"]
+    bimestres = ["1-ï¿½ bimestre", "2-ï¿½ bimestre", "3-ï¿½ bimestre", "4-ï¿½ bimestre"]
     combo_bimestre = ttk.Combobox(frame_principal, textvariable=bimestre_var, 
                                    values=bimestres, state="readonly", width=22, font=("Arial", 10))
     combo_bimestre.grid(row=0, column=1, sticky=W, pady=8)
@@ -5537,16 +5537,16 @@ def abrir_relatorio_pendencias():
     # Separador
     Frame(frame_principal, height=1, bg=co9).grid(row=1, column=0, columnspan=2, sticky=EW, pady=8)
     
-    # N+¡vel de ensino
-    Label(frame_principal, text="N+¡vel de ensino:", anchor=W, bg=co0,
+    # N+ï¿½vel de ensino
+    Label(frame_principal, text="N+ï¿½vel de ensino:", anchor=W, bg=co0,
           font=("Arial", 10, "bold")).grid(row=2, column=0, sticky=W, pady=8, padx=(0, 10))
     frame_nivel = Frame(frame_principal, bg=co0)
     frame_nivel.grid(row=2, column=1, sticky=W, pady=8)
-    Radiobutton(frame_nivel, text="S+®ries iniciais (1-¦ ao 5-¦)", 
+    Radiobutton(frame_nivel, text="S+ï¿½ries iniciais (1-ï¿½ ao 5-ï¿½)", 
                 variable=nivel_var, value="iniciais", bg=co0, 
                 font=("Arial", 9), activebackground=co0,
                 selectcolor=co4).pack(anchor=W, pady=2)
-    Radiobutton(frame_nivel, text="S+®ries finais (6-¦ ao 9-¦)", 
+    Radiobutton(frame_nivel, text="S+ï¿½ries finais (6-ï¿½ ao 9-ï¿½)", 
                 variable=nivel_var, value="finais", bg=co0,
                 font=("Arial", 9), activebackground=co0,
                 selectcolor=co4).pack(anchor=W, pady=2)
@@ -5566,18 +5566,18 @@ def abrir_relatorio_pendencias():
     frame_info = Frame(frame_principal, bg=co9, relief=SOLID, borderwidth=1)
     frame_info.grid(row=5, column=0, columnspan=2, sticky=EW, pady=(15, 0))
     
-    Label(frame_info, text="Ôä¦´©Å Informa+º+úo", font=("Arial", 9, "bold"), 
+    Label(frame_info, text="ï¿½ä¦´ï¿½ï¿½ Informa+ï¿½+ï¿½o", font=("Arial", 9, "bold"), 
           bg=co9, fg=co1).pack(anchor=W, padx=10, pady=(5, 2))
-    Label(frame_info, text="ÔÇó Alunos sem notas lan+ºadas em disciplinas espec+¡ficas", 
+    Label(frame_info, text="ï¿½ï¿½ï¿½ Alunos sem notas lan+ï¿½adas em disciplinas espec+ï¿½ficas", 
           font=("Arial", 8), bg=co9, fg=co7, justify=LEFT).pack(anchor=W, padx=10)
-    Label(frame_info, text="ÔÇó Disciplinas sem nenhum lan+ºamento de notas", 
+    Label(frame_info, text="ï¿½ï¿½ï¿½ Disciplinas sem nenhum lan+ï¿½amento de notas", 
           font=("Arial", 8), bg=co9, fg=co7, justify=LEFT).pack(anchor=W, padx=10, pady=(0, 5))
     
-    # Frame para bot+Áes
+    # Frame para bot+ï¿½es
     frame_botoes = Frame(janela_pendencias, bg=co0, padx=25, pady=15)
     frame_botoes.pack(fill=X)
     
-    # Fun+º+úo para gerar o relat+¦rio
+    # Fun+ï¿½+ï¿½o para gerar o relat+ï¿½rio
     def gerar_relatorio():
         bimestre = bimestre_var.get()
         nivel = nivel_var.get()
@@ -5588,10 +5588,10 @@ def abrir_relatorio_pendencias():
         
         # Exibir feedback
         if status_label is not None:
-            status_label.config(text=f"Gerando relat+¦rio de pend+¬ncias para {bimestre} ({nivel})...")
+            status_label.config(text=f"Gerando relat+ï¿½rio de pend+ï¿½ncias para {bimestre} ({nivel})...")
         janela.update()
         
-            # Gerar o relat+¦rio em background para n+úo bloquear a UI
+            # Gerar o relat+ï¿½rio em background para n+ï¿½o bloquear a UI
         def _worker_pendencias():
             try:
                 from services.report_service import gerar_relatorio_pendencias as service_pendencias
@@ -5605,17 +5605,17 @@ def abrir_relatorio_pendencias():
                 def _on_done():
                     if resultado:
                         if status_label is not None:
-                            status_label.config(text="Relat+¦rio de pend+¬ncias gerado com sucesso!")
+                            status_label.config(text="Relat+ï¿½rio de pend+ï¿½ncias gerado com sucesso!")
                     else:
                         if status_label is not None:
-                            status_label.config(text="Nenhuma pend+¬ncia encontrada.")
-                        messagebox.showinfo("Sem pend+¬ncias", 
-                                           f"N+úo foram encontradas pend+¬ncias para o {bimestre} no n+¡vel {nivel}.")
+                            status_label.config(text="Nenhuma pend+ï¿½ncia encontrada.")
+                        messagebox.showinfo("Sem pend+ï¿½ncias", 
+                                           f"N+ï¿½o foram encontradas pend+ï¿½ncias para o {bimestre} no n+ï¿½vel {nivel}.")
 
                 janela.after(0, _on_done)
             except Exception as e:
                 def _on_error():
-                    messagebox.showerror("Erro", f"Falha ao gerar relat+¦rio: {str(e)}")
+                    messagebox.showerror("Erro", f"Falha ao gerar relat+ï¿½rio: {str(e)}")
                     import traceback
                     traceback.print_exc()
                     if status_label is not None:
@@ -5630,12 +5630,12 @@ def abrir_relatorio_pendencias():
             from threading import Thread
             Thread(target=_worker_pendencias, daemon=True).start()
 
-    # Fun+º+úo para gerar um relat+¦rio geral (PDF) com todos os bimestres e turmas
+    # Fun+ï¿½+ï¿½o para gerar um relat+ï¿½rio geral (PDF) com todos os bimestres e turmas
     def gerar_relatorio_geral():
-        """Gera um PDF +¦nico combinando os relat+¦rios de pend+¬ncias de todos os
+        """Gera um PDF +ï¿½nico combinando os relat+ï¿½rios de pend+ï¿½ncias de todos os
         bimestres (iniciais e finais) para o ano selecionado.
 
-        A implementa+º+úo reutiliza o servi+ºo `services.report_service.gerar_relatorio_pendencias`
+        A implementa+ï¿½+ï¿½o reutiliza o servi+ï¿½o `services.report_service.gerar_relatorio_pendencias`
         para gerar os PDFs individuais sem abri-los e, em seguida, concatena-os com
         `PyPDF2.PdfMerger`.
         """
@@ -5647,7 +5647,7 @@ def abrir_relatorio_pendencias():
 
         # Feedback
         if status_label is not None:
-            status_label.config(text=f"Gerando relat+¦rio geral de pend+¬ncias ({ano})...")
+            status_label.config(text=f"Gerando relat+ï¿½rio geral de pend+ï¿½ncias ({ano})...")
         janela.update()
 
         def _worker_geral():
@@ -5657,13 +5657,13 @@ def abrir_relatorio_pendencias():
                 import os as _os
                 from PyPDF2 import PdfMerger
 
-                # Evitar que cada gera+º+úo abra o PDF no visualizador externo
+                # Evitar que cada gera+ï¿½+ï¿½o abra o PDF no visualizador externo
                 try:
                     rp.abrir_pdf_com_programa_padrao = lambda *a, **k: None
                 except Exception:
                     pass
 
-                bimestres = ["1-¦ bimestre", "2-¦ bimestre", "3-¦ bimestre", "4-¦ bimestre"]
+                bimestres = ["1-ï¿½ bimestre", "2-ï¿½ bimestre", "3-ï¿½ bimestre", "4-ï¿½ bimestre"]
                 niveis = ["iniciais", "finais"]
                 gerados = []
 
@@ -5680,7 +5680,7 @@ def abrir_relatorio_pendencias():
                 for b in bimestres:
                     for n in niveis:
                         try:
-                            # Executar a gera+º+úo dentro da pasta de Pendencias para que os PDFs
+                            # Executar a gera+ï¿½+ï¿½o dentro da pasta de Pendencias para que os PDFs
                             # individuais sejam salvos em: <root>/Documentos Secretaria {ano}/Pendencias
                             def _gen():
                                 return service.gerar_relatorio_pendencias(bimestre=b, nivel_ensino=n, ano_letivo=ano, escola_id=60)
@@ -5690,7 +5690,7 @@ def abrir_relatorio_pendencias():
                         except Exception:
                             ok = False
 
-                        # Nome esperado do PDF gerado pelo m+¦dulo relatorio_pendencias
+                        # Nome esperado do PDF gerado pelo m+ï¿½dulo relatorio_pendencias
                         fname = f"Pendencias_Notas_{b.replace(' ', '_')}_{n}_{ano}.pdf"
                         fpath = _os.path.join(pendencias_dir, fname)
                         if ok and _os.path.exists(fpath):
@@ -5700,7 +5700,7 @@ def abrir_relatorio_pendencias():
                     def _no_files():
                         if status_label is not None:
                             status_label.config(text="Nenhum PDF gerado.")
-                        messagebox.showinfo("Sem relat+¦rios", "N+úo foram gerados relat+¦rios para combinar.")
+                        messagebox.showinfo("Sem relat+ï¿½rios", "N+ï¿½o foram gerados relat+ï¿½rios para combinar.")
                     janela.after(0, _no_files)
                     return
 
@@ -5726,11 +5726,11 @@ def abrir_relatorio_pendencias():
                 def _on_done():
                     try:
                         if status_label is not None:
-                            status_label.config(text=f"Relat+¦rio geral salvo em: {out_path}")
+                            status_label.config(text=f"Relat+ï¿½rio geral salvo em: {out_path}")
                     except Exception:
                         pass
                     try:
-                        # Tentar abrir com o helper do m+¦dulo legado
+                        # Tentar abrir com o helper do m+ï¿½dulo legado
                         try:
                             rp.abrir_pdf_com_programa_padrao(out_path)
                         except Exception:
@@ -5743,22 +5743,22 @@ def abrir_relatorio_pendencias():
                             except Exception:
                                 pass
                     finally:
-                        messagebox.showinfo('Relat+¦rio Geral', f'Arquivo salvo em:\n{out_path}')
+                        messagebox.showinfo('Relat+ï¿½rio Geral', f'Arquivo salvo em:\n{out_path}')
 
-                    # Tentar enviar para o Google Drive (se poss+¡vel)
+                    # Tentar enviar para o Google Drive (se poss+ï¿½vel)
                     try:
                         from drive_uploader import upload_file
                         drive_folder_id = get_drive_folder_id()
                         logger.debug("gerar_relatorio_geral: out_path=%s drive_folder_id=%s", out_path, drive_folder_id)
                         if drive_folder_id is None:
-                            # Tentar sem parent (vai para raiz da conta do usu+írio)
+                            # Tentar sem parent (vai para raiz da conta do usu+ï¿½rio)
                             logger.info("gerar_relatorio_geral: nenhum drive_folder_id configurado; enviando para raiz do Drive")
                             fid, webview = upload_file(out_path, parent_id=None)
                         else:
                             logger.info("gerar_relatorio_geral: enviando para pasta do Drive id=%s", drive_folder_id)
                             fid, webview = upload_file(out_path, parent_id=drive_folder_id)
                         if fid:
-                            # Se obtivermos um link webView, mostr+í-lo; sen+úo apenas informar ID
+                            # Se obtivermos um link webView, mostr+ï¿½-lo; sen+ï¿½o apenas informar ID
                             msg = f"Arquivo enviado ao Drive com sucesso.\nID: {fid}"
                             if webview:
                                 msg += f"\nLink: {webview}"
@@ -5770,19 +5770,19 @@ def abrir_relatorio_pendencias():
                             except Exception:
                                 pass
                         else:
-                            logger.warning("Upload para Drive n+úo ocorreu: retorno None")
+                            logger.warning("Upload para Drive n+ï¿½o ocorreu: retorno None")
                             try:
-                                messagebox.showwarning('Upload para Drive', 'Falha ao enviar o arquivo para o Google Drive. Verifique logs e autoriza+º+úo.')
+                                messagebox.showwarning('Upload para Drive', 'Falha ao enviar o arquivo para o Google Drive. Verifique logs e autoriza+ï¿½+ï¿½o.')
                             except Exception:
                                 pass
                     except Exception as e:
-                        logger.exception("Erro ao enviar relat+¦rio ao Drive: %s", e)
+                        logger.exception("Erro ao enviar relat+ï¿½rio ao Drive: %s", e)
 
                 janela.after(0, _on_done)
             except Exception as e:
                 msg = str(e)
                 def _on_error():
-                    messagebox.showerror('Erro', f'Falha ao gerar Relat+¦rio Geral: {msg}')
+                    messagebox.showerror('Erro', f'Falha ao gerar Relat+ï¿½rio Geral: {msg}')
                     if status_label is not None:
                         status_label.config(text='')
                 janela.after(0, _on_error)
@@ -5794,24 +5794,24 @@ def abrir_relatorio_pendencias():
             from threading import Thread
             Thread(target=_worker_geral, daemon=True).start()
     
-    # Bot+Áes estilizados
-    btn_gerar = Button(frame_botoes, text="­ƒôä Gerar Relat+¦rio", command=gerar_relatorio, 
+    # Bot+ï¿½es estilizados
+    btn_gerar = Button(frame_botoes, text="ï¿½ï¿½ï¿½ï¿½ Gerar Relat+ï¿½rio", command=gerar_relatorio, 
                       width=17, height=1, bg=co5, fg=co0, font=("Arial", 10, "bold"),
                       relief=RAISED, bd=2, cursor="hand2")
     btn_gerar.pack(side=RIGHT, padx=5)
 
-    # Bot+úo para gerar relat+¦rio geral (todos os bimestres)
-    btn_relatorio_geral = Button(frame_botoes, text="­ƒôÜ Relat+¦rio Geral", command=gerar_relatorio_geral,
+    # Bot+ï¿½o para gerar relat+ï¿½rio geral (todos os bimestres)
+    btn_relatorio_geral = Button(frame_botoes, text="ï¿½ï¿½ï¿½ï¿½ Relat+ï¿½rio Geral", command=gerar_relatorio_geral,
                                  width=16, height=1, bg=co4, fg=co0, font=("Arial", 10, "bold"),
                                  relief=RAISED, bd=2, cursor="hand2")
     btn_relatorio_geral.pack(side=RIGHT, padx=5)
     
-    btn_cancelar = Button(frame_botoes, text="Ô£û Cancelar", command=janela_pendencias.destroy, 
+    btn_cancelar = Button(frame_botoes, text="Ô£ï¿½ Cancelar", command=janela_pendencias.destroy, 
                          width=12, height=1, bg=co7, fg=co0, font=("Arial", 10, "bold"),
                          relief=RAISED, bd=2, cursor="hand2")
     btn_cancelar.pack(side=RIGHT, padx=5)
     
-    # Efeitos hover nos bot+Áes
+    # Efeitos hover nos bot+ï¿½es
     def on_enter_gerar(e):
         btn_gerar['background'] = co6
     
@@ -5830,14 +5830,14 @@ def abrir_relatorio_pendencias():
     btn_cancelar.bind("<Leave>", on_leave_cancelar)
 
 
-# Fun+º+úo para fechar o programa com backup final
+# Fun+ï¿½+ï¿½o para fechar o programa com backup final
 def ao_fechar_programa():
     """
-    Fun+º+úo chamada quando o usu+írio fecha a janela principal.
+    Fun+ï¿½+ï¿½o chamada quando o usu+ï¿½rio fecha a janela principal.
     Executa um backup final antes de encerrar o programa.
     """
     try:
-        # Parar o sistema de backup autom+ítico e executar backup final (pule em TEST_MODE)
+        # Parar o sistema de backup autom+ï¿½tico e executar backup final (pule em TEST_MODE)
         if not TEST_MODE:
             Seguranca.parar_backup_automatico(executar_backup_final=True)
     except Exception as e:
@@ -5855,21 +5855,21 @@ def ao_fechar_programa():
         janela.destroy()
 
 
-# Iniciando a interface gr+ífica
+# Iniciando a interface gr+ï¿½fica
 criar_frames()
 criar_logo()
-criar_acoes()  # Isso cria os bot+Áes principais
+criar_acoes()  # Isso cria os bot+ï¿½es principais
 criar_pesquisa()
 criar_tabela()
-criar_rodape()  # Cria o rodap+® na parte inferior da janela
+criar_rodape()  # Cria o rodap+ï¿½ na parte inferior da janela
 criar_menu_contextual()
 
-# Iniciar o sistema de backup autom+ítico (pule quando em modo de teste)
+# Iniciar o sistema de backup autom+ï¿½tico (pule quando em modo de teste)
 if not TEST_MODE:
     try:
         Seguranca.iniciar_backup_automatico()
     except Exception as e:
-        logger.error(f"Erro ao iniciar backup autom+ítico: {e}")
+        logger.error(f"Erro ao iniciar backup autom+ï¿½tico: {e}")
 
 # Configurar o protocolo de fechamento da janela
 janela.protocol("WM_DELETE_WINDOW", ao_fechar_programa)

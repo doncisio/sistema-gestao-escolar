@@ -35536,7 +35536,7 @@ from conexao import inicializar_pool, fechar_pool
 from db.connection import get_connection
 from typing import Any, cast
 from integrar_historico_escolar import abrir_interface_historico, abrir_historico_aluno
-import aluno
+from src.models import aluno_old as aluno
 from config_logs import get_logger
 
 # Logger da aplicação

@@ -846,7 +846,7 @@ class ActionHandler:
             validar_dados_declaracao,
             registrar_geracao_declaracao
         )
-        from Funcionario import gerar_declaracao_funcionario as gerar_declaracao_funcionario_legacy
+        from src.models.funcionario_old import gerar_declaracao_funcionario as gerar_declaracao_funcionario_legacy
         
         try:
             # Obter dados via service
