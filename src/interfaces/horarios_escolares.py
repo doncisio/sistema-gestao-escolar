@@ -13,6 +13,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 import json
 import os
+import tempfile
 from pathlib import Path
 import unicodedata
 import re
@@ -1274,39 +1275,32 @@ class InterfaceHorariosEscolares:
         
         def gerar_pdf():
             opcao = opcao_var.get()
-            
-            # Definir nome do arquivo
-            caminho = filedialog.asksaveasfilename(
-                defaultextension=".pdf",
-                filetypes=[("PDF files", "*.pdf")],
-                title="Salvar Horário como PDF"
-            )
-            
-            if not caminho:
-                return
-            
-            # Chamar função para gerar PDF
-            if opcao == "turma":
-                self.gerar_pdf_turma(caminho)
-            elif opcao == "professor":
-                self.gerar_pdf_professor(caminho)
-            else:
-                self.gerar_pdf_turma(caminho)
-                
             janela_impressao.destroy()
+            
+            # Chamar função para gerar PDF (agora sem caminho)
+            if opcao == "turma":
+                self.gerar_pdf_turma()
+            elif opcao == "professor":
+                self.gerar_pdf_professor()
+            else:
+                self.gerar_pdf_turma()
         
         ttk.Button(frame_botoes, text="Cancelar", 
                  command=janela_impressao.destroy).pack(side=tk.RIGHT, padx=5)
         ttk.Button(frame_botoes, text="Gerar PDF", 
                  command=gerar_pdf).pack(side=tk.RIGHT, padx=5)
     
-    def gerar_pdf_turma(self, caminho):
+    def gerar_pdf_turma(self):
         # Verificar se uma turma está selecionada
         if self.turma_atual is None:
             messagebox.showwarning("Atenção", "Selecione uma turma antes de imprimir.")
             return
         
         try:
+            # Criar arquivo temporário
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+            caminho = temp_file.name
+            temp_file.close()
             # Escolher lista de horários com base no turno
             horarios = self.horarios_matutino if self.turno_atual == "Matutino" else self.horarios_vespertino
             
@@ -1489,15 +1483,25 @@ class InterfaceHorariosEscolares:
             # Construir PDF
             doc.build(elementos)
             
-            messagebox.showinfo("Sucesso", f"Horário exportado como PDF com sucesso!\n\nArquivo: {caminho}")
+            # Abrir PDF automaticamente
+            try:
+                os.startfile(caminho)
+            except AttributeError:
+                # Em sistemas não-Windows
+                import subprocess
+                subprocess.run(['xdg-open', caminho])
             
         except Exception as e:
             logger.exception("Erro ao gerar PDF da turma")
             messagebox.showerror("Erro", f"Erro ao gerar PDF:\n{str(e)}")
     
-    def gerar_pdf_professor(self, caminho):
+    def gerar_pdf_professor(self):
         """Gera PDF com horário de um professor específico"""
         try:
+            # Criar arquivo temporário
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+            caminho = temp_file.name
+            temp_file.close()
             # Criar janela para selecionar professor
             janela_prof = tk.Toplevel(self.janela)
             janela_prof.title("Selecionar Professor")
@@ -1719,9 +1723,13 @@ class InterfaceHorariosEscolares:
             # Construir PDF
             doc.build(elementos)
             
-            messagebox.showinfo("Sucesso", 
-                f"Horário do professor(a) {professor_selecionado['nome']} exportado como PDF com sucesso!\n\n"
-                f"Arquivo: {caminho}")
+            # Abrir PDF automaticamente
+            try:
+                os.startfile(caminho)
+            except AttributeError:
+                # Em sistemas não-Windows
+                import subprocess
+                subprocess.run(['xdg-open', caminho])
             
         except Exception as e:
             logger.exception("Erro ao gerar PDF do professor")
