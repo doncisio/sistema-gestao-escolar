@@ -34,7 +34,13 @@ def obter_estatisticas_alunos(escola_id: int = 60, ano_letivo: Optional[str] = N
             
             # Se ano_letivo não foi especificado, usa o ano atual
             if ano_letivo is None:
-                cursor.execute("SELECT ano_letivo FROM AnosLetivos WHERE CURDATE() BETWEEN data_inicio AND data_fim LIMIT 1")
+                cursor.execute("""
+                    SELECT ano_letivo 
+                    FROM AnosLetivos 
+                    WHERE CURDATE() BETWEEN data_inicio AND data_fim 
+                    ORDER BY data_inicio ASC 
+                    LIMIT 1
+                """)
                 resultado = cursor.fetchone()
                 ano_letivo = resultado['ano_letivo'] if resultado else str(__import__('datetime').datetime.now().year)
                 logger.debug(f"Ano letivo: {ano_letivo}")
@@ -297,22 +303,57 @@ def obter_movimento_mensal_resumo(escola_id: int = 60, ano_letivo: Optional[str]
         from datetime import datetime
         with get_cursor() as cursor:
             if ano_letivo is None:
-                cursor.execute("SELECT ano_letivo FROM AnosLetivos WHERE CURDATE() BETWEEN data_inicio AND data_fim LIMIT 1")
+                cursor.execute("""
+                    SELECT ano_letivo 
+                    FROM AnosLetivos 
+                    WHERE CURDATE() BETWEEN data_inicio AND data_fim 
+                    ORDER BY data_inicio ASC 
+                    LIMIT 1
+                """)
                 r = cursor.fetchone()
                 ano_letivo = r['ano_letivo'] if r else str(datetime.now().year)
 
-            # Obter id do ano letivo
-            cursor.execute("SELECT id FROM AnosLetivos WHERE ano_letivo = %s LIMIT 1", (ano_letivo,))
+            # Obter id, data_inicio e data_fim do ano letivo
+            cursor.execute("SELECT id, data_inicio, data_fim FROM AnosLetivos WHERE ano_letivo = %s LIMIT 1", (ano_letivo,))
             row = cursor.fetchone()
             if not row:
                 logger.warning("Ano letivo %s não encontrado para movimento mensal", ano_letivo)
                 return None
             ano_letivo_id = row['id'] if isinstance(row, dict) else row[0]
-
-            mes_atual = datetime.now().month
+            data_inicio = row['data_inicio'] if isinstance(row, dict) else row[1]
+            data_fim = row['data_fim'] if isinstance(row, dict) else row[2]
+            
+            # Determinar até qual mês processar baseado no ano letivo
+            # Se hoje está dentro do ano letivo, usa data atual; senão usa data_fim
+            hoje = datetime.now().date()
+            if data_inicio <= hoje <= data_fim:
+                # Estamos no ano letivo: mostrar até o mês atual
+                data_referencia = hoje
+            else:
+                # Ano letivo já terminou ou ainda não começou: mostrar até o fim
+                data_referencia = data_fim if hoje > data_fim else data_inicio
+            
+            mes_final = data_referencia.month
+            ano_final = data_referencia.year
             meses: List[Dict[str, Any]] = []
 
-            for mes in range(1, mes_atual + 1):
+            # Iterar pelos meses do ano letivo até a data de referência
+            # Começar do mês de data_inicio até o mês de data_referencia
+            mes_inicio = data_inicio.month
+            ano_inicio = data_inicio.year
+            
+            # Criar lista de (ano, mês) para iterar
+            meses_a_processar = []
+            current_date = data_inicio.replace(day=1)
+            while current_date <= data_referencia:
+                meses_a_processar.append((current_date.year, current_date.month))
+                # Avançar para o próximo mês
+                if current_date.month == 12:
+                    current_date = current_date.replace(year=current_date.year + 1, month=1)
+                else:
+                    current_date = current_date.replace(month=current_date.month + 1)
+            
+            for idx, (ano, mes) in enumerate(meses_a_processar, start=1):
                 # Ativos até fim do mês (matrículas ativas com data de matrícula anterior ou igual ao último dia do mês)
                 cursor.execute(
                     """
@@ -324,7 +365,7 @@ def obter_movimento_mensal_resumo(escola_id: int = 60, ano_letivo: Optional[str]
                       AND m.status = 'Ativo'
                       AND m.data_matricula <= LAST_DAY(DATE(CONCAT(%s, '-', %s, '-01')))
                     """,
-                    (ano_letivo_id, escola_id, ano_letivo, mes)
+                    (ano_letivo_id, escola_id, ano, mes)
                 )
                 r_ativos = cursor.fetchone()
                 ativos = (r_ativos['total'] if isinstance(r_ativos, dict) else (r_ativos[0] if r_ativos else 0)) if r_ativos else 0
@@ -344,7 +385,7 @@ def obter_movimento_mensal_resumo(escola_id: int = 60, ano_letivo: Optional[str]
                       AND m.data_matricula <= LAST_DAY(DATE(CONCAT(%s, '-', %s, '-01')))
                     GROUP BY m.status
                     """,
-                    (ano_letivo_id, escola_id, ano_letivo, mes)
+                    (ano_letivo_id, escola_id, ano, mes)
                 )
                 rows = cursor.fetchall() or []
                 transferidos = 0
@@ -358,7 +399,9 @@ def obter_movimento_mensal_resumo(escola_id: int = 60, ano_letivo: Optional[str]
                         evadidos += total
 
                 meses.append({
-                    'mes': mes,
+                    'mes': idx,  # Índice sequencial (1, 2, 3...) para posição no gráfico
+                    'mes_calendario': mes,  # Mês real do calendário (1-12)
+                    'ano_calendario': ano,  # Ano real do calendário
                     'ativos': ativos,
                     'transferidos': transferidos,
                     'evadidos': evadidos

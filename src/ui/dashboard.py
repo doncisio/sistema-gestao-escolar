@@ -297,7 +297,15 @@ class DashboardManager:
                         if conn_temp:
                             cursor_temp = conn_temp.cursor()
                             try:
-                                cursor_temp.execute("SELECT ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
+                                # Buscar ano letivo ativo baseado nas datas do ano letivo
+                                # Se houver múltiplos anos ativos, priorizar o que começou antes
+                                cursor_temp.execute("""
+                                    SELECT ano_letivo 
+                                    FROM anosletivos 
+                                    WHERE CURDATE() BETWEEN data_inicio AND data_fim 
+                                    ORDER BY data_inicio ASC
+                                    LIMIT 1
+                                """)
                                 resultado_ano = cursor_temp.fetchone()
                                 if not resultado_ano:
                                     cursor_temp.execute("SELECT ano_letivo FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
@@ -471,7 +479,15 @@ class DashboardManager:
 
                         ax2.set_xticks(x)
                         nomes_meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-                        ax2.set_xticklabels([nomes_meses[m-1] for m in labels_meses], fontsize=9, color=self.co0)
+                        # Usar mes_calendario se disponível, senão fallback para mes
+                        labels_texto = []
+                        for m in meses_data:
+                            mes_cal = m.get('mes_calendario', m['mes'])  # Pegar mês do calendário ou usar índice
+                            if mes_cal >= 1 and mes_cal <= 12:
+                                labels_texto.append(nomes_meses[mes_cal - 1])
+                            else:
+                                labels_texto.append(str(mes_cal))
+                        ax2.set_xticklabels(labels_texto, fontsize=9, color=self.co0)
                         ax2.tick_params(axis='y', colors=self.co0)
                         # Mostrar apenas as spines dos eixos (left e bottom).
                         for loc, spine in ax2.spines.items():
