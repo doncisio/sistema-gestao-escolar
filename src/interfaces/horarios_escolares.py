@@ -2234,9 +2234,54 @@ class InterfaceHorariosEscolares:
         
         return resultado['credenciais']
     
+    def _garantir_tabela_horarios(self):
+        """Garante que a tabela horarios_importados existe no banco de dados"""
+        try:
+            conn = conectar_bd()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            
+            # Criar tabela se não existir
+            sql = """
+            CREATE TABLE IF NOT EXISTS horarios_importados (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              turma_id INT NOT NULL,
+              dia VARCHAR(32) NOT NULL,
+              horario VARCHAR(32) NOT NULL,
+              valor TEXT NOT NULL,
+              disciplina_id INT NULL,
+              professor_id INT NULL,
+              geduc_turma_id INT NULL,
+              UNIQUE KEY ux_horario_turma (turma_id, dia, horario)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """
+            
+            cursor.execute(sql)
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            logger.info("Tabela horarios_importados verificada/criada com sucesso")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Erro ao criar tabela horarios_importados: {e}")
+            return False
+    
     def _salvar_horarios_geduc_bd(self, dados_horario, log_callback=None):
         """Salva horários extraídos do GEDUC no banco de dados"""
         try:
+            # Garantir que a tabela existe antes de tentar salvar
+            if not self._garantir_tabela_horarios():
+                if log_callback:
+                    log_callback("  ✗ Erro ao verificar/criar tabela no banco de dados")
+                return False
+            
+            if log_callback:
+                log_callback("  ✓ Tabela horarios_importados verificada")
+            
             conn = conectar_bd()
             if not conn:
                 return False

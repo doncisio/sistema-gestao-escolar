@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS horarios_importados (
   valor TEXT NOT NULL,
   disciplina_id INT NULL,
   professor_id INT NULL,
+  geduc_turma_id INT NULL,
   UNIQUE KEY ux_horario_turma (turma_id, dia, horario)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
