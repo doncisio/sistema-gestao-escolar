@@ -23,6 +23,10 @@ class InterfaceHorariosEscolares:
         # Armazenar referência à janela principal
         self.janela_principal = janela_principal
         
+        # Esconder janela principal quando abrir horários
+        if self.janela_principal:
+            self.janela_principal.withdraw()
+        
         # Se root for None, cria uma nova janela
         if root is None:
             self.janela = tk.Toplevel(self.janela_principal)  # Passando o pai corretamente
@@ -32,7 +36,7 @@ class InterfaceHorariosEscolares:
             # Garantir que a janela principal existe antes de chamar grab_set
             if self.janela_principal:
                 self.janela.transient(self.janela_principal)  # Define a janela principal como proprietária
-                self.janela.grab_set()  # Torna a janela modal
+                # Não usar grab_set para permitir fechar corretamente
                 
             self.janela.focus_force()
             
@@ -485,34 +489,6 @@ class InterfaceHorariosEscolares:
         self.turma_cb.pack(side=tk.LEFT)
         self.turma_cb.bind("<<ComboboxSelected>>", self.carregar_horarios)
         
-        # Frame para professor polivalente
-        frame_prof = tk.Frame(self.frame_selecao, bg=self.co0)
-        frame_prof.pack(side=tk.LEFT, padx=10, pady=5)
-        
-        tk.Label(frame_prof, text="Professor Polivalente:", bg=self.co0, font=("Arial", 10)).pack(side=tk.LEFT, padx=(0, 5))
-        
-        # Filtrar apenas professores polivalentes
-        profs_polivalentes = [p for p in self.professores if p.get('polivalente') == 'sim']
-        profs_nomes = [p['nome'] for p in profs_polivalentes]
-        profs_nomes.insert(0, "Selecione...")
-        
-        self.prof_polivalente_var = tk.StringVar(value="Selecione...")
-        self.prof_polivalente_cb = ttk.Combobox(frame_prof, textvariable=self.prof_polivalente_var, 
-                                               values=profs_nomes, width=20, state="disabled")  # Inicialmente desabilitado
-        self.prof_polivalente_cb.pack(side=tk.LEFT)
-        self.prof_polivalente_cb.bind("<<ComboboxSelected>>", self.aplicar_professor_polivalente)
-        
-        # Frame para dia do professor volante
-        frame_volante = tk.Frame(self.frame_selecao, bg=self.co0)
-        frame_volante.pack(side=tk.LEFT, padx=10, pady=5)
-        
-        tk.Label(frame_volante, text="Dia do Professor Volante:", bg=self.co0, font=("Arial", 10)).pack(side=tk.LEFT, padx=(0, 5))
-        self.dia_volante_var = tk.StringVar(value="Selecione...")
-        self.dia_volante_cb = ttk.Combobox(frame_volante, textvariable=self.dia_volante_var, 
-                                         values=["Selecione..."] + self.dias_semana, width=15, state="disabled")  # Inicialmente desabilitado
-        self.dia_volante_cb.pack(side=tk.LEFT)
-        self.dia_volante_cb.bind("<<ComboboxSelected>>", self.aplicar_professor_volante)
-        
         # Frame para seleção de visualização
         frame_visualizacao = tk.Frame(self.frame_selecao, bg=self.co0)
         frame_visualizacao.pack(side=tk.RIGHT, padx=10, pady=5)
@@ -531,24 +507,19 @@ class InterfaceHorariosEscolares:
             
         # Definir turno automaticamente baseado na série (1-5 matutino, 6-9 vespertino)
         serie_num = ''.join(filter(str.isdigit, serie_nome))
+        turno_anterior = self.turno_atual
         if serie_num:
             serie_num = int(serie_num)
             if 1 <= serie_num <= 5:
                 self.turno_var.set("Matutino")
                 self.turno_atual = "Matutino"
-                
-                # Habilitar opções de professor polivalente (só para 1º ao 5º ano)
-                self.prof_polivalente_cb.config(state="readonly")
-                self.dia_volante_cb.config(state="readonly")
             elif 6 <= serie_num <= 9:
                 self.turno_var.set("Vespertino")
                 self.turno_atual = "Vespertino"
-                
-                # Desabilitar opções de professor polivalente (não aplicável do 6º ao 9º ano)
-                self.prof_polivalente_cb.config(state="disabled")
-                self.dia_volante_cb.config(state="disabled")
-                self.prof_polivalente_var.set("Selecione...")
-                self.dia_volante_var.set("Selecione...")
+        
+        # Se o turno mudou, recriar a grade de horários
+        if turno_anterior != self.turno_atual:
+            self.criar_grade_horarios()
         
         try:
             # Encontrar o id da série
@@ -588,26 +559,25 @@ class InterfaceHorariosEscolares:
                 self.turmas_dados = []
                 turma_nomes = []
                 
-                # Gerar nomes para turmas sem nome
+                # Se há apenas uma turma e ela não tem nome, mostrar apenas a série
+                # Se há múltiplas turmas, gerar letras (A, B, C...)
                 letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                letra_idx = 0
                 
-                for turma in turmas:
-                    # Se o nome da turma estiver vazio, criar um nome temporário
+                for idx, turma in enumerate(turmas):
+                    # Se o nome da turma estiver vazio
                     if not turma['nome'] or turma['nome'].strip() == '':
-                        if letra_idx < len(letras):
-                            nome_turma = f"Turma {serie_nome} {letras[letra_idx]}"
-                            letra_idx += 1
+                        # Se é a única turma, usar nome vazio
+                        if len(turmas) == 1:
+                            nome_turma = ""
                         else:
-                            nome_turma = f"Turma {serie_nome} {letra_idx - len(letras) + 1}"
-                            letra_idx += 1
-                            
-                        # Guardar o nome temporário e o ID real
-                        turma_item = {'id': turma['id'], 'nome': nome_turma, 'nome_temporario': True}
+                            # Se há múltiplas turmas, usar letra
+                            nome_turma = letras[idx] if idx < len(letras) else str(idx + 1)
                     else:
+                        # Usar o nome do banco de dados
                         nome_turma = turma['nome']
-                        turma_item = {'id': turma['id'], 'nome': nome_turma, 'nome_temporario': False}
                         
+                    # Guardar dados da turma
+                    turma_item = {'id': turma['id'], 'nome': nome_turma}
                     self.turmas_dados.append(turma_item)
                     turma_nomes.append(nome_turma)
                     
@@ -620,7 +590,7 @@ class InterfaceHorariosEscolares:
             else:
                 # Fallback para turmas fictícias
                 turma_nomes = [f"Turma {serie_nome} {letra}" for letra in "ABC"]
-                self.turmas_dados = [{'id': None, 'nome': nome, 'nome_temporario': True} for nome in turma_nomes]
+                self.turmas_dados = [{'id': None, 'nome': nome} for nome in turma_nomes]
                 self.turma_cb['values'] = turma_nomes
                 
             cursor.close()
@@ -637,7 +607,8 @@ class InterfaceHorariosEscolares:
     
     def carregar_horarios(self, event=None):
         turma_nome = self.turma_var.get()
-        if not turma_nome:
+        # Permitir nome vazio para turmas únicas
+        if turma_nome is None:
             return
             
         # Encontrar ID da turma selecionada
@@ -688,8 +659,15 @@ class InterfaceHorariosEscolares:
                         if horario in horarios_lista:
                             row_index = horarios_lista.index(horario) + 1
                         else:
+                            # Suportar formato "Linha X" do GEDUC
+                            if isinstance(horario, str) and horario.startswith('Linha '):
+                                try:
+                                    num = int(horario.split()[1])
+                                    row_index = num
+                                except Exception:
+                                    row_index = None
                             # suportar horários genéricos R1, R2...
-                            if isinstance(horario, str) and horario.upper().startswith('R'):
+                            elif isinstance(horario, str) and horario.upper().startswith('R'):
                                 try:
                                     num = int(horario[1:])
                                     row_index = num
@@ -1126,20 +1104,17 @@ class InterfaceHorariosEscolares:
             widget.destroy()
         
         # Botões de ação
-        ttk.Button(self.frame_botoes, text="Salvar Horários", 
+        ttk.Button(self.frame_botoes, text="💾 Salvar Horários", 
                  command=self.salvar_horarios).pack(side=tk.LEFT, padx=5)
         
-        ttk.Button(self.frame_botoes, text="Imprimir Horários", 
+        ttk.Button(self.frame_botoes, text="🌐 Importar do GEDUC", 
+                 command=self.importar_geduc).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Button(self.frame_botoes, text="🖨️ Imprimir Horários", 
                  command=self.imprimir_horarios).pack(side=tk.LEFT, padx=5)
         
-        ttk.Button(self.frame_botoes, text="Exportar para Excel", 
+        ttk.Button(self.frame_botoes, text="📊 Exportar para Excel", 
                  command=self.exportar_excel).pack(side=tk.LEFT, padx=5)
-        
-        ttk.Button(self.frame_botoes, text="Preenchimento Automático", 
-                 command=self.preencher_automaticamente).pack(side=tk.LEFT, padx=5)
-        
-        ttk.Button(self.frame_botoes, text="Limpar Horários", 
-                 command=self.limpar_horarios).pack(side=tk.RIGHT, padx=5)
     
     def salvar_horarios(self):
         """Salva os horários da turma atual no banco de dados usando upsert."""
@@ -1261,14 +1236,14 @@ class InterfaceHorariosEscolares:
     
     def imprimir_horarios(self):
         # Verificar se uma turma está selecionada
-        if not self.turma_atual:
+        if self.turma_atual is None:
             messagebox.showwarning("Atenção", "Selecione uma turma antes de imprimir.")
             return
         
         # Criar janela modal para opções de impressão
         janela_impressao = tk.Toplevel(self.janela)
         janela_impressao.title("Opções de Impressão")
-        janela_impressao.geometry("300x250")
+        janela_impressao.geometry("300x180")
         janela_impressao.transient(self.janela)
         janela_impressao.grab_set()
         janela_impressao.configure(bg=self.co0)
@@ -1276,7 +1251,7 @@ class InterfaceHorariosEscolares:
         # Centralizar na tela
         janela_impressao.geometry("+%d+%d" % (
             self.janela.winfo_rootx() + (self.janela.winfo_width() / 2) - (300 / 2),
-            self.janela.winfo_rooty() + (self.janela.winfo_height() / 2) - (250 / 2)))
+            self.janela.winfo_rooty() + (self.janela.winfo_height() / 2) - (90 / 2)))
         
         tk.Label(janela_impressao, text="Opções de Impressão", 
                 font=("Arial", 12, "bold"), bg=self.co0).pack(pady=(20, 10))
@@ -1290,10 +1265,8 @@ class InterfaceHorariosEscolares:
         
         tk.Radiobutton(frame_opcoes, text="Imprimir por Turma", variable=opcao_var, 
                       value="turma", bg=self.co0).pack(anchor="w", pady=2)
-        tk.Radiobutton(frame_opcoes, text="Imprimir por Dia", variable=opcao_var, 
-                      value="dia", bg=self.co0).pack(anchor="w", pady=2)
-        tk.Radiobutton(frame_opcoes, text="Imprimir Semana Completa", variable=opcao_var, 
-                      value="semana", bg=self.co0).pack(anchor="w", pady=2)
+        tk.Radiobutton(frame_opcoes, text="Imprimir por Professor", variable=opcao_var, 
+                      value="professor", bg=self.co0).pack(anchor="w", pady=2)
         
         # Botões
         frame_botoes = tk.Frame(janela_impressao, bg=self.co0)
@@ -1315,10 +1288,10 @@ class InterfaceHorariosEscolares:
             # Chamar função para gerar PDF
             if opcao == "turma":
                 self.gerar_pdf_turma(caminho)
-            elif opcao == "dia":
-                self.gerar_pdf_dia(caminho)
+            elif opcao == "professor":
+                self.gerar_pdf_professor(caminho)
             else:
-                self.gerar_pdf_semana(caminho)
+                self.gerar_pdf_turma(caminho)
                 
             janela_impressao.destroy()
         
@@ -1329,71 +1302,430 @@ class InterfaceHorariosEscolares:
     
     def gerar_pdf_turma(self, caminho):
         # Verificar se uma turma está selecionada
-        if not self.turma_atual:
+        if self.turma_atual is None:
             messagebox.showwarning("Atenção", "Selecione uma turma antes de imprimir.")
             return
+        
+        try:
+            # Escolher lista de horários com base no turno
+            horarios = self.horarios_matutino if self.turno_atual == "Matutino" else self.horarios_vespertino
             
-        # Escolher lista de horários com base no turno
-        horarios = self.horarios_matutino if self.turno_atual == "Matutino" else self.horarios_vespertino
-        
-        # Criar documento PDF
-        doc = SimpleDocTemplate(caminho, pagesize=landscape(A4))
-        elementos = []
-        
-        # Estilos
-        estilos = getSampleStyleSheet()
-        titulo_estilo = estilos['Heading1']
-        
-        # Título
-        elementos.append(Paragraph(f"Horário de Aulas - {self.turma_atual} - {self.turno_atual}", titulo_estilo))
-        elementos.append(Spacer(1, 10))
-        
-        # Criar tabela de dados
-        dados = [["Horário"] + self.dias_semana]
-        
-        for i, horario in enumerate(horarios):
-            linha = [horario]
+            # Buscar dados do banco de dados com informações de professor
+            conn = conectar_bd()
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("""
+                SELECT h.dia, h.horario, h.valor, h.professor_id, f.nome as professor_nome
+                FROM horarios_importados h
+                LEFT JOIN funcionarios f ON h.professor_id = f.id
+                WHERE h.turma_id = %s
+            """, (self.turma_id,))
+            horarios_bd = cursor.fetchall()
+            cursor.close()
+            conn.close()
             
-            for j, _ in enumerate(self.dias_semana):
-                if (i == 3):  # Intervalo
-                    linha.append("INTERVALO")
-                else:
-                    # Pegar valor da célula na interface
-                    celula = self.celulas_horario.get((i+1, j+1))
-                    if celula:
-                        linha.append(celula.get())
+            # Mapear professores para cores
+            professores_unicos = set()
+            for item in horarios_bd:
+                if item.get('professor_id'):
+                    professores_unicos.add(item['professor_id'])
+            
+            # Definir paleta de cores para professores
+            cores_disponiveis = [
+                colors.Color(0.8, 0.9, 1.0),      # Azul claro
+                colors.Color(1.0, 0.9, 0.8),      # Laranja claro
+                colors.Color(0.9, 1.0, 0.8),      # Verde claro
+                colors.Color(1.0, 0.8, 0.9),      # Rosa claro
+                colors.Color(0.95, 0.95, 0.8),    # Amarelo claro
+                colors.Color(0.9, 0.8, 1.0),      # Roxo claro
+                colors.Color(0.8, 1.0, 0.9),      # Verde água claro
+                colors.Color(1.0, 0.85, 0.85),    # Vermelho claro
+                colors.Color(0.85, 0.95, 1.0),    # Azul céu
+                colors.Color(0.95, 0.9, 1.0),     # Lavanda
+            ]
+            
+            cores_professor = {}
+            for idx, prof_id in enumerate(sorted(professores_unicos)):
+                cores_professor[prof_id] = cores_disponiveis[idx % len(cores_disponiveis)]
+            
+            # Criar documento PDF em modo paisagem
+            doc = SimpleDocTemplate(caminho, pagesize=landscape(A4))
+            elementos = []
+            
+            # Estilos
+            estilos = getSampleStyleSheet()
+            titulo_estilo = estilos['Heading1']
+            
+            # Obter nome da série
+            serie_nome = self.serie_var.get() if hasattr(self, 'serie_var') else ""
+            turma_display = f"{serie_nome} - {self.turma_atual}" if self.turma_atual else serie_nome
+            
+            # Título
+            elementos.append(Paragraph(f"Horário de Aulas - {turma_display} - {self.turno_atual}", titulo_estilo))
+            elementos.append(Spacer(1, 12))
+            
+            # Criar tabela de dados
+            dados = [["Horário"] + self.dias_semana]
+            
+            # Mapear horários do banco para posições na tabela
+            mapa_horarios = {}
+            for item in horarios_bd:
+                dia = item['dia']
+                horario = item['horario']
+                valor = item['valor']
+                professor_id = item.get('professor_id')
+                
+                # Localizar coluna pelo dia
+                try:
+                    col = self.dias_semana.index(dia)
+                except ValueError:
+                    continue
+                
+                # Localizar linha pelo horário
+                row_index = None
+                if horario in horarios:
+                    row_index = horarios.index(horario)
+                elif isinstance(horario, str) and horario.startswith('Linha '):
+                    try:
+                        num = int(horario.split()[1])
+                        row_index = num - 1
+                    except:
+                        continue
+                
+                if row_index is not None:
+                    mapa_horarios[(row_index, col)] = {
+                        'valor': valor,
+                        'professor_id': professor_id
+                    }
+            
+            # Preencher dados da tabela
+            for i, horario in enumerate(horarios):
+                linha = [horario]
+                
+                for j in range(len(self.dias_semana)):
+                    dados_celula = mapa_horarios.get((i, j))
+                    if dados_celula:
+                        linha.append(dados_celula['valor'] or "")
                     else:
                         linha.append("")
+                
+                dados.append(linha)
             
-            dados.append(linha)
-        
-        # Criar tabela
-        tabela = Table(dados)
-        
-        # Estilo da tabela
-        estilo_tabela = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), self.co1),  # Cabeçalho azul
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # Texto branco no cabeçalho
-            ('BACKGROUND', (0, 1), (0, -1), colors.lightblue),  # Coluna de horários
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Bordas
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # Centralizar todo o texto
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),  # Centralizar verticalmente
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Negrito no cabeçalho
-            ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),  # Negrito na coluna de horários
-        ])
-        
-        # Estilo específico para linhas de intervalo
-        for i, horario in enumerate(horarios):
-            if horario in ["10:00-10:20", "15:30-15:50"]:  # Intervalo
-                estilo_tabela.add('BACKGROUND', (0, i+1), (-1, i+1), colors.lightgrey)
-        
-        tabela.setStyle(estilo_tabela)
-        elementos.append(tabela)
-        
-        # Construir PDF
-        doc.build(elementos)
-        
-        messagebox.showinfo("Sucesso", f"Horário da {self.turma_atual} exportado como PDF!")
+            # Criar tabela com larguras de coluna ajustadas
+            largura_col_horario = 80
+            largura_col_dia = (landscape(A4)[0] - largura_col_horario - 40) / len(self.dias_semana)
+            col_widths = [largura_col_horario] + [largura_col_dia] * len(self.dias_semana)
+            
+            tabela = Table(dados, colWidths=col_widths)
+            
+            # Estilo base da tabela
+            estilo_tabela = TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2C3E50')),  # Cabeçalho azul escuro
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # Texto branco no cabeçalho
+                ('BACKGROUND', (0, 1), (0, -1), colors.HexColor('#BDC3C7')),  # Coluna de horários cinza
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Bordas
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # Centralizar todo o texto
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),  # Centralizar verticalmente
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Negrito no cabeçalho
+                ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),  # Negrito na coluna de horários
+                ('FONTSIZE', (0, 0), (-1, -1), 9),  # Tamanho da fonte
+            ])
+            
+            # Aplicar cores por professor nas células
+            for i in range(len(horarios)):
+                for j in range(len(self.dias_semana)):
+                    dados_celula = mapa_horarios.get((i, j))
+                    if dados_celula and dados_celula['professor_id']:
+                        cor = cores_professor.get(dados_celula['professor_id'], colors.white)
+                        estilo_tabela.add('BACKGROUND', (j+1, i+1), (j+1, i+1), cor)
+            
+            # Estilo específico para linha de intervalo (linha 4)
+            linha_intervalo = 3  # Índice 3 = linha 4
+            if linha_intervalo < len(horarios):
+                estilo_tabela.add('BACKGROUND', (1, linha_intervalo+1), (-1, linha_intervalo+1), colors.HexColor('#F39C12'))
+                estilo_tabela.add('TEXTCOLOR', (1, linha_intervalo+1), (-1, linha_intervalo+1), colors.white)
+                estilo_tabela.add('FONTNAME', (1, linha_intervalo+1), (-1, linha_intervalo+1), 'Helvetica-Bold')
+            
+            tabela.setStyle(estilo_tabela)
+            elementos.append(tabela)
+            
+            # Adicionar legenda de professores
+            if cores_professor:
+                elementos.append(Spacer(1, 20))
+                elementos.append(Paragraph("<b>Legenda de Professores:</b>", estilos['Normal']))
+                elementos.append(Spacer(1, 8))
+                
+                # Buscar nomes dos professores
+                conn = conectar_bd()
+                cursor = conn.cursor(dictionary=True)
+                prof_ids = list(cores_professor.keys())
+                if prof_ids:
+                    placeholders = ','.join(['%s'] * len(prof_ids))
+                    cursor.execute(f"SELECT id, nome FROM funcionarios WHERE id IN ({placeholders})", prof_ids)
+                    professores_info = cursor.fetchall()
+                    cursor.close()
+                    conn.close()
+                    
+                    # Criar mini-tabela de legenda
+                    dados_legenda = []
+                    for prof in sorted(professores_info, key=lambda x: x['nome']):
+                        dados_legenda.append([prof['nome'], ""])
+                    
+                    if dados_legenda:
+                        tabela_legenda = Table(dados_legenda, colWidths=[200, 30])
+                        estilo_legenda = TableStyle([
+                            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                            ('FONTSIZE', (0, 0), (-1, -1), 8),
+                            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                        ])
+                        
+                        # Aplicar cores na legenda
+                        for idx, prof in enumerate(sorted(professores_info, key=lambda x: x['nome'])):
+                            cor = cores_professor.get(prof['id'], colors.white)
+                            estilo_legenda.add('BACKGROUND', (1, idx), (1, idx), cor)
+                        
+                        tabela_legenda.setStyle(estilo_legenda)
+                        elementos.append(tabela_legenda)
+            
+            # Construir PDF
+            doc.build(elementos)
+            
+            messagebox.showinfo("Sucesso", f"Horário exportado como PDF com sucesso!\n\nArquivo: {caminho}")
+            
+        except Exception as e:
+            logger.exception("Erro ao gerar PDF da turma")
+            messagebox.showerror("Erro", f"Erro ao gerar PDF:\n{str(e)}")
+    
+    def gerar_pdf_professor(self, caminho):
+        """Gera PDF com horário de um professor específico"""
+        try:
+            # Criar janela para selecionar professor
+            janela_prof = tk.Toplevel(self.janela)
+            janela_prof.title("Selecionar Professor")
+            janela_prof.geometry("400x200")
+            janela_prof.transient(self.janela)
+            janela_prof.grab_set()
+            janela_prof.configure(bg=self.co0)
+            
+            # Centralizar
+            janela_prof.update_idletasks()
+            x = (janela_prof.winfo_screenwidth() // 2) - 200
+            y = (janela_prof.winfo_screenheight() // 2) - 100
+            janela_prof.geometry(f'400x200+{x}+{y}')
+            
+            tk.Label(janela_prof, text="Selecione o Professor:", 
+                    font=("Arial", 12, "bold"), bg=self.co0).pack(pady=(20, 10))
+            
+            # ComboBox de professores
+            professor_var = tk.StringVar()
+            professor_cb = ttk.Combobox(janela_prof, textvariable=professor_var, 
+                                       width=40, state="readonly")
+            professor_cb.pack(pady=10)
+            
+            # Buscar professores do banco
+            conn = conectar_bd()
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("""
+                SELECT DISTINCT f.id, f.nome 
+                FROM funcionarios f
+                INNER JOIN horarios_importados h ON f.id = h.professor_id
+                WHERE f.escola_id = 60
+                ORDER BY f.nome
+            """)
+            professores = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            if not professores:
+                messagebox.showwarning("Atenção", "Nenhum professor encontrado com horários cadastrados.")
+                janela_prof.destroy()
+                return
+            
+            # Mapear nomes para IDs
+            prof_map = {prof['nome']: prof['id'] for prof in professores}
+            professor_cb['values'] = list(prof_map.keys())
+            professor_cb.current(0)
+            
+            professor_selecionado = {'id': None, 'nome': None}
+            
+            def confirmar():
+                nome = professor_var.get()
+                if nome:
+                    professor_selecionado['id'] = prof_map[nome]
+                    professor_selecionado['nome'] = nome
+                    janela_prof.destroy()
+            
+            def cancelar():
+                janela_prof.destroy()
+            
+            # Botões
+            frame_botoes = tk.Frame(janela_prof, bg=self.co0)
+            frame_botoes.pack(pady=20)
+            
+            ttk.Button(frame_botoes, text="Cancelar", 
+                      command=cancelar).pack(side=tk.LEFT, padx=5)
+            ttk.Button(frame_botoes, text="Confirmar", 
+                      command=confirmar).pack(side=tk.RIGHT, padx=5)
+            
+            # Aguardar fechamento da janela
+            self.janela.wait_window(janela_prof)
+            
+            if not professor_selecionado['id']:
+                return
+            
+            # Buscar horários do professor
+            conn = conectar_bd()
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("""
+                SELECT h.dia, h.horario, h.valor, t.nome as turma_nome, s.nome as serie_nome,
+                       d.nome as disciplina_nome
+                FROM horarios_importados h
+                LEFT JOIN turmas t ON h.turma_id = t.id
+                LEFT JOIN series s ON t.serie_id = s.id
+                LEFT JOIN disciplinas d ON h.disciplina_id = d.id
+                WHERE h.professor_id = %s
+                ORDER BY h.dia, h.horario
+            """, (professor_selecionado['id'],))
+            horarios_prof = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            if not horarios_prof:
+                messagebox.showwarning("Atenção", 
+                    f"Nenhum horário encontrado para o professor {professor_selecionado['nome']}.")
+                return
+            
+            # Determinar turno predominante (matutino ou vespertino)
+            horarios_matutino_count = sum(1 for h in horarios_prof if h['horario'] in self.horarios_matutino)
+            horarios_vespertino_count = sum(1 for h in horarios_prof if h['horario'] in self.horarios_vespertino)
+            
+            if horarios_vespertino_count > horarios_matutino_count:
+                horarios_lista = self.horarios_vespertino
+                turno = "Vespertino"
+            else:
+                horarios_lista = self.horarios_matutino
+                turno = "Matutino"
+            
+            # Criar documento PDF em modo paisagem
+            doc = SimpleDocTemplate(caminho, pagesize=landscape(A4))
+            elementos = []
+            
+            # Estilos
+            estilos = getSampleStyleSheet()
+            titulo_estilo = estilos['Heading1']
+            
+            # Título
+            elementos.append(Paragraph(
+                f"Horário de Aulas - Professor(a): {professor_selecionado['nome']}", 
+                titulo_estilo))
+            elementos.append(Spacer(1, 12))
+            
+            # Criar tabela de dados
+            dados = [["Horário"] + self.dias_semana]
+            
+            # Mapear horários para grid
+            mapa_horarios = {}
+            for item in horarios_prof:
+                dia = item['dia']
+                horario = item['horario']
+                
+                # Localizar coluna pelo dia
+                try:
+                    col = self.dias_semana.index(dia)
+                except ValueError:
+                    continue
+                
+                # Localizar linha pelo horário
+                row_index = None
+                if horario in horarios_lista:
+                    row_index = horarios_lista.index(horario)
+                elif isinstance(horario, str) and horario.startswith('Linha '):
+                    try:
+                        num = int(horario.split()[1])
+                        row_index = num - 1
+                    except:
+                        continue
+                
+                if row_index is not None:
+                    # Montar texto da célula
+                    turma_nome = item.get('turma_nome') or ''
+                    serie_nome = item.get('serie_nome') or ''
+                    disciplina = item.get('disciplina_nome') or item.get('valor') or ''
+                    
+                    # Formato: SÉRIE - TURMA\nDISCIPLINA
+                    if turma_nome:
+                        texto = f"{serie_nome} - {turma_nome}\n{disciplina}"
+                    else:
+                        texto = f"{serie_nome}\n{disciplina}"
+                    
+                    mapa_horarios[(row_index, col)] = texto
+            
+            # Preencher dados da tabela
+            for i, horario in enumerate(horarios_lista):
+                linha = [horario]
+                
+                for j in range(len(self.dias_semana)):
+                    texto = mapa_horarios.get((i, j), "")
+                    linha.append(texto)
+                
+                dados.append(linha)
+            
+            # Criar tabela com larguras ajustadas
+            largura_col_horario = 70
+            largura_col_dia = (landscape(A4)[0] - largura_col_horario - 40) / len(self.dias_semana)
+            col_widths = [largura_col_horario] + [largura_col_dia] * len(self.dias_semana)
+            
+            tabela = Table(dados, colWidths=col_widths)
+            
+            # Estilo base da tabela
+            estilo_tabela = TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2C3E50')),  # Cabeçalho azul escuro
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # Texto branco no cabeçalho
+                ('BACKGROUND', (0, 1), (0, -1), colors.HexColor('#BDC3C7')),  # Coluna de horários cinza
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Bordas
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # Centralizar todo o texto
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),  # Centralizar verticalmente
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Negrito no cabeçalho
+                ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),  # Negrito na coluna de horários
+                ('FONTSIZE', (0, 0), (-1, -1), 8),  # Tamanho da fonte
+            ])
+            
+            # Colorir células com aulas (azul claro)
+            for i in range(len(horarios_lista)):
+                for j in range(len(self.dias_semana)):
+                    if mapa_horarios.get((i, j)):
+                        estilo_tabela.add('BACKGROUND', (j+1, i+1), (j+1, i+1), 
+                                        colors.Color(0.8, 0.9, 1.0))
+            
+            # Estilo específico para linha de intervalo (linha 4)
+            linha_intervalo = 3  # Índice 3 = linha 4
+            if linha_intervalo < len(horarios_lista):
+                estilo_tabela.add('BACKGROUND', (1, linha_intervalo+1), (-1, linha_intervalo+1), 
+                                colors.HexColor('#F39C12'))
+                estilo_tabela.add('TEXTCOLOR', (1, linha_intervalo+1), (-1, linha_intervalo+1), 
+                                colors.white)
+                estilo_tabela.add('FONTNAME', (1, linha_intervalo+1), (-1, linha_intervalo+1), 
+                                'Helvetica-Bold')
+            
+            tabela.setStyle(estilo_tabela)
+            elementos.append(tabela)
+            
+            # Adicionar informações adicionais
+            elementos.append(Spacer(1, 20))
+            total_aulas = len(horarios_prof)
+            elementos.append(Paragraph(
+                f"<b>Total de aulas semanais:</b> {total_aulas} | <b>Turno:</b> {turno}", 
+                estilos['Normal']))
+            
+            # Construir PDF
+            doc.build(elementos)
+            
+            messagebox.showinfo("Sucesso", 
+                f"Horário do professor(a) {professor_selecionado['nome']} exportado como PDF com sucesso!\n\n"
+                f"Arquivo: {caminho}")
+            
+        except Exception as e:
+            logger.exception("Erro ao gerar PDF do professor")
+            messagebox.showerror("Erro", f"Erro ao gerar PDF:\n{str(e)}")
     
     def gerar_pdf_dia(self, caminho):
         messagebox.showinfo("Em implementação", "Função de geração por dia em desenvolvimento.")
@@ -1403,7 +1735,7 @@ class InterfaceHorariosEscolares:
     
     def exportar_excel(self):
         # Verificar se uma turma está selecionada
-        if not self.turma_atual:
+        if self.turma_atual is None:
             messagebox.showwarning("Atenção", "Selecione uma turma antes de exportar.")
             return
             
@@ -1554,6 +1886,468 @@ class InterfaceHorariosEscolares:
                 celula.config(bg=self.co6)  # Amarelo para professor volante
         
         messagebox.showinfo("Sucesso", f"Professor volante aplicado com sucesso ao dia {dia_volante}.")
+    
+    def importar_geduc(self):
+        """Importa horários do GEDUC para a turma selecionada"""
+        try:
+            # Verificar se turma está selecionada (verificar apenas ID pois nome pode ser vazio)
+            if not self.turma_id:
+                messagebox.showwarning("Atenção", "Selecione uma turma antes de importar do GEDUC.")
+                return
+            
+            # Importar módulos necessários
+            import threading
+            from src.importadores.geduc import AutomacaoGEDUC
+            from src.core import config
+            
+            # Solicitar credenciais
+            credenciais = self._solicitar_credenciais_geduc()
+            if not credenciais:
+                return
+            
+            # Construir nome para busca no GEDUC
+            serie_nome = self.serie_var.get()
+            turma_completa = self.turma_var.get()
+            
+            # Log para debug
+            logger.info(f"DEBUG: serie_nome = '{serie_nome}'")
+            logger.info(f"DEBUG: turma_completa = '{turma_completa}'")
+            logger.info(f"DEBUG: turma_id = {self.turma_id}")
+            
+            # Buscar turno diretamente do banco de dados
+            turno_bd = ""
+            try:
+                conn = conectar_bd()
+                cursor = conn.cursor()
+                cursor.execute("SELECT turno FROM turmas WHERE id = %s", (self.turma_id,))
+                resultado = cursor.fetchone()
+                if resultado:
+                    turno_bd = resultado[0] if resultado[0] else ""
+                    logger.info(f"DEBUG: turno do BD = '{turno_bd}'")
+                cursor.close()
+                conn.close()
+            except Exception as e:
+                logger.warning(f"Erro ao buscar turno: {e}")
+            
+            # Extrair apenas a letra da turma (A, B, C, etc)
+            # Remove "Turma", nome da série e espaços extras
+            turma_letra = ""
+            if turma_completa and turma_completa.strip():
+                # Remover "Turma " do início
+                temp = turma_completa.replace("Turma ", "").strip()
+                # Remover o nome da série
+                temp = temp.replace(serie_nome, "").strip()
+                # O que sobrar deve ser apenas a letra (A, B, C) ou vazio
+                if temp and len(temp) <= 3:  # Letras geralmente têm 1-3 caracteres
+                    turma_letra = temp.upper()
+                logger.info(f"DEBUG: turma_letra extraída = '{turma_letra}'")
+            
+            # Construir nome no formato do GEDUC
+            # Formato: "{SERIE}-{TURNO}" ou "{SERIE}-{TURNO} - {LETRA}"
+            # Exemplos:
+            # - Sem letra: "1º ANO-MATU"
+            # - Com letra: "6º ANO-VESP - A"
+            
+            # Converter turno para abreviação
+            turno_abrev = ""
+            if turno_bd:
+                if "MAT" in turno_bd.upper():
+                    turno_abrev = "MATU"
+                elif "VESP" in turno_bd.upper():
+                    turno_abrev = "VESP"
+                elif "NOT" in turno_bd.upper():
+                    turno_abrev = "NOTU"
+                else:
+                    turno_abrev = turno_bd[:4].upper()
+                logger.info(f"DEBUG: turno_abrev = '{turno_abrev}'")
+            
+            # Construir nome: {SERIE}-{TURNO}
+            serie_upper = serie_nome.upper()
+            if turno_abrev:
+                nome_busca_geduc = f"{serie_upper}-{turno_abrev}"
+            else:
+                nome_busca_geduc = serie_upper
+            
+            # Adicionar letra se houver: {SERIE}-{TURNO} - {LETRA}
+            if turma_letra:
+                nome_busca_geduc = f"{nome_busca_geduc} - {turma_letra}"
+            
+            logger.info(f"DEBUG: nome_busca_geduc final = '{nome_busca_geduc}'")
+
+
+            
+            # Criar janela de progresso
+            janela_progresso = tk.Toplevel(self.janela)
+            janela_progresso.title("Importando do GEDUC")
+            janela_progresso.geometry("500x300")
+            janela_progresso.transient(self.janela)
+            janela_progresso.grab_set()
+            janela_progresso.configure(bg=self.co0)
+            
+            # Centralizar
+            janela_progresso.update_idletasks()
+            x = (janela_progresso.winfo_screenwidth() // 2) - 250
+            y = (janela_progresso.winfo_screenheight() // 2) - 150
+            janela_progresso.geometry(f'500x300+{x}+{y}')
+            
+            # Texto de progresso
+            texto_progresso = tk.Text(janela_progresso, height=15, width=60, bg=self.co0)
+            texto_progresso.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+            
+            # Barra de progresso
+            barra = ttk.Progressbar(janela_progresso, mode='indeterminate')
+            barra.pack(fill=tk.X, padx=10, pady=5)
+            barra.start()
+            
+            def adicionar_log(msg):
+                texto_progresso.insert(tk.END, msg + "\n")
+                texto_progresso.see(tk.END)
+                texto_progresso.update()
+            
+            def executar_importacao():
+                automacao = None
+                try:
+                    adicionar_log("🌐 Iniciando importação do GEDUC...")
+                    adicionar_log(f"📚 Turma: {nome_busca_geduc}")
+                    adicionar_log("")
+                    
+                    # Inicializar automação
+                    adicionar_log("→ Iniciando navegador...")
+                    automacao = AutomacaoGEDUC(headless=False)
+                    
+                    if not automacao.iniciar_navegador():
+                        adicionar_log("✗ Erro ao iniciar navegador")
+                        messagebox.showerror("Erro", "Não foi possível iniciar o navegador.", parent=janela_progresso)
+                        return
+                    
+                    adicionar_log("✓ Navegador iniciado")
+                    adicionar_log("")
+                    
+                    # Fazer login
+                    adicionar_log("→ Fazendo login...")
+                    adicionar_log("  ⚠️ Resolva o reCAPTCHA manualmente no navegador!")
+                    
+                    if not automacao.fazer_login(credenciais['usuario'], credenciais['senha'], timeout_recaptcha=120):
+                        adicionar_log("✗ Erro no login")
+                        messagebox.showerror("Erro", "Não foi possível fazer login no GEDUC.", parent=janela_progresso)
+                        return
+                    
+                    adicionar_log("✓ Login realizado com sucesso")
+                    adicionar_log("")
+                    
+                    # Mudar ano letivo
+                    ano_letivo = credenciais.get('ano_letivo', 2025)
+                    adicionar_log(f"→ Mudando para ano letivo {ano_letivo}...")
+                    
+                    if not automacao.mudar_ano_letivo(ano_letivo):
+                        adicionar_log(f"⚠️ Não foi possível mudar para {ano_letivo}, continuando...")
+                    else:
+                        adicionar_log(f"✓ Ano letivo alterado para {ano_letivo}")
+                    
+                    adicionar_log("")
+                    
+                    # Extrair horários
+                    adicionar_log(f"→ Buscando horários da turma '{nome_busca_geduc}'...")
+                    dados_horario = automacao.extrair_horario_turma(nome_busca_geduc)
+                    
+                    if not dados_horario:
+                        adicionar_log("✗ Não foi possível extrair horários")
+                        messagebox.showwarning("Atenção", f"Turma '{nome_busca_geduc}' não encontrada no GEDUC.", parent=janela_progresso)
+                        return
+                    
+                    adicionar_log(f"✓ Extraídos {len(dados_horario.get('horarios', []))} horários")
+                    adicionar_log("")
+                    
+                    # Salvar no banco de dados
+                    adicionar_log("→ Salvando no banco de dados...")
+                    sucesso = self._salvar_horarios_geduc_bd(dados_horario, adicionar_log)
+                    
+                    if sucesso:
+                        adicionar_log("")
+                        adicionar_log("="*50)
+                        adicionar_log("✓ IMPORTAÇÃO CONCLUÍDA COM SUCESSO!")
+                        adicionar_log("="*50)
+                        
+                        # Recarregar horários na interface
+                        self.janela.after(0, self.carregar_horarios)
+                        
+                        messagebox.showinfo("Sucesso", 
+                            f"Horários importados com sucesso!\n\n"
+                            f"Total: {len(dados_horario.get('horarios', []))} horários", 
+                            parent=janela_progresso)
+                    else:
+                        adicionar_log("✗ Erro ao salvar no banco de dados")
+                        messagebox.showerror("Erro", "Erro ao salvar horários no banco de dados.", parent=janela_progresso)
+                    
+                except Exception as e:
+                    adicionar_log(f"\n✗ ERRO: {e}")
+                    logger.exception("Erro na importação do GEDUC")
+                    messagebox.showerror("Erro", f"Erro durante importação:\n{str(e)}", parent=janela_progresso)
+                
+                finally:
+                    if automacao:
+                        adicionar_log("\n→ Fechando navegador...")
+                        automacao.fechar()
+                    
+                    # Verificar se a janela ainda existe antes de parar o progressbar
+                    try:
+                        if janela_progresso.winfo_exists():
+                            barra.stop()
+                    except:
+                        pass
+            
+            # Executar em thread
+            thread = threading.Thread(target=executar_importacao, daemon=True)
+            thread.start()
+            
+        except Exception as e:
+            logger.exception("Erro ao importar do GEDUC")
+            messagebox.showerror("Erro", f"Erro ao iniciar importação:\n{str(e)}")
+    
+    def _solicitar_credenciais_geduc(self):
+        """Solicita credenciais do GEDUC ao usuário"""
+        from src.core import config
+        
+        janela_cred = tk.Toplevel(self.janela)
+        janela_cred.title("Credenciais GEDUC")
+        janela_cred.geometry("400x270")
+        janela_cred.resizable(False, False)
+        janela_cred.grab_set()
+        janela_cred.configure(bg=self.co0)
+        
+        # Centralizar
+        janela_cred.update_idletasks()
+        x = (janela_cred.winfo_screenwidth() // 2) - 200
+        y = (janela_cred.winfo_screenheight() // 2) - 135
+        janela_cred.geometry(f'400x270+{x}+{y}')
+        
+        # Variáveis
+        usuario_var = tk.StringVar(value=getattr(config, 'GEDUC_DEFAULT_USER', ''))
+        senha_var = tk.StringVar(value=getattr(config, 'GEDUC_DEFAULT_PASS', ''))
+        ano_var = tk.StringVar(value='2025')  # Ano padrão
+        resultado = {'credenciais': None}
+        
+        # Campos
+        tk.Label(janela_cred, text="Usuário GEDUC:", bg=self.co0, font=("Arial", 10)).pack(pady=(20, 5))
+        entry_usuario = tk.Entry(janela_cred, textvariable=usuario_var, width=30, font=("Arial", 10))
+        entry_usuario.pack(pady=5)
+        
+        tk.Label(janela_cred, text="Senha:", bg=self.co0, font=("Arial", 10)).pack(pady=(10, 5))
+        entry_senha = tk.Entry(janela_cred, textvariable=senha_var, show="*", width=30, font=("Arial", 10))
+        entry_senha.pack(pady=5)
+        
+        tk.Label(janela_cred, text="Ano Letivo:", bg=self.co0, font=("Arial", 10)).pack(pady=(10, 5))
+        frame_ano = tk.Frame(janela_cred, bg=self.co0)
+        frame_ano.pack(pady=5)
+        
+        anos_disponiveis = ['2024', '2025', '2026']
+        ano_cb = ttk.Combobox(frame_ano, textvariable=ano_var, values=anos_disponiveis, 
+                              width=28, state="readonly", font=("Arial", 10))
+        ano_cb.pack()
+        
+        def confirmar():
+            if not usuario_var.get() or not senha_var.get():
+                messagebox.showwarning("Atenção", "Preencha usuário e senha!", parent=janela_cred)
+                return
+            
+            resultado['credenciais'] = {
+                'usuario': usuario_var.get(),
+                'senha': senha_var.get(),
+                'ano_letivo': int(ano_var.get())
+            }
+            janela_cred.destroy()
+        
+        def cancelar():
+            janela_cred.destroy()
+        
+        # Botões
+        frame_botoes = tk.Frame(janela_cred, bg=self.co0)
+        frame_botoes.pack(pady=15)
+        
+        ttk.Button(frame_botoes, text="Confirmar", command=confirmar).pack(side=tk.LEFT, padx=5)
+        ttk.Button(frame_botoes, text="Cancelar", command=cancelar).pack(side=tk.LEFT, padx=5)
+        
+        # Enter para confirmar
+        entry_senha.bind('<Return>', lambda e: confirmar())
+        
+        # Aguardar janela fechar
+        janela_cred.wait_window()
+        
+        return resultado['credenciais']
+        janela_cred.grab_set()
+        janela_cred.configure(bg=self.co0)
+        
+        # Centralizar
+        janela_cred.update_idletasks()
+        x = (janela_cred.winfo_screenwidth() // 2) - 200
+        y = (janela_cred.winfo_screenheight() // 2) - 100
+        janela_cred.geometry(f'400x200+{x}+{y}')
+        
+        # Variáveis
+        usuario_var = tk.StringVar(value=getattr(config, 'GEDUC_DEFAULT_USER', ''))
+        senha_var = tk.StringVar(value=getattr(config, 'GEDUC_DEFAULT_PASS', ''))
+        resultado = {'credenciais': None}
+        
+        # Campos
+        tk.Label(janela_cred, text="Usuário GEDUC:", bg=self.co0, font=("Arial", 10)).pack(pady=(20, 5))
+        entry_usuario = tk.Entry(janela_cred, textvariable=usuario_var, width=30, font=("Arial", 10))
+        entry_usuario.pack(pady=5)
+        
+        tk.Label(janela_cred, text="Senha:", bg=self.co0, font=("Arial", 10)).pack(pady=(10, 5))
+        entry_senha = tk.Entry(janela_cred, textvariable=senha_var, show="*", width=30, font=("Arial", 10))
+        entry_senha.pack(pady=5)
+        
+        def confirmar():
+            if not usuario_var.get() or not senha_var.get():
+                messagebox.showwarning("Atenção", "Preencha usuário e senha!", parent=janela_cred)
+                return
+            
+            resultado['credenciais'] = {
+                'usuario': usuario_var.get(),
+                'senha': senha_var.get()
+            }
+            janela_cred.destroy()
+        
+        def cancelar():
+            janela_cred.destroy()
+        
+        # Botões
+        frame_botoes = tk.Frame(janela_cred, bg=self.co0)
+        frame_botoes.pack(pady=20)
+        
+        ttk.Button(frame_botoes, text="Confirmar", command=confirmar).pack(side=tk.LEFT, padx=5)
+        ttk.Button(frame_botoes, text="Cancelar", command=cancelar).pack(side=tk.LEFT, padx=5)
+        
+        # Enter para confirmar
+        entry_senha.bind('<Return>', lambda e: confirmar())
+        
+        # Aguardar janela fechar
+        janela_cred.wait_window()
+        
+        return resultado['credenciais']
+    
+    def _salvar_horarios_geduc_bd(self, dados_horario, log_callback=None):
+        """Salva horários extraídos do GEDUC no banco de dados"""
+        try:
+            conn = conectar_bd()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            
+            horarios = dados_horario.get('horarios', [])
+            turma_id_geduc = dados_horario.get('turma_id')
+            
+            if log_callback:
+                log_callback(f"  → Processando {len(horarios)} horários...")
+            
+            # Buscar nivel_id da turma para filtrar disciplinas corretas
+            nivel_id = None
+            escola_id = 60  # ID da escola
+            
+            cursor.execute("""
+                SELECT s.nivel_id 
+                FROM turmas t
+                JOIN series s ON t.serie_id = s.id
+                WHERE t.id = %s
+            """, (self.turma_id,))
+            resultado_nivel = cursor.fetchone()
+            if resultado_nivel:
+                nivel_id = resultado_nivel[0]
+            
+            salvos = 0
+            
+            for horario in horarios:
+                dia = horario['dia']
+                hora = horario['horario']
+                disciplina_nome = horario['disciplina']
+                professor_nome = horario.get('professor')
+                
+                # Ajustar linha para o intervalo (linha 4 é intervalo)
+                # GEDUC Linha 1-3 → Local Linha 1-3
+                # GEDUC Linha 4+ → Local Linha 5+ (pula linha 4 que é intervalo)
+                if hora.startswith('Linha '):
+                    try:
+                        num_linha = int(hora.split()[1])
+                        if num_linha >= 4:
+                            # Desloca linhas 4, 5, 6... para 5, 6, 7...
+                            num_linha += 1
+                        hora = f'Linha {num_linha}'
+                    except:
+                        pass  # Se não conseguir converter, mantém original
+                
+                # Buscar ID da disciplina com escola_id e nivel_id corretos
+                disciplina_id = None
+                if nivel_id:
+                    cursor.execute(
+                        "SELECT id FROM disciplinas WHERE nome LIKE %s AND escola_id = %s AND nivel_id = %s LIMIT 1", 
+                        (f"%{disciplina_nome}%", escola_id, nivel_id)
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT id FROM disciplinas WHERE nome LIKE %s AND escola_id = %s LIMIT 1", 
+                        (f"%{disciplina_nome}%", escola_id)
+                    )
+                resultado_disc = cursor.fetchone()
+                if resultado_disc:
+                    disciplina_id = resultado_disc[0]
+                
+                # Buscar ID do professor (funcionario_id) da tabela funcionario_disciplinas
+                # baseado na disciplina_id e turma_id
+                professor_id = None
+                if disciplina_id:
+                    cursor.execute(
+                        "SELECT funcionario_id FROM funcionario_disciplinas WHERE disciplina_id = %s AND turma_id = %s LIMIT 1", 
+                        (disciplina_id, self.turma_id)
+                    )
+                    resultado_prof = cursor.fetchone()
+                    if resultado_prof:
+                        professor_id = resultado_prof[0]
+                
+                # Valor combinado para exibição
+                valor = disciplina_nome
+                if professor_nome:
+                    valor = f"{disciplina_nome}\n{professor_nome}"
+                
+                # Inserir ou atualizar horário
+                sql = """
+                    INSERT INTO horarios_importados 
+                    (turma_id, dia, horario, valor, disciplina_id, professor_id, geduc_turma_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                    valor = VALUES(valor),
+                    disciplina_id = VALUES(disciplina_id),
+                    professor_id = VALUES(professor_id),
+                    geduc_turma_id = VALUES(geduc_turma_id)
+                """
+                
+                cursor.execute(sql, (
+                    self.turma_id,
+                    dia,
+                    hora,
+                    valor,
+                    disciplina_id,
+                    professor_id,
+                    turma_id_geduc
+                ))
+                
+                salvos += 1
+            
+            conn.commit()
+            
+            if log_callback:
+                log_callback(f"  ✓ {salvos} horários salvos no banco de dados")
+            
+            cursor.close()
+            conn.close()
+            
+            return True
+            
+        except Exception as e:
+            logger.exception("Erro ao salvar horários no BD")
+            if log_callback:
+                log_callback(f"  ✗ Erro: {str(e)}")
+            return False
 
 
 # Se o arquivo for executado diretamente

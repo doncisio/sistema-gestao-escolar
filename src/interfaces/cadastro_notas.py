@@ -20,7 +20,7 @@ from auth.decorators import requer_permissao
 from banco_questoes.resposta_service import RespostaService
 from pathlib import Path
 from src.importers.local_horarios import build_local_map_from_folder, _normalize_key
-from typing import List, Any, Optional
+from typing import List, Any, Optional, Dict
 
 class InterfaceCadastroEdicaoNotas:
     def __init__(self, root=None, aluno_id=None, janela_principal=None):
@@ -2235,19 +2235,20 @@ class InterfaceCadastroEdicaoNotas:
         """Abre janela para solicitar credenciais do GEDUC"""
         janela_cred = tk.Toplevel(self.janela)
         janela_cred.title("Credenciais GEDUC")
-        janela_cred.geometry("400x200")
+        janela_cred.geometry("400x270")
         janela_cred.resizable(False, False)
         janela_cred.grab_set()
         
         # Centralizar
         janela_cred.update_idletasks()
         x = (janela_cred.winfo_screenwidth() // 2) - (400 // 2)
-        y = (janela_cred.winfo_screenheight() // 2) - (200 // 2)
-        janela_cred.geometry(f'400x200+{x}+{y}')
+        y = (janela_cred.winfo_screenheight() // 2) - (270 // 2)
+        janela_cred.geometry(f'400x270+{x}+{y}')
         
         # Variáveis
         usuario_var = tk.StringVar(value=getattr(config, 'GEDUC_DEFAULT_USER', ''))
         senha_var = tk.StringVar(value=getattr(config, 'GEDUC_DEFAULT_PASS', ''))
+        ano_var = tk.StringVar(value='2025')  # Ano padrão
         resultado = {}
         resultado['confirmado'] = False
         
@@ -2277,6 +2278,12 @@ class InterfaceCadastroEdicaoNotas:
         entry_senha = tk.Entry(frame_campos, textvariable=senha_var, width=25, show="*")
         entry_senha.grid(row=1, column=1, pady=5)
         
+        tk.Label(frame_campos, text="Ano Letivo:", width=10, anchor="w").grid(row=2, column=0, pady=5)
+        anos_disponiveis = ['2024', '2025', '2026']
+        ano_cb = ttk.Combobox(frame_campos, textvariable=ano_var, values=anos_disponiveis, 
+                              width=23, state="readonly")
+        ano_cb.grid(row=2, column=1, pady=5)
+        
         # Botões
         frame_botoes = tk.Frame(janela_cred)
         frame_botoes.pack(pady=10)
@@ -2288,11 +2295,16 @@ class InterfaceCadastroEdicaoNotas:
             resultado['confirmado'] = True
             resultado['usuario'] = usuario_var.get()
             resultado['senha'] = senha_var.get()
+            resultado['ano_letivo'] = int(ano_var.get())
             janela_cred.destroy()
         
         def cancelar():
             resultado['confirmado'] = False
             janela_cred.destroy()
+        
+        # Botões
+        frame_botoes = tk.Frame(janela_cred)
+        frame_botoes.pack(pady=10)
         
         tk.Button(
             frame_botoes,
@@ -2320,7 +2332,8 @@ class InterfaceCadastroEdicaoNotas:
         if resultado['confirmado']:
             return {
                 'usuario': resultado['usuario'],
-                'senha': resultado['senha']
+                'senha': resultado['senha'],
+                'ano_letivo': resultado.get('ano_letivo', 2025)
             }
         return None
     
@@ -2409,6 +2422,14 @@ class InterfaceCadastroEdicaoNotas:
                 return
             
             log("✓ Login realizado")
+            
+            # Mudar ano letivo
+            ano_letivo = credenciais.get('ano_letivo', 2025)
+            log(f"\n→ Mudando para ano letivo {ano_letivo}...")
+            if not automacao.mudar_ano_letivo(ano_letivo):
+                log(f"⚠️ Não foi possível mudar para {ano_letivo}, continuando...")
+            else:
+                log(f"✓ Ano letivo alterado para {ano_letivo}")
             
             # Acessar registro de notas
             log("\n→ Acessando registro de notas...")
@@ -3146,6 +3167,14 @@ class InterfaceCadastroEdicaoNotas:
                 return
             
             log("✓ Login realizado")
+            
+            # Mudar ano letivo
+            ano_letivo = credenciais.get('ano_letivo', 2025)
+            log(f"\n→ Mudando para ano letivo {ano_letivo}...")
+            if not automacao.mudar_ano_letivo(ano_letivo):
+                log(f"⚠️ Não foi possível mudar para {ano_letivo}, continuando...")
+            else:
+                log(f"✓ Ano letivo alterado para {ano_letivo}")
             
             # Acessar página de recuperação bimestral
             log("\n→ Acessando recuperação bimestral...")

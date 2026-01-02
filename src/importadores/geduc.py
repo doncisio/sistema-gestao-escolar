@@ -251,6 +251,158 @@ class AutomacaoGEDUC:
             logger.exception("✗ Erro durante login: %s", e)
             return False
     
+    def mudar_ano_letivo(self, ano_letivo: int = 2025):
+        """
+        Muda o ano letivo no GEDUC após o login
+        
+        Args:
+            ano_letivo: Ano letivo desejado (ex: 2025, 2026)
+        """
+        if self.driver is None:
+            logger.error("✗ Erro: navegador não iniciado")
+            return False
+        
+        try:
+            logger.info(f"→ Mudando para ano letivo {ano_letivo}...")
+            
+            # Acessar página de mudança de ano
+            self.driver.get(f"{self.url_base}/index.php?class=AltAnoletivo")
+            
+            # Aguardar carregamento
+            wait = WebDriverWait(self.driver, 10)
+            time.sleep(2)
+            
+            ano_selecionado = False
+            
+            # ESTRATÉGIA 1: Procurar campo de input/select para preencher
+            try:
+                logger.info(f"  → Tentativa 1: Procurando campo de entrada para digitar o ano...")
+                
+                # Tentar encontrar input de texto
+                inputs_texto = self.driver.find_elements(By.XPATH, "//input[@type='text' or @type='number' or not(@type)]")
+                if inputs_texto:
+                    logger.info(f"    ✓ Encontrados {len(inputs_texto)} campo(s) de entrada")
+                    for idx, campo in enumerate(inputs_texto):
+                        try:
+                            # Limpar campo e preencher com o ano
+                            campo.clear()
+                            campo.send_keys(str(ano_letivo))
+                            logger.info(f"    ✓ Ano {ano_letivo} digitado no campo {idx+1}")
+                            
+                            # Pressionar ENTER
+                            from selenium.webdriver.common.keys import Keys
+                            campo.send_keys(Keys.RETURN)
+                            logger.info(f"    ✓ ENTER pressionado")
+                            time.sleep(3)
+                            
+                            ano_selecionado = True
+                            break
+                        except Exception as e:
+                            logger.warning(f"    ⚠ Erro no campo {idx+1}: {e}")
+                            continue
+                
+                # Se não encontrou input, tentar select
+                if not ano_selecionado:
+                    selects = self.driver.find_elements(By.TAG_NAME, "select")
+                    if selects:
+                        logger.info(f"    ✓ Encontrados {len(selects)} campo(s) select")
+                        for idx, select_elem in enumerate(selects):
+                            try:
+                                select = Select(select_elem)
+                                # Tentar selecionar por valor
+                                try:
+                                    select.select_by_value(str(ano_letivo))
+                                    logger.info(f"    ✓ Ano {ano_letivo} selecionado no select {idx+1} (por valor)")
+                                    time.sleep(2)
+                                    ano_selecionado = True
+                                    break
+                                except:
+                                    # Tentar selecionar por texto visível
+                                    select.select_by_visible_text(str(ano_letivo))
+                                    logger.info(f"    ✓ Ano {ano_letivo} selecionado no select {idx+1} (por texto)")
+                                    time.sleep(2)
+                                    ano_selecionado = True
+                                    break
+                            except Exception as e:
+                                logger.warning(f"    ⚠ Erro no select {idx+1}: {e}")
+                                continue
+            except Exception as e:
+                logger.warning(f"  ✗ Estratégia 1 falhou: {e}")
+            
+            # ESTRATÉGIA 2: Procurar links diretos com o ano
+            if not ano_selecionado:
+                try:
+                    logger.info(f"  → Tentativa 2: Procurando link direto com ano {ano_letivo}...")
+                    xpath_link = f"//a[contains(text(), '{ano_letivo}')]"
+                    elementos = self.driver.find_elements(By.XPATH, xpath_link)
+                    
+                    if elementos:
+                        logger.info(f"    ✓ Encontrados {len(elementos)} link(s) com o ano")
+                        for idx, elemento in enumerate(elementos):
+                            try:
+                                texto = elemento.text.strip()
+                                logger.info(f"    → Tentando clicar em: '{texto}'")
+                                
+                                # Tentar click normal
+                                try:
+                                    elemento.click()
+                                    logger.info(f"    ✓ Click bem-sucedido")
+                                    time.sleep(2)
+                                    ano_selecionado = True
+                                    break
+                                except:
+                                    # Tentar JavaScript click
+                                    self.driver.execute_script("arguments[0].click();", elemento)
+                                    logger.info(f"    ✓ Click via JavaScript bem-sucedido")
+                                    time.sleep(2)
+                                    ano_selecionado = True
+                                    break
+                            except Exception as e:
+                                logger.warning(f"    ⚠ Erro ao clicar no elemento {idx+1}: {e}")
+                                continue
+                except Exception as e:
+                    logger.warning(f"  ✗ Estratégia 2 falhou: {e}")
+            
+            # ESTRATÉGIA 3: Procurar botões/divs clicáveis
+            if not ano_selecionado:
+                try:
+                    logger.info(f"  → Tentativa 3: Procurando outros elementos clicáveis...")
+                    xpath_geral = f"//*[contains(text(), '{ano_letivo}') and (self::div or self::button or self::span)]"
+                    elementos = self.driver.find_elements(By.XPATH, xpath_geral)
+                    
+                    if elementos:
+                        logger.info(f"    ✓ Encontrados {len(elementos)} elemento(s) clicáveis")
+                        for elemento in elementos:
+                            try:
+                                self.driver.execute_script("arguments[0].click();", elemento)
+                                logger.info(f"    ✓ Click bem-sucedido em: {elemento.tag_name}")
+                                time.sleep(2)
+                                ano_selecionado = True
+                                break
+                            except Exception as e:
+                                logger.warning(f"    ⚠ Erro ao clicar: {e}")
+                                continue
+                except Exception as e:
+                    logger.warning(f"  ✗ Estratégia 3 falhou: {e}")
+            
+            if ano_selecionado:
+                logger.info(f"✓ Ano letivo alterado para {ano_letivo}")
+                return True
+            else:
+                logger.error(f"✗ Não foi possível selecionar o ano {ano_letivo}")
+                # Salvar screenshot para debug
+                try:
+                    screenshot_path = f"erro_ano_letivo_{ano_letivo}.png"
+                    self.driver.save_screenshot(screenshot_path)
+                    logger.info(f"  Screenshot salvo em: {screenshot_path}")
+                except:
+                    pass
+                return False
+                
+        except Exception as e:
+            logger.exception(f"✗ Erro ao mudar ano letivo: %s", e)
+            return False
+    
     def acessar_registro_notas(self):
         """
         Navega até a página de registro de notas
@@ -999,6 +1151,372 @@ class AutomacaoGEDUC:
         logger.warning("⚠️ Aviso: Os arquivos já foram salvos automaticamente durante a extração")
         return []
     
+    def acessar_lista_horarios(self):
+        """
+        Navega até a página de lista de horários de turmas
+        """
+        try:
+            assert self.driver is not None, "navegador não iniciado"
+            logger.info("→ Navegando para lista de horários...")
+            
+            # URL da página de lista de horários
+            self.driver.get(f"{self.url_base}/index.php?class=TurmaHorariosList")
+            
+            # Aguardar mais tempo após mudança de ano
+            time.sleep(3)
+            
+            # Aguardar carregamento da tabela com timeout maior
+            wait = WebDriverWait(self.driver, 30)
+            
+            # Tentar localizar a tabela de diferentes formas
+            tabela_encontrada = False
+            
+            try:
+                # Tentar pela classe tdatagrid_body
+                wait.until(EC.presence_of_element_located((By.CLASS_NAME, "tdatagrid_body")))
+                tabela_encontrada = True
+                logger.info("✓ Tabela encontrada pela classe 'tdatagrid_body'")
+            except TimeoutException:
+                logger.warning("⚠ Classe 'tdatagrid_body' não encontrada, tentando outras formas...")
+                
+                # Tentar por tag table
+                try:
+                    wait.until(EC.presence_of_element_located((By.TAG_NAME, "table")))
+                    tabela_encontrada = True
+                    logger.info("✓ Tabela encontrada pela tag <table>")
+                except TimeoutException:
+                    logger.warning("⚠ Nenhuma tabela encontrada")
+            
+            if tabela_encontrada:
+                logger.info("✓ Página de lista de horários carregada")
+                return True
+            else:
+                # Verificar se há mensagem de "sem dados"
+                html = self.driver.page_source
+                if "Nenhum registro encontrado" in html or "sem dados" in html.lower():
+                    logger.warning("⚠ Página carregada mas não há horários cadastrados para este ano")
+                else:
+                    logger.error("✗ Não foi possível localizar tabela de horários")
+                    
+                # Salvar screenshot para análise
+                try:
+                    screenshot_path = "erro_lista_horarios.png"
+                    self.driver.save_screenshot(screenshot_path)
+                    logger.info(f"  Screenshot salvo em: {screenshot_path}")
+                except:
+                    pass
+                
+                return False
+            
+        except Exception as e:
+            logger.exception("✗ Erro ao acessar lista de horários: %s", e)
+            # Salvar screenshot do erro
+            try:
+                if self.driver:
+                    screenshot_path = "erro_lista_horarios_exception.png"
+                    self.driver.save_screenshot(screenshot_path)
+                    logger.info(f"  Screenshot salvo em: {screenshot_path}")
+            except:
+                pass
+            return False
+    
+    def extrair_horario_turma(self, turma_nome: str) -> Optional[dict]:
+        """
+        Extrai o horário de uma turma específica do GEDUC
+        
+        Args:
+            turma_nome: Nome da turma a buscar (ex: "1º ANO-MATU", "6º ANO-VESP - A")
+            
+        Returns:
+            Dict com estrutura:
+            {
+                'turma_nome': str,
+                'turma_id': int ou None,
+                'horarios': [
+                    {
+                        'dia': str,  # Segunda, Terça, etc
+                        'horario': str,  # Linha da tabela (1-6)
+                        'disciplina': str,  # Nome da disciplina
+                        'professor': str ou None  # Nome do professor se disponível
+                    }
+                ]
+            }
+        """
+        try:
+            assert self.driver is not None, "navegador não iniciado"
+            
+            # Acessar lista de horários se ainda não estiver nela
+            if "TurmaHorariosList" not in self.driver.current_url:
+                if not self.acessar_lista_horarios():
+                    return None
+            
+            wait = WebDriverWait(self.driver, 10)
+            
+            # Procurar turma na lista e obter link
+            logger.info(f"→ Procurando turma: {turma_nome}")
+            html = self.driver.page_source
+            soup = BeautifulSoup(html, 'html.parser')
+            
+            # Encontrar linha com nome da turma na coluna correta
+            turma_encontrada = False
+            turma_id = None
+            link_horario = None
+            
+            # Procurar na tabela
+            tbody = soup.find('tbody')
+            if tbody:
+                for tr in tbody.find_all('tr'):
+                    tds = tr.find_all('td', class_='tdatagrid_cell')
+                    
+                    # A estrutura é: [acao1, acao2, codigo, serie, TURMA, turno, escola, ano]
+                    # Índice 4 = coluna "Turma" (0-based: acao1=0, acao2=1, cod=2, serie=3, turma=4)
+                    if len(tds) >= 5:
+                        coluna_turma = tds[4]  # 5ª coluna (índice 4)
+                        texto_turma = coluna_turma.get_text(strip=True)
+                        
+                        # Comparar com nome procurado
+                        if turma_nome.upper() in texto_turma.upper() or texto_turma.upper() in turma_nome.upper():
+                            # Extrair ID do href
+                            href = coluna_turma.get('href', '')
+                            if 'IDTURMA=' in href:
+                                import re
+                                match = re.search(r'IDTURMA=(\d+)', href)
+                                if match:
+                                    turma_id = match.group(1)
+                                    # Construir URL do formulário de horário
+                                    link_horario = f"{self.url_base}/index.php?class=QuadhorariosemanalList&method=onReload&key={turma_id}&IDTURMA={turma_id}"
+                                    logger.info(f"  ✓ Turma encontrada: '{texto_turma}' (ID: {turma_id})")
+                                    turma_encontrada = True
+                                    break
+            
+            if not turma_encontrada:
+                logger.warning(f"  ✗ Turma não encontrada: {turma_nome}")
+                # Listar turmas disponíveis para debug
+                logger.info("  Turmas disponíveis na página:")
+                if tbody:
+                    for tr in tbody.find_all('tr')[:5]:  # Primeiras 5 turmas
+                        tds = tr.find_all('td', class_='tdatagrid_cell')
+                        if len(tds) >= 5:
+                            logger.info(f"    - {tds[4].get_text(strip=True)}")
+                return None
+            
+            # Passo 1: Acessar lista de semanas para a turma
+            logger.info(f"  → Acessando lista de semanas da turma...")
+            self.driver.get(link_horario)
+            time.sleep(3)
+            
+            # Passo 2: Procurar link de edição na lista de semanas
+            html = self.driver.page_source
+            soup = BeautifulSoup(html, 'html.parser')
+            
+            # Procurar links de edição (ícone de editar ou visualizar)
+            link_editar = None
+            for a in soup.find_all('a', href=True):
+                href = a['href']
+                # Procurar link que tenha QuadhorariosemanalForm com onEdit ou onView
+                if 'QuadhorariosemanalForm' in href and ('onEdit' in href or 'onView' in href or 'onReload' in href):
+                    if 'IDHORARIOSEMANAL' in href or 'key=' in href:
+                        link_editar = href
+                        if not link_editar.startswith('http'):
+                            if link_editar.startswith('index.php'):
+                                link_editar = f"{self.url_base}/{link_editar}"
+                            else:
+                                link_editar = f"{self.url_base}/{link_editar}"
+                        logger.info(f"  → Link de edição encontrado: {link_editar[:100]}...")
+                        break
+            
+            # Se não encontrou link na lista, tentar pegar a primeira semana da tabela
+            if not link_editar:
+                logger.warning("  ⚠ Link de edição não encontrado na lista de semanas")
+                # Procurar tabela com semanas
+                tbody = soup.find('tbody')
+                if tbody:
+                    primeira_linha = tbody.find('tr')
+                    if primeira_linha:
+                        # Procurar link de ação (ícone de editar/visualizar)
+                        link_acao = primeira_linha.find('a', href=True)
+                        if link_acao:
+                            href = link_acao['href']
+                            # Este deve ser o link para visualizar os horários daquela semana
+                            if not href.startswith('http'):
+                                if href.startswith('index.php'):
+                                    href = f"{self.url_base}/{href}"
+                                else:
+                                    href = f"{self.url_base}/{href}"
+                            logger.info(f"  → Usando link da primeira semana: {href[:100]}...")
+                            link_editar = href
+            
+            if not link_editar:
+                logger.error("  ✗ Não foi possível encontrar link para horários")
+                # Salvar HTML para debug
+                try:
+                    with open('geduc_lista_semanas.html', 'w', encoding='utf-8') as f:
+                        f.write(html)
+                    logger.info("  → HTML da lista de semanas salvo em geduc_lista_semanas.html")
+                except:
+                    pass
+                return None
+            
+            # Passo 3: Acessar formulário de horário semanal
+            logger.info(f"  → Acessando formulário de horário...")
+            self.driver.get(link_editar)
+            time.sleep(3)
+            
+            # Extrair dados da tabela de horários
+            html = self.driver.page_source
+            soup = BeautifulSoup(html, 'html.parser')
+            
+            # Salvar HTML para debug
+            try:
+                with open('geduc_horario_formulario.html', 'w', encoding='utf-8') as f:
+                    f.write(html)
+                logger.info("  → HTML do formulário salvo em geduc_horario_formulario.html")
+            except:
+                pass
+            
+            # Encontrar tabela (com border="1px")
+            tabela = soup.find('table', border=True)
+            if not tabela:
+                logger.warning("  ✗ Tabela de horários não encontrada")
+                # Tentar encontrar qualquer tabela
+                tabelas = soup.find_all('table')
+                logger.info(f"  → Encontradas {len(tabelas)} tabelas no total")
+                if tabelas:
+                    tabela = tabelas[0]
+                    logger.info("  → Usando primeira tabela encontrada")
+                else:
+                    return None
+            
+            horarios_extraidos = []
+            
+            # A primeira linha tem os dias da semana
+            linhas = tabela.find_all('tr')
+            if len(linhas) < 2:
+                logger.warning("  ✗ Tabela vazia")
+                return None
+            
+            # Extrair dias da primeira linha
+            primeira_linha = linhas[0]
+            dias_semana = []
+            for td in primeira_linha.find_all('td'):
+                dia = td.get_text(strip=True)
+                if dia:
+                    dias_semana.append(dia)
+            
+            logger.info(f"  → Dias encontrados: {dias_semana}")
+            
+            # Debug: mostrar número de linhas na tabela
+            logger.info(f"  → Total de linhas na tabela: {len(linhas)}")
+            
+            # Mapear dias do GEDUC para nomes padrão
+            mapa_dias = {
+                'Domingo': 'Domingo',
+                'Segunda': 'Segunda',
+                'Terça': 'Terça',
+                'Quarta': 'Quarta',
+                'Quinta': 'Quinta',
+                'Sexta': 'Sexta',
+                'Sábado': 'Sábado'
+            }
+            
+            # Processar linhas de horário (índices 1 em diante)
+            for idx_linha, linha in enumerate(linhas[1:], 1):
+                celulas = linha.find_all('td')
+                logger.info(f"  → Linha {idx_linha}: {len(celulas)} células")
+                
+                if not celulas or len(celulas) != 7:
+                    logger.warning(f"    ⚠ Linha {idx_linha} pulada: esperadas 7 células, encontradas {len(celulas)}")
+                    continue
+                
+                # Para cada dia (célula)
+                for idx_dia, celula in enumerate(celulas):
+                    if idx_dia >= len(dias_semana):
+                        break
+                    
+                    dia_original = dias_semana[idx_dia]
+                    dia = mapa_dias.get(dia_original, dia_original)
+                    
+                    # Ignorar Domingo e Sábado
+                    if dia in ['Domingo', 'Sábado']:
+                        continue
+                    
+                    # Tentar extrair disciplina
+                    disciplina = None
+                    
+                    # 1. Link (disciplina já cadastrada)
+                    link = celula.find('a')
+                    if link:
+                        disciplina = link.get_text(strip=True)
+                        logger.info(f"    → Linha {idx_linha}, Dia {dia}: encontrado link com '{disciplina}'")
+                        
+                        # Se encontrou disciplina válida, adicionar
+                        if disciplina and disciplina not in ['', '-', 'Intervalo']:
+                            horarios_extraidos.append({
+                                'dia': dia,
+                                'horario': f"Linha {idx_linha}",  # Usar índice da linha
+                                'disciplina': disciplina,
+                                'professor': None
+                            })
+                            logger.info(f"    ✓ Horário adicionado: {dia} - {disciplina}")
+                    else:
+                        # Apenas loga se não tem link
+                        logger.info(f"    → Linha {idx_linha}, Dia {dia}: sem disciplina cadastrada")
+            
+            logger.info(f"  ✓ Extraídos {len(horarios_extraidos)} horários")
+            
+            return {
+                'turma_nome': turma_nome,
+                'turma_id': int(turma_id) if turma_id and str(turma_id).isdigit() else None,
+                'horarios': horarios_extraidos,
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            
+        except Exception as e:
+            logger.exception("✗ Erro ao extrair horário: %s", e)
+            return None
+    
+    def listar_turmas_disponiveis(self) -> list:
+        """
+        Lista todas as turmas disponíveis na página de lista de horários
+        
+        Returns:
+            Lista de dicts com 'id' e 'nome' das turmas
+        """
+        try:
+            assert self.driver is not None, "navegador não iniciado"
+            
+            # Acessar lista de horários se ainda não estiver nela
+            if "TurmaHorariosList" not in self.driver.current_url:
+                if not self.acessar_lista_horarios():
+                    return []
+            
+            # Extrair turmas da tabela
+            html = self.driver.page_source
+            soup = BeautifulSoup(html, 'html.parser')
+            
+            turmas = []
+            for td in soup.find_all('td', class_='tdatagrid_cell'):
+                href = td.get('href', '')
+                if 'IDTURMA=' in href:
+                    import re
+                    match = re.search(r'IDTURMA=(\d+)', href)
+                    if match:
+                        turma_id = match.group(1)
+                        turma_nome = td.get_text(strip=True)
+                        
+                        # Evitar duplicatas
+                        if not any(t['id'] == turma_id for t in turmas):
+                            turmas.append({
+                                'id': turma_id,
+                                'nome': turma_nome
+                            })
+            
+            logger.info(f"✓ Encontradas {len(turmas)} turmas disponíveis")
+            return turmas
+            
+        except Exception as e:
+            logger.exception("✗ Erro ao listar turmas: %s", e)
+            return []
 
     
     def fechar(self):
