@@ -46,9 +46,11 @@ if _root_config:
     modo_debug = _root_config.modo_debug
     coordenadores_series_map = _root_config.coordenadores_series_map
     coordenador_series_para_usuario = _root_config.coordenador_series_para_usuario
+    get_ano_letivo_atual = _root_config.get_ano_letivo_atual
     
     # Re-export constants
     ESCOLA_ID = _root_config.ESCOLA_ID
+    ANO_LETIVO_ATUAL = _root_config.ANO_LETIVO_ATUAL
     DEFAULT_DOCUMENTS_SECRETARIA_ROOT = _root_config.DEFAULT_DOCUMENTS_SECRETARIA_ROOT
     GEDUC_DEFAULT_USER = _root_config.GEDUC_DEFAULT_USER
     GEDUC_DEFAULT_PASS = _root_config.GEDUC_DEFAULT_PASS
@@ -72,7 +74,9 @@ if _root_config:
         'modo_debug',
         'coordenadores_series_map',
         'coordenador_series_para_usuario',
+        'get_ano_letivo_atual',
         'ESCOLA_ID',
+        'ANO_LETIVO_ATUAL',
         'DEFAULT_DOCUMENTS_SECRETARIA_ROOT',
         'GEDUC_DEFAULT_USER',
         'GEDUC_DEFAULT_PASS',
@@ -136,7 +140,11 @@ else:
     def coordenador_series_para_usuario(username):
         return None
     
+    def get_ano_letivo_atual():
+        return 2025
+    
     ESCOLA_ID = 60
+    ANO_LETIVO_ATUAL = 2025
     DEFAULT_DOCUMENTS_SECRETARIA_ROOT = r"G:\Meu Drive\Sistema Escolar - Documentos"
     GEDUC_DEFAULT_USER = ""
     GEDUC_DEFAULT_PASS = ""
@@ -156,7 +164,9 @@ else:
         'modo_debug',
         'coordenadores_series_map',
         'coordenador_series_para_usuario',
+        'get_ano_letivo_atual',
         'ESCOLA_ID',
+        'ANO_LETIVO_ATUAL',
         'DEFAULT_DOCUMENTS_SECRETARIA_ROOT',
         'GEDUC_DEFAULT_USER',
         'GEDUC_DEFAULT_PASS',

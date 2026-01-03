@@ -9,6 +9,10 @@ from typing import Optional
 # ID padrão da escola usado em consultas (substitua conforme necessário em produção)
 ESCOLA_ID = 60
 
+# Ano letivo atual do sistema (2025, pois 2026 ainda não começou)
+# Atualizar quando o ano letivo 2026 iniciar
+ANO_LETIVO_ATUAL = 2025
+
 # Configurações para integração GEDUC (por segurança manter vazias aqui em repositórios públicos)
 # Você pode preencher localmente ou usar variáveis de ambiente para ambientes de produção.
 GEDUC_DEFAULT_USER = ""
@@ -242,3 +246,21 @@ def get_ico_path(ico_name: str) -> Path:
     if not ico_name.endswith('.ico'):
         ico_name += '.ico'
     return ICO_DIR / ico_name
+
+
+# ============================================================================
+# ANO LETIVO
+# ============================================================================
+
+def get_ano_letivo_atual() -> int:
+    """
+    Retorna o ano letivo atual configurado no sistema.
+    
+    IMPORTANTE: Este valor deve ser atualizado manualmente quando 
+    o novo ano letivo iniciar. Por exemplo, em 2026 ainda usamos 
+    2025 até o início oficial do ano letivo 2026.
+    
+    Returns:
+        int: Ano letivo atual (ex: 2025)
+    """
+    return ANO_LETIVO_ATUAL

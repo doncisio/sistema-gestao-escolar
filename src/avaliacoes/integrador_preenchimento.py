@@ -126,24 +126,26 @@ class IntegradorPreenchimentoAutomatico:
         Abre janela para solicitar credenciais do GEDUC
         
         Returns:
-            dict com 'usuario' e 'senha' ou None se cancelado
+            dict com 'usuario', 'senha' e 'ano_letivo' ou None se cancelado
         """
         # Criar janela modal
         janela_cred = tk.Toplevel(self.interface.janela)
         janela_cred.title("Credenciais GEDUC")
-        janela_cred.geometry("400x200")
+        janela_cred.geometry("400x270")
         janela_cred.resizable(False, False)
         janela_cred.grab_set()
         
         # Centralizar
         janela_cred.update_idletasks()
         x = (janela_cred.winfo_screenwidth() // 2) - (400 // 2)
-        y = (janela_cred.winfo_screenheight() // 2) - (200 // 2)
-        janela_cred.geometry(f'400x200+{x}+{y}')
+        y = (janela_cred.winfo_screenheight() // 2) - (270 // 2)
+        janela_cred.geometry(f'400x270+{x}+{y}')
         
         # Variáveis com valores padrão preenchidos
+        from src.core.config import ANO_LETIVO_ATUAL
         usuario_var = tk.StringVar(value="01813518386")
         senha_var = tk.StringVar(value="01813518386")
+        ano_var = tk.StringVar(value=str(ANO_LETIVO_ATUAL))
         resultado: Dict[str, Any] = {'confirmado': False}
         
         # Conteúdo
@@ -172,6 +174,13 @@ class IntegradorPreenchimentoAutomatico:
         entry_senha = tk.Entry(frame_campos, textvariable=senha_var, width=25, show="*")
         entry_senha.grid(row=1, column=1, pady=5)
         
+        tk.Label(frame_campos, text="Ano Letivo:", width=10, anchor="w").grid(row=2, column=0, pady=5)
+        from tkinter import ttk
+        anos_disponiveis = ['2024', '2025', '2026']
+        ano_cb = ttk.Combobox(frame_campos, textvariable=ano_var, values=anos_disponiveis, 
+                              width=23, state="readonly")
+        ano_cb.grid(row=2, column=1, pady=5)
+        
         # Botões
         frame_botoes = tk.Frame(janela_cred)
         frame_botoes.pack(pady=10)
@@ -183,6 +192,7 @@ class IntegradorPreenchimentoAutomatico:
             resultado['confirmado'] = True
             resultado['usuario'] = usuario_var.get()
             resultado['senha'] = senha_var.get()
+            resultado['ano_letivo'] = int(ano_var.get())
             janela_cred.destroy()
         
         def cancelar():
@@ -218,7 +228,8 @@ class IntegradorPreenchimentoAutomatico:
         if resultado['confirmado']:
             return {
                 'usuario': resultado['usuario'],
-                'senha': resultado['senha']
+                'senha': resultado['senha'],
+                'ano_letivo': resultado.get('ano_letivo', 2025)
             }
         return None
     
@@ -288,6 +299,14 @@ class IntegradorPreenchimentoAutomatico:
                     "Erro", "Falha no login! Verifique suas credenciais."
                 ))
                 return
+            
+            # Mudar ano letivo
+            ano_letivo = credenciais.get('ano_letivo', 2025)
+            logger.info(f"→ Mudando para ano letivo {ano_letivo}...")
+            if not self.automacao.mudar_ano_letivo(ano_letivo):
+                logger.warning(f"⚠️ Não foi possível mudar para {ano_letivo}, continuando...")
+            else:
+                logger.info(f"✓ Ano letivo alterado para {ano_letivo}")
             
             # Acessar registro de notas
             logger.info("→ Acessando registro de notas...")

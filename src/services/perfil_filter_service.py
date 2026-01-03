@@ -11,7 +11,7 @@ Quando o sistema de perfis está habilitado:
 """
 
 from typing import List, Dict, Any, Optional
-from src.core.config import perfis_habilitados
+from src.core.config import perfis_habilitados, ANO_LETIVO_ATUAL
 from src.core.config_logs import get_logger
 from auth.usuario_logado import UsuarioLogado
 from db.connection import get_cursor
@@ -88,11 +88,11 @@ class PerfilFilterService:
                     WHERE fd.funcionario_id = %s
                     AND t.ano_letivo_id = (
                         SELECT id FROM anosletivos 
-                        WHERE YEAR(CURDATE()) = ano_letivo 
+                        WHERE ano_letivo = %s
                         LIMIT 1
                     )
                 """
-                cursor.execute(query, (funcionario_id,))
+                cursor.execute(query, (funcionario_id, ANO_LETIVO_ATUAL))
                 resultados = cursor.fetchall()
                 
                 turmas_ids = []

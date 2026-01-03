@@ -8,6 +8,7 @@ Extrai e centraliza a lógica de geração de boletins e documentos de transfer�
 from typing import Optional, Dict, Tuple
 import logging
 from db.connection import get_cursor
+from src.core.config import ANO_LETIVO_ATUAL
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +23,8 @@ def obter_ano_letivo_atual() -> Optional[int]:
     """
     try:
         with get_cursor() as cursor:
-            # Tentar ano corrente
-            cursor.execute("SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
+            # Tentar ano letivo atual configurado no sistema
+            cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = %s", (ANO_LETIVO_ATUAL,))
             resultado = cursor.fetchone()
             
             if resultado:

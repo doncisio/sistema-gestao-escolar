@@ -9,6 +9,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from tkinter import font as tkfont
 from src.core.conexao import conectar_bd
+from src.core.config import ANO_LETIVO_ATUAL
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -63,7 +64,7 @@ class RelatorioAnaliseNotas:
             conn: Any = conectar_bd()
             cursor = cast(Any, conn).cursor()
             
-            cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = YEAR(CURDATE())")
+            cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = %s", (ANO_LETIVO_ATUAL,))
             resultado = cursor.fetchone()
             
             if not resultado:

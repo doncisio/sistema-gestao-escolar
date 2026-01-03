@@ -7,6 +7,7 @@ from typing import Optional, Dict, List, Tuple
 from mysql.connector import Error as MySQLError
 import logging
 from db.connection import get_cursor
+from src.core.config import ANO_LETIVO_ATUAL
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,8 @@ def obter_ano_letivo_atual() -> Optional[int]:
     try:
         with get_cursor() as cursor:
             cursor.execute(
-                "SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo LIMIT 1"
+                "SELECT id FROM anosletivos WHERE ano_letivo = %s LIMIT 1",
+                (ANO_LETIVO_ATUAL,)
             )
             resultado = cursor.fetchone()
             

@@ -98,17 +98,18 @@ class ReportCallbacks:
             from src.relatorios.listas.lista_contatos import gerar_pdf_contatos
             from datetime import datetime
             from db.connection import get_cursor
+            from src.core.config import ANO_LETIVO_ATUAL
             
             # Obter o ano letivo atual (não o ID)
-            ano_letivo = datetime.now().year
+            ano_letivo = ANO_LETIVO_ATUAL
             try:
                 with get_cursor() as cursor:
-                    cursor.execute("SELECT ano_letivo FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo LIMIT 1")
+                    cursor.execute("SELECT ano_letivo FROM anosletivos WHERE ano_letivo = %s LIMIT 1", (ANO_LETIVO_ATUAL,))
                     resultado = cursor.fetchone()
                     if resultado:
                         ano_letivo = resultado['ano_letivo'] if isinstance(resultado, dict) else resultado[0]
             except Exception as e:
-                logger.warning(f"Erro ao buscar ano letivo, usando ano atual: {e}")
+                logger.warning(f"Erro ao buscar ano letivo, usando ano configurado: {e}")
             
             gerar_pdf_contatos(ano_letivo)
         except Exception as e:

@@ -85,8 +85,8 @@ def verificar_matricula_ativa(aluno_id: int) -> bool:
     
     try:
         with get_cursor() as cursor:
-            # Obtém o ID do ano letivo atual
-            cursor.execute("SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
+            # Obtém o ID do ano letivo atual configurado no sistema
+            cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = %s", (ANO_LETIVO_ATUAL,))
             resultado_ano = cursor.fetchone()
 
             if not resultado_ano:

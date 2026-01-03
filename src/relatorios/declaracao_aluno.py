@@ -16,6 +16,7 @@ from src.relatorios.gerar_pdf import salvar_e_abrir_pdf
 from src.utils.utilitarios.gerenciador_documentos import salvar_documento_sistema
 from src.utils.utilitarios.tipos_documentos import TIPO_DECLARACAO
 from src.core.config_logs import get_logger
+from src.core.config import ANO_LETIVO_ATUAL
 
 logger = get_logger(__name__)
 messagebox: Optional[ModuleType] = None
@@ -43,8 +44,8 @@ def obter_dados_escola(cursor, escola_id):
     return cursor.fetchone()
 
 def obter_dados_aluno(cursor, aluno_id):
-    # Primeiro tenta obter o ano letivo atual
-    cursor.execute("SELECT id FROM AnosLetivos WHERE ano_letivo = YEAR(CURDATE())")
+    # Primeiro tenta obter o ano letivo atual configurado no sistema
+    cursor.execute("SELECT id FROM AnosLetivos WHERE ano_letivo = %s", (ANO_LETIVO_ATUAL,))
     ano_atual = cursor.fetchone()
     
     if not ano_atual:
