@@ -16,7 +16,7 @@ def abrir_relatorio_avancado_com_assinatura(janela, status_label=None, co5="#003
     try:
         from src.ui.colors import COLORS
         janela_relatorio.configure(bg=COLORS.co0)
-        style = ttk.Style()
+        style = ttk.Style() 
         for th in ("clam", "alt", "default"):
             try:
                 style.theme_use(th)
