@@ -1,6 +1,7 @@
 from tkinter import Toplevel, StringVar, IntVar, BooleanVar, Frame, BOTH, W, Label, Radiobutton, Checkbutton, LEFT, X, RIGHT
 from tkinter import ttk, messagebox
 from src.relatorios.nota_ata import gerar_relatorio_notas_com_assinatura
+from src.core.config import ANO_LETIVO_ATUAL
 
 
 def abrir_relatorio_avancado_com_assinatura(janela, status_label=None, co5="#003A70", co0="#F5F5F5"):
@@ -31,7 +32,7 @@ def abrir_relatorio_avancado_com_assinatura(janela, status_label=None, co5="#003
     # Variáveis para armazenar as opções
     bimestre_var = StringVar(value="1º bimestre")
     nivel_var = StringVar(value="iniciais")
-    ano_letivo_var = StringVar(value="2025")
+    ano_letivo_var = StringVar(value=str(ANO_LETIVO_ATUAL))
     status_var = StringVar(value="Ativo")
     incluir_transferidos = BooleanVar(value=False)
     preencher_zeros = BooleanVar(value=False)

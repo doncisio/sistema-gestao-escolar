@@ -1010,16 +1010,31 @@ class ButtonFactory:
             messagebox.showerror("Erro", f"Erro ao abrir relatório: {e}")
     
     def _abrir_relatorio_pendencias(self):
-        """Wrapper para abrir relatório de pendências"""
+        """Wrapper para abrir relatório de pendências com tratamento específico de mensagens"""
         try:
             from src.ui.report_dialogs import abrir_relatorio_avancado
             from src.services.report_service import gerar_relatorio_pendencias
+            from tkinter import messagebox
 
             # Adaptador: a interface de relatório avançado passa (bimestre, nivel_ensino, ano_letivo,
             # status_matricula, preencher_nulos). O gerador de pendências espera (bimestre, nivel_ensino,
             # ano_letivo, escola_id). Ignoramos os parâmetros extras e usamos escola padrão.
             def _gerar_pendencias_adapter(bimestre, nivel_ensino, ano_letivo, status_matricula=None, preencher_nulos=False):
-                return gerar_relatorio_pendencias(bimestre=bimestre, nivel_ensino=nivel_ensino, ano_letivo=ano_letivo)
+                try:
+                    resultado = gerar_relatorio_pendencias(bimestre=bimestre, nivel_ensino=nivel_ensino, ano_letivo=ano_letivo)
+                    if not resultado:
+                        # Quando retorna False, significa que não há pendências
+                        nivel_texto = "séries iniciais" if nivel_ensino == "iniciais" else "séries finais"
+                        messagebox.showinfo(
+                            "Sem pendências", 
+                            f"Parabéns! Não há pendências de notas para o {bimestre} nas {nivel_texto}.\n\n"
+                            f"Todas as notas já foram lançadas para o ano letivo {ano_letivo}."
+                        )
+                    return resultado
+                except ValueError as e:
+                    # Quando há erro de turmas não encontradas, mostrar mensagem específica
+                    messagebox.showerror("Dados não encontrados", str(e))
+                    return False
 
             abrir_relatorio_avancado(janela_pai=self.janela, status_label=None, gerar_func=_gerar_pendencias_adapter)
         except Exception as e:

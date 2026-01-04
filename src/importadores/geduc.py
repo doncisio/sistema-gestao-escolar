@@ -616,6 +616,38 @@ class AutomacaoGEDUC:
             logger.exception("✗ Erro ao clicar em exibir alunos: %s", e)
             return False
     
+    def extrair_medias_bimestre(self, bimestre_numero):
+        """
+        Extrai apenas as MÉDIAS dos alunos para o bimestre especificado.
+        Retorna lista de alunos com nome e média.
+        
+        Args:
+            bimestre_numero: Número do bimestre (1, 2, 3 ou 4)
+        
+        Returns:
+            Lista de dicionários: [{'nome': 'NOME ALUNO', 'media': 85.0}, ...]
+        """
+        try:
+            # Extrair todas as notas
+            dados = self.extrair_notas_pagina_atual(bimestre_numero=bimestre_numero)
+            
+            if not dados or not dados.get('alunos'):
+                return []
+            
+            # Retornar apenas nome e média
+            medias = []
+            for aluno in dados['alunos']:
+                medias.append({
+                    'nome': aluno.get('nome', ''),
+                    'media': aluno.get('media', '')
+                })
+            
+            return medias
+            
+        except Exception as e:
+            logger.exception("Erro ao extrair médias do bimestre %s: %s", bimestre_numero, e)
+            return []
+    
     def extrair_notas_pagina_atual(self, turma_nome=None, disciplina_nome=None, bimestre_numero=None):
         """
         Extrai notas da página atual usando BeautifulSoup

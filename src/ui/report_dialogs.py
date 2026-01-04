@@ -49,7 +49,7 @@ def abrir_relatorio_avancado(janela_pai, status_label, gerar_func):
     # Variáveis para armazenar as opções
     bimestre_var = StringVar(value="1º bimestre")
     nivel_var = StringVar(value="iniciais")
-    ano_letivo_var = IntVar(value=2025)
+    ano_letivo_var = IntVar(value=ANO_LETIVO_ATUAL)
     status_var = StringVar(value="Ativo")
     incluir_transferidos = BooleanVar(value=False)
     preencher_zeros = BooleanVar(value=False)
@@ -139,10 +139,10 @@ def abrir_relatorio_avancado(janela_pai, status_label, gerar_func):
                 if status_label is not None:
                     status_label.config(text=f"Relatório gerado com sucesso!")
             else:
+                # A função já deve ter tratado a mensagem ao usuário
+                # Apenas atualizar o status label se houver
                 if status_label is not None:
                     status_label.config(text=f"Nenhum dado encontrado para o relatório.")
-                messagebox.showwarning("Sem dados", 
-                                      f"Não foram encontrados dados para o {bimestre} no nível {nivel}.")
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao gerar relatório: {str(e)}")
             if status_label is not None:

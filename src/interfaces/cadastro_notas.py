@@ -144,15 +144,15 @@ class InterfaceCadastroEdicaoNotas:
         self.menubar.add_cascade(label="🌐 GEDUC", menu=menu_geduc)
         
         menu_geduc.add_command(
-            label="🔄 Preencher do GEDUC",
-            command=self.abrir_preenchimento_automatico
+            label="🔄 Extrair Médias (Todas Turmas)",
+            command=self.extrair_medias_todas_turmas
         )
         menu_geduc.add_command(
-            label="📥 Extrair Todas Disciplinas",
+            label="📥 Extrair Disciplinas (Turma Única)",
             command=self.extrair_todas_disciplinas_geduc
         )
         menu_geduc.add_command(
-            label="📝 Recuperação Bimestral",
+            label="📝 Recuperação Bimestral (Todas)",
             command=self.processar_recuperacao_bimestral
         )
         
@@ -2109,6 +2109,65 @@ class InterfaceCadastroEdicaoNotas:
         self.criar_estatisticas()
         self.atualizar_estatisticas()
 
+    def extrair_medias_todas_turmas(self):
+        """
+        Extrai MÉDIAS de TODAS as turmas do bimestre selecionado do GEDUC
+        """
+        try:
+            import threading
+            from src.importadores.geduc import AutomacaoGEDUC
+            
+            # Validar seleção de bimestre
+            if not self.cb_bimestre.get():
+                messagebox.showerror("Erro", "Selecione um bimestre!")
+                return
+            
+            # Extrair número do bimestre
+            bimestre_texto = self.cb_bimestre.get()
+            bimestre_num = int(bimestre_texto.split('º')[0].strip())
+            
+            # Solicitar credenciais
+            credenciais = self._solicitar_credenciais_geduc()
+            if not credenciais:
+                return
+            
+            # Confirmar ação
+            msg = (
+                f"🔄 EXTRAÇÃO DE MÉDIAS - TODAS AS TURMAS\n\n"
+                f"📅 Bimestre: {bimestre_num}º\n\n"
+                f"⚙️ Este processo irá:\n"
+                f"1. Fazer login no GEDUC\n"
+                f"2. Buscar TODAS as turmas da escola\n"
+                f"3. Para cada turma, extrair TODAS as disciplinas\n"
+                f"4. Capturar apenas as MÉDIAS do bimestre\n"
+                f"5. Salvar DIRETO no banco de dados\n\n"
+                f"⏱️ Tempo estimado: 5-15 minutos\n\n"
+                f"⚠️ ATENÇÃO: Isso irá processar TODAS as turmas!\n\n"
+                f"Continuar?"
+            )
+            
+            if not messagebox.askyesno("Confirmar Extração de Médias", msg):
+                return
+            
+            # Criar janela de progresso
+            janela_progresso = self._criar_janela_progresso()
+            
+            # Executar em thread
+            def executar():
+                self._executar_extracao_medias_todas(
+                    credenciais,
+                    bimestre_num,
+                    janela_progresso
+                )
+            
+            thread = threading.Thread(target=executar, daemon=True)
+            thread.start()
+            
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao iniciar extração de médias:\n{str(e)}")
+            import traceback
+            traceback.print_exc()
+
     def abrir_preenchimento_automatico(self):
         """Abre o assistente de preenchimento automático do GEDUC"""
         try:
@@ -2382,6 +2441,297 @@ class InterfaceCadastroEdicaoNotas:
         janela.text_log_scrollbar = scrollbar
 
         return janela
+    
+    def _executar_extracao_medias_todas(self, credenciais, bimestre_num, janela_progresso):
+        """Executa a extração de médias de todas as turmas da interface"""
+        from src.importadores.geduc import AutomacaoGEDUC
+        import unicodedata
+        import time
+        import traceback
+        
+        def log(msg):
+            """Adiciona mensagem ao log"""
+            logger.info(msg)
+            try:
+                self.janela.after(0, lambda m=msg: (
+                    janela_progresso.text_log.insert(tk.END, m + "\n"),
+                    janela_progresso.text_log.see(tk.END)
+                ))
+            except Exception:
+                pass
+        
+        def normalizar_para_busca(texto):
+            """Normaliza nome para comparação (mesma lógica de extrair_todas_disciplinas_geduc)"""
+            texto = ''.join(c for c in unicodedata.normalize('NFD', texto)
+                           if unicodedata.category(c) != 'Mn')
+            texto = texto.replace('º', '').replace('ª', '').replace('-', ' ')
+            return ' '.join(texto.upper().split())
+        
+        automacao = None
+        try:
+            log("="*60)
+            log("EXTRAÇÃO DE MÉDIAS - TODAS AS TURMAS")
+            log("="*60)
+            
+            # Buscar TODAS as turmas do banco de dados (não apenas as da interface)
+            log("\n→ Buscando todas as turmas do sistema...")
+            conn = conectar_bd()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT t.id, s.nome, t.turno, COALESCE(t.nome, '')
+                FROM turmas t
+                JOIN series s ON t.serie_id = s.id
+                WHERE t.escola_id = %s AND t.ano_letivo_id = %s
+                ORDER BY s.nome, t.turno, t.nome
+            """, (config.ESCOLA_ID, self.ano_letivo_atual))
+            
+            turmas_db = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            if not turmas_db:
+                log("✗ Nenhuma turma encontrada no banco de dados")
+                self.janela.after(0, lambda: messagebox.showerror("Erro", "Nenhuma turma cadastrada!"))
+                return
+            
+            # Construir lista: [(nome_display, turma_id, serie, turno, letra), ...]
+            turmas_interface = []
+            for turma_id, serie_nome, turno, letra in turmas_db:
+                # Construir nome de exibição (igual ao formato da interface)
+                if letra:
+                    nome_display = f"{letra} - {turno}"
+                else:
+                    nome_display = f" - {turno}"
+                turmas_interface.append((nome_display, turma_id, serie_nome, turno, letra))
+            
+            log(f"✓ {len(turmas_interface)} turmas encontradas no banco de dados")
+            
+            # Iniciar automação
+            log("\n→ Iniciando navegador...")
+            automacao = AutomacaoGEDUC(headless=False)
+            
+            if not automacao.iniciar_navegador():
+                log("✗ Falha ao iniciar navegador")
+                self.janela.after(0, lambda: messagebox.showerror("Erro", "Falha ao iniciar navegador!"))
+                return
+            
+            log("✓ Navegador iniciado")
+            
+            # Login
+            log("\n→ Fazendo login no GEDUC...")
+            if not automacao.fazer_login(credenciais['usuario'], credenciais['senha'], timeout_recaptcha=120):
+                log("✗ Falha no login")
+                self.janela.after(0, lambda: messagebox.showerror("Erro", "Falha no login!"))
+                return
+            
+            log("✓ Login realizado")
+            
+            # Mudar ano letivo
+            ano_letivo = credenciais.get('ano_letivo', 2025)
+            log(f"\n→ Mudando para ano letivo {ano_letivo}...")
+            if not automacao.mudar_ano_letivo(ano_letivo):
+                log(f"⚠️ Não foi possível mudar para {ano_letivo}, continuando...")
+            else:
+                log(f"✓ Ano letivo alterado para {ano_letivo}")
+            
+            # Acessar página de notas
+            log("\n→ Acessando registro de notas...")
+            if not automacao.acessar_registro_notas():
+                log("✗ Falha ao acessar página")
+                return
+            
+            log("✓ Página de notas carregada")
+            
+            # Obter todas as turmas do GEDUC
+            log("\n→ Carregando turmas do GEDUC...")
+            turmas_geduc = automacao.obter_opcoes_select('IDTURMA')
+            log(f"✓ {len(turmas_geduc)} turmas no GEDUC")
+            
+            # Criar mapa de turmas GEDUC por nome normalizado
+            turmas_geduc_map = {}
+            for t in turmas_geduc:
+                nome_norm = normalizar_para_busca(t['text'])
+                turmas_geduc_map[nome_norm] = t
+            
+            # Estatísticas gerais
+            total_turmas_processadas = 0
+            total_disciplinas_processadas = 0
+            total_notas_salvas = 0
+            turmas_com_erro = []
+            
+            # Processar cada turma da interface
+            for idx, (turma_nome_completo, turma_local_id, serie_nome, turma_turno, turma_letra) in enumerate(turmas_interface, 1):
+                log(f"\n{'='*60}")
+                log(f"TURMA {idx}/{len(turmas_interface)}: {turma_nome_completo}")
+                log(f"{'='*60}")
+                
+                try:
+                    # Construir nome para busca no GEDUC (série + turno + letra)
+                    nome_busca_parts = [serie_nome, turma_turno]
+                    if turma_letra and turma_letra.strip():
+                        nome_busca_parts.append(turma_letra)
+                    nome_busca = ' '.join(nome_busca_parts)
+                    nome_busca_norm = normalizar_para_busca(nome_busca)
+                    
+                    log(f"→ Buscando no GEDUC: {nome_busca}")
+                    
+                    # Buscar turma no GEDUC
+                    turma_geduc = None
+                    turma_geduc_id = None
+                    
+                    # Tentativa 1: match exato
+                    if nome_busca_norm in turmas_geduc_map:
+                        turma_geduc = turmas_geduc_map[nome_busca_norm]
+                        turma_geduc_id = turma_geduc['value']
+                        log(f"✓ Match exato: {turma_geduc['text']}")
+                    else:
+                        # Tentativa 2: busca parcial
+                        for nome_norm, turma in turmas_geduc_map.items():
+                            if nome_busca_norm in nome_norm or nome_norm in nome_busca_norm:
+                                turma_geduc = turma
+                                turma_geduc_id = turma['value']
+                                log(f"✓ Match parcial: {turma['text']}")
+                                break
+                    
+                    if not turma_geduc_id:
+                        log(f"⚠️ Turma não encontrada no GEDUC - IGNORADA")
+                        turmas_com_erro.append(f"{turma_nome_completo} (não encontrada no GEDUC)")
+                        continue
+                    
+                    # Selecionar turma no GEDUC
+                    if not automacao.selecionar_opcao('IDTURMA', turma_geduc_id):
+                        log(f"✗ Falha ao selecionar turma")
+                        turmas_com_erro.append(f"{turma_nome_completo} (erro ao selecionar)")
+                        continue
+                    
+                    time.sleep(0.5)
+                    
+                    # Obter nível da turma
+                    nivel_id = self._obter_nivel_turma(turma_local_id)
+                    if not nivel_id:
+                        log(f"⚠️ Não foi possível obter nível da turma")
+                        turmas_com_erro.append(f"{turma_nome_completo} (nível não encontrado)")
+                        continue
+                    
+                    # Obter disciplinas (mesmo seletor usado em extrair_todas_disciplinas_geduc)
+                    disciplinas_geduc = automacao.obter_opcoes_select('IDTURMASDISP')
+                    log(f"   → {len(disciplinas_geduc)} disciplinas encontradas")
+                    
+                    disciplinas_processadas_turma = 0
+                    
+                    # Processar cada disciplina
+                    for disc in disciplinas_geduc:
+                        disc_nome = disc['text'].strip()
+                        disc_id_geduc = disc['value']
+                        
+                        # Buscar disciplina no banco local
+                        disc_local_id = self._buscar_disciplina_local(disc_nome, nivel_id)
+                        
+                        if not disc_local_id:
+                            log(f"   ⚠️ {disc_nome}: não encontrada localmente")
+                            continue
+                        
+                        # Selecionar disciplina (mesmo seletor usado em extrair_todas_disciplinas_geduc)
+                        if not automacao.selecionar_opcao('IDTURMASDISP', disc_id_geduc):
+                            log(f"   ✗ {disc_nome}: erro ao selecionar")
+                            continue
+                        
+                        time.sleep(0.5)
+                        
+                        # Selecionar bimestre (OBRIGATÓRIO antes de extrair)
+                        automacao.selecionar_bimestre(bimestre_num)
+                        time.sleep(0.5)
+                        
+                        # Clicar em "Exibir Alunos" (OBRIGATÓRIO para carregar dados)
+                        automacao.clicar_exibir_alunos()
+                        time.sleep(2)
+                        
+                        # Buscar alunos da turma
+                        alunos_local = self._buscar_alunos_turma_local(turma_local_id)
+                        
+                        if not alunos_local:
+                            log(f"   ⚠️ {disc_nome}: sem alunos na turma")
+                            continue
+                        
+                        # Extrair médias do GEDUC (agora os dados estarão carregados)
+                        alunos_geduc = automacao.extrair_medias_bimestre(bimestre_num)
+                        
+                        if not alunos_geduc:
+                            log(f"   ⚠️ {disc_nome}: sem dados no GEDUC")
+                            continue
+                        
+                        # Salvar notas no banco
+                        inseridas, atualizadas, nao_encontrados = self._salvar_notas_banco(
+                            alunos_geduc,
+                            alunos_local,
+                            disc_local_id,
+                            bimestre_num,
+                            self.ano_letivo_atual
+                        )
+                        
+                        total_notas_salvas += inseridas + atualizadas
+                        
+                        if inseridas or atualizadas:
+                            log(f"   ✓ {disc_nome}: {inseridas} inseridas, {atualizadas} atualizadas")
+                            disciplinas_processadas_turma += 1
+                        
+                        if nao_encontrados:
+                            log(f"      ⚠️ {len(nao_encontrados)} alunos não encontrados")
+                    
+                    total_disciplinas_processadas += disciplinas_processadas_turma
+                    total_turmas_processadas += 1
+                    log(f"   ✓ Turma concluída: {disciplinas_processadas_turma} disciplinas processadas")
+                    
+                except Exception as e:
+                    log(f"   ✗ Erro ao processar turma: {str(e)}")
+                    turmas_com_erro.append(f"{turma_nome_completo} (erro: {str(e)})")
+                    traceback.print_exc()
+                    continue
+            
+            # Relatório final
+            log(f"\n{'='*60}")
+            log("RELATÓRIO FINAL")
+            log(f"{'='*60}")
+            log(f"✓ Turmas processadas: {total_turmas_processadas}/{len(turmas_interface)}")
+            log(f"✓ Disciplinas processadas: {total_disciplinas_processadas}")
+            log(f"✓ Notas salvas: {total_notas_salvas}")
+            
+            if turmas_com_erro:
+                log(f"\n⚠️ Turmas com erro/ignoradas ({len(turmas_com_erro)}):")
+                for turma_erro in turmas_com_erro[:10]:
+                    log(f"   • {turma_erro}")
+                if len(turmas_com_erro) > 10:
+                    log(f"   ... e mais {len(turmas_com_erro) - 10}")
+            
+            log(f"\n{'='*60}")
+            log("✅ EXTRAÇÃO CONCLUÍDA!")
+            log(f"{'='*60}")
+            
+            # Mensagem final
+            self.janela.after(0, lambda: messagebox.showinfo(
+                "Sucesso",
+                f"Extração concluída!\n\n"
+                f"✓ {total_turmas_processadas} turmas processadas\n"
+                f"✓ {total_disciplinas_processadas} disciplinas\n"
+                f"✓ {total_notas_salvas} notas salvas\n\n"
+                f"{'⚠️ ' + str(len(turmas_com_erro)) + ' turmas com erro' if turmas_com_erro else ''}"
+            ))
+            
+        except Exception as e:
+            log(f"\n✗ Erro fatal: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            self.janela.after(0, lambda: messagebox.showerror(
+                "Erro", f"Erro durante extração:\n{str(e)}"
+            ))
+        
+        finally:
+            if automacao:
+                try:
+                    automacao.fechar_navegador()
+                    log("\n→ Navegador fechado")
+                except Exception:
+                    pass
     
     def _executar_extracao_completa(self, credenciais, serie_nome, turma_nome, turma_turno, 
                                     nome_busca_geduc, turma_completa, bimestre_num, janela_progresso):
@@ -3092,7 +3442,7 @@ class InterfaceCadastroEdicaoNotas:
                 f"2. Buscar TODAS as turmas da escola\n"
                 f"3. Para cada turma, processar TODAS as disciplinas\n"
                 f"4. Extrair 'Média Atual' e 'Recuperação'\n"
-                f"5. Atualizar banco: se (nota/10 < 6) e (nota/10 < Recuperação)\n"
+                f"5. Atualizar banco: se Recuperação >= Média Atual\n"
                 f"   então nota = Recuperação * 10\n\n"
                 f"⏱️ Tempo estimado: 5-15 minutos\n\n"
                 f"⚠️ ATENÇÃO: Isso irá processar TODAS as turmas!\n\n"
@@ -3351,68 +3701,118 @@ class InterfaceCadastroEdicaoNotas:
             ID da turma ou None se não encontrar
         """
         import unicodedata
-        
-        def normalizar(texto):
-            """Remove acentos e converte para maiúsculas"""
-            texto = ''.join(c for c in unicodedata.normalize('NFD', texto) 
-                           if unicodedata.category(c) != 'Mn')
-            texto = texto.replace('º', '').replace('ª', '')
-            return ' '.join(texto.upper().split())
+        import re
         
         try:
             from db.connection import get_cursor
 
+            # Normalizar nome GEDUC: remover acentos, ordinais, hífens
+            nome_limpo = ''.join(c for c in unicodedata.normalize('NFD', nome_turma_geduc) 
+                                if unicodedata.category(c) != 'Mn')
+            nome_limpo = nome_limpo.replace('º', '').replace('ª', '').replace('-', ' ')
+            nome_limpo = ' '.join(nome_limpo.upper().split())
+            
+            logger.info(f"[BUSCA_TURMA] GEDUC: '{nome_turma_geduc}' -> Normalizado: '{nome_limpo}'")
+            
+            # Extrair componentes: 
+            # "1 ANO MATU" -> serie="1 ANO", turno="MATU"
+            # "6 ANO VESP A" -> serie="6 ANO", turno="VESP", letra="A"
+            partes = nome_limpo.split()
+            
+            # Assumir que série é sempre "X ANO"
+            if len(partes) >= 2 and 'ANO' in partes[1]:
+                serie_busca = f"{partes[0]} {partes[1]}"  # "1 ANO", "6 ANO", etc
+                turno_busca = partes[2] if len(partes) >= 3 else None
+                letra_busca = partes[3] if len(partes) >= 4 else None
+            else:
+                # Fallback: primeiro elemento é série
+                serie_busca = partes[0] if partes else None
+                turno_busca = partes[1] if len(partes) >= 2 else None
+                letra_busca = partes[2] if len(partes) >= 3 else None
+            
+            logger.info(f"[BUSCA_TURMA] Componentes: série='{serie_busca}', turno='{turno_busca}', letra='{letra_busca}'")
+            
             with get_cursor() as cursor:
-                # Buscar todas as turmas da escola
-                cursor.execute("""
-                    SELECT t.id, t.nome, s.nome as serie_nome, t.turno
-                    FROM turmas t
-                    JOIN series s ON t.serie_id = s.id
-                    WHERE t.escola_id = %s
-                    AND t.ano_letivo_id = %s
-                """, self._norm_params((config.ESCOLA_ID, self.ano_letivo_atual)))
-
-                turmas = cursor.fetchall()
-
-            # Normalizar nome do GEDUC
-            nome_geduc_norm = normalizar(nome_turma_geduc)
-            
-            # Tentar encontrar correspondência
-            for turma_id, turma_nome, serie_nome, turno in turmas:
-                # Construir nome completo da turma local
-                # Formato: "SÉRIE TURNO TURMA"
-                nome_completo = f"{serie_nome} {turno} {turma_nome}".strip()
-                nome_completo_norm = normalizar(nome_completo)
+                # Buscar turmas que contenham a série e turno
+                if letra_busca:
+                    # Com letra: buscar série + turno + letra
+                    query = """
+                        SELECT t.id, t.nome, s.nome as serie_nome, t.turno
+                        FROM turmas t
+                        JOIN series s ON t.serie_id = s.id
+                        WHERE t.escola_id = %s
+                        AND t.ano_letivo_id = %s
+                        AND UPPER(REPLACE(REPLACE(s.nome, 'º', ''), 'ª', '')) LIKE %s
+                        AND UPPER(t.turno) LIKE %s
+                        AND UPPER(COALESCE(t.nome, '')) LIKE %s
+                    """
+                    params = (
+                        config.ESCOLA_ID,
+                        self.ano_letivo_atual,
+                        f"%{serie_busca}%",
+                        f"%{turno_busca}%" if turno_busca else "%",
+                        f"%{letra_busca}%"
+                    )
+                elif turno_busca:
+                    # Sem letra: buscar série + turno, nome deve ser vazio ou NULL
+                    query = """
+                        SELECT t.id, t.nome, s.nome as serie_nome, t.turno
+                        FROM turmas t
+                        JOIN series s ON t.serie_id = s.id
+                        WHERE t.escola_id = %s
+                        AND t.ano_letivo_id = %s
+                        AND UPPER(REPLACE(REPLACE(s.nome, 'º', ''), 'ª', '')) LIKE %s
+                        AND UPPER(t.turno) LIKE %s
+                        AND (t.nome IS NULL OR t.nome = '')
+                    """
+                    params = (
+                        config.ESCOLA_ID,
+                        self.ano_letivo_atual,
+                        f"%{serie_busca}%",
+                        f"%{turno_busca}%"
+                    )
+                else:
+                    # Só série
+                    query = """
+                        SELECT t.id, t.nome, s.nome as serie_nome, t.turno
+                        FROM turmas t
+                        JOIN series s ON t.serie_id = s.id
+                        WHERE t.escola_id = %s
+                        AND t.ano_letivo_id = %s
+                        AND UPPER(REPLACE(REPLACE(s.nome, 'º', ''), 'ª', '')) LIKE %s
+                    """
+                    params = (config.ESCOLA_ID, self.ano_letivo_atual, f"%{serie_busca}%")
                 
-                # Tentar diferentes formatos
-                # 1. Comparação exata
-                if nome_geduc_norm == nome_completo_norm:
-                    return turma_id
+                cursor.execute(query, self._norm_params(params))
+                resultados = cursor.fetchall()
                 
-                # 2. GEDUC usa hífen: "2 ANO-MATU" vs "2 ANO MATU"
-                nome_com_hifen = f"{serie_nome}-{turno} {turma_nome}".strip()
-                nome_com_hifen_norm = normalizar(nome_com_hifen)
-                if nome_geduc_norm == nome_com_hifen_norm:
+                if resultados:
+                    turma_id, turma_nome, serie_nome, turno = resultados[0]
+                    logger.info(f"[BUSCA_TURMA] ✓ ENCONTRADA: ID={turma_id}, série='{serie_nome}', turno='{turno}', nome='{turma_nome}'")
                     return turma_id
-                
-                # 3. GEDUC usa hífen e travessão: "6 ANO-VESP - A"
-                nome_hifen_travessao = f"{serie_nome}-{turno} - {turma_nome}".strip()
-                nome_hifen_travessao_norm = normalizar(nome_hifen_travessao)
-                if nome_geduc_norm == nome_hifen_travessao_norm:
-                    return turma_id
-                
-                # 4. Match parcial: "1 ANO-MATU" começa com "1 ANO MAT"
-                # ou "1 ANO MAT" está contido em "1 ANO-MATU"
-                if nome_completo_norm and nome_geduc_norm.startswith(nome_completo_norm):
-                    return turma_id
-                
-                if nome_com_hifen_norm and nome_geduc_norm.startswith(nome_com_hifen_norm):
-                    return turma_id
-            
-            return None
+                else:
+                    logger.warning(f"[BUSCA_TURMA] ✗ Nenhuma turma encontrada para '{nome_turma_geduc}'")
+                    
+                    # Debug: mostrar turmas disponíveis
+                    cursor.execute("""
+                        SELECT t.id, s.nome, t.turno, COALESCE(t.nome, '')
+                        FROM turmas t
+                        JOIN series s ON t.serie_id = s.id
+                        WHERE t.escola_id = %s AND t.ano_letivo_id = %s
+                        LIMIT 10
+                    """, self._norm_params((config.ESCOLA_ID, self.ano_letivo_atual)))
+                    
+                    todas_turmas = cursor.fetchall()
+                    logger.warning(f"[BUSCA_TURMA] Turmas disponíveis no banco:")
+                    for tid, serie, turno, nome in todas_turmas:
+                        logger.warning(f"[BUSCA_TURMA]   ID={tid}: {serie} {turno} {nome}")
+                    
+                    return None
 
         except Exception as e:
             logger.error(f"Erro ao buscar turma local: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
 

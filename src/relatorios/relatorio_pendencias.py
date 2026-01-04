@@ -1,5 +1,5 @@
 from src.core.config_logs import get_logger
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 logger = get_logger(__name__)
 """
 Módulo para gerar relatórios de pendências de notas
@@ -25,14 +25,14 @@ def buscar_pendencias_notas(bimestre, nivel_ensino="iniciais", ano_letivo=None, 
     Args:
         bimestre: Bimestre para verificar ("1º bimestre", etc)
         nivel_ensino: "iniciais" ou "finais"
-        ano_letivo: Ano letivo (padrão: ano atual)
+        ano_letivo: Ano letivo (padrão: ano letivo configurado no sistema)
         escola_id: ID da escola
     
     Returns:
         dict: Dicionário com pendências por turma
     """
     if ano_letivo is None:
-        ano_letivo = datetime.datetime.now().year
+        ano_letivo = ANO_LETIVO_ATUAL
     
     # Definir filtro de série
     if nivel_ensino == "iniciais":
@@ -143,21 +143,36 @@ def gerar_pdf_pendencias(bimestre, nivel_ensino="iniciais", ano_letivo=None, esc
     Args:
         bimestre: Bimestre para verificar
         nivel_ensino: "iniciais" ou "finais"
-        ano_letivo: Ano letivo
+        ano_letivo: Ano letivo (padrão: ano letivo configurado no sistema)
         escola_id: ID da escola
     
     Returns:
-        bool: True se gerou com sucesso
+        bool: True se gerou com sucesso, False se não há pendências ou dados
+    
+    Raises:
+        ValueError: Se não houver turmas, lança exceção com mensagem específica
     """
     if ano_letivo is None:
-        ano_letivo = datetime.datetime.now().year
+        ano_letivo = ANO_LETIVO_ATUAL
     
     # Buscar pendências
     logger.info(f"Buscando pendências para {bimestre}, nível {nivel_ensino}...")
     pendencias = buscar_pendencias_notas(bimestre, nivel_ensino, ano_letivo, escola_id)
     
     if not pendencias:
-        logger.info("Nenhuma pendência encontrada!")
+        logger.info("Nenhuma turma encontrada!")
+        raise ValueError(f"Nenhuma turma encontrada para o nível {nivel_ensino} no ano {ano_letivo}")
+    
+    # Verificar se há pendências reais (alunos sem nota OU disciplinas sem lançamento)
+    tem_pendencias_reais = False
+    for chave_turma, info in pendencias.items():
+        alunos_com_pendencia = sum(1 for a in info['alunos'].values() if len(a['disciplinas_sem_nota']) > 0)
+        if alunos_com_pendencia > 0 or len(info['disciplinas_sem_lancamento']) > 0:
+            tem_pendencias_reais = True
+            break
+    
+    if not tem_pendencias_reais:
+        logger.info("Nenhuma pendência real encontrada! Todas as notas estão lançadas.")
         return False
     
     # Nome do arquivo
