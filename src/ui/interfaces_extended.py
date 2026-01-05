@@ -93,15 +93,45 @@ def abrir_interface_declaracao_comparecimento(janela_pai, gerar_declaracao_func)
                     return
                 cursor = conn.cursor()
                 try:
-                    # Obter ano letivo atual
-                    cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = YEAR(CURDATE())")
+                    from src.core.config import ANO_LETIVO_ATUAL
+                    
+                    # Obter ano letivo configurado e verificar se ainda está ativo
+                    cursor.execute("SELECT id, data_fim FROM anosletivos WHERE ano_letivo = %s", (ANO_LETIVO_ATUAL,))
                     ano_atual = cursor.fetchone()
 
-                    if not ano_atual:
+                    ano_letivo_id = None
+                    if ano_atual:
+                        ano_id = ano_atual[0]
+                        data_fim = ano_atual[1]
+                        
+                        # Se não tem data_fim OU ainda não passou, usa este ano
+                        if data_fim is None:
+                            ano_letivo_id = ano_id
+                        else:
+                            cursor.execute("SELECT CURDATE() <= %s as ainda_ativo", (data_fim,))
+                            ainda_ativo = cursor.fetchone()
+                            if ainda_ativo and ainda_ativo[0]:
+                                ano_letivo_id = ano_id
+
+                    # Se o ano configurado já encerrou, busca o próximo ativo
+                    if ano_letivo_id is None:
+                        cursor.execute("""
+                            SELECT id FROM anosletivos 
+                            WHERE CURDATE() BETWEEN data_inicio AND data_fim
+                            ORDER BY ano_letivo DESC 
+                            LIMIT 1
+                        """)
+                        ano_atual = cursor.fetchone()
+                        if ano_atual:
+                            ano_letivo_id = ano_atual[0]
+
+                    # Fallback final: ano mais recente
+                    if ano_letivo_id is None:
                         cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
                         ano_atual = cursor.fetchone()
-
-                    ano_letivo_id = ano_atual[0] if ano_atual else 1
+                        ano_letivo_id = ano_atual[0] if ano_atual else 1
+                    else:
+                        ano_letivo_id = ano_letivo_id if ano_letivo_id else 1
 
                     if filtro:
                         query = """

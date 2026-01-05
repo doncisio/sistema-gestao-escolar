@@ -362,7 +362,10 @@ def obter_turmas_professor(funcionario_id: int, ano_letivo_id: Optional[int] = N
                 query += " AND t.ano_letivo_id = %s"
                 params.append(ano_letivo_id)
             else:
-                query += " AND t.ano_letivo_id = (SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo LIMIT 1)"
+                # Buscar ano letivo configurado
+                from src.core.config import ANO_LETIVO_ATUAL
+                query += " AND t.ano_letivo_id = (SELECT id FROM anosletivos WHERE ano_letivo = %s LIMIT 1)"
+                params.append(ANO_LETIVO_ATUAL)
             
             query += " ORDER BY s.ordem, t.nome"
             

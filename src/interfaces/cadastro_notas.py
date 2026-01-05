@@ -85,6 +85,10 @@ class InterfaceCadastroEdicaoNotas:
             self.janela.destroy()
     
     def obter_ano_letivo_atual(self):
+        """
+        Obtém o ID do ano letivo atual.
+        Usa a configuração ANO_LETIVO_ATUAL e verifica se ainda está ativo.
+        """
         conn = None
         cursor = None
         try:
@@ -95,12 +99,35 @@ class InterfaceCadastroEdicaoNotas:
 
             cursor = conn.cursor()
 
-            # Primeiro tenta obter o ano letivo atual configurado no sistema
-            cursor.execute("SELECT id FROM anosletivos WHERE ano_letivo = %s", (ANO_LETIVO_ATUAL,))
+            # Primeiro busca o ano letivo configurado no sistema
+            cursor.execute("SELECT id, data_fim FROM anosletivos WHERE ano_letivo = %s", (ANO_LETIVO_ATUAL,))
             resultado_ano = cursor.fetchone()
 
+            # Se encontrou, verifica se ainda está ativo
+            if resultado_ano:
+                ano_id = resultado_ano[0]
+                data_fim = resultado_ano[1]
+                
+                # Se não tem data_fim OU ainda não passou, usa este ano
+                if data_fim is None:
+                    return ano_id
+                
+                cursor.execute("SELECT CURDATE() <= %s as ainda_ativo", (data_fim,))
+                ainda_ativo = cursor.fetchone()
+                if ainda_ativo and ainda_ativo[0]:
+                    return ano_id
+
+            # Se o ano configurado já encerrou, busca o próximo ativo
+            cursor.execute("""
+                SELECT id FROM anosletivos 
+                WHERE CURDATE() BETWEEN data_inicio AND data_fim
+                ORDER BY ano_letivo DESC 
+                LIMIT 1
+            """)
+            resultado_ano = cursor.fetchone()
+
+            # Fallback: busca o mais recente
             if not resultado_ano:
-                # Se não encontrar 2025, busca o mais recente
                 cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
                 resultado_ano = cursor.fetchone()
 

@@ -23,13 +23,48 @@ def _get_default_root():
         return getattr(tk, '_default_root', None)  # type: ignore[attr-defined]
 
 def obter_ano_letivo_atual() -> int:
-    """Retorna o ID do ano letivo atual."""
+    """
+    Retorna o ID do ano letivo atual.
+    Usa a configuração ANO_LETIVO_ATUAL e verifica se ainda está ativo.
+    O sistema permanece no ano letivo configurado até sua data_fim.
+    """
     try:
+        from src.core.config import ANO_LETIVO_ATUAL
+        
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo")
+            
+            # Primeiro, busca o ano letivo configurado no sistema
+            cursor.execute("SELECT id, data_fim FROM anosletivos WHERE ano_letivo = %s", (ANO_LETIVO_ATUAL,))
             resultado = cursor.fetchone()
             
+            # Se encontrou e ainda está dentro do período (ou não passou da data_fim)
+            if resultado:
+                ano_id = resultado['id'] if isinstance(resultado, dict) else resultado[0]
+                data_fim = resultado['data_fim'] if isinstance(resultado, dict) else resultado[1]
+                
+                # Se não tem data_fim OU se ainda não passou, usa este ano
+                if data_fim is None:
+                    cursor.close()
+                    return int(str(ano_id))
+                
+                # Verifica se já passou da data_fim
+                cursor.execute("SELECT CURDATE() <= %s as ainda_ativo", (data_fim,))
+                ainda_ativo = cursor.fetchone()
+                if ainda_ativo and (ainda_ativo['ainda_ativo'] if isinstance(ainda_ativo, dict) else ainda_ativo[0]):
+                    cursor.close()
+                    return int(str(ano_id))
+            
+            # Se o ano configurado já encerrou, busca o próximo ano letivo ativo
+            cursor.execute("""
+                SELECT id FROM anosletivos 
+                WHERE CURDATE() BETWEEN data_inicio AND data_fim
+                ORDER BY ano_letivo DESC 
+                LIMIT 1
+            """)
+            resultado = cursor.fetchone()
+            
+            # Fallback: ano mais recente
             if not resultado:
                 cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
                 resultado = cursor.fetchone()

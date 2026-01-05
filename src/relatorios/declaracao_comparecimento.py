@@ -25,15 +25,43 @@ def obter_dados_responsavel_aluno(cursor, aluno_id):
     """
     Obtém os dados do aluno e seus responsáveis para a declaração de comparecimento
     """
-    # Primeiro tenta obter o ano letivo atual
-    cursor.execute("SELECT id FROM AnosLetivos WHERE ano_letivo = YEAR(CURDATE())")
+    from src.core.config import ANO_LETIVO_ATUAL
+    
+    # Primeiro tenta obter o ano letivo configurado e verificar se ainda está ativo
+    cursor.execute("SELECT id, data_fim FROM AnosLetivos WHERE ano_letivo = %s", (ANO_LETIVO_ATUAL,))
     ano_atual = cursor.fetchone()
     
-    if not ano_atual:
+    ano_letivo_id = None
+    if ano_atual:
+        ano_id = ano_atual[0]
+        data_fim = ano_atual[1]
+        
+        # Se não tem data_fim OU ainda não passou, usa este ano
+        if data_fim is None:
+            ano_letivo_id = ano_id
+        else:
+            cursor.execute("SELECT CURDATE() <= %s as ainda_ativo", (data_fim,))
+            ainda_ativo = cursor.fetchone()
+            if ainda_ativo and ainda_ativo[0]:
+                ano_letivo_id = ano_id
+    
+    # Se o ano configurado já encerrou, busca o próximo ativo
+    if ano_letivo_id is None:
+        cursor.execute("""
+            SELECT id FROM AnosLetivos 
+            WHERE CURDATE() BETWEEN data_inicio AND data_fim
+            ORDER BY ano_letivo DESC 
+            LIMIT 1
+        """)
+        ano_atual = cursor.fetchone()
+    
+    # Fallback final: ano mais recente
+    if not ano_atual and ano_letivo_id is None:
         cursor.execute("SELECT id FROM AnosLetivos ORDER BY ano_letivo DESC LIMIT 1")
         ano_atual = cursor.fetchone()
         
-    ano_letivo_id = ano_atual[0] if ano_atual else 1
+    if ano_letivo_id is None:
+        ano_letivo_id = ano_atual[0] if ano_atual else 1
     
     # Buscar dados do aluno, matrícula e responsável
     query = """

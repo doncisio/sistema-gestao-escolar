@@ -373,20 +373,38 @@ def buscar_alunos(termo_busca: str, escola_id: int = 60, aplicar_filtro_perfil: 
         termo_formatado = f"%{termo_busca.strip()}%"
         
         with get_cursor() as cursor:
+            # Buscar ano letivo atual configurado
+            from src.core.config import ANO_LETIVO_ATUAL
+            cursor.execute("SELECT id, data_fim FROM anosletivos WHERE ano_letivo = %s LIMIT 1", (ANO_LETIVO_ATUAL,))
+            resultado_ano = cursor.fetchone()
+            
+            ano_letivo_id = None
+            if resultado_ano:
+                ano_id = resultado_ano['id'] if isinstance(resultado_ano, dict) else resultado_ano[0]
+                data_fim = resultado_ano['data_fim'] if isinstance(resultado_ano, dict) else resultado_ano[1]
+                
+                if data_fim is None:
+                    ano_letivo_id = ano_id
+                else:
+                    cursor.execute("SELECT CURDATE() <= %s as ainda_ativo", (data_fim,))
+                    ainda_ativo = cursor.fetchone()
+                    if ainda_ativo and (ainda_ativo['ainda_ativo'] if isinstance(ainda_ativo, dict) else ainda_ativo[0]):
+                        ano_letivo_id = ano_id
+            
+            # Query com ano letivo definido
             query = """
                 SELECT DISTINCT a.id, a.nome, a.data_nascimento, 
                        COALESCE(m.status, 'Sem matrícula') as status,
                        COALESCE(s.nome, 'N/A') as serie
                 FROM alunos a
-                LEFT JOIN matriculas m ON a.id = m.aluno_id 
-                    AND m.ano_letivo_id = (SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo LIMIT 1)
+                LEFT JOIN matriculas m ON a.id = m.aluno_id AND m.ano_letivo_id = %s
                 LEFT JOIN turmas t ON m.turma_id = t.id
                 LEFT JOIN series s ON t.serie_id = s.id
                 WHERE a.escola_id = %s
                 AND (a.nome LIKE %s OR a.cpf LIKE %s)
             """
             
-            params = [escola_id, termo_formatado, termo_formatado]
+            params = [ano_letivo_id, escola_id, termo_formatado, termo_formatado]
             
             # Aplicar filtro de perfil do usuário (professor vê apenas seus alunos)
             if filtro_perfil_sql:
@@ -454,11 +472,39 @@ def listar_alunos_ativos(escola_id: int = 60, ano_letivo_id: Optional[int] = Non
         with get_cursor() as cursor:
             # Obter ano letivo atual se não especificado
             if ano_letivo_id is None:
-                cursor.execute("SELECT id FROM anosletivos WHERE YEAR(CURDATE()) = ano_letivo LIMIT 1")
+                from src.core.config import ANO_LETIVO_ATUAL
+                
+                # Tentar o ano configurado e verificar se ainda está ativo
+                cursor.execute("SELECT id, data_fim FROM anosletivos WHERE ano_letivo = %s LIMIT 1", (ANO_LETIVO_ATUAL,))
                 resultado_ano = cursor.fetchone()
+                
                 if resultado_ano:
-                    ano_letivo_id = resultado_ano['id'] if isinstance(resultado_ano, dict) else resultado_ano[0]
-                else:
+                    ano_id = resultado_ano['id'] if isinstance(resultado_ano, dict) else resultado_ano[0]
+                    data_fim = resultado_ano['data_fim'] if isinstance(resultado_ano, dict) else resultado_ano[1]
+                    
+                    # Se não tem data_fim OU ainda não passou, usa este ano
+                    if data_fim is None:
+                        ano_letivo_id = ano_id
+                    else:
+                        cursor.execute("SELECT CURDATE() <= %s as ainda_ativo", (data_fim,))
+                        ainda_ativo = cursor.fetchone()
+                        if ainda_ativo and (ainda_ativo['ainda_ativo'] if isinstance(ainda_ativo, dict) else ainda_ativo[0]):
+                            ano_letivo_id = ano_id
+                
+                # Fallback: busca ano ativo por data
+                if ano_letivo_id is None:
+                    cursor.execute("""
+                        SELECT id FROM anosletivos 
+                        WHERE CURDATE() BETWEEN data_inicio AND data_fim
+                        ORDER BY ano_letivo DESC 
+                        LIMIT 1
+                    """)
+                    resultado_ano = cursor.fetchone()
+                    
+                    if resultado_ano:
+                        ano_letivo_id = resultado_ano['id'] if isinstance(resultado_ano, dict) else resultado_ano[0]
+                
+                if ano_letivo_id is None:
                     logger.warning("Ano letivo atual não encontrado")
                     return []
             
