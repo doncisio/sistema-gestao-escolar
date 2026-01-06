@@ -23,30 +23,8 @@ def abrir_dialogo_folhas_ponto(janela_pai, status_label=None):
         status_label: Label para mostrar status da operação (opcional)
     """
     from src.utils.dates import nome_mes_pt
-    # Preferir usar a função centralizada em gerar_folha_ponto, se disponível
-    try:
-        from src.relatorios.geradores.folha_ponto import gerar_folhas_para_escola
-        _use_gerar_folhas_para_escola = True
-    except Exception:
-        try:
-            from preencher_folha_ponto import gerar_folhas_de_ponto
-            _use_gerar_folhas_para_escola = False
-        except Exception:
-            raise
     from src.ui.colors import COLORS
-    
-    # Importar _run_report_in_background do main.py onde está definida
-    import sys
-    if 'main' in sys.modules:
-        _run_report_in_background = sys.modules['main']._run_report_in_background
-    else:
-        # Fallback: executar diretamente sem background
-        def _run_report_in_background(fn, desc):
-            try:
-                fn()
-            except Exception as e:
-                from tkinter import messagebox
-                messagebox.showerror("Erro", f"Erro ao {desc}: {e}")
+    from src.ui.dashboard import run_report_in_background
     
     dialog = Toplevel(janela_pai)
     dialog.title("Gerar Folhas de Ponto")
@@ -108,7 +86,7 @@ def abrir_dialogo_folhas_ponto(janela_pai, status_label=None):
                 except Exception:
                     # Fallback: tentar usar a implementação antiga
                     try:
-                        from preencher_folha_ponto import gerar_folhas_de_ponto
+                        from scripts.auxiliares.preencher_folha_ponto import gerar_folhas_de_ponto
                         gerar_folhas_de_ponto(base_pdf, saida, mes_referencia=mes, ano_referencia=ano)
                     except Exception as e:
                         # Propagar exceção para ser capturada pelo agendador
@@ -116,8 +94,9 @@ def abrir_dialogo_folhas_ponto(janela_pai, status_label=None):
                 return saida
 
             try:
-                _run_report_in_background(_worker, f"Folhas de Ponto {nome_mes}/{ano}")
+                run_report_in_background(_worker, f"Folhas de Ponto {nome_mes}/{ano}", janela=janela_pai, status_label=status_label)
             except Exception as e:
+                logger.exception(f"Erro ao agendar geração das folhas de ponto: {e}")
                 messagebox.showerror("Erro", f"Falha ao agendar geração das folhas de ponto: {e}")
         except Exception as e:
             if status_label is not None:
@@ -141,19 +120,7 @@ def abrir_dialogo_resumo_ponto(janela_pai, status_label=None):
     from src.utils.dates import nome_mes_pt
     from src.relatorios.geradores.resumo_ponto import gerar_resumo_ponto
     from src.ui.colors import COLORS
-    
-    # Importar _run_report_in_background do main.py onde está definida
-    import sys
-    if 'main' in sys.modules:
-        _run_report_in_background = sys.modules['main']._run_report_in_background
-    else:
-        # Fallback: executar diretamente sem background
-        def _run_report_in_background(fn, desc):
-            try:
-                fn()
-            except Exception as e:
-                from tkinter import messagebox
-                messagebox.showerror("Erro", f"Erro ao {desc}: {e}")
+    from src.ui.dashboard import run_report_in_background
     
     dialog = Toplevel(janela_pai)
     dialog.title("Gerar Resumo de Ponto")
@@ -188,8 +155,9 @@ def abrir_dialogo_resumo_ponto(janela_pai, status_label=None):
                 return None
 
             try:
-                _run_report_in_background(_worker, f"Resumo de Ponto {nome_mes}/{ano}")
+                run_report_in_background(_worker, f"Resumo de Ponto {nome_mes}/{ano}", janela=janela_pai, status_label=status_label)
             except Exception as e:
+                logger.exception(f"Erro ao agendar resumo de ponto: {e}")
                 messagebox.showerror("Erro", f"Falha ao agendar resumo de ponto: {e}")
         except Exception as e:
             if status_label is not None:

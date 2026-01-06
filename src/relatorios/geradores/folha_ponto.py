@@ -5,7 +5,7 @@ Cria fichas de ponto para funcionários com cabeçalho personalizado e tabela de
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
-from reportlab.lib.units import cm, mm
+from reportlab.lib.units import cm, mm, inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
@@ -14,7 +14,10 @@ from datetime import datetime, timedelta
 import calendar
 from src.core.conexao import conectar_bd
 from src.core.config_logs import get_logger
+from src.core.config import get_image_path
+from PyPDF2 import PdfWriter, PdfReader
 import os
+import io
 
 logger = get_logger(__name__)
 
@@ -563,10 +566,96 @@ def gerar_folha_ponto_funcionario(funcionario_id, mes=None, ano=None, output_pat
     return gerador.gerar_folha_ponto(funcionario_id, mes, ano, output_path)
 
 
+def _criar_capa_folha_ponto(mes, ano):
+    """
+    Cria uma capa com o cabeçalho padrão da Lista Atualizada.
+    
+    Args:
+        mes: Mês (1-12)
+        ano: Ano
+        
+    Returns:
+        bytes: PDF da capa em formato bytes
+    """
+    from src.utils.dates import nome_mes_pt
+    
+    # Informações do cabeçalho (mesmo padrão de Lista_Atualizada.py)
+    cabecalho = [
+        "SECRETARIA MUNICIPAL DE EDUCAÇÃO",
+        "<b>ESCOLA MUNICIPAL PROFª. NADIR NASCIMENTO MORAES</b>",
+        "<b>INEP: 21008485</b>",
+        "<b>CNPJ: 01.394.462/0001-01</b>"
+    ]
+    
+    # Caminho da imagem do brasão
+    figura_inferior = str(get_image_path('logopaco.png'))
+    
+    # Criar buffer em memória para a capa
+    buffer = io.BytesIO()
+    
+    # Criar documento PDF temporário para a capa
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=1.5*cm,
+        rightMargin=1.5*cm,
+        topMargin=1.5*cm,
+        bottomMargin=1.5*cm
+    )
+    
+    elements = []
+    
+    # Adicionar logo e cabeçalho
+    img = Image(figura_inferior, width=3 * inch, height=0.7 * inch)
+    header_style = ParagraphStyle(name='Header', fontSize=12, alignment=TA_CENTER)
+    
+    data = [
+        [img],
+        [Paragraph('<br/>'.join(cabecalho), header_style)]
+    ]
+    
+    table = Table(data, colWidths=[5 * inch])
+    table_style = TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER')
+    ])
+    table.setStyle(table_style)
+    elements.append(table)
+    
+    # Espaçamento
+    elements.append(Spacer(1, 3.3 * inch))
+    
+    # Título
+    capa_style = ParagraphStyle(name='Capa', fontSize=24, alignment=TA_CENTER)
+    nome_mes_formatado = nome_mes_pt(mes).upper()
+    elements.append(Paragraph(f"<b>FOLHAS DE PONTO</b>", capa_style))
+    elements.append(Spacer(1, 0.3 * inch))
+    elements.append(Paragraph(f"<b>{nome_mes_formatado}/{ano}</b>", ParagraphStyle(name='Mes', fontSize=18, alignment=TA_CENTER)))
+    
+    # Espaçamento
+    elements.append(Spacer(1, 4.5 * inch))
+    
+    # Ano
+    ano_style = ParagraphStyle(name='Ano', fontSize=18, alignment=TA_CENTER)
+    elements.append(Paragraph(f"<b>{ano}</b>", ano_style))
+    
+    # Gerar PDF
+    doc.build(elements)
+    
+    # Retornar o conteúdo do buffer
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
 def gerar_folhas_para_escola(escola_id, mes=None, ano=None, output_path=None, header_font_size: int = None):
     """
     Gera um único arquivo PDF contendo as folhas de ponto de todos os funcionários
     pertencentes à escola especificada por `escola_id`.
+    
+    Agora inclui:
+    - Uma capa com o cabeçalho padrão da Lista Atualizada
+    - As folhas de ponto dos funcionários
+    - Duas cópias do modelo de folha de ponto em branco ao final
 
     Args:
         escola_id: ID da escola (campo `escola_id` na tabela Funcionarios)
@@ -618,9 +707,13 @@ def gerar_folhas_para_escola(escola_id, mes=None, ano=None, output_path=None, he
         nome_arquivo = f"Folhas_Escola_{escola_id}_{mes:02d}_{ano}.pdf"
         output_path = os.path.join('Modelos', nome_arquivo)
 
+    # Caminho temporário para as folhas de ponto
+    temp_folhas_path = output_path.replace('.pdf', '_temp.pdf')
+
     try:
+        # 1. Gerar as folhas de ponto dos funcionários
         doc = SimpleDocTemplate(
-            output_path,
+            temp_folhas_path,
             pagesize=gerador.pagesize,
             leftMargin=gerador.margin,
             rightMargin=gerador.margin,
@@ -677,11 +770,53 @@ def gerar_folhas_para_escola(escola_id, mes=None, ano=None, output_path=None, he
             canvas_obj.restoreState()
 
         doc.build(story, onFirstPage=primeira_pagina, onLaterPages=paginas_seguintes)
+        
+        # 2. Criar o PDF final mesclando: capa + folhas + 2x modelo em branco
+        writer = PdfWriter()
+        
+        # Adicionar capa
+        capa_bytes = _criar_capa_folha_ponto(mes, ano)
+        capa_reader = PdfReader(io.BytesIO(capa_bytes))
+        for page in capa_reader.pages:
+            writer.add_page(page)
+        
+        # Adicionar folhas de ponto dos funcionários
+        folhas_reader = PdfReader(temp_folhas_path)
+        for page in folhas_reader.pages:
+            writer.add_page(page)
+        
+        # Adicionar modelo de folha de ponto em branco (2 vezes)
+        modelo_path = os.path.join(os.getcwd(), "Modelos", "folha de ponto.pdf")
+        if os.path.isfile(modelo_path):
+            modelo_reader = PdfReader(modelo_path)
+            # Primeira cópia
+            for page in modelo_reader.pages:
+                writer.add_page(page)
+            # Segunda cópia
+            for page in modelo_reader.pages:
+                writer.add_page(page)
+        else:
+            logger.warning(f"Modelo de folha de ponto não encontrado em: {modelo_path}")
+        
+        # Salvar o PDF final
+        with open(output_path, 'wb') as output_file:
+            writer.write(output_file)
+        
+        # Remover arquivo temporário
+        if os.path.exists(temp_folhas_path):
+            os.remove(temp_folhas_path)
+        
         logger.info(f"Folhas geradas para escola_id={escola_id}: {output_path}")
         return output_path
 
     except Exception as e:
         logger.exception(f"Erro ao gerar folhas para escola {escola_id}: {e}")
+        # Limpar arquivo temporário em caso de erro
+        if os.path.exists(temp_folhas_path):
+            try:
+                os.remove(temp_folhas_path)
+            except:
+                pass
         return None
 
 
