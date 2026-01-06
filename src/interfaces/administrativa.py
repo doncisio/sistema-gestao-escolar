@@ -1,4 +1,4 @@
-﻿from src.core.config_logs import get_logger
+from src.core.config_logs import get_logger
 from src.core.config import get_icon_path, ANO_LETIVO_ATUAL
 logger = get_logger(__name__)
 from tkinter import (
@@ -1071,7 +1071,7 @@ class InterfaceAdministrativa:
                 # botão para remover este campo
                 remove_btn = Button(
                     frame, 
-                    text="âœ•",
+                    text="X",
                     command=lambda f=frame: remover_campo(f),
                     bg=self.co6,
                     fg=self.co1,
@@ -1196,7 +1196,7 @@ class InterfaceAdministrativa:
                 # Mostrar contagem de disciplinas por Nível
                 info_texto = "Disciplinas por Nível:\n"
                 for nivel_id, info in niveis_info.items():
-                    info_texto += f"• {info['nome']}: {len(info['disciplinas'])} disciplina(s)\n"
+                    info_texto += f"- {info['nome']}: {len(info['disciplinas'])} disciplina(s)\n"
                 
                 info_label = Label(main_frame, text=info_texto, font=('Ivy 9'), 
                                   bg=self.co10, justify=LEFT)
@@ -1371,11 +1371,11 @@ class InterfaceAdministrativa:
                     # Montar mensagem de sucesso
                     mensagem = "Operações realizadas com sucesso!\n\n"
                     if disciplinas_adicionadas > 0:
-                        mensagem += f"• {disciplinas_adicionadas} disciplina(s) adicionada(s)\n"
+                        mensagem += f"- {disciplinas_adicionadas} disciplina(s) adicionada(s)\n"
                     if disciplinas_atualizadas_count > 0:
-                        mensagem += f"• {disciplinas_atualizadas_count} disciplina(s) atualizada(s)\n"
+                        mensagem += f"- {disciplinas_atualizadas_count} disciplina(s) atualizada(s)\n"
                     if disciplinas_excluidas > 0:
-                        mensagem += f"• {disciplinas_excluidas} disciplina(s) excluída(s)\n"
+                        mensagem += f"- {disciplinas_excluidas} disciplina(s) excluída(s)\n"
                     
                     # Adicionar informação sobre carga Horária total
                     carga_total = carga_total_entry.get().strip()
@@ -1383,9 +1383,9 @@ class InterfaceAdministrativa:
                         try:
                             int(carga_total)  # Verificar se é um número válido (já validado anteriormente)
                             if carga_total_id:
-                                mensagem += f"• Carga Horária total atualizada para {carga_total} horas\n"
+                                mensagem += f"- Carga Horária total atualizada para {carga_total} horas\n"
                             else:
-                                mensagem += f"• Carga Horária total definida como {carga_total} horas\n"
+                                mensagem += f"- Carga Horária total definida como {carga_total} horas\n"
                         except ValueError:
                             pass  # Erro já tratado anteriormente
                     
@@ -1802,7 +1802,7 @@ class InterfaceAdministrativa:
                 # botão para remover este campo
                 remove_btn = Button(
                     frame, 
-                    text="âœ•",
+                    text="X",
                     command=lambda f=frame: remover_campo(f),
                     bg=self.co6,
                     fg=self.co1,
@@ -1927,7 +1927,7 @@ class InterfaceAdministrativa:
                 # Mostrar contagem de disciplinas por Nível
                 info_texto = "Disciplinas por Nível:\n"
                 for nivel_id, info in niveis_info.items():
-                    info_texto += f"• {info['nome']}: {len(info['disciplinas'])} disciplina(s)\n"
+                    info_texto += f"- {info['nome']}: {len(info['disciplinas'])} disciplina(s)\n"
                 
                 info_label = Label(main_frame, text=info_texto, font=('Ivy 9'), 
                                   bg=self.co10, justify=LEFT)
@@ -2102,11 +2102,11 @@ class InterfaceAdministrativa:
                     # Montar mensagem de sucesso
                     mensagem = "Operações realizadas com sucesso!\n\n"
                     if disciplinas_adicionadas > 0:
-                        mensagem += f"• {disciplinas_adicionadas} disciplina(s) adicionada(s)\n"
+                        mensagem += f"- {disciplinas_adicionadas} disciplina(s) adicionada(s)\n"
                     if disciplinas_atualizadas_count > 0:
-                        mensagem += f"• {disciplinas_atualizadas_count} disciplina(s) atualizada(s)\n"
+                        mensagem += f"- {disciplinas_atualizadas_count} disciplina(s) atualizada(s)\n"
                     if disciplinas_excluidas > 0:
-                        mensagem += f"• {disciplinas_excluidas} disciplina(s) excluída(s)\n"
+                        mensagem += f"- {disciplinas_excluidas} disciplina(s) excluída(s)\n"
                     
                     # Adicionar informação sobre carga Horária total
                     carga_total = carga_total_entry.get().strip()
@@ -2114,9 +2114,9 @@ class InterfaceAdministrativa:
                         try:
                             int(carga_total)  # Verificar se é um número válido (já validado anteriormente)
                             if carga_total_id:
-                                mensagem += f"• Carga Horária total atualizada para {carga_total} horas\n"
+                                mensagem += f"- Carga Horária total atualizada para {carga_total} horas\n"
                             else:
-                                mensagem += f"• Carga Horária total definida como {carga_total} horas\n"
+                                mensagem += f"- Carga Horária total definida como {carga_total} horas\n"
                         except ValueError:
                             pass  # Erro já tratado anteriormente
                     
