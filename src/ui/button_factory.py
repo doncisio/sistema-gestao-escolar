@@ -655,6 +655,12 @@ class ButtonFactory:
                 command=lambda: self._servicos_gerar_declaracoes_5ano(),
                 font=menu_font
             )
+            # Gerar Declarações em Lote (4º Ano)
+            servicos_menu.add_command(
+                label="Gerar Declarações do 4º Ano",
+                command=lambda: self._servicos_gerar_declaracoes_4ano(),
+                font=menu_font
+            )
             # Gerar Certificados em Lote (9º Ano)
             servicos_menu.add_command(
                 label="Gerar Certificados do 9º Ano",
@@ -1118,6 +1124,29 @@ class ButtonFactory:
 
         except Exception as e:
             logger.exception(f"Erro no processo de geração de declarações em lote (5º ano): {e}")
+            messagebox.showerror("Erro", f"Erro ao gerar declarações: {e}")
+
+    def _servicos_gerar_declaracoes_4ano(self):
+        """Gera declarações em lote para alunos do 4º ano (matriculados e ativos)."""
+        try:
+            resposta = messagebox.askyesno(
+                "Confirmar",
+                "Gerar declarações para todos os alunos do 4º ano matriculados e ativos?\n\nIsso pode demorar. Deseja continuar?"
+            )
+            if not resposta:
+                return
+
+            # Gerar declarações combinadas em um único arquivo usando o util correspondente
+            from src.gestores.servicos_lote_documentos import gerar_declaracoes_4ano_combinadas
+
+            arquivo = gerar_declaracoes_4ano_combinadas()
+            if arquivo:
+                messagebox.showinfo("Concluído", f"Declarações combinadas geradas: {arquivo}")
+            else:
+                messagebox.showerror("Erro", "Falha ao gerar declarações combinadas. Verifique os logs.")
+
+        except Exception as e:
+            logger.exception(f"Erro no processo de geração de declarações em lote (4º ano): {e}")
             messagebox.showerror("Erro", f"Erro ao gerar declarações: {e}")
 
     def _servicos_gerar_certificados_9ano(self):
