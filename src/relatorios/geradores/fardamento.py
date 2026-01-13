@@ -93,8 +93,8 @@ def gerar_lista_fardamento():
         # Criar tabela de presença com larguras ajustadas para modo paisagem
         # Cabeçalho com duas linhas para sub-colunas
         data = [
-            ['Nº', 'Nome', 'TAMANHO/PONTUAÇÃO', '', 'Assinatura do Responsável', 'Parentesco'],
-            ['', '', 'Fardamento', 'Calçados', '', '']
+            ['Nº', 'Nome', 'TAMANHO/PONTUAÇÃO', '', 'Assinatura do Responsável'],
+            ['', '', 'Fardamento', 'Calçados', '']
         ]
         for row_num, (index, row) in enumerate(turma_df.iterrows(), start=1):
             nome = row['NOME DO ALUNO']
@@ -103,11 +103,10 @@ def gerar_lista_fardamento():
             fardamento = ''
             calcados = ''
             assinatura = ''
-            parentesco = ''
-            data.append([str(row_num), nome_str, fardamento, calcados, assinatura, parentesco])
+            data.append([str(row_num), nome_str, fardamento, calcados, assinatura])
         
         # Ajustando as larguras das colunas para melhor aproveitamento do espaço horizontal
-        table = Table(data, colWidths=[0.4 * inch, 3.2 * inch, 1 * inch, 1 * inch, 3.2 * inch, 1.2 * inch])
+        table = Table(data, colWidths=[0.4 * inch, 3.5 * inch, 1.2 * inch, 1.2 * inch, 3.7 * inch])
         table.setStyle(TableStyle([
             # Cabeçalho principal (linha 0)
             ('BACKGROUND', (0, 0), (-1, 0), white),
@@ -130,7 +129,6 @@ def gerar_lista_fardamento():
             ('SPAN', (1, 0), (1, 1)),  # Nome
             ('SPAN', (2, 0), (3, 0)),  # TAMANHO/PONTUAÇÃO
             ('SPAN', (4, 0), (4, 1)),  # Assinatura do Responsável
-            ('SPAN', (5, 0), (5, 1)),  # Parentesco
             
             # Dados (a partir da linha 2)
             ('ALIGN', (1, 2), (1, -1), 'LEFT'),
