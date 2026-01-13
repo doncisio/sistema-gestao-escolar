@@ -319,6 +319,14 @@ class ButtonFactory:
                     font=menu_font
                 )
 
+            # Lista de Fardamento (Admin, Coordenador)
+            if is_admin or is_coordenador:
+                listas_menu.add_command(
+                    label="Lista de Fardamento",
+                    command=self.callbacks.lista_fardamento,
+                    font=menu_font
+                )
+
             # Lista de Notas (Admin, Professor)
             if is_admin or is_professor:
                 listas_menu.add_command(

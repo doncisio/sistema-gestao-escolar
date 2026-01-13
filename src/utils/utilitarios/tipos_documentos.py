@@ -15,6 +15,7 @@ TIPO_LISTA_ATUALIZADA = "Lista Atualizada"
 TIPO_LISTA_NOTAS = "Lista de Notas"
 TIPO_LISTA_FREQUENCIA = "Lista de Frequência"
 TIPO_LISTA_REUNIAO = "Lista de Reunião"
+TIPO_LISTA_FARDAMENTO = "Lista de Fardamento"
 TIPO_MOVIMENTO_MENSAL = "Movimento Mensal"
 
 # Documentos Administrativos
@@ -36,6 +37,7 @@ def get_categoria_documento(tipo):
         TIPO_LISTA_NOTAS: "Listas e Relatórios",
         TIPO_LISTA_FREQUENCIA: "Listas e Relatórios",
         TIPO_LISTA_REUNIAO: "Listas e Relatórios",
+        TIPO_LISTA_FARDAMENTO: "Listas e Relatórios",
         TIPO_MOVIMENTO_MENSAL: "Listas e Relatórios",
         
         TIPO_SOLICITACAO_PROFESSORES: "Documentos Administrativos",

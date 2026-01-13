@@ -74,6 +74,15 @@ class ReportCallbacks:
             logger.exception(f"Erro ao gerar lista de reunião: {e}")
             messagebox.showerror("Erro", f"Não foi possível gerar a lista: {e}")
     
+    def lista_fardamento(self):
+        """Gera lista de fardamento."""
+        try:
+            from src.relatorios.geradores.fardamento import gerar_lista_fardamento
+            gerar_lista_fardamento()
+        except Exception as e:
+            logger.exception(f"Erro ao gerar lista de fardamento: {e}")
+            messagebox.showerror("Erro", f"Não foi possível gerar a lista: {e}")
+    
     def lista_notas(self):
         """Gera lista de notas."""
         try:
@@ -631,6 +640,10 @@ class ActionCallbacksManager:
     def lista_reuniao(self):
         """Atalho para reports.lista_reuniao()"""
         return self.reports.lista_reuniao()
+    
+    def lista_fardamento(self):
+        """Atalho para reports.lista_fardamento()"""
+        return self.reports.lista_fardamento()
     
     def lista_notas(self):
         """Atalho para reports.lista_notas()"""

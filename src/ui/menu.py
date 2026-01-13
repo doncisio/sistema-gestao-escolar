@@ -167,6 +167,12 @@ class MenuManager:
                     command=default_callbacks['lista_reuniao']
                 )
             
+            if default_callbacks.get('lista_fardamento'):
+                menu_listas.add_command(
+                    label="Lista de Fardamento",
+                    command=default_callbacks['lista_fardamento']
+                )
+            
             # Submenu de Boletins
             menu_boletins = Menu(menu_relatorios, tearoff=0)
             menu_relatorios.add_cascade(label="Boletins", menu=menu_boletins)
