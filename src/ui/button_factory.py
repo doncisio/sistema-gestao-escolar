@@ -651,28 +651,57 @@ class ButtonFactory:
                 command=self.callbacks.declaracao_comparecimento,
                 font=menu_font
             )
-            # Gerar Declarações em Lote (9º Ano)
-            servicos_menu.add_command(
-                label="Gerar Declarações do 9º Ano",
-                command=lambda: self._servicos_gerar_declaracoes_9ano(),
+            # Submenu: Declarações do Ano Anterior
+            declaracoes_menu = Menu(servicos_menu, tearoff=0, font=menu_font)
+            declaracoes_menu.add_command(
+                label="1º Ano",
+                command=lambda: self._servicos_gerar_declaracoes_1ano(),
                 font=menu_font
             )
-            # Gerar Declarações em Lote (5º Ano)
-            servicos_menu.add_command(
-                label="Gerar Declarações do 5º Ano",
-                command=lambda: self._servicos_gerar_declaracoes_5ano(),
+            declaracoes_menu.add_command(
+                label="2º Ano",
+                command=lambda: self._servicos_gerar_declaracoes_2ano(),
                 font=menu_font
             )
-            # Gerar Declarações em Lote (4º Ano)
-            servicos_menu.add_command(
-                label="Gerar Declarações do 4º Ano",
+            declaracoes_menu.add_command(
+                label="3º Ano",
+                command=lambda: self._servicos_gerar_declaracoes_3ano(),
+                font=menu_font
+            )
+            declaracoes_menu.add_command(
+                label="4º Ano",
                 command=lambda: self._servicos_gerar_declaracoes_4ano(),
                 font=menu_font
             )
-            # Gerar Declarações em Lote (6º Ano)
-            servicos_menu.add_command(
-                label="Gerar Declarações do 6º Ano",
+            declaracoes_menu.add_command(
+                label="5º Ano",
+                command=lambda: self._servicos_gerar_declaracoes_5ano(),
+                font=menu_font
+            )
+            declaracoes_menu.add_separator()
+            declaracoes_menu.add_command(
+                label="6º Ano",
                 command=lambda: self._servicos_gerar_declaracoes_6ano(),
+                font=menu_font
+            )
+            declaracoes_menu.add_command(
+                label="7º Ano",
+                command=lambda: self._servicos_gerar_declaracoes_7ano(),
+                font=menu_font
+            )
+            declaracoes_menu.add_command(
+                label="8º Ano",
+                command=lambda: self._servicos_gerar_declaracoes_8ano(),
+                font=menu_font
+            )
+            declaracoes_menu.add_command(
+                label="9º Ano",
+                command=lambda: self._servicos_gerar_declaracoes_9ano(),
+                font=menu_font
+            )
+            servicos_menu.add_cascade(
+                label="Declarações do Ano Anterior",
+                menu=declaracoes_menu,
                 font=menu_font
             )
             # Gerar Certificados em Lote (9º Ano)
@@ -1093,6 +1122,116 @@ class ButtonFactory:
         except Exception as e:
             logger.exception(f"Erro ao gerar declaração: {e}")
             messagebox.showerror("Erro", f"Erro ao gerar declaração: {e}")
+
+    def _servicos_gerar_declaracoes_1ano(self):
+        """Gera declarações em lote para alunos do 1º ano (matriculados e ativos)."""
+        try:
+            resposta = messagebox.askyesno(
+                "Confirmar",
+                "Gerar declarações para todos os alunos do 1º ano matriculados e ativos?\n\nIsso pode demorar. Deseja continuar?"
+            )
+            if not resposta:
+                return
+
+            from src.gestores.servicos_lote_documentos import gerar_declaracoes_1ano_combinadas
+
+            arquivo = gerar_declaracoes_1ano_combinadas()
+            if arquivo:
+                messagebox.showinfo("Concluído", f"Declarações combinadas geradas: {arquivo}")
+            else:
+                messagebox.showerror("Erro", "Falha ao gerar declarações combinadas. Verifique os logs.")
+
+        except Exception as e:
+            logger.exception(f"Erro no processo de geração de declarações em lote (1º ano): {e}")
+            messagebox.showerror("Erro", f"Erro ao gerar declarações: {e}")
+
+    def _servicos_gerar_declaracoes_2ano(self):
+        """Gera declarações em lote para alunos do 2º ano (matriculados e ativos)."""
+        try:
+            resposta = messagebox.askyesno(
+                "Confirmar",
+                "Gerar declarações para todos os alunos do 2º ano matriculados e ativos?\n\nIsso pode demorar. Deseja continuar?"
+            )
+            if not resposta:
+                return
+
+            from src.gestores.servicos_lote_documentos import gerar_declaracoes_2ano_combinadas
+
+            arquivo = gerar_declaracoes_2ano_combinadas()
+            if arquivo:
+                messagebox.showinfo("Concluído", f"Declarações combinadas geradas: {arquivo}")
+            else:
+                messagebox.showerror("Erro", "Falha ao gerar declarações combinadas. Verifique os logs.")
+
+        except Exception as e:
+            logger.exception(f"Erro no processo de geração de declarações em lote (2º ano): {e}")
+            messagebox.showerror("Erro", f"Erro ao gerar declarações: {e}")
+
+    def _servicos_gerar_declaracoes_3ano(self):
+        """Gera declarações em lote para alunos do 3º ano (matriculados e ativos)."""
+        try:
+            resposta = messagebox.askyesno(
+                "Confirmar",
+                "Gerar declarações para todos os alunos do 3º ano matriculados e ativos?\n\nIsso pode demorar. Deseja continuar?"
+            )
+            if not resposta:
+                return
+
+            from src.gestores.servicos_lote_documentos import gerar_declaracoes_3ano_combinadas
+
+            arquivo = gerar_declaracoes_3ano_combinadas()
+            if arquivo:
+                messagebox.showinfo("Concluído", f"Declarações combinadas geradas: {arquivo}")
+            else:
+                messagebox.showerror("Erro", "Falha ao gerar declarações combinadas. Verifique os logs.")
+
+        except Exception as e:
+            logger.exception(f"Erro no processo de geração de declarações em lote (3º ano): {e}")
+            messagebox.showerror("Erro", f"Erro ao gerar declarações: {e}")
+
+    def _servicos_gerar_declaracoes_7ano(self):
+        """Gera declarações em lote para alunos do 7º ano (matriculados e ativos)."""
+        try:
+            resposta = messagebox.askyesno(
+                "Confirmar",
+                "Gerar declarações para todos os alunos do 7º ano matriculados e ativos?\n\nIsso pode demorar. Deseja continuar?"
+            )
+            if not resposta:
+                return
+
+            from src.gestores.servicos_lote_documentos import gerar_declaracoes_7ano_combinadas
+
+            arquivo = gerar_declaracoes_7ano_combinadas()
+            if arquivo:
+                messagebox.showinfo("Concluído", f"Declarações combinadas geradas: {arquivo}")
+            else:
+                messagebox.showerror("Erro", "Falha ao gerar declarações combinadas. Verifique os logs.")
+
+        except Exception as e:
+            logger.exception(f"Erro no processo de geração de declarações em lote (7º ano): {e}")
+            messagebox.showerror("Erro", f"Erro ao gerar declarações: {e}")
+
+    def _servicos_gerar_declaracoes_8ano(self):
+        """Gera declarações em lote para alunos do 8º ano (matriculados e ativos)."""
+        try:
+            resposta = messagebox.askyesno(
+                "Confirmar",
+                "Gerar declarações para todos os alunos do 8º ano matriculados e ativos?\n\nIsso pode demorar. Deseja continuar?"
+            )
+            if not resposta:
+                return
+
+            from src.gestores.servicos_lote_documentos import gerar_declaracoes_8ano_combinadas
+
+            arquivo = gerar_declaracoes_8ano_combinadas()
+            if arquivo:
+                messagebox.showinfo("Concluído", f"Declarações combinadas geradas: {arquivo}")
+            else:
+                messagebox.showerror("Erro", "Falha ao gerar declarações combinadas. Verifique os logs.")
+
+        except Exception as e:
+            logger.exception(f"Erro no processo de geração de declarações em lote (8º ano): {e}")
+            messagebox.showerror("Erro", f"Erro ao gerar declarações: {e}")
 
     def _servicos_gerar_declaracoes_9ano(self):
         """Gera declarações em lote para alunos do 9º ano (matriculados e ativos)."""
