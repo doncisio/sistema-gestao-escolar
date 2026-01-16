@@ -1,5 +1,5 @@
 from src.core.config_logs import get_logger
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 logger = get_logger(__name__)
 import io
 import os
@@ -67,7 +67,7 @@ def gerar_lista_fardamento():
     elements.append(Spacer(1, 2 * inch))
     elements.append(Paragraph("<b>LISTA DE ALUNOS <br/> E <br/>FARDAMENTOS RECEBIDOS</b>", ParagraphStyle(name='Capa', fontSize=24, alignment=1, leading=24)))
     elements.append(Spacer(1, 2.5 * inch))
-    elements.append(Paragraph(f"<b>{datetime.datetime.now().year}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
+    elements.append(Paragraph(f"<b>{ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
     elements.append(PageBreak())
     
     # Iterar por todas as turmas e adicionar ao mesmo documento
@@ -86,7 +86,7 @@ def gerar_lista_fardamento():
         elements.append(Spacer(1, 0.1 * inch))
         
         # Adicionar título da turma
-        elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno} - {datetime.datetime.now().year}</b>", 
+        elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno} - {ANO_LETIVO_ATUAL}</b>", 
                                 ParagraphStyle(name='TurmaTitulo', fontSize=12, alignment=1)))
         elements.append(Spacer(1, 0.1 * inch))
         

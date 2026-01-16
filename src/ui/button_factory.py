@@ -13,7 +13,7 @@ from auth.decorators import ControleAcesso
 from src.core.config_logs import get_logger
 
 logger = get_logger(__name__)
-from src.core.config import perfis_habilitados
+from src.core.config import perfis_habilitados, ANO_LETIVO_ATUAL
 
 
 class ButtonFactory:
@@ -1222,13 +1222,11 @@ class ButtonFactory:
             # Determinar ano e escola
             try:
                 from src.core.config.settings import settings
-                from datetime import datetime
-                # Usar settings.app.ano_letivo se definido; caso contrário, usar ano atual
-                ano = getattr(settings.app, 'ano_letivo', None) or datetime.now().year
+                # Usar settings.app.ano_letivo se definido; caso contrário, usar ANO_LETIVO_ATUAL
+                ano = getattr(settings.app, 'ano_letivo', None) or ANO_LETIVO_ATUAL
                 escola_id = getattr(settings.app, 'escola_id', 60)
             except Exception:
-                from datetime import datetime
-                ano = datetime.now().year
+                ano = ANO_LETIVO_ATUAL
                 escola_id = 60
 
             # Gerar usando o relatório implementado
@@ -1489,7 +1487,7 @@ class ButtonFactory:
                     ok = gerar_relatorio_pendencias(
                         bimestre=bimestre,
                         nivel_ensino=nivel,
-                        ano_letivo=datetime.now().year,
+                        ano_letivo=ANO_LETIVO_ATUAL,
                         escola_id=60
                     )
                     

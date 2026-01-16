@@ -181,19 +181,19 @@ def criar_pdf(buffer, cabecalho, rodape_texto, dados_aluno, responsaveis, marcac
     if pd.isna(responsavel1):
         if pd.isna(responsavel2):
             elements.append(Paragraph(
-                f"Declaramos, para os devidos fins, que <b>{nome_aluno}</b>, nascid{'o' if genero_aluno == 'masculino' else 'a'} em <b>{data_nascimento}</b>, filh{'o' if genero_aluno == 'masculino' else 'a'} de, está regularmente matriculad{'o' if genero_aluno == 'masculino' else 'a'} na <b>{nome_escola}</b> cursando o <b>{turma} </b> do {nivel_ensino} no ano de <b>{datetime.datetime.now().year}</b>, {'no turno <b>matutino</b>' if turno == 'MAT' else 'no turno <b>vespertino</b>'}.",
+                f"Declaramos, para os devidos fins, que <b>{nome_aluno}</b>, nascid{'o' if genero_aluno == 'masculino' else 'a'} em <b>{data_nascimento}</b>, filh{'o' if genero_aluno == 'masculino' else 'a'} de, está regularmente matriculad{'o' if genero_aluno == 'masculino' else 'a'} na <b>{nome_escola}</b> cursando o <b>{turma} </b> do {nivel_ensino} no ano de <b>{ANO_LETIVO_ATUAL}</b>, {'no turno <b>matutino</b>' if turno == 'MAT' else 'no turno <b>vespertino</b>'}.",
                 style_declaracao))
         else:
             elements.append(Paragraph(
-                f"Declaramos, para os devidos fins, que <b>{nome_aluno}</b>, nascid{'o' if genero_aluno == 'masculino' else 'a'} em <b>{data_nascimento}</b>, filh{'o' if genero_aluno == 'masculino' else 'a'} de <b>{responsavel2}</b>, está regularmente matriculad{'o' if genero_aluno == 'masculino' else 'a'} na <b>{nome_escola}</b> cursando o <b>{turma}</b> do {nivel_ensino} no ano de <b>{datetime.datetime.now().year}</b>, {'no turno <b>matutino</b>' if turno == 'MAT' else 'no turno <b>vespertino</b>'}.",
+                f"Declaramos, para os devidos fins, que <b>{nome_aluno}</b>, nascid{'o' if genero_aluno == 'masculino' else 'a'} em <b>{data_nascimento}</b>, filh{'o' if genero_aluno == 'masculino' else 'a'} de <b>{responsavel2}</b>, está regularmente matriculad{'o' if genero_aluno == 'masculino' else 'a'} na <b>{nome_escola}</b> cursando o <b>{turma}</b> do {nivel_ensino} no ano de <b>{ANO_LETIVO_ATUAL}</b>, {'no turno <b>matutino</b>' if turno == 'MAT' else 'no turno <b>vespertino</b>'}.",
                 style_declaracao))
     elif pd.isna(responsavel2):
         elements.append(Paragraph(
-            f"Declaramos, para os devidos fins, que <b>{nome_aluno}</b>, nascid{'o' if genero_aluno == 'masculino' else 'a'} em <b>{data_nascimento}</b>, filh{'o' if genero_aluno == 'masculino' else 'a'} de <b>{responsavel1}</b>, está regularmente matriculad{'o' if genero_aluno == 'masculino' else 'a'} na <b>{nome_escola}</b> cursando o <b>{turma} </b> do {nivel_ensino} no ano de <b>{datetime.datetime.now().year}</b>, {'no turno <b>matutino</b>' if turno == 'MAT' else 'no turno <b>vespertino</b>'}.",
+            f"Declaramos, para os devidos fins, que <b>{nome_aluno}</b>, nascid{'o' if genero_aluno == 'masculino' else 'a'} em <b>{data_nascimento}</b>, filh{'o' if genero_aluno == 'masculino' else 'a'} de <b>{responsavel1}</b>, está regularmente matriculad{'o' if genero_aluno == 'masculino' else 'a'} na <b>{nome_escola}</b> cursando o <b>{turma} </b> do {nivel_ensino} no ano de <b>{ANO_LETIVO_ATUAL}</b>, {'no turno <b>matutino</b>' if turno == 'MAT' else 'no turno <b>vespertino</b>'}.",
             style_declaracao))
     else:
         elements.append(Paragraph(
-            f"Declaramos, para os devidos fins, que <b>{nome_aluno}</b>, nascid{'o' if genero_aluno == 'masculino' else 'a'} em <b>{data_nascimento}</b>, filh{'o' if genero_aluno == 'masculino' else 'a'} de <b>{responsavel1}</b> e <b>{responsavel2}</b>, está regularmente matriculad{'o' if genero_aluno == 'masculino' else 'a'} na <b>{nome_escola}</b> cursando o <b>{turma}</b> do {nivel_ensino} no ano de <b>{datetime.datetime.now().year}</b>, {'no turno <b>matutino</b>' if turno == 'MAT' else 'no turno <b>vespertino</b>'}.",
+            f"Declaramos, para os devidos fins, que <b>{nome_aluno}</b>, nascid{'o' if genero_aluno == 'masculino' else 'a'} em <b>{data_nascimento}</b>, filh{'o' if genero_aluno == 'masculino' else 'a'} de <b>{responsavel1}</b> e <b>{responsavel2}</b>, está regularmente matriculad{'o' if genero_aluno == 'masculino' else 'a'} na <b>{nome_escola}</b> cursando o <b>{turma}</b> do {nivel_ensino} no ano de <b>{ANO_LETIVO_ATUAL}</b>, {'no turno <b>matutino</b>' if turno == 'MAT' else 'no turno <b>vespertino</b>'}.",
             style_declaracao))
 
     elements.append(Spacer(1, 0.5 * inch))

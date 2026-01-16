@@ -5,7 +5,7 @@ import pandas as pd
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from src.core.conexao import conectar_bd
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 from db.connection import get_connection
 from typing import Any, cast
 from reportlab.lib.pagesizes import letter
@@ -183,24 +183,20 @@ def gerar_documento_transferencia(aluno_id, ano_letivo_id):
         if pd.isna(responsavel1):
             if pd.isna(responsavel2):
                 story.append(Paragraph(
-                    f"Declaramos, para os devidos fins, que <b>{dados_aluno['nome_aluno']}</b>, nascid{'o' if genero_aluno == 'masculino' else 'a'} em <b>{data_nascimento}</b>, filh{'o' if genero_aluno == 'masculino' else 'a'} de, esteve regularmente matriculad{'o' if genero_aluno == 'masculino' else 'a'} nesta Instituição de Ensino, no <b>{turma} </b> do {dados_aluno['nivel_ensino']} no ano de <b>{datetime.datetime.now().year}</b>, {'no turno <b>matutino</b>' if dados_aluno['turno'] == 'MAT' else 'no turno <b>vespertino</b>'}.",
+                    f"Declaramos, para os devidos fins, que <b>{dados_aluno['nome_aluno']}</b>, nascid{'o' if genero_aluno == 'masculino' else 'a'} em <b>{data_nascimento}</b>, filh{'o' if genero_aluno == 'masculino' else 'a'} de, esteve regularmente matriculad{'o' if genero_aluno == 'masculino' else 'a'} nesta Instituição de Ensino, no <b>{turma} </b> do {dados_aluno['nivel_ensino']} no ano de <b>{ANO_LETIVO_ATUAL}</b>, {'no turno <b>matutino</b>' if dados_aluno['turno'] == 'MAT' else 'no turno <b>vespertino</b>'}.",
                     style_declaracao))
             else:
                 story.append(Paragraph(
-                    f"Declaramos, para os devidos fins, que <b>{dados_aluno['nome_aluno']}</b>, nascid{'o' if genero_aluno == 'masculino' else 'a'} em <b>{data_nascimento}</b>, filh{'o' if genero_aluno == 'masculino' else 'a'} de <b>{responsavel2}</b>, esteve regularmente matriculad{'o' if genero_aluno == 'masculino' else 'a'} nesta Instituição de Ensino, na <b>{turma}</b> do {dados_aluno['nivel_ensino']} no ano de <b>{datetime.datetime.now().year}</b>, {'no turno <b>matutino</b>' if dados_aluno['turno'] == 'MAT' else 'no turno <b>vespertino</b>'}.",
+                    f"Declaramos, para os devidos fins, que <b>{dados_aluno['nome_aluno']}</b>, nascid{'o' if genero_aluno == 'masculino' else 'a'} em <b>{data_nascimento}</b>, filh{'o' if genero_aluno == 'masculino' else 'a'} de <b>{responsavel2}</b>, esteve regularmente matriculad{'o' if genero_aluno == 'masculino' else 'a'} nesta Instituição de Ensino, na <b>{turma}</b> do {dados_aluno['nivel_ensino']} no ano de <b>{ANO_LETIVO_ATUAL}</b>, {'no turno <b>matutino</b>' if dados_aluno['turno'] == 'MAT' else 'no turno <b>vespertino</b>'}.",
                     style_declaracao))
         elif pd.isna(responsavel2):
             story.append(Paragraph(
-                f"Declaramos, para os devidos fins, que <b>{dados_aluno['nome_aluno']}</b>, nascid{'o' if genero_aluno == 'masculino' else 'a'} em <b>{data_nascimento}</b>, filh{'o' if genero_aluno == 'masculino' else 'a'} de <b>{responsavel1}</b>, esteve regularmente matriculad{'o' if genero_aluno == 'masculino' else 'a'} nesta Instituição de Ensino, na <b>{turma} </b> do {dados_aluno['nivel_ensino']} no ano de <b>{datetime.datetime.now().year}</b>, {'no turno <b>matutino</b>' if dados_aluno['turno'] == 'MAT' else 'no turno <b>vespertino</b>'}.",
+                f"Declaramos, para os devidos fins, que <b>{dados_aluno['nome_aluno']}</b>, nascid{'o' if genero_aluno == 'masculino' else 'a'} em <b>{data_nascimento}</b>, filh{'o' if genero_aluno == 'masculino' else 'a'} de <b>{responsavel1}</b>, esteve regularmente matriculad{'o' if genero_aluno == 'masculino' else 'a'} nesta Instituição de Ensino, na <b>{turma} </b> do {dados_aluno['nivel_ensino']} no ano de <b>{ANO_LETIVO_ATUAL}</b>, {'no turno <b>matutino</b>' if dados_aluno['turno'] == 'MAT' else 'no turno <b>vespertino</b>'}.",
                 style_declaracao))
         else:
             story.append(Paragraph(
-                f"Declaramos, para os devidos fins, que <b>{dados_aluno['nome_aluno']}</b>, nascid{'o' if genero_aluno == 'masculino' else 'a'} em <b>{data_nascimento}</b>, filh{'o' if genero_aluno == 'masculino' else 'a'} de <b>{responsavel1}</b> e <b>{responsavel2}</b>, esteve regularmente matriculad{'o' if genero_aluno == 'masculino' else 'a'} nesta Instituição de Ensino, no <b>{turma}</b> do {dados_aluno['nivel_ensino']} no ano de <b>{datetime.datetime.now().year}</b>, {'no turno <b>matutino</b>' if dados_aluno['turno'] == 'MAT' else 'no turno <b>vespertino</b>'}.",
+                f"Declaramos, para os devidos fins, que <b>{dados_aluno['nome_aluno']}</b>, nascid{'o' if genero_aluno == 'masculino' else 'a'} em <b>{data_nascimento}</b>, filh{'o' if genero_aluno == 'masculino' else 'a'} de <b>{responsavel1}</b> e <b>{responsavel2}</b>, esteve regularmente matriculad{'o' if genero_aluno == 'masculino' else 'a'} nesta Instituição de Ensino, no <b>{turma}</b> do {dados_aluno['nivel_ensino']} no ano de <b>{ANO_LETIVO_ATUAL}</b>, {'no turno <b>matutino</b>' if dados_aluno['turno'] == 'MAT' else 'no turno <b>vespertino</b>'}.",
                 style_declaracao))
-
-        story.append(Spacer(1, 0.25 * inch))
-        story.append(Paragraph("Abaixo segue o desempenho acadêmico parcial do(a) aluno(a) no ano corrente:", style_declaracao))
-        story.append(Spacer(1, 0.25 * inch))
         # Adicionar espaço entre seções
         story.append(Paragraph("<br/>", styles['Normal']))
 
@@ -291,7 +287,7 @@ def gerar_documento_transferencia(aluno_id, ano_letivo_id):
                 caminho_arquivo=caminho_arquivo,
                 tipo_documento=TIPO_TRANSFERENCIA,
                 aluno_id=aluno_id,
-                finalidade=f"Transferência {datetime.datetime.now().year}",
+                finalidade=f"Transferência {ANO_LETIVO_ATUAL}",
                 descricao=descricao
             )
 

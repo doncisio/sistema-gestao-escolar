@@ -3,7 +3,7 @@ logger = get_logger(__name__)
 import io
 import os
 import pandas as pd
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 import datetime
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
@@ -200,7 +200,7 @@ def add_cover_page(elements, cabecalho, figura_inferior):
     elements.append(Spacer(1, 0.3 * inch))
     elements.append(Paragraph("<b>LISTA ALFABÉTICA</b>", ParagraphStyle(name='SubCapa', fontSize=18, alignment=1)))
     elements.append(Spacer(1, 4.7 * inch))
-    elements.append(Paragraph(f"<b>{datetime.datetime.now().year}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
+    elements.append(Paragraph(f"<b>{ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
     elements.append(PageBreak())
 
 def add_dashboard(elements, df, figura_inferior, cabecalho):
@@ -447,7 +447,7 @@ def lista_alfabetica():
             try:
                 tmp.write(buffer.getvalue())
                 tmp.close()
-                descricao = f"Lista Alfabética - {datetime.datetime.now().year}"
+                descricao = f"Lista Alfabética - {ANO_LETIVO_ATUAL}"
                 try:
                     salvar_documento_sistema(tmp.name, TIPO_LISTA_ATUALIZADA, funcionario_id=1, finalidade='Secretaria', descricao=descricao)
                     saved_path = tmp.name

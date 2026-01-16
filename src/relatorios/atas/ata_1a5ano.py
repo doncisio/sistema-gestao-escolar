@@ -2,7 +2,7 @@ import io
 import os
 import pandas as pd
 from reportlab.platypus import Image, Paragraph, Table, TableStyle, Spacer, PageBreak
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from src.utils.utilitarios.gerenciador_documentos import salvar_documento_sistema
@@ -309,13 +309,13 @@ def ata_geral():
         f.write(buffer.getvalue())
     
     # Criar descrição detalhada
-    descricao = f"Ata Geral de Resultados Finais {datetime.datetime.now().year} - Anos Iniciais"
+    descricao = f"Ata Geral de Resultados Finais {ANO_LETIVO_ATUAL} - Anos Iniciais"
     
     # Salvar no sistema de gerenciamento de documentos
     sucesso, mensagem, link = salvar_documento_sistema(
         caminho_arquivo=caminho_arquivo,
         tipo_documento=TIPO_ATA,
-        finalidade=f"Resultados Finais {datetime.datetime.now().year}",
+        finalidade=f"Resultados Finais {ANO_LETIVO_ATUAL}",
         descricao=descricao
     )
     

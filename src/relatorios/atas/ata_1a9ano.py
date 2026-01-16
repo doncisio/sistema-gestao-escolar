@@ -3,7 +3,7 @@ import io
 import pandas as pd
 import datetime
 from reportlab.lib.pagesizes import letter
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
@@ -385,13 +385,13 @@ def ata_geral_1a9ano():
         f.write(buffer.getvalue())
     
     # Criar descrição detalhada
-    descricao = f"Ata Geral de Resultados Finais {datetime.datetime.now().year} - 1º ao 9º ano"
+    descricao = f"Ata Geral de Resultados Finais {ANO_LETIVO_ATUAL} - 1º ao 9º ano"
     
     # Salvar no sistema de gerenciamento de documentos
     sucesso, mensagem, link = salvar_documento_sistema(
         caminho_arquivo=caminho_arquivo,
         tipo_documento=TIPO_ATA,
-        finalidade=f"Resultados Finais {datetime.datetime.now().year}",
+        finalidade=f"Resultados Finais {ANO_LETIVO_ATUAL}",
         descricao=descricao
     )
     

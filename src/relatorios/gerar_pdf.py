@@ -14,6 +14,7 @@ import json
 from datetime import datetime
 import os as _os
 from typing import Optional
+from src.core.config import ANO_LETIVO_ATUAL
 
 # Local config path (same convention used em main.py)
 LOCAL_CONFIG_PATH = _os.path.join(_os.path.dirname(__file__), 'local_config.json')
@@ -66,10 +67,7 @@ def _get_drive_folder_id() -> Optional[str]:
 def _ensure_docs_dirs(ano: Optional[int] = None):
     root = _get_documents_root()
     if ano is None:
-        try:
-            ano = datetime.now().year
-        except Exception:
-            ano = datetime.now().year
+        ano = ANO_LETIVO_ATUAL
     pasta_ano = _os.path.join(root, f"Documentos Secretaria {int(ano)}")
     subfolders = [
         'Listas', 'Notas', 'Servicos', 'Faltas', 'Pendencias', 'Relatorios Gerais', 'Contatos', 'Outros'
@@ -123,7 +121,7 @@ def _move_and_upload(saved_path: str) -> str:
         except Exception:
             caller = None
 
-        ano = datetime.now().year
+        ano = ANO_LETIVO_ATUAL
         pasta_ano = _ensure_docs_dirs(ano)
         categoria = _categoria_por_contexto(basename, caller)
         target_dir = _os.path.join(pasta_ano, categoria)

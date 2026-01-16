@@ -2,7 +2,7 @@ from src.core.config_logs import get_logger
 logger = get_logger(__name__)
 import os
 import pandas as pd
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 import datetime
 import mysql.connector as mysql_connector
 from reportlab.lib.pagesizes import letter, landscape
@@ -455,9 +455,9 @@ def gerar_documento_pdf(df, bimestre, nome_arquivo, disciplinas, nivel_ensino, a
     from reportlab.platypus import Spacer
     from reportlab.lib.pagesizes import letter, landscape
     
-    # Se o ano letivo não for especificado, usar o ano atual
+    # Se o ano letivo não for especificado, usar o ano letivo configurado
     if ano_letivo is None:
-        ano_letivo = datetime.datetime.now().year
+        ano_letivo = ANO_LETIVO_ATUAL
     
     # Função auxiliar para adicionar quebra de linha nos títulos das colunas
     def adicionar_quebra_linha(texto):
@@ -700,9 +700,9 @@ def gerar_documento_pdf_com_assinatura(df, bimestre, nome_arquivo, disciplinas, 
     # Importar Spacer no início da função para garantir que esteja disponível em todo o escopo
     from reportlab.platypus import Spacer
     
-    # Se o ano letivo não for especificado, usar o ano atual
+    # Se o ano letivo não for especificado, usar o ano letivo configurado
     if ano_letivo is None:
-        ano_letivo = datetime.datetime.now().year
+        ano_letivo = ANO_LETIVO_ATUAL
     
     # Função auxiliar para adicionar quebra de linha nos títulos das colunas
     def adicionar_quebra_linha(texto):

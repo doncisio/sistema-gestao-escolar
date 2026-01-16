@@ -15,8 +15,8 @@ ANO_LETIVO_ATUAL = 2025
 
 # Configurações para integração GEDUC (por segurança manter vazias aqui em repositórios públicos)
 # Você pode preencher localmente ou usar variáveis de ambiente para ambientes de produção.
-GEDUC_DEFAULT_USER = ""
-GEDUC_DEFAULT_PASS = ""
+GEDUC_DEFAULT_USER = "01813518386"
+GEDUC_DEFAULT_PASS = "01813518386t"
 
 # Outros valores globais podem ser adicionados aqui no futuro.
 

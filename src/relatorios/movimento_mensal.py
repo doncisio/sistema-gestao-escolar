@@ -1,7 +1,7 @@
 from src.core.config_logs import get_logger
 logger = get_logger(__name__)
 from reportlab.platypus import Image, Paragraph, Table, TableStyle, Spacer, PageBreak
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.lib.colors import black, HexColor, Color
@@ -39,7 +39,7 @@ def add_cover_page(doc, elements, cabecalho, figura_superior, figura_inferior, m
     mes_atual = mes if mes is not None else datetime.datetime.now().month
     elements.append(Paragraph(f"<b>MOVIMENTO MENSAL <br/><br/> {get_nome_mes(mes_atual)}</b>", ParagraphStyle(name='Capa', fontSize=24, alignment=1, leading=24)))
     elements.append(Spacer(1, 3.75 * inch))
-    elements.append(Paragraph(f"<b>{datetime.datetime.now().year}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
+    elements.append(Paragraph(f"<b>{ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
     elements.append(PageBreak())
 
 def add_header(doc, elements, cabecalho, figura_superior, figura_inferior):
@@ -961,7 +961,7 @@ def relatorio_movimentacao_mensal(mes=None):
             try:
                 tmp.write(buffer_final.getvalue())
                 tmp.close()
-                descricao = f"Movimento Mensal - {datetime.datetime.now().year}"
+                descricao = f"Movimento Mensal - {ANO_LETIVO_ATUAL}"
                 try:
                     salvar_documento_sistema(tmp.name, TIPO_MOVIMENTO_MENSAL, funcionario_id=1, finalidade='Secretaria', descricao=descricao)
                     saved_path = tmp.name
@@ -1048,7 +1048,7 @@ def gerar_relatorio_1_5(elements, cabecalho, figura_inferior, mes):
     # Informações da escola
     info_data = [
         [Paragraph(f"<b>MÊS:</b> {get_nome_mes(mes)}", estilo_info), 
-         Paragraph(f"<b>ANO:</b> {datetime.datetime.now().year}", estilo_info)]
+         Paragraph(f"<b>ANO:</b> {ANO_LETIVO_ATUAL}", estilo_info)]
     ]
     info_table = Table(info_data, colWidths=[4*inch, 4*inch])
     info_table.setStyle(TableStyle([
@@ -1385,7 +1385,7 @@ def gerar_relatorio_6_9(elements, cabecalho, figura_inferior, mes):
     # Informações da escola
     info_data = [
         [Paragraph(f"<b>MÊS:</b> {get_nome_mes(mes)}", estilo_info), 
-         Paragraph(f"<b>ANO:</b> {datetime.datetime.now().year}", estilo_info)]
+         Paragraph(f"<b>ANO:</b> {ANO_LETIVO_ATUAL}", estilo_info)]
     ]
     info_table = Table(info_data, colWidths=[4*inch, 4*inch])
     info_table.setStyle(TableStyle([

@@ -3,7 +3,7 @@ logger = get_logger(__name__)
 import io
 import os
 import pandas as pd
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 import datetime
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
@@ -320,7 +320,7 @@ def add_cover_page(doc, elements, cabecalho, figura_superior, figura_inferior):
     elements.append(Paragraph("<b>RELAÇÃO DE ALUNOS</b>", capa_style))
     elements.append(Spacer(1, 5 * inch))
     ano_style = _get_cached_style('Ano', fontSize=18, alignment=1)
-    elements.append(Paragraph(f"<b>{datetime.datetime.now().year}</b>", ano_style))
+    elements.append(Paragraph(f"<b>{ANO_LETIVO_ATUAL}</b>", ano_style))
     elements.append(PageBreak())
 
 def format_phone_numbers(telefones):
@@ -355,7 +355,7 @@ def add_class_table(elements, turma_df, nome_serie, nome_turma, turno, nome_prof
 
     elements.append(Spacer(1, 0.25 * inch))
     turma_style = _get_cached_style('TurmaTitulo', fontSize=12, alignment=1)
-    elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno} - {datetime.datetime.now().year}</b>", turma_style))
+    elements.append(Paragraph(f"<b>Turma: {nome_serie} {nome_turma} - Turno: {turno} - {ANO_LETIVO_ATUAL}</b>", turma_style))
     elements.append(Spacer(1, 0.1 * inch))
     prof_style = _get_cached_style('ProfessoraTitulo', fontSize=12, alignment=0)
     elements.append(Paragraph(f"<b>PROFESSOR@: {nome_professor} </b>", prof_style))
@@ -690,7 +690,7 @@ def lista_atualizada():
             try:
                 tmp.write(buffer.getvalue())
                 tmp.close()
-                descricao = f"Lista Atualizada - {datetime.datetime.now().year}"
+                descricao = f"Lista Atualizada - {ANO_LETIVO_ATUAL}"
                 try:
                     salvar_documento_sistema(tmp.name, TIPO_LISTA_ATUALIZADA, funcionario_id=1, finalidade='Secretaria', descricao=descricao)
                     saved_path = tmp.name

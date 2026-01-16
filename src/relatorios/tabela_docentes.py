@@ -5,7 +5,7 @@ from reportlab.lib.colors import black, HexColor, Color
 from reportlab.lib.pagesizes import landscape, letter
 import os
 from src.core.conexao import conectar_bd
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 from typing import Any, cast
 from scripts.auxiliares.biblio_editor import create_pdf_buffer, quebra_linha
 from src.relatorios.gerar_pdf import salvar_e_abrir_pdf
@@ -292,7 +292,7 @@ if __name__ == "__main__":
                 try:
                     tmp.write(buffer.getvalue())
                     tmp.close()
-                    descricao = f"Tabela de Docentes - {datetime.datetime.now().year}"
+                    descricao = f"Tabela de Docentes - {ANO_LETIVO_ATUAL}"
                     try:
                         salvar_documento_sistema(tmp.name, TIPO_LISTA_ATUALIZADA, funcionario_id=1, finalidade='Secretaria', descricao=descricao)
                         saved_path = tmp.name
