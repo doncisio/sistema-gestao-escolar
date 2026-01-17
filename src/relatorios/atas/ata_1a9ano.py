@@ -14,7 +14,7 @@ from typing import Any, cast
 from src.relatorios.gerar_pdf import salvar_e_abrir_pdf, criar_pdf
 from src.utils.utilitarios.gerenciador_documentos import salvar_documento_sistema
 from src.utils.utilitarios.tipos_documentos import TIPO_ATA
-from inserir_no_historico_escolar import inserir_no_historico_escolar
+from scripts.migracao.inserir_no_historico_escolar import inserir_no_historico_escolar
 from scripts.auxiliares.biblio_editor import adicionar_quebra_linha, quebra_linha, criar_cabecalho_pdf, arredondar_personalizado
 from src.utils.dates import formatar_data_extenso
 from src.core.config_logs import get_logger
@@ -88,9 +88,17 @@ def obter_faltas_alunos(cursor):
     return {f['aluno_id']: f['total_faltas'] for f in cursor.fetchall()}
 
 def obter_notas_finais(cursor):
+    """
+    Obtém as notas finais dos alunos após recuperação anual.
+    
+    Consulta a tabela notas_finais que contém:
+    - media_final: nota final após recuperação (se houver)
+    - Fallback para avaliacao_final se notas_finais não existir
+    """
+    # Tentar primeiro a nova tabela notas_finais
     cursor.execute("""
-        SELECT aluno_id, disciplina_id, nota 
-        FROM avaliacao_final 
+        SELECT aluno_id, disciplina_id, media_final as nota
+        FROM notas_finais 
         WHERE ano_letivo_id = (SELECT id FROM anosletivos WHERE ano_letivo = 2025)
     """)
     notas_finais = {}
@@ -101,6 +109,22 @@ def obter_notas_finais(cursor):
         if aluno_id not in notas_finais:
             notas_finais[aluno_id] = {}
         notas_finais[aluno_id][disciplina_id] = nota
+    
+    # Se não houver dados em notas_finais, usar avaliacao_final (fallback)
+    if not notas_finais:
+        cursor.execute("""
+            SELECT aluno_id, disciplina_id, nota 
+            FROM avaliacao_final 
+            WHERE ano_letivo_id = (SELECT id FROM anosletivos WHERE ano_letivo = 2025)
+        """)
+        for n in cursor.fetchall():
+            aluno_id = n['aluno_id']
+            disciplina_id = n['disciplina_id']
+            nota = n['nota']
+            if aluno_id not in notas_finais:
+                notas_finais[aluno_id] = {}
+            notas_finais[aluno_id][disciplina_id] = nota
+    
     return notas_finais
 
 def verificar_ano_letivo_terminado(cursor, ano_letivo=2025):

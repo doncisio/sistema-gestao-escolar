@@ -11,7 +11,7 @@ from reportlab.lib.colors import black, white
 from reportlab.lib.enums import TA_JUSTIFY
 from src.core.conexao import conectar_bd
 from src.relatorios.gerar_pdf import salvar_e_abrir_pdf, criar_pdf
-from inserir_no_historico_escolar import inserir_no_historico_escolar
+from scripts.migracao.inserir_no_historico_escolar import inserir_no_historico_escolar
 from scripts.auxiliares.biblio_editor import adicionar_quebra_linha, quebra_linha, arredondar_personalizado, criar_cabecalho_pdf
 from src.utils.dates import formatar_data_extenso
 import datetime
@@ -105,6 +105,34 @@ def verificar_ano_letivo_terminado(cursor, ano_letivo=2025):
         # Como houve erro, é mais seguro não exportar as notas
         return False
 
+def obter_notas_finais(cursor):
+    """
+    Obtém as notas finais dos alunos após recuperação anual.
+    
+    Consulta a tabela notas_finais que contém:
+    - media_final: nota final após recuperação (se houver)
+    
+    Retorna dict: {aluno_id: {disciplina_id: nota}}
+    """
+    try:
+        cursor.execute("""
+            SELECT aluno_id, disciplina_id, media_final as nota
+            FROM notas_finais 
+            WHERE ano_letivo_id = (SELECT id FROM anosletivos WHERE ano_letivo = 2025)
+        """)
+        notas_finais = {}
+        for n in cursor.fetchall():
+            aluno_id = n['aluno_id']
+            disciplina_id = n['disciplina_id']
+            nota = n['nota']
+            if aluno_id not in notas_finais:
+                notas_finais[aluno_id] = {}
+            notas_finais[aluno_id][disciplina_id] = nota
+        return notas_finais
+    except Exception as e:
+        logger.warning("Tabela notas_finais não disponível ou vazia: %s", e)
+        return {}
+
 # Mapeamento de nomes de colunas para disciplina_id
 disciplinas_map = {
     'NOTA_PORTUGUES': 1,  # ID para Português
@@ -117,7 +145,7 @@ disciplinas_map = {
     'NOTA_ED_FISICA': 8    # ID para Educação Física
 }
 
-def gerar_pdf(df, faltas_dict, limite_faltas, cabecalho, figura_superior, figura_inferior, ano_letivo_terminado=False):
+def gerar_pdf(df, faltas_dict, limite_faltas, cabecalho, figura_superior, figura_inferior, notas_finais=None, ano_letivo_terminado=False):
     buffer = io.BytesIO()
     elements = []
 
@@ -163,16 +191,23 @@ def gerar_pdf(df, faltas_dict, limite_faltas, cabecalho, figura_superior, figura
                 data.append([row_num, nome, status, status, status, status, status, status, status, status, status])
             else:
                 notas_atualizadas = []
+                aluno_id = row['aluno_id']
                 for col in ['NOTA_PORTUGUES', 'NOTA_MATEMATICA', 'NOTA_CIENCIAS', 
                             'NOTA_HISTORIA', 'NOTA_GEOGRAFIA', 'NOTA_ARTES', 
                             'NOTA_ENS_RELIGIOSO', 'NOTA_ED_FISICA']:
-                    nota_atual = int(arredondar_personalizado(row[col]))
-                    notas_atualizadas.append(nota_atual)
-                    # Inserir no histórico escolar se o ano letivo estiver fechado
                     disciplina_id = disciplinas_map[col]
+                    
+                    # Usar nota de notas_finais se disponível, senão calcular da média bimestral
+                    if notas_finais and aluno_id in notas_finais and disciplina_id in notas_finais[aluno_id]:
+                        nota_atual = int(notas_finais[aluno_id][disciplina_id])
+                    else:
+                        nota_atual = int(arredondar_personalizado(row[col]))
+                    
+                    notas_atualizadas.append(nota_atual)
+                    
+                    # Inserir no histórico escolar se o ano letivo estiver fechado
                     ano_letivo_id = 1  # ID para 2025
                     escola_id = 60
-                    aluno_id = row['aluno_id']
                     serie_id = row['SERIE_ID']
                     if ano_letivo_terminado:
                         inserir_no_historico_escolar(aluno_id, disciplina_id, float(nota_atual), ano_letivo_id, escola_id, serie_id)
@@ -289,6 +324,9 @@ def ata_geral():
     figura_superior = str(get_image_path('pacologo.png'))
     figura_inferior = str(get_image_path('logopaco.jpg'))
 
+    # Obter notas finais (pós-recuperação anual) se disponível
+    notas_finais = obter_notas_finais(cursor)
+    
     df['Situação Final'] = df.apply(lambda row: determinar_situacao_final(row, faltas_dict, limite_faltas), axis=1)
     
     # Criar nome do arquivo
@@ -301,7 +339,7 @@ def ata_geral():
     
     # Gerar o PDF
     buffer = io.BytesIO()
-    gerar_pdf(df, faltas_dict, limite_faltas, cabecalho, figura_superior, figura_inferior, ano_letivo_terminado)
+    gerar_pdf(df, faltas_dict, limite_faltas, cabecalho, figura_superior, figura_inferior, notas_finais, ano_letivo_terminado)
     
     # Salvar o arquivo localmente
     buffer.seek(0)

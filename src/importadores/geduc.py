@@ -447,6 +447,28 @@ class AutomacaoGEDUC:
             logger.exception("✗ Erro ao acessar recuperação bimestral: %s", e)
             return False
     
+    def acessar_notas_finais(self):
+        """
+        Navega até a página de notas finais (recuperação anual)
+        """
+        try:
+            assert self.driver is not None, "navegador não iniciado"
+            logger.info("→ Navegando para notas finais...")
+            
+            # URL da página de notas finais
+            self.driver.get(f"{self.url_base}/index.php?class=RegNotasFinaisForm")
+            
+            # Aguardar carregamento
+            wait = WebDriverWait(self.driver, 15)
+            wait.until(EC.presence_of_element_located((By.NAME, "IDTURMA")))
+            
+            logger.info("✓ Página de notas finais carregada")
+            return True
+            
+        except Exception as e:
+            logger.exception("✗ Erro ao acessar notas finais: %s", e)
+            return False
+    
     def obter_opcoes_select(self, select_name):
         """
         Obtém todas as opções de um elemento select
@@ -867,6 +889,119 @@ class AutomacaoGEDUC:
             
         except Exception as e:
             logger.exception("✗ Erro ao extrair dados de recuperação: %s", e)
+            return []
+    
+    def extrair_notas_finais_pagina_atual(self):
+        """
+        Extrai notas finais da página RegNotasFinaisForm (recuperação anual)
+        
+        Esta função extrai as médias finais anuais da tabela de notas finais do GEDUC:
+        - Média Calculada: média dos 4 bimestres (coluna 3)
+        - Recuperação: nota da prova de recuperação anual se houver (coluna 4 - input)
+        - Resultado Final (Gravada): nota final já calculada pelo GEDUC (coluna 5)
+        
+        A estrutura da tabela é:
+        [0] Ordem | [1] Matrícula | [2] Alunos | [3] Média Calculada | [4] Recuperação | [5] Resultado Final
+        
+        Returns:
+            Lista de dicts: [{'nome': 'ALUNO', 'media_atual': 7.5, 'recuperacao_final': 8.0, 'resultado_final': 8.0}, ...]
+        """
+        try:
+            assert self.driver is not None, "navegador não iniciado"
+            # Aguardar tabela carregar
+            wait = WebDriverWait(self.driver, 10)
+            tabela = wait.until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "table.table, table.tdatagrid_table"))
+            )
+            
+            # Buscar todas as linhas da tabela
+            linhas = tabela.find_elements(By.TAG_NAME, "tr")
+            
+            dados = []
+            
+            # Processar linhas (pular cabeçalho)
+            for idx, linha in enumerate(linhas):
+                # Pular cabeçalho (primeira linha geralmente)
+                if idx == 0:
+                    continue
+                
+                try:
+                    colunas = linha.find_elements(By.TAG_NAME, "td")
+                    
+                    # Verificar se tem colunas suficientes
+                    if len(colunas) < 3:
+                        continue
+                    
+                    # Estrutura da tabela de notas finais (RegNotasFinaisForm):
+                    # [0] = Ordem
+                    # [1] = Matrícula
+                    # [2] = Alunos (nome)
+                    # [3] = Média Calculada (texto - média dos 4 bimestres)
+                    # [4] = Recuperação (input dentro de table - pode estar vazio)
+                    # [5] = Resultado Final (Gravada) (texto - nota final)
+                    
+                    # Extrair nome do aluno
+                    nome = colunas[2].text.strip() if len(colunas) > 2 else ""
+                    
+                    if not nome:
+                        continue
+                    
+                    # Inicializar variáveis
+                    media_atual = None
+                    recuperacao_final = None
+                    resultado_final = None
+                    
+                    # Extrair Média Calculada (coluna 3) - texto direto
+                    if len(colunas) > 3:
+                        try:
+                            texto_media = colunas[3].text.strip().replace(',', '.')
+                            if texto_media:
+                                media_atual = float(texto_media)
+                        except (ValueError, AttributeError):
+                            pass
+                    
+                    # Extrair Recuperação (coluna 4) - input dentro de table
+                    if len(colunas) > 4:
+                        try:
+                            # Buscar input name="RECF[]" que contém o valor da recuperação
+                            inputs = colunas[4].find_elements(By.CSS_SELECTOR, "input[name='RECF[]']")
+                            if inputs and inputs[0].get_attribute("value"):
+                                valor_rec = inputs[0].get_attribute("value").strip().replace(',', '.')
+                                if valor_rec:
+                                    recuperacao_final = float(valor_rec)
+                        except (ValueError, AttributeError, IndexError):
+                            pass
+                    
+                    # Extrair Resultado Final (coluna 5) - texto direto
+                    if len(colunas) > 5:
+                        try:
+                            texto_resultado = colunas[5].text.strip().replace(',', '.')
+                            if texto_resultado:
+                                resultado_final = float(texto_resultado)
+                        except (ValueError, AttributeError):
+                            pass
+                    
+                    # Adicionar aos dados
+                    # Nota: usamos media_atual (coluna 3), mas o sistema deve usar
+                    # resultado_final (coluna 5) se não houver recuperação,
+                    # ou recuperacao_final (coluna 4) se existir
+                    dados.append({
+                        'nome': nome,
+                        'media_atual': media_atual,
+                        'recuperacao_final': recuperacao_final,
+                        'resultado_final': resultado_final
+                    })
+                
+                except Exception as e:
+                    # Erro em linha específica, continuar para próxima
+                    logger.debug("Erro ao processar linha %d: %s", idx, e)
+                    continue
+            
+            logger.info("✓ Extraídos %d registros de notas finais", len(dados))
+            return dados
+            
+        except Exception as e:
+            logger.exception("✗ Erro ao extrair notas finais: %s", e)
             return []
     
     def extrair_todas_notas(self, turmas_selecionadas=None, bimestres=[1, 2, 3, 4], diretorio_saida="notas_extraidas", callback_progresso=None):
