@@ -4500,12 +4500,19 @@ class InterfaceCadastroEdicaoNotas:
                     # Nota de recuperação: se preenchida, multiplicar por 10
                     nota_recuperacao_bruta = recuperacao_final * 10 if recuperacao_final else None
                     
-                    # Média final: usar resultado_final do GEDUC (já calculado corretamente)
-                    # Se não tiver resultado_final, usar media_atual
-                    if resultado_final is not None:
-                        media_final_bruta = resultado_final * 10
+                    # Calcular média final corretamente:
+                    # Se tem recuperação final E recuperação >= média atual, usar recuperação
+                    # Senão, usar média atual
+                    if recuperacao_final is not None and media_atual is not None:
+                        if recuperacao_final >= media_atual:
+                            media_final_bruta = recuperacao_final * 10
+                        else:
+                            media_final_bruta = media_atual * 10
                     elif media_atual is not None:
                         media_final_bruta = media_atual * 10
+                    elif resultado_final is not None:
+                        # Fallback: usar resultado_final do GEDUC se não tiver outras opções
+                        media_final_bruta = resultado_final * 10
                     else:
                         log(f"      ⚠️ {nome}: Sem média final")
                         continue

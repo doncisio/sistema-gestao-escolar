@@ -146,18 +146,41 @@ def verificar_ano_letivo_terminado(cursor, ano_letivo=2025):
         return False
 
 def calcular_situacao_final(row, notas_finais, faltas_dict, limite_faltas, disciplinas_map):
+    """Calcula a situação final do aluno sem modificar o row original"""
     aluno_id = row['aluno_id']
     
+    # Criar cópia das notas para cálculo
+    notas_para_verificar = {}
+    
     for col, disciplina_id in disciplinas_map.items():
+        # Se há nota final (pós-recuperação) na tabela notas_finais, usar ela diretamente
+        # A media_final já é o valor final calculado pelo GEDUC (não precisa fazer média novamente)
         if aluno_id in notas_finais and disciplina_id in notas_finais[aluno_id]:
-            nota_avaliacao_final = notas_finais[aluno_id][disciplina_id]
-            if arredondar_personalizado(row[col]) < 60:
-                media_nota = (arredondar_personalizado(row[col]) + nota_avaliacao_final) / 2
-                row[col] = media_nota
+            nota = float(notas_finais[aluno_id][disciplina_id])
+            if nota > 0:  # Apenas considerar notas válidas
+                notas_para_verificar[col] = nota
+        else:
+            # Se não há nota final, usar a média dos bimestres
+            nota = arredondar_personalizado(row[col])
+            if nota > 0:  # Apenas considerar notas válidas
+                notas_para_verificar[col] = nota
+    
+    # Se não houver notas válidas, retornar status baseado apenas em faltas
+    if not notas_para_verificar:
+        if faltas_dict.get(aluno_id, 0) > limite_faltas:
+            return 'Reprovada*' if row['SEXO'] == 'F' else 'Reprovado*'
+        else:
+            return 'Aprovada' if row['SEXO'] == 'F' else 'Aprovado'
 
-    if all(arredondar_personalizado(row[col]) >= 60 for col in disciplinas_map.keys()):
-        return 'Aprovada' if row['SEXO'] == 'F' else 'Aprovado'
+    # Verificar aprovação: TODAS as notas devem ser >= 60
+    if all(nota >= 60 for nota in notas_para_verificar.values()):
+        # Ainda precisa verificar faltas
+        if faltas_dict.get(aluno_id, 0) > limite_faltas:
+            return 'Reprovada*' if row['SEXO'] == 'F' else 'Reprovado*'
+        else:
+            return 'Aprovada' if row['SEXO'] == 'F' else 'Aprovado'
     else:
+        # Pelo menos uma nota < 60 = reprovado
         if faltas_dict.get(aluno_id, 0) > limite_faltas:
             return 'Reprovada*' if row['SEXO'] == 'F' else 'Reprovado*'
         else:
@@ -234,18 +257,20 @@ def criar_tabela_notas(turma_df, notas_finais, faltas_dict, disciplinas_map, ano
             for col in colunas_notas:
                 if col in disciplinas_map:
                     disciplina_id = disciplinas_map[col]
-                    nota_atual = int(arredondar_personalizado(row[col]))
-                    if nota_atual < 60:
-                        if row['aluno_id'] in notas_finais and disciplina_id in notas_finais[row['aluno_id']]:
-                            nota_avaliacao_final = notas_finais[row['aluno_id']][disciplina_id]
-                            media_nota = int(arredondar_personalizado((nota_atual + nota_avaliacao_final) / 2))
-                            nota_atual = media_nota
+                    aluno_id = row['aluno_id']
+                    
+                    # Se há nota final (pós-recuperação) na tabela notas_finais, usar ela diretamente
+                    if aluno_id in notas_finais and disciplina_id in notas_finais[aluno_id]:
+                        nota_atual = int(float(notas_finais[aluno_id][disciplina_id]))
+                    else:
+                        # Se não há nota final, usar a média dos bimestres
+                        nota_atual = int(arredondar_personalizado(row[col]))
+                    
                     notas_atualizadas.append(nota_atual)
                     
                     # Inserção no histórico escolar acontece após verificação
                     ano_letivo_id = 1  # ID para 2025
                     escola_id = 60
-                    aluno_id = row['aluno_id']
                     serie_id = row['SERIE_ID']
                     if ano_letivo_terminado:
                         inserir_no_historico_escolar(aluno_id, disciplina_id, float(nota_atual), ano_letivo_id, escola_id, serie_id)
@@ -294,9 +319,9 @@ def gerar_pdf(df, figura_superior, figura_inferior, cabecalho, disciplinas_map, 
     data_atual = datetime.datetime.now().date()
     elements.append(criar_cabecalho_pdf(figura_superior, figura_inferior, cabecalho))
     elements.append(Spacer(1, 3.3 * inch))
-    elements.append(Paragraph(f"<b>ATA GERAL<br/>DE<br/>RESULTADOS FINAIS {data_atual.year}</b>", ParagraphStyle(name='Capa', fontSize=24, alignment=1, leading=30)))
+    elements.append(Paragraph(f"<b>ATA GERAL<br/>DE<br/>RESULTADOS FINAIS {ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='Capa', fontSize=24, alignment=1, leading=30)))
     elements.append(Spacer(1, 4 * inch))
-    elements.append(Paragraph(f"<b>{data_atual.year}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
+    elements.append(Paragraph(f"<b>{ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
     elements.append(PageBreak())
 
     # Conteúdo principal
@@ -304,7 +329,7 @@ def gerar_pdf(df, figura_superior, figura_inferior, cabecalho, disciplinas_map, 
         # Adicionar cabeçalho para cada turma
         elements.append(criar_cabecalho_pdf(figura_superior, figura_inferior, cabecalho))
         elements.append(Spacer(1, 0.25 * inch))
-        elements.append(Paragraph(f"<b>ATA DE RESULTADOS FINAIS – {data_atual.year}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=14, alignment=1)))
+        elements.append(Paragraph(f"<b>ATA DE RESULTADOS FINAIS – {ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=14, alignment=1)))
         elements.append(Spacer(1, 0.125 * inch))
         
         elements.append(Paragraph(f"INSTITUIÇÃO DE ENSINO: U.E.B. PROFª NADIR NASCIMENTO MORAES aos {formatar_data_extenso()}, concluiu-se o processo de avaliação somativa dos alunos do {nome_serie}{'' if nome_turma == ' ' else ' '+nome_turma}, {'Turno <b>Matutino</b>' if turno == 'MAT' else 'Turno <b>Vespertino</b>'}, do Ensino Fundamental, desta Instituição de Ensino, com os seguintes resultados:", ParagraphStyle(name='TurmaTitulo', fontSize=12, alignment=TA_JUSTIFY, leading=18)))
@@ -389,11 +414,8 @@ def ata_geral_1a9ano():
     figura_superior = str(get_image_path('pacologo.png'))
     figura_inferior = str(get_image_path('logopaco.jpg'))
 
-    # Criar buffer para o PDF
-    buffer = io.BytesIO()
-    
-    # Gerar o PDF no buffer
-    gerar_pdf(df, figura_superior, figura_inferior, cabecalho, disciplinas_map, notas_finais, faltas_dict, limite_faltas, ano_letivo_terminado)
+    # Gerar o PDF e obter o buffer
+    buffer = gerar_pdf(df, figura_superior, figura_inferior, cabecalho, disciplinas_map, notas_finais, faltas_dict, limite_faltas, ano_letivo_terminado)
 
     # Criar nome do arquivo
     data_atual = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")

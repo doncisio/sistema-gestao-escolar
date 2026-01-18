@@ -148,18 +148,41 @@ def verificar_ano_letivo_terminado(cursor, ano_letivo=2025):
         return False
 
 def calcular_situacao_final(row, notas_finais, faltas_dict, limite_faltas, disciplinas_map):
+    """Calcula a situação final do aluno sem modificar o row original"""
     aluno_id = row['aluno_id']
     
+    # Criar cópia das notas para cálculo
+    notas_para_verificar = {}
+    
     for col, disciplina_id in disciplinas_map.items():
+        # Se há nota final (pós-recuperação) na tabela notas_finais, usar ela diretamente
+        # A media_final já é o valor final calculado pelo GEDUC (não precisa fazer média novamente)
         if aluno_id in notas_finais and disciplina_id in notas_finais[aluno_id]:
-            nota_avaliacao_final = notas_finais[aluno_id][disciplina_id]
-            if arredondar_personalizado(row[col]) < 60:
-                media_nota = (arredondar_personalizado(row[col]) + nota_avaliacao_final) / 2
-                row[col] = media_nota
+            nota = float(notas_finais[aluno_id][disciplina_id])
+            if nota > 0:  # Apenas considerar notas válidas
+                notas_para_verificar[col] = nota
+        else:
+            # Se não há nota final, usar a média dos bimestres
+            nota = arredondar_personalizado(row[col])
+            if nota > 0:  # Apenas considerar notas válidas
+                notas_para_verificar[col] = nota
+    
+    # Se não houver notas válidas, retornar status baseado apenas em faltas
+    if not notas_para_verificar:
+        if faltas_dict.get(aluno_id, 0) > limite_faltas:
+            return 'Reprovada*' if row['SEXO'] == 'F' else 'Reprovado*'
+        else:
+            return 'Aprovada' if row['SEXO'] == 'F' else 'Aprovado'
 
-    if all(arredondar_personalizado(row[col]) >= 60 for col in disciplinas_map.keys()):
-        return 'Aprovada' if row['SEXO'] == 'F' else 'Aprovado'
+    # Verificar aprovação: TODAS as notas devem ser >= 60
+    if all(nota >= 60 for nota in notas_para_verificar.values()):
+        # Ainda precisa verificar faltas
+        if faltas_dict.get(aluno_id, 0) > limite_faltas:
+            return 'Reprovada*' if row['SEXO'] == 'F' else 'Reprovado*'
+        else:
+            return 'Aprovada' if row['SEXO'] == 'F' else 'Aprovado'
     else:
+        # Pelo menos uma nota < 60 = reprovado
         if faltas_dict.get(aluno_id, 0) > limite_faltas:
             return 'Reprovada*' if row['SEXO'] == 'F' else 'Reprovado*'
         else:
@@ -192,23 +215,25 @@ def criar_tabela_notas(turma_df, notas_finais, faltas_dict, disciplinas_map, ano
             data.append([row_num, nome, status, status, status, status, status, status, status, status, status])
         else:
             notas_atualizadas = []
+            aluno_id = row['aluno_id']
+            serie_id = row['SERIE_ID']
+            
             for col, disciplina_id in disciplinas_map.items():
-                nota_atual = int(arredondar_personalizado(row[col]))
-                if nota_atual < 60:
-                    if row['aluno_id'] in notas_finais and disciplina_id in notas_finais[row['aluno_id']]:
-                        nota_avaliacao_final = notas_finais[row['aluno_id']][disciplina_id]
-                        media_nota = int(arredondar_personalizado((nota_atual + nota_avaliacao_final) / 2))
-                        nota_atual = media_nota
-                    notas_atualizadas.append(nota_atual)
+                # Se há nota final (pós-recuperação) na tabela notas_finais, usar ela diretamente
+                if aluno_id in notas_finais and disciplina_id in notas_finais[aluno_id]:
+                    nota_atual = int(float(notas_finais[aluno_id][disciplina_id]))
                 else:
-                    notas_atualizadas.append(nota_atual)
+                    # Se não há nota final, usar a média dos bimestres
+                    nota_atual = int(arredondar_personalizado(row[col]))
+                
+                notas_atualizadas.append(nota_atual)
+                
                 # Inserção no histórico escolar acontece após verificação
                 ano_letivo_id = 1  # ID para 2025
                 escola_id = 60
-                aluno_id = row['aluno_id']
-                serie_id = row['SERIE_ID']
                 if ano_letivo_terminado:
                     inserir_no_historico_escolar(aluno_id, disciplina_id, float(nota_atual), ano_letivo_id, escola_id, serie_id)
+            
             situacao_final = row['Situação Final']
             data.append([row_num, nome] + notas_atualizadas + [situacao_final])
 
@@ -241,7 +266,7 @@ def gerar_pdf(df, figura_superior, figura_inferior, cabecalho, disciplinas_map, 
     elements.append(criar_cabecalho_pdf(figura_superior, figura_inferior, cabecalho))
     elements.append(Spacer(1, 0.25 * inch))
     data_atual = datetime.datetime.now().date()
-    elements.append(Paragraph(f"<b>ATA DE RESULTADOS FINAIS – {data_atual.year}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=14, alignment=1)))
+    elements.append(Paragraph(f"<b>ATA DE RESULTADOS FINAIS – {ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=14, alignment=1)))
     elements.append(Spacer(1, 0.125 * inch))
 
     for (nome_serie, nome_turma, turno), turma_df in df.groupby(['NOME_SERIE', 'NOME_TURMA', 'TURNO']):
@@ -335,9 +360,8 @@ def ata_geral_6a9ano():
     # Garantir que o diretório existe
     os.makedirs('documentos_gerados', exist_ok=True)
     
-    # Criar buffer e gerar o PDF
-    buffer = io.BytesIO()
-    gerar_pdf(df, figura_superior, figura_inferior, cabecalho, disciplinas_map, notas_finais, faltas_dict, limite_faltas, ano_letivo_terminado)
+    # Gerar o PDF e obter o buffer
+    buffer = gerar_pdf(df, figura_superior, figura_inferior, cabecalho, disciplinas_map, notas_finais, faltas_dict, limite_faltas, ano_letivo_terminado)
     
     # Salvar o arquivo localmente
     buffer.seek(0)

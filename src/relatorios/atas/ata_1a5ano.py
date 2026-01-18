@@ -77,10 +77,39 @@ def processar_dados(dados_aluno):
         df[coluna] = pd.to_numeric(df[coluna], errors='coerce').fillna(0).astype(int)
     return df
 
-def determinar_situacao_final(row, faltas_dict, limite_faltas):
-    if faltas_dict.get(row['aluno_id'], 0) > limite_faltas:
+def determinar_situacao_final(row, faltas_dict, limite_faltas, notas_finais=None, disciplinas_map=None):
+    """Determina a situação final do aluno considerando notas e faltas"""
+    aluno_id = row['aluno_id']
+    
+    # Verificar faltas primeiro
+    if faltas_dict.get(aluno_id, 0) > limite_faltas:
         return 'Reprovada*' if row['SEXO'] == 'F' else 'Reprovado*'
-    if all(arredondar_personalizado(row[col]) >= 60 for col in ['NOTA_PORTUGUES', 'NOTA_MATEMATICA', 'NOTA_CIENCIAS', 'NOTA_HISTORIA', 'NOTA_GEOGRAFIA', 'NOTA_ARTES', 'NOTA_ENS_RELIGIOSO', 'NOTA_ED_FISICA']):
+    
+    # Se não houver notas_finais ou disciplinas_map, usar lógica antiga
+    if not notas_finais or not disciplinas_map:
+        colunas = ['NOTA_PORTUGUES', 'NOTA_MATEMATICA', 'NOTA_CIENCIAS', 'NOTA_HISTORIA', 'NOTA_GEOGRAFIA', 'NOTA_ARTES', 'NOTA_ENS_RELIGIOSO', 'NOTA_ED_FISICA']
+        if all(arredondar_personalizado(row[col]) >= 60 for col in colunas):
+            return 'Aprovada' if row['SEXO'] == 'F' else 'Aprovado'
+        return 'Reprovada' if row['SEXO'] == 'F' else 'Reprovado'
+    
+    # Usar notas_finais quando disponível
+    notas_para_verificar = []
+    for col, disciplina_id in disciplinas_map.items():
+        if aluno_id in notas_finais and disciplina_id in notas_finais[aluno_id]:
+            nota = float(notas_finais[aluno_id][disciplina_id])
+            if nota > 0:
+                notas_para_verificar.append(nota)
+        else:
+            nota = arredondar_personalizado(row[col])
+            if nota > 0:
+                notas_para_verificar.append(nota)
+    
+    # Se não houver notas válidas, aprovar (caso raro)
+    if not notas_para_verificar:
+        return 'Aprovada' if row['SEXO'] == 'F' else 'Aprovado'
+    
+    # Verificar se todas as notas são >= 60
+    if all(nota >= 60 for nota in notas_para_verificar):
         return 'Aprovada' if row['SEXO'] == 'F' else 'Aprovado'
     return 'Reprovada' if row['SEXO'] == 'F' else 'Reprovado'
 
@@ -152,9 +181,9 @@ def gerar_pdf(df, faltas_dict, limite_faltas, cabecalho, figura_superior, figura
     data_atual = datetime.datetime.now().date()
     elements.append(criar_cabecalho_pdf(figura_superior, figura_inferior, cabecalho))
     elements.append(Spacer(1, 3.3 * inch))
-    elements.append(Paragraph(f"<b>ATA GERAL<br/>DE<br/>RESULTADOS FINAIS {data_atual.year}</b>", ParagraphStyle(name='Capa', fontSize=24, alignment=1, leading=30)))
+    elements.append(Paragraph(f"<b>ATA GERAL<br/>DE<br/>RESULTADOS FINAIS {ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='Capa', fontSize=24, alignment=1, leading=30)))
     elements.append(Spacer(1, 4 * inch))
-    elements.append(Paragraph(f"<b>{data_atual.year}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
+    elements.append(Paragraph(f"<b>{ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
     elements.append(PageBreak())
 
     # Iniciar a segunda página com a tabela
@@ -162,7 +191,7 @@ def gerar_pdf(df, faltas_dict, limite_faltas, cabecalho, figura_superior, figura
        
         elements.append(criar_cabecalho_pdf(figura_superior, figura_inferior, cabecalho))
         elements.append(Spacer(1, 0.25 * inch))
-        elements.append(Paragraph(f"<b>ATA DE RESULTADOS FINAIS – {data_atual.year}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=14, alignment=1)))
+        elements.append(Paragraph(f"<b>ATA DE RESULTADOS FINAIS – {ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=14, alignment=1)))
         elements.append(Spacer(1, 0.125 * inch))
         elements.append(Paragraph(f"INSTITUIÇÃO DE ENSINO: U.E.B. PROFª NADIR NASCIMENTO MORAES aos {formatar_data_extenso()}, concluiu-se o processo de avaliação somativa dos alunos do {nome_serie}{'' if nome_turma == ' ' else nome_turma}, {'Turno <b>Matutino</b>' if turno == 'MAT' else 'Turno <b>Vespertino</b>'}, do Ensino Fundamental I, desta Instituição de Ensino, com os seguintes resultados:", ParagraphStyle(name='TurmaTitulo', fontSize=12, alignment=TA_JUSTIFY, leading=18)))
         elements.append(Spacer(1, 0.125 * inch))
@@ -327,7 +356,19 @@ def ata_geral():
     # Obter notas finais (pós-recuperação anual) se disponível
     notas_finais = obter_notas_finais(cursor)
     
-    df['Situação Final'] = df.apply(lambda row: determinar_situacao_final(row, faltas_dict, limite_faltas), axis=1)
+    # Mapeamento de disciplinas para 1º ao 5º ano
+    disciplinas_map = {
+        'NOTA_PORTUGUES': 1,  # ID para Português
+        'NOTA_MATEMATICA': 2,  # ID para Matemática
+        'NOTA_HISTORIA': 3,     # ID para História
+        'NOTA_GEOGRAFIA': 4,    # ID para Geografia
+        'NOTA_CIENCIAS': 5,    # ID para Ciências
+        'NOTA_ARTES': 6,        # ID para Artes
+        'NOTA_ENS_RELIGIOSO': 7, # ID para Ensino Religioso
+        'NOTA_ED_FISICA': 8    # ID para Educação Física
+    }
+    
+    df['Situação Final'] = df.apply(lambda row: determinar_situacao_final(row, faltas_dict, limite_faltas, notas_finais, disciplinas_map), axis=1)
     
     # Criar nome do arquivo
     data_atual = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
