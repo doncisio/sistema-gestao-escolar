@@ -3,7 +3,7 @@ logger = get_logger(__name__)
 import io
 import os
 import pandas as pd
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image, PageTemplate, Frame
@@ -270,7 +270,7 @@ def add_summary_table(elements, df, figura_inferior, cabecalho):
 
 def lista_alunos_transtornos():
     """Função principal que gera o relatório de alunos com transtornos"""
-    ano_letivo = 2025
+    ano_letivo = ANO_LETIVO_ATUAL
     dados_aluno = fetch_students_with_disorders(ano_letivo)
     
     if not dados_aluno:

@@ -385,7 +385,7 @@ def add_alphabetical_list(elements, df, figura_inferior, cabecalho):
         elements.append(PageBreak())
 
 def lista_alfabetica():
-    ano_letivo = 2025
+    ano_letivo = ANO_LETIVO_ATUAL
     dados_aluno = fetch_student_data(ano_letivo)
     if not dados_aluno:
         return

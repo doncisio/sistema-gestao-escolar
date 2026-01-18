@@ -32,7 +32,7 @@ from typing import Any, cast
 from datetime import datetime
 from typing import Dict, List, Optional
 from src.relatorios.relatorio_pendencias import buscar_pendencias_notas
-from src.core.config import ESCOLA_ID
+from src.core.config import ESCOLA_ID, ANO_LETIVO_ATUAL
 from src.core.config_logs import get_logger
 import traceback
 
@@ -229,16 +229,25 @@ class InterfaceTransicaoAnoLetivo:
             from db.connection import get_cursor
 
             with get_cursor() as cursor:
-                # Buscar ano letivo atual com datas - query otimizada
+                # Priorizar o ano letivo configurado em config.py (ANO_LETIVO_ATUAL)
                 cursor.execute("""
                     SELECT id, ano_letivo, data_inicio, data_fim
                     FROM anosletivos 
-                    WHERE ano_letivo = YEAR(CURDATE())
-                """)
+                    WHERE ano_letivo = %s
+                """, (ANO_LETIVO_ATUAL,))
                 resultado = cast(Any, cursor.fetchone())
 
                 if not resultado:
-                    # Buscar o ano mais recente se não encontrar o atual
+                    # Fallback: ano da data atual
+                    cursor.execute("""
+                        SELECT id, ano_letivo, data_inicio, data_fim
+                        FROM anosletivos 
+                        WHERE ano_letivo = YEAR(CURDATE())
+                    """)
+                    resultado = cast(Any, cursor.fetchone())
+
+                if not resultado:
+                    # Buscar o ano mais recente se não encontrar
                     cursor.execute("""
                         SELECT id, ano_letivo, data_inicio, data_fim
                         FROM anosletivos 
@@ -249,8 +258,9 @@ class InterfaceTransicaoAnoLetivo:
 
             if resultado:
                 self.ano_atual = resultado
+                proximo_ano = (resultado['ano_letivo'] + 1) if 'ano_letivo' in resultado else (ANO_LETIVO_ATUAL + 1)
                 self.ano_novo = {
-                    'ano_letivo': resultado['ano_letivo'] + 1
+                    'ano_letivo': proximo_ano
                 }
 
                 self.label_ano_atual.config(text=f"{resultado['ano_letivo']}")
@@ -283,9 +293,10 @@ class InterfaceTransicaoAnoLetivo:
                 SELECT COUNT(DISTINCT a.id) as total
                 FROM Alunos a
                 JOIN Matriculas m ON a.id = m.aluno_id
+                JOIN turmas t ON m.turma_id = t.id
                 WHERE m.ano_letivo_id = %s
                 AND m.status = 'Ativo'
-                AND a.escola_id = %s
+                AND t.escola_id = %s
             """, (self.ano_atual['id'], self.escola_id))
 
             resultado = cast(Any, cursor.fetchone())
@@ -309,10 +320,11 @@ class InterfaceTransicaoAnoLetivo:
                     SELECT COUNT(DISTINCT a.id) as total
                     FROM Alunos a
                     JOIN Matriculas m ON a.id = m.aluno_id
+                    JOIN turmas t ON m.turma_id = t.id
                     WHERE m.ano_letivo_id = %s
                     AND m.status = 'Ativo'
-                    AND a.escola_id = %s
-                    AND m.turma_id NOT IN ({})
+                    AND t.escola_id = %s
+                    AND t.id NOT IN ({})
                 """.format(','.join(['%s'] * len(turmas_9ano))),
                 (self.ano_atual['id'], self.escola_id) + tuple(turmas_9ano))
             else:
@@ -320,60 +332,42 @@ class InterfaceTransicaoAnoLetivo:
                     SELECT COUNT(DISTINCT a.id) as total
                     FROM Alunos a
                     JOIN Matriculas m ON a.id = m.aluno_id
+                    JOIN turmas t ON m.turma_id = t.id
                     WHERE m.ano_letivo_id = %s
                     AND m.status = 'Ativo'
-                    AND a.escola_id = %s
+                    AND t.escola_id = %s
                 """, (self.ano_atual['id'], self.escola_id))
             
             resultado = cast(Any, cursor.fetchone())
             alunos_continuar = resultado['total'] if resultado else 0
             self.label_alunos_continuar.config(text=str(alunos_continuar))
             
-            # Alunos reprovados (média final < 60) - aplicar a TODAS as turmas
+            # Alunos reprovados (nota final < 60 ou status marcado como reprovado)
             try:
-                if turmas_9ano:
-                    # Mesmo se tivermos turmas do 9º ano, verificamos reprovações em todas as turmas
-                    cursor.execute("""
-                        SELECT COUNT(DISTINCT a.id) as total
-                        FROM Alunos a
-                        JOIN Matriculas m ON a.id = m.aluno_id
-                        LEFT JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = %s
+                cursor.execute("""
+                    SELECT COUNT(DISTINCT dados.aluno_id) AS total
+                    FROM (
+                        SELECT m.aluno_id
+                        FROM Matriculas m
+                        JOIN turmas t ON m.turma_id = t.id
+                        JOIN notas_finais nf ON nf.aluno_id = m.aluno_id AND nf.ano_letivo_id = m.ano_letivo_id
                         WHERE m.ano_letivo_id = %s
                         AND m.status = 'Ativo'
-                        AND a.escola_id = %s
-                        GROUP BY a.id
-                        HAVING (
-                            COALESCE(AVG(CASE WHEN n.bimestre = '1º bimestre' THEN n.nota END), 0) +
-                            COALESCE(AVG(CASE WHEN n.bimestre = '2º bimestre' THEN n.nota END), 0) +
-                            COALESCE(AVG(CASE WHEN n.bimestre = '3º bimestre' THEN n.nota END), 0) +
-                            COALESCE(AVG(CASE WHEN n.bimestre = '4º bimestre' THEN n.nota END), 0)
-                        ) / 4 < 60 OR AVG(n.nota) IS NULL
-                    """, (self.ano_atual['id'], self.ano_atual['id'], self.escola_id))
-                    # cursor.fetchone não é suficiente aqui pois o GROUP BY retorna múltiplas linhas;
-                    # usar fetchall e contar
-                    rows_reprov = cursor.fetchall()
-                    alunos_reprovados = len(rows_reprov) if rows_reprov else 0
-                else:
-                    # Se não houver turmas do 9º (caso raro), aplicar mesma lógica
-                    cursor.execute("""
-                        SELECT COUNT(DISTINCT a.id) as total
-                        FROM Alunos a
-                        JOIN Matriculas m ON a.id = m.aluno_id
-                        LEFT JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = %s
+                        AND t.escola_id = %s
+                        GROUP BY m.aluno_id
+                        HAVING MIN(nf.media_final) < 60
+                        UNION
+                        SELECT m.aluno_id
+                        FROM Matriculas m
+                        JOIN turmas t ON m.turma_id = t.id
                         WHERE m.ano_letivo_id = %s
-                        AND m.status = 'Ativo'
-                        AND a.escola_id = %s
-                        GROUP BY a.id
-                        HAVING (
-                            COALESCE(AVG(CASE WHEN n.bimestre = '1º bimestre' THEN n.nota END), 0) +
-                            COALESCE(AVG(CASE WHEN n.bimestre = '2º bimestre' THEN n.nota END), 0) +
-                            COALESCE(AVG(CASE WHEN n.bimestre = '3º bimestre' THEN n.nota END), 0) +
-                            COALESCE(AVG(CASE WHEN n.bimestre = '4º bimestre' THEN n.nota END), 0)
-                        ) / 4 < 60 OR AVG(n.nota) IS NULL
-                    """, (self.ano_atual['id'], self.ano_atual['id'], self.escola_id))
-                    rows_reprov = cursor.fetchall()
-                    alunos_reprovados = len(rows_reprov) if rows_reprov else 0
+                        AND t.escola_id = %s
+                        AND m.status IN ('Reprovado', 'Reprovada')
+                    ) dados
+                """, (self.ano_atual['id'], self.escola_id, self.ano_atual['id'], self.escola_id))
 
+                resultado_reprov = cast(Any, cursor.fetchone())
+                alunos_reprovados = resultado_reprov['total'] if resultado_reprov else 0
                 self.label_alunos_9ano_reprovados.config(text=str(alunos_reprovados))
             except Exception:
                 # Em caso de erro na contagem de reprovações, registrar e continuar
@@ -385,9 +379,14 @@ class InterfaceTransicaoAnoLetivo:
                 SELECT COUNT(DISTINCT a.id) as total
                 FROM Alunos a
                 JOIN Matriculas m ON a.id = m.aluno_id
+                JOIN turmas t ON m.turma_id = t.id
                 WHERE m.ano_letivo_id = %s
-                AND m.status IN ('Transferido', 'Transferida', 'Cancelado', 'Evadido')
-                AND a.escola_id = %s
+                AND m.status IN (
+                    'Transferido', 'Transferida',
+                    'Cancelado', 'Cancelada',
+                    'Evadido', 'Evadida'
+                )
+                AND t.escola_id = %s
             """, (self.ano_atual['id'], self.escola_id))
             
             resultado = cast(Any, cursor.fetchone())
@@ -478,13 +477,16 @@ class InterfaceTransicaoAnoLetivo:
         if not self.ano_atual or not self.ano_novo:
             messagebox.showerror("Erro", "Dados do ano letivo não carregados.")
             return
-        # Antes de habilitar execução, verificar se o ano letivo acabou
+        # Antes de habilitar execução, verificar se o ano letivo acabou.
+        # Permite seguir apenas com confirmação manual.
         if not self.verificar_fim_do_ano():
-            messagebox.showerror(
+            continuar = messagebox.askyesno(
                 "Ano não encerrado",
-                "O ano letivo ainda não acabou. A transição só pode ser executada após o término do ano letivo (ex.: depois de 31/12)."
+                "O ano letivo ainda não acabou (data_fim > hoje).\n\n"
+                "Deseja IGNORAR essa validação e prosseguir assim mesmo?"
             )
-            return
+            if not continuar:
+                return
 
         # Verificar pendências bimestrais (1º ao 4º bimestre, iniciais e finais)
         pendencias = self.verificar_pendencias_bimestrais()
@@ -501,10 +503,11 @@ class InterfaceTransicaoAnoLetivo:
             mensagem_pend = (
                 "Existem pendências de lançamento de notas. \n\n"
                 "Verifique o menu 'Gerenciamento de Notas > Relatório de Pendências' e corrija antes de executar a transição.\n\n"
-                "Exemplos de turmas com pendências:\n" + "\n".join(resumo)
+                "Exemplos de turmas com pendências:\n" + "\n".join(resumo) + "\n\n"
+                "Deseja IGNORAR e prosseguir mesmo assim?"
             )
-            messagebox.showerror("Pendências encontradas", mensagem_pend)
-            return
+            if not messagebox.askyesno("Pendências encontradas", mensagem_pend):
+                return
 
         mensagem = f"""
         SIMULAÇÃO DA TRANSIÇÃO DE ANO LETIVO
@@ -629,8 +632,9 @@ class InterfaceTransicaoAnoLetivo:
             logger.debug(f"Aluno reprovado: mantendo na turma {turma_atual_id}")
             return turma_atual_id
         
-        # Buscar próxima turma
-        proxima = QueriesTransicao.get_proxima_turma(turma_atual_id, self.escola_id)
+        # Buscar próxima turma no ano letivo de destino
+        ano_destino_id = self.ano_novo['id'] if self.ano_novo else None
+        proxima = QueriesTransicao.get_proxima_turma(turma_atual_id, self.escola_id, ano_destino_id)
         
         if proxima:
             logger.debug(f"Progressão: turma {turma_atual_id} → {proxima}")
@@ -850,22 +854,13 @@ class InterfaceTransicaoAnoLetivo:
                 novo_ano_id = _tmp['id']
                 logger.info(f"[Passo 1] Novo ano_letivo_id: {novo_ano_id}")
 
-                # Passo 2: Encerrar matrículas antigas
-                self._atualizar_status_seguro("Encerrando matrículas do ano anterior...", 30)
-                logger.info(f"[Passo 2] Encerrando matrículas do ano {self.ano_atual['ano_letivo']}")
-                cursor.execute(QUERY_ENCERRAR_MATRICULAS, (self.ano_atual['id'],))
-                matriculas_encerradas = cursor.rowcount
-                if not dry_run:
-                    conn.commit()
-                logger.info(f"[Passo 2] ✓ {matriculas_encerradas} matrículas encerradas")
-
-                # Passo 3: Buscar alunos ativos para rematricular
-                self._atualizar_status_seguro("Buscando alunos para rematricular...", 50)
-                logger.info("[Passo 3] Buscando alunos para rematricular")
+                # Passo 2: Buscar alunos ativos para rematricular
+                self._atualizar_status_seguro("Buscando alunos para rematricular...", 30)
+                logger.info("[Passo 2] Buscando alunos para rematricular")
 
                 # Buscar turmas do 9º ano usando query centralizada
                 turmas_9ano = QueriesTransicao.get_turmas_9ano(self.escola_id)
-                logger.info(f"[Passo 3] Turmas do 9º ano identificadas: {turmas_9ano}")
+                logger.info(f"[Passo 2] Turmas do 9º ano identificadas: {turmas_9ano}")
 
                 # Buscar alunos usando queries centralizadas
                 alunos_normais_raw, alunos_reprovados_raw = QueriesTransicao.get_alunos_para_rematricular(
@@ -878,8 +873,8 @@ class InterfaceTransicaoAnoLetivo:
                 alunos_normais = [dict(a) for a in alunos_normais_raw] if alunos_normais_raw else []
                 alunos_reprovados = [dict(a) for a in alunos_reprovados_raw] if alunos_reprovados_raw else []
                 
-                logger.info(f"[Passo 3] Alunos normais (1º ao 8º): {len(alunos_normais)}")
-                logger.info(f"[Passo 3] Alunos reprovados: {len(alunos_reprovados)}")
+                logger.info(f"[Passo 2] Alunos normais (1º ao 8º): {len(alunos_normais)}")
+                logger.info(f"[Passo 2] Alunos reprovados: {len(alunos_reprovados)}")
                 
                 # IDs dos reprovados para marcação
                 ids_reprovados = {a['aluno_id'] for a in alunos_reprovados}
@@ -900,18 +895,30 @@ class InterfaceTransicaoAnoLetivo:
 
                 alunos = list(alunos_map.values())
                 total_alunos = len(alunos)
-                logger.info(f"[Passo 3] ✓ Total de alunos a rematricular: {total_alunos}")
+                logger.info(f"[Passo 2] ✓ Total de alunos a rematricular: {total_alunos}")
 
-                # Passo 4: Criar novas matrículas COM PROGRESSÃO DE SÉRIE
-                self._atualizar_status_seguro(f"Criando {total_alunos} novas matrículas...", 60)
-                logger.info(f"[Passo 4] Criando {total_alunos} novas matrículas com progressão de série")
+                # Passo 2.5: Pré-calcular mapeamento de turmas (otimização)
+                logger.info("[Passo 2.5] Pré-calculando mapeamento de turmas para otimização")
+                turmas_unicas = {a['turma_id'] for a in alunos}
+                mapa_progressao = {}
+                for turma_id in turmas_unicas:
+                    proxima = QueriesTransicao.get_proxima_turma(turma_id, self.escola_id, novo_ano_id)
+                    mapa_progressao[turma_id] = proxima if proxima else turma_id
+                logger.info(f"[Passo 2.5] ✓ Mapeamento calculado para {len(turmas_unicas)} turmas")
+
+                # Passo 3: Criar novas matrículas COM PROGRESSÃO DE SÉRIE
+                self._atualizar_status_seguro(f"Criando {total_alunos} novas matrículas...", 50)
+                logger.info(f"[Passo 3] Criando {total_alunos} novas matrículas com progressão de série")
 
                 for i, aluno in enumerate(alunos):
                     turma_atual = aluno['turma_id']
                     reprovado = aluno.get('reprovado', False)
                     
-                    # Determinar turma de destino com progressão
-                    nova_turma = self.obter_proxima_turma(turma_atual, reprovado=reprovado)
+                    # Determinar turma de destino usando mapa pré-calculado
+                    if reprovado:
+                        nova_turma = turma_atual
+                    else:
+                        nova_turma = mapa_progressao.get(turma_atual, turma_atual)
                     
                     # Criar matrícula
                     cursor.execute(QUERY_CRIAR_MATRICULA, (aluno['aluno_id'], nova_turma, novo_ano_id))
@@ -924,8 +931,15 @@ class InterfaceTransicaoAnoLetivo:
 
                     # Atualizar progresso (thread-safe)
                     if total_alunos > 0:
-                        progresso = 60 + (i + 1) / total_alunos * 30
+                        progresso = 50 + (i + 1) / total_alunos * 30
                         self.janela.after(0, lambda p=progresso: setattr(self.progressbar, 'value', p))
+
+                # Passo 4: Encerrar matrículas antigas (ano de origem) - FORA DO LOOP
+                self._atualizar_status_seguro("Encerrando matrículas do ano anterior...", 85)
+                logger.info(f"[Passo 4] Encerrando matrículas do ano {self.ano_atual['ano_letivo']}")
+                cursor.execute(QUERY_ENCERRAR_MATRICULAS, (self.ano_atual['id'],))
+                matriculas_encerradas = cursor.rowcount
+                logger.info(f"[Passo 4] ✓ {matriculas_encerradas} matrículas encerradas")
 
                 # Contar alunos concluintes (9º ano aprovados)
                 alunos_concluintes = self.estatisticas.get('total_matriculas', 0) - total_alunos - self.estatisticas.get('alunos_excluir', 0)

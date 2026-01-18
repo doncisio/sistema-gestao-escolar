@@ -235,7 +235,7 @@ def gerar_pdf(df, faltas_dict, limite_faltas, cabecalho, figura_superior, figura
                     notas_atualizadas.append(nota_atual)
                     
                     # Inserir no histórico escolar se o ano letivo estiver fechado
-                    ano_letivo_id = 1  # ID para 2025
+                    ano_letivo_id = 26  # ID de 2025 em anosletivos
                     escola_id = 60
                     serie_id = row['SERIE_ID']
                     if ano_letivo_terminado:

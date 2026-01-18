@@ -3,7 +3,7 @@ logger = get_logger(__name__)
 import io
 import os
 import pandas as pd
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
@@ -894,7 +894,7 @@ def create_oficio_header(elements, cabecalho, figura_inferior, numero_oficio, an
     elements.append(PageBreak())
 
 def lista_atualizada():
-    ano_letivo = 2025
+    ano_letivo = ANO_LETIVO_ATUAL
     dados_aluno = fetch_student_data(ano_letivo)
     if not dados_aluno:
         return

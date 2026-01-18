@@ -10,7 +10,19 @@ from reportlab.lib.colors import black, white, grey
 from src.core.conexao import conectar_bd
 from src.relatorios.gerar_pdf import salvar_e_abrir_pdf
 from src.relatorios.listas.lista_atualizada import fetch_student_data
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
+import unicodedata
+
+def normalizar_para_ordenacao(texto):
+    """Remove acentos e converte para minúsculas para ordenação correta."""
+    if pd.isna(texto):
+        return ''
+    # Remove acentos
+    texto_normalizado = ''.join(
+        c for c in unicodedata.normalize('NFD', str(texto))
+        if unicodedata.category(c) != 'Mn'
+    )
+    return texto_normalizado.lower()
 
 def create_pdf_buffer():
     buffer = io.BytesIO()
@@ -167,7 +179,7 @@ def add_class_table69(elements, turma_df, nome_serie, nome_turma, turno, nome_pr
     elements.append(PageBreak())
 
 def lista_livros_recebidos():
-    ano_letivo = 2025
+    ano_letivo = ANO_LETIVO_ATUAL
     dados_aluno = fetch_student_data(ano_letivo)
     if not dados_aluno:
         return
@@ -198,6 +210,11 @@ def lista_livros_recebidos():
         if turma_df.empty:
             print(f"Nenhum aluno ativo encontrado para a turma: {nome_serie}, {nome_turma}, {turno}")
             continue
+        
+        # Ordenar alfabeticamente por nome do aluno (tratando acentos corretamente)
+        turma_df['_nome_ordenacao'] = turma_df['NOME DO ALUNO'].apply(normalizar_para_ordenacao)
+        turma_df = turma_df.sort_values('_nome_ordenacao')
+        turma_df = turma_df.drop(columns=['_nome_ordenacao'])
 
         # Descrição será inserida pela função de criação de tabela (após cabeçalho)
 

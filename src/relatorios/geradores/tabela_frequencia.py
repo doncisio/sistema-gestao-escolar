@@ -7,16 +7,28 @@ from reportlab.lib.units import inch
 from reportlab.lib import colors
 import os
 import datetime
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 from src.relatorios.listas.lista_atualizada import fetch_student_data
 from scripts_nao_utilizados.gerar_documentos import PASTAS_TURMAS, criar_pastas_se_nao_existirem, salvar_pdf, adicionar_cabecalho
+import unicodedata
+
+def normalizar_para_ordenacao(texto):
+    """Remove acentos e converte para minúsculas para ordenação correta."""
+    if pd.isna(texto):
+        return ''
+    # Remove acentos
+    texto_normalizado = ''.join(
+        c for c in unicodedata.normalize('NFD', str(texto))
+        if unicodedata.category(c) != 'Mn'
+    )
+    return texto_normalizado.lower()
 
 def lista_frequencia():
     """Gera um PDF com a lista de frequência dos alunos, agrupados por turma."""
     # Observação: os dados dos alunos são obtidos via `fetch_student_data` (importado)
     # Esta função não abre/fecha conexões diretamente; qualquer acesso ao BD
     # deve ser feito pelo provedor `fetch_student_data` ou service layer.
-    ano_letivo = 2025
+    ano_letivo = ANO_LETIVO_ATUAL
     dados_aluno = fetch_student_data(ano_letivo)
     if not dados_aluno:
         from src.core.config_logs import get_logger
@@ -45,6 +57,11 @@ def lista_frequencia():
             logger = get_logger(__name__)
             logger.warning(f"Aviso: Turma '{nome_turma_completo}' não está mapeada para uma pasta. Pulando...")
             continue
+        
+        # Ordenar alfabeticamente por nome do aluno (tratando acentos corretamente)
+        turma_df['_nome_ordenacao'] = turma_df['NOME DO ALUNO'].apply(normalizar_para_ordenacao)
+        turma_df = turma_df.sort_values('_nome_ordenacao')
+        turma_df = turma_df.drop(columns=['_nome_ordenacao'])
 
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(

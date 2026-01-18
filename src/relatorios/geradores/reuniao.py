@@ -1,5 +1,5 @@
 from src.core.config_logs import get_logger
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 logger = get_logger(__name__)
 import io
 import os
@@ -13,14 +13,26 @@ from reportlab.lib.colors import black, white, grey
 from src.relatorios.listas.lista_atualizada import fetch_student_data
 from scripts_nao_utilizados.gerar_documentos import adicionar_cabecalho
 from src.relatorios.gerar_pdf import salvar_e_abrir_pdf
+import unicodedata
 try:
     from src.services.report_service import _find_image_in_repo
 except Exception:
     _find_image_in_repo = None
 
+def normalizar_para_ordenacao(texto):
+    """Remove acentos e converte para minúsculas para ordenação correta."""
+    if pd.isna(texto):
+        return ''
+    # Remove acentos
+    texto_normalizado = ''.join(
+        c for c in unicodedata.normalize('NFD', str(texto))
+        if unicodedata.category(c) != 'Mn'
+    )
+    return texto_normalizado.lower()
+
 def gerar_lista_reuniao():
     """Gera um PDF com a lista de reunião dos alunos, agrupados por turma."""
-    ano_letivo = 2025
+    ano_letivo = ANO_LETIVO_ATUAL
     dados_aluno = fetch_student_data(ano_letivo)
     
     if not dados_aluno:
@@ -78,6 +90,11 @@ def gerar_lista_reuniao():
         # Extrair nome do professor e filtrar alunos ativos
         nome_professor = turma_df['NOME_PROFESSOR'].iloc[0] if not turma_df['NOME_PROFESSOR'].isnull().all() else 'Sem Professor'
         turma_df = turma_df[turma_df['SITUAÇÃO'] == 'Ativo']
+        
+        # Ordenar alfabeticamente por nome do aluno (tratando acentos corretamente)
+        turma_df['_nome_ordenacao'] = turma_df['NOME DO ALUNO'].apply(normalizar_para_ordenacao)
+        turma_df = turma_df.sort_values('_nome_ordenacao')
+        turma_df = turma_df.drop(columns=['_nome_ordenacao'])
         
         # Adicionar cabeçalho da página
         adicionar_cabecalho(elements, cabecalho, figura_superior, figura_inferior, 11)

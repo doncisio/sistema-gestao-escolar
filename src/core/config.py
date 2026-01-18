@@ -9,9 +9,9 @@ from typing import Optional
 # ID padrão da escola usado em consultas (substitua conforme necessário em produção)
 ESCOLA_ID = 60
 
-# Ano letivo atual do sistema (2025, pois 2026 ainda não começou)
-# Atualizar quando o ano letivo 2026 iniciar
-ANO_LETIVO_ATUAL = 2025
+# Ano letivo atual do sistema (2026)
+# Atualizado após transição de ano letivo
+ANO_LETIVO_ATUAL = 2026
 
 # Configurações para integração GEDUC (por segurança manter vazias aqui em repositórios públicos)
 # Você pode preencher localmente ou usar variáveis de ambiente para ambientes de produção.

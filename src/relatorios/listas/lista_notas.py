@@ -3,7 +3,7 @@ logger = get_logger(__name__)
 import io
 import os
 import pandas as pd
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 import datetime
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
@@ -14,10 +14,22 @@ from src.core.conexao import conectar_bd  # Certifique-se de que esta importaç�
 from src.relatorios.gerar_pdf import salvar_e_abrir_pdf
 from src.relatorios.listas.lista_atualizada import fetch_student_data
 from scripts.auxiliares.biblio_editor import definir_coordenador
+import unicodedata
 
 # Cache global para imagens e estilos
 _IMAGE_CACHE = {}
 _STYLE_CACHE = {}
+
+def normalizar_para_ordenacao(texto):
+    """Remove acentos e converte para minúsculas para ordenação correta."""
+    if pd.isna(texto):
+        return ''
+    # Remove acentos
+    texto_normalizado = ''.join(
+        c for c in unicodedata.normalize('NFD', str(texto))
+        if unicodedata.category(c) != 'Mn'
+    )
+    return texto_normalizado.lower()
 
 def _get_cached_image(path, width, height):
     """Retorna uma imagem em cache para evitar recarregamento."""
@@ -52,7 +64,7 @@ def _get_common_table_style():
 def lista_notas():
     """Gera um PDF com a lista de notas dos alunos, agrupados por turma."""
 
-    ano_letivo = 2025
+    ano_letivo = ANO_LETIVO_ATUAL
     dados_aluno = fetch_student_data(ano_letivo)
 
     if not dados_aluno:
@@ -109,6 +121,11 @@ def lista_notas():
     # 4. Loop Principal: Agrupar por Turma e Adicionar Tabelas
     for (nome_serie, nome_turma, turno), turma_df in df.groupby(['NOME_SERIE', 'NOME_TURMA', 'TURNO']):
         logger.info(f"Processando turma: {nome_serie} {nome_turma} {turno}")  # Debug
+        
+        # Ordenar alfabeticamente por nome do aluno (tratando acentos corretamente)
+        turma_df['_nome_ordenacao'] = turma_df['NOME DO ALUNO'].apply(normalizar_para_ordenacao)
+        turma_df = turma_df.sort_values('_nome_ordenacao')
+        turma_df = turma_df.drop(columns=['_nome_ordenacao'])
         
         if turma_df[turma_df['ID_SERIE'] > 7].empty:
             # Tabela regular para anos iniciais

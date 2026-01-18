@@ -14,10 +14,22 @@ from src.core.conexao import conectar_bd
 from src.relatorios.gerar_pdf import salvar_e_abrir_pdf
 from scripts.auxiliares.biblio_editor import formatar_telefone
 from typing import Any, cast
+import unicodedata
 
 # Cache global para imagens e estilos
 _IMAGE_CACHE = {}
 _STYLE_CACHE = {}
+
+def normalizar_para_ordenacao(texto):
+    """Remove acentos e converte para minúsculas para ordenação correta."""
+    if pd.isna(texto):
+        return ''
+    # Remove acentos
+    texto_normalizado = ''.join(
+        c for c in unicodedata.normalize('NFD', str(texto))
+        if unicodedata.category(c) != 'Mn'
+    )
+    return texto_normalizado.lower()
 
 def _get_cached_image(path, width, height):
     """Retorna uma imagem em cache para evitar recarregamento."""
@@ -610,7 +622,7 @@ def add_dashboard(elements, df, figura_inferior, cabecalho):
     add_transtornos_detalhados(elements, df_ativos, figura_inferior, cabecalho)
 
 def lista_atualizada():
-    ano_letivo = 2025
+    ano_letivo = ANO_LETIVO_ATUAL
     dados_aluno = fetch_student_data(ano_letivo)
     if not dados_aluno:
         return
@@ -652,6 +664,12 @@ def lista_atualizada():
         if turma_df.empty:
             logger.info(f"Nenhum aluno encontrado para a turma: {nome_serie}, {nome_turma}, {turno}")
             continue
+        
+        # Ordenar alfabeticamente por nome do aluno (tratando acentos corretamente)
+        turma_df['_nome_ordenacao'] = turma_df['NOME DO ALUNO'].apply(normalizar_para_ordenacao)
+        turma_df = turma_df.sort_values('_nome_ordenacao')
+        turma_df = turma_df.drop(columns=['_nome_ordenacao'])
+        
         add_class_table(elements, turma_df, nome_serie, nome_turma, turno, nome_professor, figura_inferior, cabecalho)
 
     # # Busca os dados dos funcionários
@@ -716,7 +734,7 @@ def lista_matriculados_apos_inicio():
     Gera uma lista de alunos matriculados após o início do ano letivo,
     incluindo alunos transferidos.
     """
-    ano_letivo = 2025
+    ano_letivo = ANO_LETIVO_ATUAL
     
     # Busca os dados dos alunos
     dados_aluno = fetch_student_data(ano_letivo)

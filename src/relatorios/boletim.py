@@ -421,7 +421,15 @@ def boletiminiciais(aluno_id, ano_letivo_id):
                     for disc_id, nota_rec in cursor.fetchall():
                         recuperacoes[disc_id] = nota_rec
 
-                    # Buscar todas as avaliações finais de uma vez para este aluno
+                    # Buscar notas finais consolidadas (pós-recuperação) na tabela notas_finais (escala 0-100)
+                    cursor.execute("""
+                        SELECT disciplina_id, media_final 
+                        FROM notas_finais 
+                        WHERE aluno_id = %s AND ano_letivo_id = %s
+                    """, (_to_int_param(aluno_id), _to_int_param(ano_letivo_id)))
+                    notas_finais_map = {r[0]: _safe_float(r[1], 0.0) for r in cursor.fetchall()}
+
+                    # Buscar todas as avaliações finais (legado) caso notas_finais não exista
                     cursor.execute("""
                         SELECT disciplina_id, nota 
                         FROM avaliacao_final 
@@ -435,54 +443,45 @@ def boletiminiciais(aluno_id, ano_letivo_id):
                         # Calcular média aritmética das notas a partir dos valores brutos
                         notas_raw = [n for n in notas_brutas_disciplinas[disciplina] if n is not None]
 
-                        if not notas_raw:
-                            continue  # Pular disciplinas sem notas registradas
-
-                        # media_anual_sem_arredondamento está em unidade bruta (ex: 63.7 representa 6.37)
-                        media_anual_sem_arredondamento = sum(notas_raw) / len(notas_raw)
-                        # Arredondar usando a função centralizada (retorna inteiro multiplicado por 10)
-                        media_anual_arredondada = arredondar_personalizado(media_anual_sem_arredondamento)
+                        media_anual_arredondada = None
+                        if notas_raw:
+                            media_anual_sem_arredondamento = sum(notas_raw) / len(notas_raw)
+                            media_anual_arredondada = arredondar_personalizado(media_anual_sem_arredondamento)
 
                         # Verificar se temos o ID desta disciplina
                         disciplina_id = disciplina_ids.get(disciplina)
 
                         if disciplina_id:
-                            # Verificar se há recuperação para esta disciplina
+                            # Priorizar nota final consolidada (notas_finais) se existir; caso contrário usar cálculo bimestral/recuperação
+                            nota_final_consolidada = notas_finais_map.get(disciplina_id)
                             nota_recuperacao = "--"
                             media_final_arredondada = media_anual_arredondada
 
-                            if disciplina_id in recuperacoes:
-                                rec_val = _safe_float(recuperacoes[disciplina_id], 0.0)
-                                nota_recuperacao = f"{arredondar_personalizado(rec_val)/10:.1f}"
-                                media_final_sem_arredondamento = (media_anual_sem_arredondamento + rec_val) / 2
-                                media_final_arredondada = arredondar_personalizado(media_final_sem_arredondamento)
-
-                            # Só mostrar a média final se tiver 4 notas
-                            if len(notas_raw) == 4:
-                                data_nota.append([
-                                    _cell(quebra_linha(disciplina)),
-                                    _cell(notas_disciplinas[disciplina][0]),
-                                    _cell(notas_disciplinas[disciplina][1]),
-                                    _cell(notas_disciplinas[disciplina][2]),
-                                    _cell(notas_disciplinas[disciplina][3]),
-                                    _cell(f"{media_anual_arredondada/10:.1f}"),
-                                    _cell(nota_recuperacao),
-                                    _cell(f"{media_final_arredondada/10:.1f}")
-                                ])
+                            if nota_final_consolidada is not None:
+                                media_final_arredondada = int(round(nota_final_consolidada))
+                            elif media_anual_arredondada is not None:
+                                if disciplina_id in recuperacoes:
+                                    rec_val = _safe_float(recuperacoes[disciplina_id], 0.0)
+                                    nota_recuperacao = f"{arredondar_personalizado(rec_val)/10:.1f}"
+                                    media_final_sem_arredondamento = (media_anual_sem_arredondamento + rec_val) / 2
+                                    media_final_arredondada = arredondar_personalizado(media_final_sem_arredondamento)
                             else:
-                                data_nota.append([
-                                    _cell(quebra_linha(disciplina)),
-                                    _cell(notas_disciplinas[disciplina][0]),
-                                    _cell(notas_disciplinas[disciplina][1]),
-                                    _cell(notas_disciplinas[disciplina][2]),
-                                    _cell(notas_disciplinas[disciplina][3]),
-                                    _cell(f"{media_anual_arredondada/10:.1f}"),
-                                    _cell(nota_recuperacao),
-                                    _cell("--")
-                                ])
+                                media_final_arredondada = None
+
+                            # Sempre mostrar a linha, mesmo que não tenha todas as notas bimestrais
+                            data_nota.append([
+                                _cell(quebra_linha(disciplina)),
+                                _cell(notas_disciplinas[disciplina][0]),
+                                _cell(notas_disciplinas[disciplina][1]),
+                                _cell(notas_disciplinas[disciplina][2]),
+                                _cell(notas_disciplinas[disciplina][3]),
+                                _cell(f"{(media_anual_arredondada or 0)/10:.1f}" if media_anual_arredondada is not None else "--"),
+                                _cell(nota_recuperacao),
+                                _cell(f"{media_final_arredondada/10:.1f}" if media_final_arredondada is not None else "--")
+                            ])
 
                             # Registrar média final desta disciplina para cálculo geral
-                            if len(notas_raw) == 4:
+                            if media_final_arredondada is not None:
                                 try:
                                     medias_finais_disciplinas.append(int(media_final_arredondada))
                                 except Exception:

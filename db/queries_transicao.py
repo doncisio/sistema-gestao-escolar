@@ -105,6 +105,7 @@ QUERY_PROXIMA_SERIE = """
 
 # Busca a turma da próxima série, mantendo turno e nome da turma quando possível
 # Prioridade: 1) mesmo turno + mesmo nome, 2) mesmo turno + qualquer nome, 3) qualquer turma
+# Parâmetros: (turma_atual_id, escola_id, ano_letivo_destino_id, turma_atual_id, turma_atual_id)
 QUERY_TURMA_PROXIMA_SERIE = """
     SELECT t.id as turma_id, t.nome as turma_nome, s.nome as serie_nome, t.turno
     FROM turmas t
@@ -116,6 +117,7 @@ QUERY_TURMA_PROXIMA_SERIE = """
         WHERE t2.id = %s
     )
     AND t.escola_id = %s
+    AND t.ano_letivo_id = %s
     ORDER BY 
         CASE WHEN t.turno = (SELECT turno FROM turmas WHERE id = %s) THEN 0 ELSE 1 END,
         CASE WHEN t.nome = (SELECT nome FROM turmas WHERE id = %s) THEN 0 ELSE 1 END
@@ -140,7 +142,8 @@ QUERY_ALUNOS_CONTINUAR = """
     FROM alunos a
     JOIN matriculas m ON a.id = m.aluno_id
     WHERE m.ano_letivo_id = %s
-    AND m.status = 'Ativo'
+    AND m.status IN ('Ativo', 'Concluído', 'Concluido', 'Concluída', 'Concluida')
+    AND m.status NOT IN ('Transferido', 'Transferida', 'Cancelado', 'Cancelada', 'Evadido', 'Evadida')
     AND a.escola_id = %s
     AND m.turma_id NOT IN ({turmas_placeholder})
 """
@@ -150,7 +153,7 @@ QUERY_ALUNOS_EXCLUIR = """
     FROM alunos a
     JOIN matriculas m ON a.id = m.aluno_id
     WHERE m.ano_letivo_id = %s
-    AND m.status IN ('Transferido', 'Transferida', 'Cancelado', 'Evadido')
+    AND m.status IN ('Transferido', 'Transferida', 'Cancelado', 'Cancelada', 'Evadido', 'Evadida')
     AND a.escola_id = %s
 """
 
@@ -176,16 +179,21 @@ QUERY_ALUNOS_NORMAIS = """
         m.turma_id,
         t.turno,
         s.id as serie_id,
-        s.nome as serie_nome,
-        s.ordem as serie_ordem
+        s.nome as serie_nome
     FROM alunos a
     JOIN matriculas m ON a.id = m.aluno_id
     JOIN turmas t ON m.turma_id = t.id
     JOIN series s ON t.serie_id = s.id
     WHERE m.ano_letivo_id = %s
-    AND m.status = 'Concluído'
+    AND m.status IN (
+        'Ativo', 'Concluído', 'Concluido', 'Concluída', 'Concluida'
+    )
+    AND m.status NOT IN (
+        'Transferido', 'Transferida', 'Cancelado', 'Cancelada', 'Evadido', 'Evadida'
+    )
     AND a.escola_id = %s
     AND m.turma_id NOT IN ({turmas_placeholder})
+    AND s.nome NOT LIKE '9%'
 """
 
 QUERY_ALUNOS_REPROVADOS = """
@@ -195,23 +203,24 @@ QUERY_ALUNOS_REPROVADOS = """
         t.turno,
         s.id as serie_id,
         s.nome as serie_nome,
-        s.ordem as serie_ordem,
-        (
-            COALESCE(AVG(CASE WHEN n.bimestre = '1º bimestre' THEN n.nota END), 0) +
-            COALESCE(AVG(CASE WHEN n.bimestre = '2º bimestre' THEN n.nota END), 0) +
-            COALESCE(AVG(CASE WHEN n.bimestre = '3º bimestre' THEN n.nota END), 0) +
-            COALESCE(AVG(CASE WHEN n.bimestre = '4º bimestre' THEN n.nota END), 0)
-        ) / 4 as media_final
+        MIN(nf.media_final) as media_final
     FROM alunos a
     JOIN matriculas m ON a.id = m.aluno_id
     JOIN turmas t ON m.turma_id = t.id
     JOIN series s ON t.serie_id = s.id
-    LEFT JOIN notas n ON a.id = n.aluno_id AND n.ano_letivo_id = %s
+    LEFT JOIN notas_finais nf ON a.id = nf.aluno_id AND nf.ano_letivo_id = %s
     WHERE m.ano_letivo_id = %s
-    AND m.status = 'Concluído'
+    AND m.status IN (
+        'Ativo', 'Concluído', 'Concluido', 'Concluída', 'Concluida'
+    )
+    AND m.status NOT IN (
+        'Transferido', 'Transferida', 'Cancelado', 'Cancelada', 'Evadido', 'Evadida'
+    )
     AND a.escola_id = %s
-    GROUP BY a.id, m.turma_id, t.turno, s.id, s.nome, s.ordem
-    HAVING media_final < 60 OR media_final IS NULL
+    AND s.nome NOT LIKE '9%'
+    GROUP BY a.id, m.turma_id, t.turno, s.id, s.nome
+    HAVING (MIN(nf.media_final) < 60 OR MIN(nf.media_final) IS NULL)
+        OR m.status IN ('Reprovado', 'Reprovada')
 """
 
 # ============================================================================
@@ -368,8 +377,17 @@ class QueriesTransicao:
             else:
                 query = QUERY_ALUNOS_NORMAIS.format(turmas_placeholder="0")
                 cursor.execute(query, (ano_letivo_id, escola_id))
-            
+
             alunos_normais = cursor.fetchall() or []
+
+            # Fallback defensivo: se nada vier, tentar sem o filtro de NOT IN (pode haver diferença de IDs de turmas do 9º)
+            if not alunos_normais:
+                try:
+                    query_sem_not_in = QUERY_ALUNOS_NORMAIS.format(turmas_placeholder="0")
+                    cursor.execute(query_sem_not_in, (ano_letivo_id, escola_id))
+                    alunos_normais = cursor.fetchall() or []
+                except Exception:
+                    pass
             
             # Alunos reprovados
             cursor.execute(QUERY_ALUNOS_REPROVADOS, (ano_letivo_id, ano_letivo_id, escola_id))
@@ -393,20 +411,31 @@ class QueriesTransicao:
             return {row['turma_id']: row for row in rows}
     
     @staticmethod
-    def get_proxima_turma(turma_atual_id: int, escola_id: int) -> Optional[int]:
+    def get_proxima_turma(turma_atual_id: int, escola_id: int, ano_letivo_destino_id: int = None) -> Optional[int]:
         """Obtém a turma da próxima série mantendo o turno.
         
         Args:
             turma_atual_id: ID da turma atual
             escola_id: ID da escola
+            ano_letivo_destino_id: ID do ano letivo de destino (opcional, para compatibilidade)
             
         Returns:
             ID da turma da próxima série ou None se não encontrar
         """
+        # Se não especificar ano destino, usa o mesmo ano da turma atual (compatibilidade)
+        if ano_letivo_destino_id is None:
+            with get_cursor() as cursor:
+                cursor.execute("SELECT ano_letivo_id FROM turmas WHERE id = %s", (turma_atual_id,))
+                result = cursor.fetchone()
+                ano_letivo_destino_id = result['ano_letivo_id'] if result else None
+        
+        if not ano_letivo_destino_id:
+            return None
+            
         with get_cursor() as cursor:
             cursor.execute(
                 QUERY_TURMA_PROXIMA_SERIE,
-                (turma_atual_id, escola_id, turma_atual_id)
+                (turma_atual_id, escola_id, ano_letivo_destino_id, turma_atual_id, turma_atual_id)
             )
             resultado = cursor.fetchone()
             return resultado['turma_id'] if resultado else None

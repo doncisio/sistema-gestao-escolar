@@ -10,14 +10,26 @@ from reportlab.lib.colors import black, white, grey
 from src.relatorios.gerar_pdf import salvar_e_abrir_pdf, create_pdf_buffer_letter
 from src.relatorios.listas.lista_atualizada import fetch_student_data
 from typing import Any
-from src.core.config import get_image_path
+from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 from src.core.config_logs import get_logger
+import unicodedata
 
 logger = get_logger(__name__)
 
 # Cache global para imagens e estilos
 _IMAGE_CACHE = {}
 _STYLE_CACHE = {}
+
+def normalizar_para_ordenacao(texto):
+    """Remove acentos e converte para minúsculas para ordenação correta."""
+    if pd.isna(texto):
+        return ''
+    # Remove acentos
+    texto_normalizado = ''.join(
+        c for c in unicodedata.normalize('NFD', str(texto))
+        if unicodedata.category(c) != 'Mn'
+    )
+    return texto_normalizado.lower()
 
 def _get_cached_image(path, width, height):
     """Retorna uma imagem em cache para evitar recarregamento."""
@@ -41,7 +53,7 @@ def _get_cached_style(name, **kwargs):
     return _STYLE_CACHE[key]
 
 def lista_reuniao():
-    ano_letivo = 2025
+    ano_letivo = ANO_LETIVO_ATUAL
     dados_aluno = fetch_student_data(ano_letivo)
     if not dados_aluno:
         return
@@ -117,6 +129,11 @@ def lista_reuniao():
         
         # Filtrar apenas os alunos com a situação "Ativo"
         turma_df = turma_df[turma_df['SITUAÇÃO'] == 'Ativo']
+        
+        # Ordenar alfabeticamente por nome do aluno (tratando acentos corretamente)
+        turma_df['_nome_ordenacao'] = turma_df['NOME DO ALUNO'].apply(normalizar_para_ordenacao)
+        turma_df = turma_df.sort_values('_nome_ordenacao')
+        turma_df = turma_df.drop(columns=['_nome_ordenacao'])
 
         # Adicionar o cabeçalho antes de cada tabela
         data = [

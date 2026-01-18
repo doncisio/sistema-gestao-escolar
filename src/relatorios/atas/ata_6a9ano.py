@@ -192,13 +192,13 @@ def criar_tabela_notas(turma_df, notas_finais, faltas_dict, disciplinas_map, ano
     data = [
         ['Nº', 'NOME DO ALUNO', 
         adicionar_quebra_linha("L. PORTUGUESA"), 
+        adicionar_quebra_linha("ARTE"), 
+        adicionar_quebra_linha("ED. FÍSICA"),
         adicionar_quebra_linha("MATEMÁTICA"),
         adicionar_quebra_linha("CIÊNCIAS"), 
-        adicionar_quebra_linha("HISTÓRIA"), 
         adicionar_quebra_linha("GEOGRAFIA"), 
-        adicionar_quebra_linha("ARTE"), 
+        adicionar_quebra_linha("HISTÓRIA"), 
         adicionar_quebra_linha("ENS. RELIGIOSO"), 
-        adicionar_quebra_linha("ED. FÍSICA"),
         adicionar_quebra_linha("L. INGLESA"), 
         adicionar_quebra_linha("FILOSOFIA"),
         quebra_linha("SITUAÇÃO\nFINAL")]
@@ -229,7 +229,7 @@ def criar_tabela_notas(turma_df, notas_finais, faltas_dict, disciplinas_map, ano
                 notas_atualizadas.append(nota_atual)
                 
                 # Inserção no histórico escolar acontece após verificação
-                ano_letivo_id = 1  # ID para 2025
+                ano_letivo_id = 26  # ID de 2025 em anosletivos
                 escola_id = 60
                 if ano_letivo_terminado:
                     inserir_no_historico_escolar(aluno_id, disciplina_id, float(nota_atual), ano_letivo_id, escola_id, serie_id)
@@ -327,16 +327,17 @@ def ata_geral_6a9ano():
     notas_finais = obter_notas_finais(cursor)
 
     disciplinas_map = {
-        'NOTA_PORTUGUES': 9,  # ID para Português
-        'NOTA_MATEMATICA': 10,  # ID para Matemática
-        'NOTA_CIENCIAS': 13,    # ID para Ciências
-        'NOTA_HISTORIA': 11,     # ID para História
-        'NOTA_GEOGRAFIA': 12,    # ID para Geografia
-        'NOTA_ARTES': 14,        # ID para Artes
-        'NOTA_ENS_RELIGIOSO': 15, # ID para Ensino Religioso
-        'NOTA_ED_FISICA': 16,    # ID para Educação Física
-        'NOTA_INGLES': 19,       # ID para Inglês
-        'NOTA_FILOSOFIA': 17    # ID para Filosofia
+        # IDs reais das disciplinas na tabela disciplinas para ano letivo 2025 (id 26)
+        'NOTA_PORTUGUES': 862,      # Língua Portuguesa
+        'NOTA_ARTES': 863,          # Arte
+        'NOTA_ED_FISICA': 864,      # Educação Física
+        'NOTA_MATEMATICA': 866,     # Matemática
+        'NOTA_CIENCIAS': 867,       # Ciências
+        'NOTA_GEOGRAFIA': 868,      # Geografia
+        'NOTA_HISTORIA': 869,       # História
+        'NOTA_ENS_RELIGIOSO': 870,  # Ensino Religioso
+        'NOTA_INGLES': 865,         # Língua Inglesa
+        'NOTA_FILOSOFIA': 871       # Filosofia
     }
 
     df['Situação Final'] = df.apply(lambda row: calcular_situacao_final(row, notas_finais, faltas_dict, limite_faltas, disciplinas_map), axis=1)
@@ -387,6 +388,8 @@ def ata_geral_6a9ano():
     # Abrir o arquivo para visualização
     buffer.seek(0)
     salvar_e_abrir_pdf(buffer)
+    
+    return caminho_arquivo
 
 if __name__ == "__main__":
     ata_geral_6a9ano()
