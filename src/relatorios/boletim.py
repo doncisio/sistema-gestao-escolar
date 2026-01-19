@@ -1380,7 +1380,8 @@ def boletim(aluno_id, ano_letivo_id):
                 JOIN turmas t ON m.turma_id = t.id
                 JOIN anosletivos a ON m.ano_letivo_id = a.id
                 JOIN series s ON t.serie_id = s.id
-                WHERE m.aluno_id = %s AND m.ano_letivo_id = %s AND m.status = 'Ativo'
+                WHERE m.aluno_id = %s AND m.ano_letivo_id = %s
+                AND m.status NOT IN ('Cancelado', 'Cancelada', 'Evadido', 'Evadida')
                 """
                 params = (_to_int_param(aluno_id), _to_int_param(ano_letivo_id))
                 cursor.execute(query, params)

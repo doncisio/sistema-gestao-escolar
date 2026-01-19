@@ -97,7 +97,7 @@ def verificar_status_matricula(aluno_id: int, ano_letivo_id: int, escola_id: int
                 WHERE m.aluno_id = %s 
                 AND m.ano_letivo_id = %s 
                 AND t.escola_id = %s
-                AND m.status IN ('Ativo', 'Transferido')
+                AND m.status NOT IN ('Cancelado', 'Cancelada', 'Evadido', 'Evadida')
                 ORDER BY m.data_matricula DESC
                 LIMIT 1
             """, (aluno_id, ano_letivo_id, escola_id))
