@@ -251,10 +251,19 @@ def salvar(buffer, nome_aluno):
         logger.exception(f"Erro ao salvar o arquivo: {e}")
 
 
-def criar_pdf(buffer, elements):
+def criar_pdf(buffer, elements, orientacao='retrato'):
+    """
+    Cria um PDF com os elementos fornecidos.
+    
+    Args:
+        buffer: Buffer de bytes para o PDF
+        elements: Lista de elementos do ReportLab
+        orientacao: 'retrato' ou 'paisagem' (padrão: 'retrato')
+    """
+    pagesize = landscape(letter) if orientacao == 'paisagem' else letter
     doc = SimpleDocTemplate(
         buffer,
-        pagesize=letter,
+        pagesize=pagesize,
         leftMargin=36,
         rightMargin=18,
         topMargin=18,

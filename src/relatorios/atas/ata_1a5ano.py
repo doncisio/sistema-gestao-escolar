@@ -180,10 +180,8 @@ def gerar_pdf(df, faltas_dict, limite_faltas, cabecalho, figura_superior, figura
 
     data_atual = datetime.datetime.now().date()
     elements.append(criar_cabecalho_pdf(figura_superior, figura_inferior, cabecalho))
-    elements.append(Spacer(1, 3.3 * inch))
-    elements.append(Paragraph(f"<b>ATA GERAL<br/>DE<br/>RESULTADOS FINAIS {ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='Capa', fontSize=24, alignment=1, leading=30)))
-    elements.append(Spacer(1, 4 * inch))
-    elements.append(Paragraph(f"<b>{ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
+    elements.append(Spacer(1, 2.5 * inch))
+    elements.append(Paragraph("<b>ATA GERAL<br/>DE<br/>RESULTADOS FINAIS<br/>2025</b>", ParagraphStyle(name='Capa', fontSize=24, alignment=1, leading=30)))
     elements.append(PageBreak())
 
     # Iniciar a segunda página com a tabela
@@ -191,7 +189,7 @@ def gerar_pdf(df, faltas_dict, limite_faltas, cabecalho, figura_superior, figura
        
         elements.append(criar_cabecalho_pdf(figura_superior, figura_inferior, cabecalho))
         elements.append(Spacer(1, 0.25 * inch))
-        elements.append(Paragraph(f"<b>ATA DE RESULTADOS FINAIS – {ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=14, alignment=1)))
+        elements.append(Paragraph("<b>ATA DE RESULTADOS FINAIS – 2025</b>", ParagraphStyle(name='TurmaTitulo', fontSize=14, alignment=1)))
         elements.append(Spacer(1, 0.125 * inch))
         elements.append(Paragraph(f"INSTITUIÇÃO DE ENSINO: U.E.B. PROFª NADIR NASCIMENTO MORAES aos {formatar_data_extenso()}, concluiu-se o processo de avaliação somativa dos alunos do {nome_serie}{'' if nome_turma == ' ' else nome_turma}, {'Turno <b>Matutino</b>' if turno == 'MAT' else 'Turno <b>Vespertino</b>'}, do Ensino Fundamental I, desta Instituição de Ensino, com os seguintes resultados:", ParagraphStyle(name='TurmaTitulo', fontSize=12, alignment=TA_JUSTIFY, leading=18)))
         elements.append(Spacer(1, 0.125 * inch))
@@ -294,7 +292,7 @@ def gerar_pdf(df, faltas_dict, limite_faltas, cabecalho, figura_superior, figura
         elements.append(tabela)
         elements.append(PageBreak())
 
-    criar_pdf(buffer, elements)
+    criar_pdf(buffer, elements, orientacao='paisagem')
     
     # Abrir o arquivo para visualização
     buffer.seek(0)

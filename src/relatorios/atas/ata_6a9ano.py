@@ -266,7 +266,7 @@ def gerar_pdf(df, figura_superior, figura_inferior, cabecalho, disciplinas_map, 
     elements.append(criar_cabecalho_pdf(figura_superior, figura_inferior, cabecalho))
     elements.append(Spacer(1, 0.25 * inch))
     data_atual = datetime.datetime.now().date()
-    elements.append(Paragraph(f"<b>ATA DE RESULTADOS FINAIS – {ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=14, alignment=1)))
+    elements.append(Paragraph("<b>ATA DE RESULTADOS FINAIS – 2025</b>", ParagraphStyle(name='TurmaTitulo', fontSize=14, alignment=1)))
     elements.append(Spacer(1, 0.125 * inch))
 
     for (nome_serie, nome_turma, turno), turma_df in df.groupby(['NOME_SERIE', 'NOME_TURMA', 'TURNO']):
@@ -298,7 +298,7 @@ def gerar_pdf(df, figura_superior, figura_inferior, cabecalho, disciplinas_map, 
         elements.append(tabela)
         elements.append(PageBreak())
 
-    criar_pdf(buffer, elements)
+    criar_pdf(buffer, elements, orientacao='paisagem')
     buffer.seek(0)
     return buffer
 
@@ -370,7 +370,7 @@ def ata_geral_6a9ano():
         f.write(buffer.getvalue())
     
     # Criar descrição detalhada
-    descricao = f"Ata Geral de Resultados Finais {ANO_LETIVO_ATUAL} - 6º ao 9º ano"
+    descricao = "Ata Geral de Resultados Finais 2025 - 6º ao 9º ano"
     
     # Salvar no sistema de gerenciamento de documentos
     sucesso, mensagem, link = salvar_documento_sistema(

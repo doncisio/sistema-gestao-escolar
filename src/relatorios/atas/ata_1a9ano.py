@@ -321,10 +321,8 @@ def gerar_pdf(df, figura_superior, figura_inferior, cabecalho, disciplinas_map, 
     # Capa
     data_atual = datetime.datetime.now().date()
     elements.append(criar_cabecalho_pdf(figura_superior, figura_inferior, cabecalho))
-    elements.append(Spacer(1, 3.3 * inch))
-    elements.append(Paragraph(f"<b>ATA GERAL<br/>DE<br/>RESULTADOS FINAIS {ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='Capa', fontSize=24, alignment=1, leading=30)))
-    elements.append(Spacer(1, 4 * inch))
-    elements.append(Paragraph(f"<b>{ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='Ano', fontSize=18, alignment=1)))
+    elements.append(Spacer(1, 2.5 * inch))
+    elements.append(Paragraph("<b>ATA GERAL<br/>DE<br/>RESULTADOS FINAIS<br/>2025</b>", ParagraphStyle(name='Capa', fontSize=24, alignment=1, leading=30)))
     elements.append(PageBreak())
 
     # Conteúdo principal
@@ -332,7 +330,7 @@ def gerar_pdf(df, figura_superior, figura_inferior, cabecalho, disciplinas_map, 
         # Adicionar cabeçalho para cada turma
         elements.append(criar_cabecalho_pdf(figura_superior, figura_inferior, cabecalho))
         elements.append(Spacer(1, 0.25 * inch))
-        elements.append(Paragraph(f"<b>ATA DE RESULTADOS FINAIS – {ANO_LETIVO_ATUAL}</b>", ParagraphStyle(name='TurmaTitulo', fontSize=14, alignment=1)))
+        elements.append(Paragraph("<b>ATA DE RESULTADOS FINAIS – 2025</b>", ParagraphStyle(name='TurmaTitulo', fontSize=14, alignment=1)))
         elements.append(Spacer(1, 0.125 * inch))
         
         elements.append(Paragraph(f"INSTITUIÇÃO DE ENSINO: U.E.B. PROFª NADIR NASCIMENTO MORAES aos {formatar_data_extenso()}, concluiu-se o processo de avaliação somativa dos alunos do {nome_serie}{'' if nome_turma == ' ' else ' '+nome_turma}, {'Turno <b>Matutino</b>' if turno == 'MAT' else 'Turno <b>Vespertino</b>'}, do Ensino Fundamental, desta Instituição de Ensino, com os seguintes resultados:", ParagraphStyle(name='TurmaTitulo', fontSize=12, alignment=TA_JUSTIFY, leading=18)))
@@ -363,7 +361,7 @@ def gerar_pdf(df, figura_superior, figura_inferior, cabecalho, disciplinas_map, 
         elements.append(tabela)
         elements.append(PageBreak())
 
-    criar_pdf(buffer, elements)
+    criar_pdf(buffer, elements, orientacao='paisagem')
     buffer.seek(0)
     return buffer
 
@@ -435,7 +433,7 @@ def ata_geral_1a9ano():
         f.write(buffer.getvalue())
     
     # Criar descrição detalhada
-    descricao = f"Ata Geral de Resultados Finais {ANO_LETIVO_ATUAL} - 1º ao 9º ano"
+    descricao = "Ata Geral de Resultados Finais 2025 - 1º ao 9º ano"
     
     # Salvar no sistema de gerenciamento de documentos
     sucesso, mensagem, link = salvar_documento_sistema(
