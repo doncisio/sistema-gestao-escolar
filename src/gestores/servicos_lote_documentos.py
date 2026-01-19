@@ -126,7 +126,7 @@ def gerar_declaracoes_1ano_combinadas(output_filename=None, ano_letivo=2025):
             f"JOIN Turmas t ON m.turma_id = t.id "
             f"LEFT JOIN series s ON t.serie_id = s.id "
             f"LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id "
-            f"WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND t.serie_id IN ({placeholders})"
+            f"WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND t.serie_id IN ({placeholders})"
         )
         params = [ano_id] + series_ids
         cursor.execute(query, params)
@@ -140,7 +140,7 @@ def gerar_declaracoes_1ano_combinadas(output_filename=None, ano_letivo=2025):
             "JOIN Turmas t ON m.turma_id = t.id "
             "LEFT JOIN series s ON t.serie_id = s.id "
             "LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id "
-            "WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND (s.nome LIKE '1%%' OR s.nome LIKE '%%1º%%' OR s.nome LIKE '%%1º %')"
+            "WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND (s.nome LIKE '1%%' OR s.nome LIKE '%%1º%%' OR s.nome LIKE '%%1º %')"
         )
         cursor.execute(query, (ano_id,))
 
@@ -326,7 +326,7 @@ def gerar_declaracoes_2ano_combinadas(output_filename=None, ano_letivo=2025):
             f"JOIN Turmas t ON m.turma_id = t.id "
             f"LEFT JOIN series s ON t.serie_id = s.id "
             f"LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id "
-            f"WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND t.serie_id IN ({placeholders})"
+            f"WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND t.serie_id IN ({placeholders})"
         )
         params = [ano_id] + series_ids
         cursor.execute(query, params)
@@ -340,7 +340,7 @@ def gerar_declaracoes_2ano_combinadas(output_filename=None, ano_letivo=2025):
             "JOIN Turmas t ON m.turma_id = t.id "
             "LEFT JOIN series s ON t.serie_id = s.id "
             "LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id "
-            "WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND (s.nome LIKE '2%%' OR s.nome LIKE '%%2º%%' OR s.nome LIKE '%%2º %')"
+            "WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND (s.nome LIKE '2%%' OR s.nome LIKE '%%2º%%' OR s.nome LIKE '%%2º %')"
         )
         cursor.execute(query, (ano_id,))
 
@@ -494,7 +494,7 @@ def gerar_declaracoes_3ano_combinadas(output_filename=None, ano_letivo=2025):
             f"(SELECT GROUP_CONCAT(r.nome SEPARATOR ' e ') FROM responsaveisalunos ra JOIN responsaveis r ON ra.responsavel_id = r.id WHERE ra.aluno_id = a.id LIMIT 2) as responsaveis "
             f"FROM Alunos a JOIN Matriculas m ON a.id = m.aluno_id JOIN Turmas t ON m.turma_id = t.id "
             f"LEFT JOIN series s ON t.serie_id = s.id LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id "
-            f"WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND t.serie_id IN ({placeholders})"
+            f"WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND t.serie_id IN ({placeholders})"
         )
         cursor.execute(query, [ano_id] + series_ids)
     else:
@@ -504,7 +504,7 @@ def gerar_declaracoes_3ano_combinadas(output_filename=None, ano_letivo=2025):
             "(SELECT GROUP_CONCAT(r.nome SEPARATOR ' e ') FROM responsaveisalunos ra JOIN responsaveis r ON ra.responsavel_id = r.id WHERE ra.aluno_id = a.id LIMIT 2) as responsaveis "
             "FROM Alunos a JOIN Matriculas m ON a.id = m.aluno_id JOIN Turmas t ON m.turma_id = t.id "
             "LEFT JOIN series s ON t.serie_id = s.id LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id "
-            "WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND (s.nome LIKE '3%%' OR s.nome LIKE '%%3º%%' OR s.nome LIKE '%%3º %')"
+            "WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND (s.nome LIKE '3%%' OR s.nome LIKE '%%3º%%' OR s.nome LIKE '%%3º %')"
         )
         cursor.execute(query, (ano_id,))
 
@@ -634,9 +634,9 @@ def gerar_declaracoes_7ano_combinadas(output_filename=None, ano_letivo=2025):
 
     if series_ids:
         placeholders = ','.join(['%s']*len(series_ids))
-        cursor.execute(f"SELECT DISTINCT a.id, a.nome, a.data_nascimento, a.local_nascimento, a.UF_nascimento, t.nome, t.turno, e.nome, m.status, (SELECT GROUP_CONCAT(r.nome SEPARATOR ' e ') FROM responsaveisalunos ra JOIN responsaveis r ON ra.responsavel_id = r.id WHERE ra.aluno_id = a.id LIMIT 2) FROM Alunos a JOIN Matriculas m ON a.id = m.aluno_id JOIN Turmas t ON m.turma_id = t.id LEFT JOIN series s ON t.serie_id = s.id LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND t.serie_id IN ({placeholders})", [ano_id] + series_ids)
+        cursor.execute(f"SELECT DISTINCT a.id, a.nome, a.data_nascimento, a.local_nascimento, a.UF_nascimento, t.nome, t.turno, e.nome, m.status, (SELECT GROUP_CONCAT(r.nome SEPARATOR ' e ') FROM responsaveisalunos ra JOIN responsaveis r ON ra.responsavel_id = r.id WHERE ra.aluno_id = a.id LIMIT 2) FROM Alunos a JOIN Matriculas m ON a.id = m.aluno_id JOIN Turmas t ON m.turma_id = t.id LEFT JOIN series s ON t.serie_id = s.id LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND t.serie_id IN ({placeholders})", [ano_id] + series_ids)
     else:
-        cursor.execute("SELECT DISTINCT a.id, a.nome, a.data_nascimento, a.local_nascimento, a.UF_nascimento, t.nome, t.turno, e.nome, m.status, (SELECT GROUP_CONCAT(r.nome SEPARATOR ' e ') FROM responsaveisalunos ra JOIN responsaveis r ON ra.responsavel_id = r.id WHERE ra.aluno_id = a.id LIMIT 2) FROM Alunos a JOIN Matriculas m ON a.id = m.aluno_id JOIN Turmas t ON m.turma_id = t.id LEFT JOIN series s ON t.serie_id = s.id LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND (s.nome LIKE '7%%' OR s.nome LIKE '%%7º%%' OR s.nome LIKE '%%7º %')", (ano_id,))
+        cursor.execute("SELECT DISTINCT a.id, a.nome, a.data_nascimento, a.local_nascimento, a.UF_nascimento, t.nome, t.turno, e.nome, m.status, (SELECT GROUP_CONCAT(r.nome SEPARATOR ' e ') FROM responsaveisalunos ra JOIN responsaveis r ON ra.responsavel_id = r.id WHERE ra.aluno_id = a.id LIMIT 2) FROM Alunos a JOIN Matriculas m ON a.id = m.aluno_id JOIN Turmas t ON m.turma_id = t.id LEFT JOIN series s ON t.serie_id = s.id LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND (s.nome LIKE '7%%' OR s.nome LIKE '%%7º%%' OR s.nome LIKE '%%7º %')", (ano_id,))
 
     rows = cursor.fetchall()
     cursor.close()
@@ -752,9 +752,9 @@ def gerar_declaracoes_8ano_combinadas(output_filename=None, ano_letivo=2025):
 
     if series_ids:
         placeholders = ','.join(['%s']*len(series_ids))
-        cursor.execute(f"SELECT DISTINCT a.id, a.nome, a.data_nascimento, a.local_nascimento, a.UF_nascimento, t.nome, t.turno, e.nome, m.status, (SELECT GROUP_CONCAT(r.nome SEPARATOR ' e ') FROM responsaveisalunos ra JOIN responsaveis r ON ra.responsavel_id = r.id WHERE ra.aluno_id = a.id LIMIT 2) FROM Alunos a JOIN Matriculas m ON a.id = m.aluno_id JOIN Turmas t ON m.turma_id = t.id LEFT JOIN series s ON t.serie_id = s.id LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND t.serie_id IN ({placeholders})", [ano_id] + series_ids)
+        cursor.execute(f"SELECT DISTINCT a.id, a.nome, a.data_nascimento, a.local_nascimento, a.UF_nascimento, t.nome, t.turno, e.nome, m.status, (SELECT GROUP_CONCAT(r.nome SEPARATOR ' e ') FROM responsaveisalunos ra JOIN responsaveis r ON ra.responsavel_id = r.id WHERE ra.aluno_id = a.id LIMIT 2) FROM Alunos a JOIN Matriculas m ON a.id = m.aluno_id JOIN Turmas t ON m.turma_id = t.id LEFT JOIN series s ON t.serie_id = s.id LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND t.serie_id IN ({placeholders})", [ano_id] + series_ids)
     else:
-        cursor.execute("SELECT DISTINCT a.id, a.nome, a.data_nascimento, a.local_nascimento, a.UF_nascimento, t.nome, t.turno, e.nome, m.status, (SELECT GROUP_CONCAT(r.nome SEPARATOR ' e ') FROM responsaveisalunos ra JOIN responsaveis r ON ra.responsavel_id = r.id WHERE ra.aluno_id = a.id LIMIT 2) FROM Alunos a JOIN Matriculas m ON a.id = m.aluno_id JOIN Turmas t ON m.turma_id = t.id LEFT JOIN series s ON t.serie_id = s.id LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND (s.nome LIKE '8%%' OR s.nome LIKE '%%8º%%' OR s.nome LIKE '%%8º %')", (ano_id,))
+        cursor.execute("SELECT DISTINCT a.id, a.nome, a.data_nascimento, a.local_nascimento, a.UF_nascimento, t.nome, t.turno, e.nome, m.status, (SELECT GROUP_CONCAT(r.nome SEPARATOR ' e ') FROM responsaveisalunos ra JOIN responsaveis r ON ra.responsavel_id = r.id WHERE ra.aluno_id = a.id LIMIT 2) FROM Alunos a JOIN Matriculas m ON a.id = m.aluno_id JOIN Turmas t ON m.turma_id = t.id LEFT JOIN series s ON t.serie_id = s.id LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND (s.nome LIKE '8%%' OR s.nome LIKE '%%8º%%' OR s.nome LIKE '%%8º %')", (ano_id,))
 
     rows = cursor.fetchall()
     cursor.close()
@@ -897,7 +897,7 @@ def gerar_declaracoes_9ano_combinadas(output_filename=None, ano_letivo=2025):
             f"JOIN Turmas t ON m.turma_id = t.id "
             f"LEFT JOIN series s ON t.serie_id = s.id "
             f"LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id "
-            f"WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND t.serie_id IN ({placeholders})"
+            f"WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND t.serie_id IN ({placeholders})"
         )
         params = [ano_id] + series_ids
         cursor.execute(query, params)
@@ -912,7 +912,7 @@ def gerar_declaracoes_9ano_combinadas(output_filename=None, ano_letivo=2025):
             "JOIN Turmas t ON m.turma_id = t.id "
             "LEFT JOIN series s ON t.serie_id = s.id "
             "LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id "
-            "WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND (s.nome LIKE '9%%' OR s.nome LIKE '%%9º%%' OR s.nome LIKE '%%9º %')"
+            "WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND (s.nome LIKE '9%%' OR s.nome LIKE '%%9º%%' OR s.nome LIKE '%%9º %')"
         )
         cursor.execute(query, (ano_id,))
 
@@ -1133,7 +1133,7 @@ def gerar_declaracoes_5ano_combinadas(output_filename=None, ano_letivo=2025):
             f"JOIN Turmas t ON m.turma_id = t.id "
             f"LEFT JOIN series s ON t.serie_id = s.id "
             f"LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id "
-            f"WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND t.serie_id IN ({placeholders})"
+            f"WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND t.serie_id IN ({placeholders})"
         )
         params = [ano_id] + series_ids
         cursor.execute(query, params)
@@ -1148,7 +1148,7 @@ def gerar_declaracoes_5ano_combinadas(output_filename=None, ano_letivo=2025):
             "JOIN Turmas t ON m.turma_id = t.id "
             "LEFT JOIN series s ON t.serie_id = s.id "
             "LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id "
-            "WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND (s.nome LIKE '5%%' OR s.nome LIKE '%%5º%%' OR s.nome LIKE '%%5º %')"
+            "WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND (s.nome LIKE '5%%' OR s.nome LIKE '%%5º%%' OR s.nome LIKE '%%5º %')"
         )
         cursor.execute(query, (ano_id,))
 
@@ -1348,7 +1348,7 @@ def gerar_declaracoes_4ano_combinadas(output_filename=None, ano_letivo=2025):
             f"JOIN Turmas t ON m.turma_id = t.id "
             f"LEFT JOIN series s ON t.serie_id = s.id "
             f"LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id "
-            f"WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND t.serie_id IN ({placeholders})"
+            f"WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND t.serie_id IN ({placeholders})"
         )
         params = [ano_id] + series_ids
         cursor.execute(query, params)
@@ -1363,7 +1363,7 @@ def gerar_declaracoes_4ano_combinadas(output_filename=None, ano_letivo=2025):
             "JOIN Turmas t ON m.turma_id = t.id "
             "LEFT JOIN series s ON t.serie_id = s.id "
             "LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id "
-            "WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND (s.nome LIKE '4%%' OR s.nome LIKE '%%4º%%' OR s.nome LIKE '%%4º %')"
+            "WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND (s.nome LIKE '4%%' OR s.nome LIKE '%%4º%%' OR s.nome LIKE '%%4º %')"
         )
         cursor.execute(query, (ano_id,))
 
@@ -1563,7 +1563,7 @@ def gerar_declaracoes_6ano_combinadas(output_filename=None, ano_letivo=2025):
             f"JOIN Turmas t ON m.turma_id = t.id "
             f"LEFT JOIN series s ON t.serie_id = s.id "
             f"LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id "
-            f"WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND t.serie_id IN ({placeholders})"
+            f"WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND t.serie_id IN ({placeholders})"
         )
         params = [ano_id] + series_ids
         cursor.execute(query, params)
@@ -1578,7 +1578,7 @@ def gerar_declaracoes_6ano_combinadas(output_filename=None, ano_letivo=2025):
             "JOIN Turmas t ON m.turma_id = t.id "
             "LEFT JOIN series s ON t.serie_id = s.id "
             "LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id "
-            "WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND (s.nome LIKE '6%%' OR s.nome LIKE '%%6º%%' OR s.nome LIKE '%%6º %')"
+            "WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND (s.nome LIKE '6%%' OR s.nome LIKE '%%6º%%' OR s.nome LIKE '%%6º %')"
         )
         cursor.execute(query, (ano_id,))
 
@@ -1775,7 +1775,7 @@ def gerar_certificados_9ano_combinados(output_filename=None, ano_letivo=2025):
             f"JOIN Turmas t ON m.turma_id = t.id "
             f"LEFT JOIN series s ON t.serie_id = s.id "
             f"LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id "
-            f"WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND t.serie_id IN ({placeholders})"
+            f"WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND t.serie_id IN ({placeholders})"
         )
         params = [ano_id] + series_ids
         cursor.execute(query, params)
@@ -1789,7 +1789,7 @@ def gerar_certificados_9ano_combinados(output_filename=None, ano_letivo=2025):
             "JOIN Turmas t ON m.turma_id = t.id "
             "LEFT JOIN series s ON t.serie_id = s.id "
             "LEFT JOIN Escolas e ON t.escola_id = e.id OR e.id = a.escola_id "
-            "WHERE m.ano_letivo_id = %s AND m.status = 'Ativo' AND (s.nome LIKE '9%%' OR s.nome LIKE '%%9º%%' OR s.nome LIKE '%%9º %')"
+            "WHERE m.ano_letivo_id = %s AND m.status NOT IN ('Cancelado','Cancelada','Evadido','Evadida') AND (s.nome LIKE '9%%' OR s.nome LIKE '%%9º%%' OR s.nome LIKE '%%9º %')"
         )
         cursor.execute(query, (ano_id,))
 
