@@ -40,6 +40,50 @@ def adicionar_cabecalho(elements, cabecalho, figura_superior, figura_inferior, t
     table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'MIDDLE')]))
     elements.append(table)
 
+def adicionar_pagina_em_branco(elements, cabecalho, figura_superior, figura_inferior, ano_letivo, linhas=20):
+    """Acrescenta uma página final em branco para preenchimento manual."""
+    adicionar_cabecalho(elements, cabecalho, figura_superior, figura_inferior, 11)
+    elements.append(Spacer(1, 0.125 * inch))
+    elements.append(Paragraph("Lista de alunos para receberem o fardamento escolar pelos pais/responsáveis",
+                              ParagraphStyle(name='DescricaoVazia', fontSize=12, alignment=1)))
+    elements.append(Spacer(1, 0.1 * inch))
+    elements.append(Paragraph(f"<b>Turma: _____________ - Turno: _____________ - {ano_letivo}</b>",
+                              ParagraphStyle(name='TurmaTituloVazio', fontSize=12, alignment=1)))
+    elements.append(Spacer(1, 0.1 * inch))
+
+    data = [
+        ['Nº', 'Nome', 'TAMANHO/PONTUAÇÃO', '', 'Assinatura do Responsável'],
+        ['', '', 'Fardamento', 'Calçados', '']
+    ]
+    for _ in range(linhas):
+        data.append(['', '', '', '', ''])
+
+    table = Table(data, colWidths=[0.4 * inch, 3.5 * inch, 1.2 * inch, 1.2 * inch, 3.7 * inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), white),
+        ('TEXTCOLOR', (0, 0), (-1, 0), black),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('BACKGROUND', (0, 1), (-1, 1), white),
+        ('TEXTCOLOR', (0, 1), (-1, 1), black),
+        ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
+        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 1), (-1, 1), 10),
+        ('BOTTOMPADDING', (0, 1), (-1, 1), 8),
+        ('SPAN', (0, 0), (0, 1)),
+        ('SPAN', (1, 0), (1, 1)),
+        ('SPAN', (2, 0), (3, 0)),
+        ('SPAN', (4, 0), (4, 1)),
+        ('ALIGN', (1, 2), (1, -1), 'LEFT'),
+        ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 2), (-1, -1), 10),
+        ('BACKGROUND', (0, 2), (-1, -1), white),
+        ('GRID', (0, 0), (-1, -1), 1, black)
+    ]))
+    elements.append(table)
+
 def gerar_lista_fardamento():
     """Gera um único PDF com a lista de alunos para receberem o fardamento pelos pais/responsáveis, agrupados por turma."""
     ano_letivo = ANO_LETIVO_ATUAL
@@ -157,6 +201,9 @@ def gerar_lista_fardamento():
         elements.append(table)
         elements.append(PageBreak())
     
+    # Adicionar página extra em branco para preenchimento manual
+    adicionar_pagina_em_branco(elements, cabecalho, figura_superior, figura_inferior, ANO_LETIVO_ATUAL, linhas=20)
+
     # Construir o documento uma única vez com todas as turmas
     doc.build(elements)
     buffer.seek(0)

@@ -435,7 +435,7 @@ def gerar_declaracoes_2ano_combinadas(output_filename=None, ano_letivo=2025):
         center = Paragraph('<br/>'.join(["PREFEITURA MUNICIPAL DE PAÇO DO LUMIAR", "SECRETARIA MUNICIPAL DE EDUCAÇÃO - SEMED"]), ParagraphStyle(name='Header', fontSize=12, alignment=TA_CENTER))
         elements.append(center)
         elements.append(Spacer(1, 0.5 * inch))
-        elements.append(Paragraph('<b>Declaração</b>'.upper(), estilo_titulo))
+        elements.append(Paragraph('<b>Declaração de Transferência</b>'.upper(), estilo_titulo))
         elements.append(Spacer(1, 0.7 * inch))
         elements.append(Paragraph(texto, estilo_texto))
         elements.append(Spacer(1, 0.5 * inch))
@@ -590,7 +590,7 @@ def gerar_declaracoes_3ano_combinadas(output_filename=None, ano_letivo=2025):
 
         elements.append(Paragraph('<br/>'.join(["PREFEITURA MUNICIPAL DE PAÇO DO LUMIAR", "SECRETARIA MUNICIPAL DE EDUCAÇÃO - SEMED"]), ParagraphStyle(name='H', fontSize=12, alignment=TA_CENTER)))
         elements.append(Spacer(1, 0.5*inch))
-        elements.append(Paragraph('<b>Declaração</b>'.upper(), estilo_titulo))
+        elements.append(Paragraph('<b>Declaração de Transferência</b>'.upper(), estilo_titulo))
         elements.append(Spacer(1, 0.7*inch))
         elements.append(Paragraph(texto, estilo_texto))
         elements.append(Spacer(1, 0.5*inch))
@@ -709,7 +709,7 @@ def gerar_declaracoes_7ano_combinadas(output_filename=None, ano_letivo=2025):
 
         elements.append(Paragraph('<br/>'.join(["PREFEITURA MUNICIPAL DE PAÇO DO LUMIAR", "SECRETARIA MUNICIPAL DE EDUCAÇÃO - SEMED"]), ParagraphStyle(name='H', fontSize=12, alignment=TA_CENTER)))
         elements.append(Spacer(1, 0.5*inch))
-        elements.append(Paragraph('<b>DECLARAÇÃO</b>', ParagraphStyle(name='T', fontSize=16, alignment=TA_CENTER)))
+        elements.append(Paragraph('<b>Declaração de Transferência</b>', ParagraphStyle(name='T', fontSize=16, alignment=TA_CENTER)))
         elements.append(Spacer(1, 0.7*inch))
         elements.append(Paragraph(texto, ParagraphStyle(name='Tx', fontSize=12, leading=18, alignment=TA_JUSTIFY)))
         elements.append(Spacer(1, 0.5*inch))
@@ -1707,7 +1707,7 @@ def gerar_declaracoes_6ano_combinadas(output_filename=None, ano_letivo=2025):
         ]), ParagraphStyle(name='Header', fontSize=12, alignment=TA_CENTER))
         elements.append(center)
         elements.append(Spacer(1, 0.5 * inch))
-        elements.append(Paragraph('<b>Declaração</b>'.upper(), estilo_titulo))
+        elements.append(Paragraph('<b>Declaração de Transferência</b>'.upper(), estilo_titulo))
         elements.append(Spacer(1, 0.7 * inch))
 
         elements.append(Paragraph(texto, estilo_texto))

@@ -658,22 +658,26 @@ class InterfaceCadastroAluno:
             self.escolas_map = {}
             escolas_valores = []
             
-            for id, nome in escolas:
+            for escola in escolas:
+                # Compatível com cursor dictionary=True ou tupla
+                escola_id = escola['id'] if isinstance(escola, dict) else escola[0]
+                nome = escola['nome'] if isinstance(escola, dict) else escola[1]
+
                 # Se já existe uma escola com este nome, adicionar o ID ao nome para diferenciar
                 if nome in self.escolas_map:
-                    nome_com_id = f"{nome} (ID: {id})"
+                    nome_com_id = f"{nome} (ID: {escola_id})"
                     escolas_valores.append(nome_com_id)
-                    self.escolas_map[nome_com_id] = id
+                    self.escolas_map[nome_com_id] = escola_id
                 else:
                     escolas_valores.append(nome)
-                    self.escolas_map[nome] = id
+                    self.escolas_map[nome] = escola_id
             
             self.c_escola['values'] = escolas_valores
             
             # Define escola padrão se disponível
             if len(escolas) > 0:
-                for nome, id in self.escolas_map.items():
-                    if id == 3:  # Escola padrão com ID 3
+                for nome, escola_id in self.escolas_map.items():
+                    if escola_id == 3:  # Escola padrão com ID 3
                         self.c_escola.set(nome)
                         break
                 if not self.c_escola.get():  # Se não encontrou escola ID 3

@@ -22,7 +22,8 @@ def obter_ano_letivo_atual() -> Optional[int]:
         int: ID do ano letivo atual ou None se não encontrado
     """
     try:
-        with get_cursor() as cursor:
+        # Usar commit=True para garantir persistência da matrícula
+        with get_cursor(commit=True) as cursor:
             # Primeiro, busca o ano letivo configurado (ANO_LETIVO_ATUAL)
             cursor.execute(
                 "SELECT id, data_fim FROM anosletivos WHERE ano_letivo = %s LIMIT 1",
@@ -276,7 +277,8 @@ def matricular_aluno(
         # Verificar se já existe matrícula (qualquer status)
         matricula_existente = verificar_matricula_existente(aluno_id, ano_letivo_id)
         
-        with get_cursor() as cursor:
+        # Usar commit=True para garantir persistência
+        with get_cursor(commit=True) as cursor:
             if matricula_existente:
                 # Atualizar matrícula existente
                 matricula_id = matricula_existente['id']
@@ -285,7 +287,7 @@ def matricular_aluno(
                     SET turma_id = %s, status = %s, data_matricula = %s
                     WHERE id = %s
                 """, (turma_id, status, data_matricula, matricula_id))
-                
+
                 logger.info(f"Matrícula {matricula_id} do aluno {aluno_id} atualizada com sucesso")
                 return True, "Matrícula atualizada com sucesso"
             else:
@@ -294,7 +296,7 @@ def matricular_aluno(
                     INSERT INTO matriculas (aluno_id, turma_id, ano_letivo_id, status, data_matricula)
                     VALUES (%s, %s, %s, %s, %s)
                 """, (aluno_id, turma_id, ano_letivo_id, status, data_matricula))
-                
+
                 logger.info(f"Aluno {aluno_id} matriculado na turma {turma_id} com sucesso")
                 return True, "Matrícula realizada com sucesso"
             
