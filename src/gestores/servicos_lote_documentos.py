@@ -15,6 +15,30 @@ from PyPDF2 import PdfMerger
 logger = get_logger(__name__)
 
 
+def resolver_situacao_academica(nome_aluno, genero, status_matricula=None, situacao_padrao=None):
+    """Aplica overrides pontuais e usa o status da matrícula quando disponível."""
+    overrides = {
+        'JOÃO PEDRO SILVA PERREIRA': 'Reprovado',
+    }
+
+    chave = (nome_aluno or '').strip().upper()
+    situacao = overrides.get(chave)
+
+    if not situacao and status_matricula:
+        situacao = str(status_matricula).strip()
+
+    if not situacao:
+        situacao = situacao_padrao or ('Aprovada' if genero == 'feminino' else 'Aprovado')
+
+    situacao_low = situacao.lower()
+    if situacao_low.startswith('aprov'):
+        return 'Aprovada' if genero == 'feminino' else 'Aprovado'
+    if situacao_low.startswith('reprov'):
+        return 'Reprovada' if genero == 'feminino' else 'Reprovado'
+
+    return situacao
+
+
 def formatar_data_extenso(data):
     meses = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -178,6 +202,7 @@ def gerar_declaracoes_1ano_combinadas(output_filename=None, ano_letivo=2025):
         turma = r[5] or ''
         turno = normalizar_turno(r[6])
         escola = r[7] or ''
+        status_matricula = r[8] if len(r) > 8 else None
         responsaveis = r[9] or ''
         partes = responsaveis.split(' e ') if responsaveis else [ '', '' ]
         pai = partes[0] if len(partes) > 0 else ''
@@ -218,6 +243,8 @@ def gerar_declaracoes_1ano_combinadas(output_filename=None, ano_letivo=2025):
         filho_a = 'filha' if genero == 'feminino' else 'filho'
         aprovado_a = 'Aprovada' if genero == 'feminino' else 'Aprovado'
         aprovado_par = 'Aprovada' if genero == 'feminino' else 'Aprovado'
+        aprovado_a = resolver_situacao_academica(nome, genero, status_matricula, aprovado_a)
+        aprovado_par = aprovado_a
 
         texto = (
             f"Declaro para os devidos fins de direito, que {(nome or '').upper()}, {nascido_a} no dia {dia} de {mes_nome} de {ano}, "
@@ -397,6 +424,7 @@ def gerar_declaracoes_2ano_combinadas(output_filename=None, ano_letivo=2025):
         nascido_a = 'nascida' if genero == 'feminino' else 'nascido'
         filho_a = 'filha' if genero == 'feminino' else 'filho'
         aprovado_a = 'Aprovada' if genero == 'feminino' else 'Aprovado'
+        aprovado_a = resolver_situacao_academica(nome, genero, status, aprovado_a)
 
         texto = (
             f"Declaro para os devidos fins de direito, que {nome.upper()}, {nascido_a} no dia {dia} de {mes_nome} de {ano}, "
@@ -531,6 +559,7 @@ def gerar_declaracoes_3ano_combinadas(output_filename=None, ano_letivo=2025):
     for r in rows:
         aluno_id, nome, data_nasc, municipio, uf = r[0], r[1] or '', r[2], (r[3] or '').upper(), (r[4] or 'MA').upper()
         turma, turno, escola, responsaveis = r[5] or '', normalizar_turno(r[6]), r[7] or '', r[9] or ''
+        status_matricula = r[8] if len(r) > 8 else None
         uf_full = nome_estado_por_sigla(uf)
         estado_texto = 'DISTRITO FEDERAL' if uf_full == 'Distrito Federal' else f"Estado do {uf_full}"
         partes = responsaveis.split(' e ') if responsaveis else ['', '']
@@ -558,6 +587,7 @@ def gerar_declaracoes_3ano_combinadas(output_filename=None, ano_letivo=2025):
             dia, mes_nome, ano = '', '', ''
 
         nascido_a, filho_a, aprovado_a = ('nascida', 'filha', 'Aprovada') if genero == 'feminino' else ('nascido', 'filho', 'Aprovado')
+        aprovado_a = resolver_situacao_academica(nome, genero, status_matricula, aprovado_a)
         texto = (
             f"Declaro para os devidos fins de direito, que {nome.upper()}, {nascido_a} no dia {dia} de {mes_nome} de {ano}, "
             f"natural de {municipio}, {estado_texto}, {filho_a} de {(pai if pai else '---').upper()}, e de {(mae if mae else '---').upper()}, "
@@ -658,6 +688,7 @@ def gerar_declaracoes_7ano_combinadas(output_filename=None, ano_letivo=2025):
         municipio, uf = (r[3] or '').upper(), (r[4] or 'MA').upper()
         turno, escola = normalizar_turno(r[6]), (r[7] or '').upper()
         responsaveis = (r[9] or '').split(' e ')
+        status_matricula = r[8] if len(r) > 8 else None
         pai, mae = (responsaveis[0] if responsaveis else '---').upper(), (responsaveis[1] if len(responsaveis) > 1 else '---').upper()
         uf_full = nome_estado_por_sigla(uf)
         estado_texto = 'DISTRITO FEDERAL' if uf_full == 'Distrito Federal' else f"Estado do {uf_full}"
@@ -683,6 +714,7 @@ def gerar_declaracoes_7ano_combinadas(output_filename=None, ano_letivo=2025):
             dia, mes_nome, ano = '', '', ''
 
         nascido_a, filho_a, aprovado_a = ('nascida', 'filha', 'Aprovada') if genero == 'feminino' else ('nascido', 'filho', 'Aprovado')
+        aprovado_a = resolver_situacao_academica(nome, genero, status_matricula, aprovado_a)
         texto = f"Declaro para os devidos fins de direito, que {nome}, {nascido_a} no dia {dia} de {mes_nome} de {ano}, natural de {municipio}, {estado_texto}, {filho_a} de {pai}, e de {mae}, está {aprovado_a.lower()} no 7º ANO do Ensino Fundamental Anos Finais, na {escola}, no ano letivo de {ano_letivo}, no turno {turno}.<br/><br/>Situação Acadêmica: {aprovado_a}<br/><br/>Por ser a expressão da verdade dato e assino a presente declaração, para que surta os devidos efeitos legais."
 
         fig = None
@@ -775,6 +807,7 @@ def gerar_declaracoes_8ano_combinadas(output_filename=None, ano_letivo=2025):
         municipio, uf = (r[3] or '').upper(), (r[4] or 'MA').upper()
         turno, escola = normalizar_turno(r[6]), (r[7] or '').upper()
         responsaveis = (r[9] or '').split(' e ')
+        status_matricula = r[8] if len(r) > 8 else None
         pai, mae = (responsaveis[0] if responsaveis else '---').upper(), (responsaveis[1] if len(responsaveis) > 1 else '---').upper()
         uf_full = nome_estado_por_sigla(uf)
         estado_texto = 'DISTRITO FEDERAL' if uf_full == 'Distrito Federal' else f"Estado do {uf_full}"
@@ -800,6 +833,7 @@ def gerar_declaracoes_8ano_combinadas(output_filename=None, ano_letivo=2025):
             dia, mes_nome, ano = '', '', ''
 
         nascido_a, filho_a, aprovado_a = ('nascida', 'filha', 'Aprovada') if genero == 'feminino' else ('nascido', 'filho', 'Aprovado')
+        aprovado_a = resolver_situacao_academica(nome, genero, status_matricula, aprovado_a)
         texto = f"Declaro para os devidos fins de direito, que {nome}, {nascido_a} no dia {dia} de {mes_nome} de {ano}, natural de {municipio}, {estado_texto}, {filho_a} de {pai}, e de {mae}, está {aprovado_a.lower()} no 8º ANO do Ensino Fundamental Anos Finais, na {escola}, no ano letivo de {ano_letivo}, no turno {turno}.<br/><br/>Situação Acadêmica: {aprovado_a}<br/><br/>Por ser a expressão da verdade dato e assino a presente declaração, para que surta os devidos efeitos legais."
 
         fig = None
@@ -826,7 +860,7 @@ def gerar_declaracoes_8ano_combinadas(output_filename=None, ano_letivo=2025):
 
         elements.append(Paragraph('<br/>'.join(["PREFEITURA MUNICIPAL DE PAÇO DO LUMIAR", "SECRETARIA MUNICIPAL DE EDUCAÇÃO - SEMED"]), ParagraphStyle(name='H', fontSize=12, alignment=TA_CENTER)))
         elements.append(Spacer(1, 0.5*inch))
-        elements.append(Paragraph('<b>DECLARAÇÃO</b>', ParagraphStyle(name='T', fontSize=16, alignment=TA_CENTER)))
+        elements.append(Paragraph('<b>DECLARAÇÃO DE TRANSFERÊNCIA</b>', ParagraphStyle(name='T', fontSize=16, alignment=TA_CENTER)))
         elements.append(Spacer(1, 0.7*inch))
         elements.append(Paragraph(texto, ParagraphStyle(name='Tx', fontSize=12, leading=18, alignment=TA_JUSTIFY)))
         elements.append(Spacer(1, 0.5*inch))
@@ -959,6 +993,7 @@ def gerar_declaracoes_9ano_combinadas(output_filename=None, ano_letivo=2025):
         turma = r[5] or ''
         turno = normalizar_turno(r[6])
         escola = r[7] or ''
+        status_matricula = r[8] if len(r) > 8 else None
         responsaveis = r[9] or ''
 
         # dividir responsaveis
@@ -1006,11 +1041,13 @@ def gerar_declaracoes_9ano_combinadas(output_filename=None, ano_letivo=2025):
         filho_a = 'filha' if genero == 'feminino' else 'filho'
         aprovado_a = 'Aprovada' if genero == 'feminino' else 'Aprovado'
         aprovado_par = 'Aprovada' if genero == 'feminino' else 'Aprovado'
+        aprovado_a = resolver_situacao_academica(nome, genero, status_matricula, aprovado_a)
+        aprovado_par = aprovado_a
 
         # Montar parágrafo conforme template exato
         texto = (
             f"Declaro para os devidos fins de direito, que {(nome or '').upper()}, {nascido_a} no dia {dia} de {mes_nome} de {ano}, "
-            f"natural de {municipio}, {estado_texto}, {filho_a} de {(pai if pai else '---').upper()}, e de {(mae if mae else '---').upper()}, "
+            f"natural de {municipio}, {estado_texto}, {filho_a} de {(pai if pai else '---').upper()} e de {(mae if mae else '---').upper()}, "
             f"está {aprovado_a.lower()} no 9º ANO do Ensino Fundamental Anos Finais, na {(escola or '').upper()}, no ano letivo de {ano_letivo}, no turno {turno}.<br/><br/>"
             f"Situação Acadêmica: {aprovado_par}<br/><br/>"
             f"Por ser a expressão da verdade dato e assino a presente declaração, para que surta os devidos efeitos legais."     
@@ -1191,6 +1228,7 @@ def gerar_declaracoes_5ano_combinadas(output_filename=None, ano_letivo=2025):
         turma = r[5] or ''
         turno = normalizar_turno(r[6])
         escola = r[7] or ''
+        status_matricula = r[8] if len(r) > 8 else None
         responsaveis = r[9] or ''
 
         partes = responsaveis.split(' e ') if responsaveis else [ '', '' ]
@@ -1233,6 +1271,8 @@ def gerar_declaracoes_5ano_combinadas(output_filename=None, ano_letivo=2025):
         filho_a = 'filha' if genero == 'feminino' else 'filho'
         aprovado_a = 'Aprovada' if genero == 'feminino' else 'Aprovado'
         aprovado_par = 'Aprovada' if genero == 'feminino' else 'Aprovado'
+        aprovado_a = resolver_situacao_academica(nome, genero, status_matricula, aprovado_a)
+        aprovado_par = aprovado_a
 
         texto = (
             f"Declaro para os devidos fins de direito, que {(nome or '').upper()}, {nascido_a} no dia {dia} de {mes_nome} de {ano}, "
@@ -1406,6 +1446,7 @@ def gerar_declaracoes_4ano_combinadas(output_filename=None, ano_letivo=2025):
         turma = r[5] or ''
         turno = normalizar_turno(r[6])
         escola = r[7] or ''
+        status_matricula = r[8] if len(r) > 8 else None
         responsaveis = r[9] or ''
 
         partes = responsaveis.split(' e ') if responsaveis else [ '', '' ]
@@ -1448,6 +1489,8 @@ def gerar_declaracoes_4ano_combinadas(output_filename=None, ano_letivo=2025):
         filho_a = 'filha' if genero == 'feminino' else 'filho'
         aprovado_a = 'Aprovada' if genero == 'feminino' else 'Aprovado'
         aprovado_par = 'Aprovada' if genero == 'feminino' else 'Aprovado'
+        aprovado_a = resolver_situacao_academica(nome, genero, status_matricula, aprovado_a)
+        aprovado_par = aprovado_a
 
         texto = (
             f"Declaro para os devidos fins de direito, que {(nome or '').upper()}, {nascido_a} no dia {dia} de {mes_nome} de {ano}, "
@@ -1621,6 +1664,7 @@ def gerar_declaracoes_6ano_combinadas(output_filename=None, ano_letivo=2025):
         turma = r[5] or ''
         turno = normalizar_turno(r[6])
         escola = r[7] or ''
+        status_matricula = r[8] if len(r) > 8 else None
         responsaveis = r[9] or ''
 
         partes = responsaveis.split(' e ') if responsaveis else [ '', '' ]
@@ -1663,6 +1707,8 @@ def gerar_declaracoes_6ano_combinadas(output_filename=None, ano_letivo=2025):
         filho_a = 'filha' if genero == 'feminino' else 'filho'
         aprovado_a = 'Aprovada' if genero == 'feminino' else 'Aprovado'
         aprovado_par = 'Aprovada' if genero == 'feminino' else 'Aprovado'
+        aprovado_a = resolver_situacao_academica(nome, genero, status_matricula, aprovado_a)
+        aprovado_par = aprovado_a
 
         texto = (
             f"Declaro para os devidos fins de direito, que {(nome or '').upper()}, {nascido_a} no dia {dia} de {mes_nome} de {ano}, "
