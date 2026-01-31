@@ -119,3 +119,9 @@ dist/
 installer_output/
 *.exe
 *.spec
+
+# Arquivos de modelo MySQL Workbench (podem conter dados sensiveis)
+*.mwb
+
+# Arquivos de modelo MySQL Workbench (podem conter dados sensiveis)
+*.mwb
