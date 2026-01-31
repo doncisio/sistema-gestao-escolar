@@ -15,6 +15,11 @@ ENV/
 migrations/backup_*.sql
 migrations/backup_redeescola.sql
 
+# Backups SQL com dados reais
+sql/backup_*.sql
+sql/dados_questoes_*.sql
+sql/mapeamento_*.sql
+
 # Backups - NÃO SINCRONIZAR
 Backup_Sistema/
 *.backup
@@ -34,6 +39,23 @@ conexao_local.py
 *.tmp
 ~$*
 *.swp
+*.bak
+*_temp.txt
+*_check.txt
+temp_*.txt
+
+# Arquivos de documentação temporária ou debug
+docs/*_temp.txt
+docs/*_codigo.txt
+docs/pr_body.txt
+docs/REMAINDER_PRINTS.txt
+docs/pytest_full_output.txt
+docs/todos_codigos_sistema.txt
+docs/*.bak
+
+# Arquivos com dados reais de alunos - NUNCA SINCRONIZAR
+ata_*.txt
+config/relatorio_*.txt
 
 # VS Code
 .vscode/
@@ -65,6 +87,14 @@ deepseek.json
 dados/nis/
 temp/
 uploads/
+
+# Arquivos CSV com dados reais - NUNCA SINCRONIZAR
+config/casos_similares_*.csv
+config/revisao_*.csv
+config/relatorio_*.txt
+config/detalhes_escolas_geduc*.json
+config/mapeamento_geduc*.json
+config/mapeamento_*.json
 
 # Chromedriver (pode ser baixado novamente)
 chromedriver.exe
