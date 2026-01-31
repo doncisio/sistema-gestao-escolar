@@ -141,10 +141,11 @@ class IntegradorPreenchimentoAutomatico:
         y = (janela_cred.winfo_screenheight() // 2) - (270 // 2)
         janela_cred.geometry(f'400x270+{x}+{y}')
         
-        # Variáveis com valores padrão preenchidos
+        # Variáveis - valores vazios por segurança
         from src.core.config import ANO_LETIVO_ATUAL
-        usuario_var = tk.StringVar(value="01813518386")
-        senha_var = tk.StringVar(value="01813518386")
+        import os
+        usuario_var = tk.StringVar(value=os.getenv('GEDUC_USER', ''))
+        senha_var = tk.StringVar(value=os.getenv('GEDUC_PASS', ''))
         ano_var = tk.StringVar(value=str(ANO_LETIVO_ATUAL))
         resultado: Dict[str, Any] = {'confirmado': False}
         

@@ -2,13 +2,32 @@
 
 Sistema completo para gestão de escolas, incluindo matrículas, frequência, notas, relatórios e muito mais.
 
+## ⚠️ IMPORTANTE - Segurança
+
+**ANTES DE USAR, LEIA:** [SECURITY.md](SECURITY.md)
+
+- ❌ **NUNCA** commite credenciais (senhas, tokens, chaves de API)
+- ❌ **NUNCA** commite dados pessoais de alunos
+- ✅ Configure variáveis de ambiente no arquivo `.env` (use `.env.example` como base)
+- ✅ Mantenha backups em local seguro e privado
+
 ## 🚀 Quick Start
 
 ```bash
-# Executar o sistema
+# 1. Clone o repositório
+git clone <url-do-repositorio>
+
+# 2. Instale as dependências
+pip install -r requirements.txt
+
+# 3. Configure o ambiente (copie e edite)
+copy .env.example .env
+# Edite o arquivo .env com suas credenciais
+
+# 4. Execute o sistema
 python main.py
 
-# Ou usar o arquivo .bat
+# Ou use o arquivo .bat
 automacao\batch\executar_sistema.bat
 ```
 

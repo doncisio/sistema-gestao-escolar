@@ -48,14 +48,23 @@ desktop.ini
 $RECYCLE.BIN/
 *.lnk
 
-# Credenciais - NUNCA SINCRONIZAR
+# Credenciais e arquivos sensíveis - NUNCA SINCRONIZAR
 *credentials*
 *password*
 *secret*
 .env
+.env.local
+.env.production
 credentials.json
 token.pickle
 *.pickle
+local_config.json
+deepseek.json
+
+# Dados sensíveis
+dados/nis/
+temp/
+uploads/
 
 # Chromedriver (pode ser baixado novamente)
 chromedriver.exe

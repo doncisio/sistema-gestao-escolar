@@ -13,10 +13,11 @@ ESCOLA_ID = 60
 # Atualizado após transição de ano letivo
 ANO_LETIVO_ATUAL = 2026
 
-# Configurações para integração GEDUC (por segurança manter vazias aqui em repositórios públicos)
-# Você pode preencher localmente ou usar variáveis de ambiente para ambientes de produção.
-GEDUC_DEFAULT_USER = "01813518386"
-GEDUC_DEFAULT_PASS = "01813518386t"
+# Configurações para integração GEDUC
+# IMPORTANTE: Configure via variáveis de ambiente (GEDUC_USER e GEDUC_PASS)
+# Nunca commite credenciais reais no repositório!
+GEDUC_DEFAULT_USER = ""
+GEDUC_DEFAULT_PASS = ""
 
 # Outros valores globais podem ser adicionados aqui no futuro.
 
