@@ -65,6 +65,22 @@ class ReportCallbacks:
             logger.exception(f"Erro ao gerar lista SEMED: {e}")
             messagebox.showerror("Erro", f"Não foi possível gerar a lista: {e}")
     
+    def exportar_funcionarios_excel(self):
+        """Exporta funcionários administrativos para Excel."""
+        try:
+            from src.relatorios.listas.funcionarios_excel import gerar_excel_funcionarios_administrativos
+            
+            # Obter escola_id das configurações
+            from src.core.config.settings import settings
+            escola_id = settings.app.escola_id if settings else 60
+            
+            # Gerar arquivo Excel
+            gerar_excel_funcionarios_administrativos(escola_id=escola_id)
+            
+        except Exception as e:
+            logger.exception(f"Erro ao exportar funcionários para Excel: {e}")
+            messagebox.showerror("Erro", f"Não foi possível exportar os dados: {e}")
+    
     def lista_reuniao(self):
         """Gera lista de reunião."""
         try:
@@ -668,6 +684,10 @@ class ActionCallbacksManager:
     def lista_atualizada_semed(self):
         """Atalho para reports.lista_atualizada_semed()"""
         return self.reports.lista_atualizada_semed()
+    
+    def exportar_funcionarios_excel(self):
+        """Atalho para reports.exportar_funcionarios_excel()"""
+        return self.reports.exportar_funcionarios_excel()
     
     def relatorio_movimentacao_mensal(self, numero_mes: int):
         """Atalho para reports.relatorio_movimentacao_mensal()"""

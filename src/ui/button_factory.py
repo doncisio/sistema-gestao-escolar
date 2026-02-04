@@ -310,6 +310,12 @@ class ButtonFactory:
                     command=self.callbacks.lista_atualizada_semed,
                     font=menu_font
                 )
+                
+                listas_menu.add_command(
+                    label="Exportar Funcionários (Excel)",
+                    command=self.callbacks.exportar_funcionarios_excel,
+                    font=menu_font
+                )
 
             # Lista de Reunião (Admin, Coordenador)
             if is_admin or is_coordenador:
