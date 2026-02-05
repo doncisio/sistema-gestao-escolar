@@ -814,6 +814,11 @@ class ButtonFactory:
             command=lambda: self._abrir_documento_escola('cnpj'),
             font=menu_font
         )
+        documentos_menu.add_command(
+            label="Regimento Escolar",
+            command=lambda: self._abrir_documento_escola('regimento'),
+            font=menu_font
+        )
         menu_bar.add_cascade(label="Documentos da Escola", menu=documentos_menu, font=menu_font)
         
         # ========== MENU 7: USUÁRIO (quando perfis habilitados) ==========
@@ -1524,6 +1529,7 @@ class ButtonFactory:
                 'estatuto': 'https://drive.google.com/file/d/14piUCRRxRlfh1EC_LiT_npmbPkOkgUS4/view?usp=sharing',
                 'ppp': 'https://drive.google.com/file/d/1SDDy5PnxbTyDbqbfGKhLDrdRgdozGt-1/view?usp=sharing',
                 'cnpj': 'https://drive.google.com/file/d/1-pW8FK7bq2v-vLFfczvqQv4lUw-MlF2r/view?usp=sharing',
+                'regimento': 'https://drive.google.com/file/d/1ZveeqGkp0HzfQDf6zrNfEAiuKvPgrWtN/view?pli=1',
             }
             
             link = links.get(chave)
