@@ -1,0 +1,24 @@
+================================================================================
+ERROS DETECTADOS NA COMPARACAO
+================================================================================
+
+Total de erros: 2
+
+1. MESMO CPF - GRAFIAS DIFERENTES
+   CPF: 62477456300
+   Nascimento: 2014-02-25
+   Sistema Local: Paulo Victor Pinheiro Desterro
+   GEDUC        : MIRIAN EMANUELY CHAGAS
+   Normalizado Local: PAULO VICTOR PINHEIRO DESTERRO
+   Normalizado GEDUC: MIRIAN EMANUELY CHAGAS
+   Diferenca: {'EMANUELY', 'CHAGAS', 'PINHEIRO', 'DESTERRO', 'VICTOR', 'MIRIAN', 'PAULO'}
+
+2. MESMO CPF - GRAFIAS DIFERENTES
+   CPF: 62754265350
+   Nascimento: 2014-01-15
+   Sistema Local: Pedro Henrique Azevedo de Lima
+   GEDUC        : PAULO VICTOR PINHEIRO DESTERRO
+   Normalizado Local: PEDRO HENRIQUE AZEVEDO DE LIMA
+   Normalizado GEDUC: PAULO VICTOR PINHEIRO DESTERRO
+   Diferenca: {'PEDRO', 'DE', 'LIMA', 'PINHEIRO', 'AZEVEDO', 'DESTERRO', 'VICTOR', 'HENRIQUE', 'PAULO'}
+

@@ -1,0 +1,1683 @@
+================================================================================
+RELATÓRIO DE COMPARAÇÃO: SISTEMA LOCAL vs GEDUC
+================================================================================
+
+Total de alunos no Sistema Local: 276
+Total de alunos no GEDUC: 285
+Alunos em ambos os sistemas: 249
+Apenas no Sistema Local: 27
+Apenas no GEDUC (novos): 36
+
+================================================================================
+ALUNOS EM AMBOS OS SISTEMAS (249)
+================================================================================
+
+✅ Adriann Carlos da Silva Castro
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Ágata Sofia Amorim França
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Agatha Cristina da Silva Feitosa
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Agda Vitória Leal dos Passos
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Alessandro Pereira Alves
+   Local:  2º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Alex Raylan Costa Nogueira
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Alexandre Gregory do Rosario Abreu
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA
+
+✅ Alexya Maria Alves Ferreira
+   Local:  2º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Alice Vitória Ferreira Sousa
+   Local:  1º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Alicya Beatriz dos Santos Ferreira
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Allan Fylipe Silva Mota
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Amaralina de Sousa Rodrigues
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Ana Alicya Matos Guimaraes da Silva
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TDAH
+
+✅ Ana Caroline Silva Martins
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ André Martins Marques Junior
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA
+
+✅ Andrés Sanchez Silva Frazão
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Angélica do Espirito Santo Bezerra
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA
+
+✅ Anna Clara Sousa Aquino
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Anna Leticia Nascimento Castro
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Annalice Bezerra Garcia Fonseca
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Anthony Vitor Martins Lopes
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Arthur Miguel Aguiar Barbosa Boaes
+   Local:  2º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Arthur Swagger Vieira Borges
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Assis Reis Gomes Júnior
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA
+
+✅ Aylla Sophia Lisboa Silva
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Aysha Bianca Silva da Cruz
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Beatriz Silva de Jesus Martins
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Benjamim Eduardo Ribeiro Silva
+   Local:  2º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA, TDAH, TOD
+
+✅ Brayan Amorim Viana dos Santos
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA
+
+✅ Brenda Emanuelle Gonçalves Alves
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Breno Arthur Soares Marques
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Bruna Laryssa Sousa Rosa
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Bruno Rhian Sousa Lima
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Caio Brito Marques
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA
+
+✅ Carlos André de Marco da Silva
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TAG, TEA (em Avaliação)
+
+✅ Carlos Daniel Santos Miranda
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Carlos Julian Ataide Frazão
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TDAH
+
+✅ Carlos Matheus de Jesus Santos
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TDAH, TEA
+
+✅ Catarina da Cruz Pereira
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Daivid Daniel Ribeiro Borges
+   Local:  2º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Dandara Cristina Santos Costa
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Davi Diones Bezerra Santiago
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Davi Emanuel dos Santos Cabral
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Davi Felipe Garros Rodrigues
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Davi Guilherme de Jesus Corrêa da Luz
+   Local:  2º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Davi Lucas Sousa de Oliveira
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Davi Luis Ferreira da Silva
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA
+
+✅ Davi Luís Moreira Marques
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TDAH
+
+✅ Davi Miguel Alves Machado
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ David Willyan Ferreira Costa
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Dávila Vitoria da Silva Ferreira
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Davy Leno Almeida Lima
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Denilson Guimaraes Souza Silva
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Derik Kawã Soares Silva
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Diego Emanuel Tavares Melo
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Diogo Adryan da Silva Ferreira
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Eduarda Thayze Ferreira dos Santos
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Eike Emanoel Mendes Soeiro
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Elano Biasi Cruz de Brito
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Elias Rocha Bogea
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Eloha Aruna Rocha Araújo
+   Local:  2º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Emanuel Espindola Serra Costa
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Emanuel Ricardo Rocha Araújo
+   Local:  2º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Emanuel Victor Costa Reis
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Emilly Sophia Sena Ribeiro
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Enzo Daniel Sousa Calisto
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Enzo Gabryel Coelho Marques
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Enzo Gustavo Pereira Brito
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Enzo Miguel Cantanhede Rodrigues
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Enzzo Nycholas Maia Alderaldo
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Esther Blesson Mendes Mouzinho
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Esther Cristina Almeida Rubim
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Esther Karoline Everton Martins
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Esther Talita dos Santos Braga
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Evellyn Caroline Silva Pereira
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Evellyn Lohanne da Silva Ramos
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Transferido
+
+✅ Evelyn Gabriela Sousa Oliveira
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Francisco Henrique Sena Brito
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Gabriel Cardoso Laverde
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Gabriel Martins da Silva
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Geysa Vitória Sousa Ribeiro
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Giovanna Victória de Carvalho Sousa
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Gleicianny Martins Lopes
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Gleicy Charlyene França Santos
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Grazielle da Silva Bezerra
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Guilherme Emanuell Silva Gonçalves
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Guilherme Ferreira Farias
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Gustavo William Nascimento de Sá
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Habner dos Reis de Azevedo
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Hadassa Manoella Carvalho Lisboa
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Hallerrandro Myguel Farah Araujo
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Haylla Kerssya Ferreira do Espirito Santo
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Helena Ktllem de Oliveira Silva
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Hellen Yasmin da Silva Campos
+   Local:  1º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Helloa Maria Sousa Lima
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Heloá Santos Silva
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Henrique Gabriel de Matos Ribeiro
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Huan Flavio Alves
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Ian Carlos Ferreira Pinto
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA
+
+✅ Ingrid Laurrany do Nascimento
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Isaac Gabriel Diniz Amorim
+   Local:  2º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA, TDAH, TOD
+
+✅ Isaac Miguel Moreira Marques
+   Local:  2º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Isabella de Vasconcelos Rocha
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Isabella Nascimento Passos da Paixão
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Jasmim Kely Correia Cruz
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Jasmynne Kedna Bruzaca Aires
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Jennyfer Emanuelly Sousa da Silva
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Jhennifer Santos da Conceição
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ João Gabriel Pereira Rodrigues
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ João Guilherme das Neves Corvelo
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ João Miguel Luna Neves
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA
+
+✅ João Miguel Santos de Souza
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ João Pedro Passos Mendes
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ João Vinicius Alves Machado
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ John Levy Moreira Monteiro
+   Local:  2º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: Investigação TEA
+
+✅ John Miguel Moreira Monteiro
+   Local:  1º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ José Arthur Cardoso Alves
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ José Bento Lobato Lago
+   Local:  2º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Julia Cristina Alves Machado
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Julia Hadassa Garcias de Souza
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Julianna Sophie Pereira Meireles
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Julio Cesar Nunes da Silva
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Júlio Henrique dos Santos Lima
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Kaik Ruã Pereira de Morais
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Kailanna Fernanda Chaves Ferreira
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Kaique Leonardo Moreno de Sá
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Kallebe Kaua Pereira Correia
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Katherine Kauane Barrozo Barbosa
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Kaua Kaiky Pereira Correia
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Kesia de Jesus Alves
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Ketlyn Beatriz Campos Ferreira
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Ketlyn Vitória Campos Ferreira
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Klair Eloi Maia Nascimento
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Laise Rebeca Santos Pereira
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Lara Cibely dos Santos Soares
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Lara Kevillyn Durans Ferreira
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Lara Pietra Cardoso Jardim
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Lara Sophie da Silva Santos
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Leandra Talita da Silva Costa
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Leon Valentim Silva Frazão
+   Local:  2º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Leonardo Gama Brito de Sousa
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Leticia Carvalho Mendes
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Livia Pinto Martins
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Luan Carlos Carneiro Sousa
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Luana Larissa Medeiros Martins
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Luana Stephanny da Silva Costa
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: Surda
+
+✅ Luana Vitória Silva Ferreira
+   Local:  1º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Lucas Davi Melo Marques
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Lucas Kayran Sá Rodrigues
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Lucas Santos Mason
+   Local:  2º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Luís Davi Martins da Silva
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA, TDAH
+
+✅ Luis Gustavo Teixeira Pinheiro
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Luis Pedro Nascimento Pinto
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Luís Ricardo Garcias dos Santos
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Luiz Carlos da Conceição de Souza
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA
+
+✅ Luiz Fernando Santos do Nascimento
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Luíz Otávio da Silva Trindade
+   Local:  1º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Luna Lorrany Duarte Bitencourt Ferreira
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Luna Vitória Barroso Ferraz
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Lunna Dandarah Carvalho Soares Mendes
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Lunna Sophie Santos da Silva
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Manuelly Sofia Monteiro da Silva
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Marcos Henrique Sena Sodre
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Marcos Vinicius Brito Silva
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Marcos Vitor Brito Silva
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Maria Cecílya Nazareno Caldas
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Maria Clara Maia Alderaldo
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Maria Eduarda Azevedo de Freitas
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Maria Eduarda da Silva Bazola
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Maria Eduarda Garcias dos Santos
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Maria Eduarda Silva Miranda
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Maria Elena Silva Muller Lago
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Maria Fernanda Miguens Cunha
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Maria Isabelly Muniz Neves
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Maria Luisa Medeiros Dantas
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Maria Victoria da Silva Araujo
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Mariah Claudia da Costa Marques
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Marya Vitoria Silva Nogueira
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Matheus dos Santos Calisto
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Maurício Silva Miranda
+   Local:  1º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Mayck Wilyan da Silva da Silva
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Maysa Estefany Belém Ferreira
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Maysa Victoria Sardinha Coimbra
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Melyssa Cardenas da Silva
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Micaelly Braga Pacheco
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Miguel Arthur Santos da Silva Azevedo
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Miguel Augusto Tavares Melo
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Miguel Braga Pacheco
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Mirian Emanuely Chagas
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA
+
+✅ Murilo Silva Miranda
+   Local:  1º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Myckaell Magno Pinheiro Alves da Silva
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Mylenna Victória Moura Leal
+   Local:  1º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Myrabe Adhassa Oscar Alves
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Natan da Silva Diniz
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Natasha Vitória Costa
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Nathan David Santos da Silva
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Nayra Nycolle Gaspar Costa
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: Investigação TEA
+
+✅ Nicholas Gabriel Soares Queiroz
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA
+
+✅ Nikelly Katariny Lima Nogueira
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Olimar Davi Cabral Barbiero
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Paula Christina Freire Martins Lima da Silva
+   Local:  2º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Paulo Davi Sampaio Correia
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Paulo Eduardo Carvalho Lisboa
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Paulo Guilherme Muniz Neves
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA
+
+✅ Paulo Júnio Morais Machado
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: ASMÁTICO (MODERADO)
+
+✅ Paulo Victor Pinheiro Desterro
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Pedro Arthur Bacelar Lima
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Pedro Emanuel Ferreira do Espirito Santo
+   Local:  2º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Pedro Henrique Azevedo de Lima
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Pedro Henrique Silva Costa
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Pedro Lucas Braga Ferreira
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Pedro Rafael Melo Marques
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Pedro Vasconcelos Ferreira
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA, TDAH, TOD
+
+✅ Pedro Victor Cardoso Correa
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Pietro Ricardo Gomes Aires
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Rafael Ângelo Martins Costa
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Raul Estevam Reis Freire
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Rayka Suellen da Silva Sousa
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Rebeka Vitoria Magalhaes da Silva
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Rodrigo Erick Pereira Silva
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Ronaldo dos Santos Rodrigues
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Ruan Carlos Costa Silva
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Samara Vitoria Moreira Marques
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Samuel Carliton dos Santos Reis
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Samuel Jorge Martins Moraes
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Samuel Lucas Melo Carvalho
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Samuel Martins Araújo
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Samuel Matias Costa Fernandes
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Sara Emanuelle Carvalho Lisboa
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Sara Marta Souza da Silva
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Saylla Vitória Pereira Henrique
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Sofia Juanne Pimenta Silva
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Sofia Viana Amaral
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Sophia Clara Das Neves Corvelo
+   Local:  9º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Sophia Eduarda Coelho Marques
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Sophia Martins Coelho
+   Local:  6º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Stela Sophia Brito Silva
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Thassia Nicolly Serra Costa
+   Local:  5º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Thayllon Jhonatan Ferreira dos Santos
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Thayna Sophia Bezerra Garcia Souza de Assis
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Thiago Garcias dos Santos
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Tiago Garces Serejo
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Victor Gabriel de Jesus Correa da Luz
+   Local:  4º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Victor Samuel Mendes dos Santos
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Vinícius Meerchel Cutrim
+   Local:  7º Ano - B (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Wendny Gabrielly da Silva Ribeiro
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Yan Davi Sampaio Correia
+   Local:  8º Ano -  (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Yanne Cristal Rodrigues Pinheiro
+   Local:  7º Ano - A (VESP)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Yasmim Sophia Luzo Azevedo
+   Local:  3º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+================================================================================
+APENAS NO SISTEMA LOCAL (27)
+================================================================================
+
+⚠️  Alice Ferreira Alves
+   5º Ano -  (MAT)
+   Situação: Ativo
+   Telefones: 94991277430/985745325
+
+⚠️  Alícia Araújo do Nascimento
+   2º Ano -  (MAT)
+   Situação: Ativo
+   Telefones: 987821429/988232257
+
+⚠️  Ana Beatriz Monteiro da Silva
+   6º Ano -  (VESP)
+   Situação: Ativo
+   Telefones: 988510199/987268878
+
+⚠️  Ana Luiza Ferreira Castro
+   6º Ano -  (VESP)
+   Situação: Ativo
+   Telefones: 988208345
+
+⚠️  Barbara Ellen Barbosa Ferreira
+   4º Ano -  (MAT)
+   Situação: Ativo
+   Telefones: 992269724/988369334
+
+⚠️  Carlos Daniel Almeida Teixeira
+   7º Ano - A (VESP)
+   Situação: Ativo
+   Telefones: 988731506/985741335
+
+⚠️  Carlos Eduardo Garcias dos Santos
+   8º Ano -  (VESP)
+   Situação: Transferido
+   Telefones: 999999999/970284750
+
+⚠️  Edson Kauã Nascimento Castro
+   6º Ano -  (VESP)
+   Situação: Ativo
+   Telefones: 984750494/9914770160
+
+⚠️  Enos Natanael Matos da Silva
+   7º Ano - B (VESP)
+   Situação: Ativo
+   Telefones: 982995889/981715570
+
+⚠️  Gabriela Coelho da Silva
+   6º Ano -  (VESP)
+   Situação: Ativo
+   Telefones: 985083907
+
+⚠️  Iana Sophie Sousa Lima
+   6º Ano -  (VESP)
+   Situação: Ativo
+   Telefones: 989133289
+
+⚠️  Iasmim Vitória Abreu da Silva
+   8º Ano -  (VESP)
+   Situação: Ativo
+
+⚠️  João Miguel Frasão Montes
+   4º Ano -  (MAT)
+   Situação: Ativo
+   Telefones: 988424072/988877393
+
+⚠️  João Pedro Silva Perreira
+   9º Ano -  (VESP)
+   Situação: Ativo
+   Telefones: 986024743/
+
+⚠️  Jonilson Freitas de Sousa Neto
+   5º Ano -  (MAT)
+   Situação: Ativo
+   Telefones: 984592926/988340336
+
+⚠️  Laerth Miguel Sousa Brito
+   6º Ano -  (VESP)
+   Situação: Ativo
+   Telefones: 999708159/985485972
+
+⚠️  Lara Sophia Perna dos Santos
+   6º Ano -  (VESP)
+   Situação: Ativo
+   Telefones: 984915715/988533469
+
+⚠️  Laura Marie Matos Gonçalves
+   3º Ano -  (MAT)
+   Situação: Ativo
+   Telefones: 985064484/985528974
+
+⚠️  Lorena Vitoria Cunha Moraes
+   7º Ano - B (VESP)
+   Situação: Ativo
+   Telefones: 988805962
+
+⚠️  Luiz Miguel dos Santos Sales
+   4º Ano -  (MAT)
+   Situação: Ativo
+   Telefones: 985208866
+
+⚠️  Marcelly Vitória Santos da Silva Azevedo
+   5º Ano -  (MAT)
+   Situação: Ativo
+   Telefones: /984626104
+
+⚠️  Marcia Hianla Silva Ataide
+   7º Ano - B (VESP)
+   Situação: Ativo
+   Telefones: 98987246883/984668274
+
+⚠️  Matheus Leite Lima
+   8º Ano -  (VESP)
+   Situação: Ativo
+   Telefones: 985003333/985405770
+
+⚠️  Maxwel Ferreira Rocha
+   9º Ano -  (VESP)
+   Situação: Ativo
+   Telefones: 991374591
+
+⚠️  Pedro Victor Almeida Carvalho
+   4º Ano -  (MAT)
+   Situação: Ativo
+   Telefones: 981550248/984930560
+
+⚠️  Rayssa dos Santos da Silva
+   8º Ano -  (VESP)
+   Situação: Ativo
+   Telefones: 987072790
+
+⚠️  Rhyan Carlos Araujo Gomes
+   3º Ano -  (MAT)
+   Situação: Ativo
+   Telefones: 984974313
+
+================================================================================
+APENAS NO GEDUC - NOVOS PARA IMPORTAR (36)
+================================================================================
+
+🆕 ANA BEATRIZ MARQUES SOARES
+   Turma GEDUC:  (ID: 1538)
+   Nascimento: 2013-03-04
+   Mãe: ANALICE PEREIRA MARQUES
+   Pai: EDSON LUIZ AZEVEDO SOARES
+   CPF: 07294918384
+
+🆕 ANA CLARA SANTOS SILVA 
+   Turma GEDUC:  (ID: 1535)
+   Nascimento: 2014-11-24
+   Mãe: ETIANE BRITO SILVA
+   Pai: DIEGO REIS SILVA 
+   CPF: 63573624332
+
+🆕 ANA CLARA SILVA DE ALBUQUERQUE
+   Turma GEDUC:  (ID: 1532)
+   Nascimento: 2011-11-09
+   Mãe: CLEIDINEY ANGELA MORAES SILVA 
+   Pai: LUIS MAGNO PEREIRA DE ALBUQUERQUE
+   CPF: 62000130399
+
+🆕 ANA JULIA LOBATO CHEVES
+   Turma GEDUC:  (ID: 1538)
+   Nascimento: 2014-03-10
+   Mãe: ARIADNA DA SILVA LOBATO
+   Pai: EDILSON DE OLIVEIRA CHAVES
+   CPF: 71595206108
+
+🆕 ANA JULIA RIBEIRO SIMPLICIO
+   Turma GEDUC:  (ID: 1529)
+   Nascimento: 2016-09-28
+   Mãe: SABDRA REGINA DOS SANTOS RIBEIRO
+   Pai: PAULO ALVES SIMPLICIO
+   CPF: 08634651371
+
+🆕 ARYELLA LOURENCO SILVA
+   Turma GEDUC:  (ID: 1525)
+   Nascimento: 2019-04-10
+   Mãe: ANA CAROLINA DE SOUSA LOURENCO
+   Pai: WANDERSON ALLAN CANTANHEDE SILVA
+   CPF: 10472319302
+   Transtorno: CID: F91.3
+
+🆕 BENJAMIN BORGES MARTINS
+   Turma GEDUC:  (ID: 1525)
+   Nascimento: 2020-02-24
+   Mãe: BRUNA SILVA BORGES 
+   Pai: RICHARDSON REIS MARTINS
+   CPF: 11177170388
+
+🆕 BRUNA RAYANE FRAZAO ARAUJO
+   Turma GEDUC:  (ID: 1531)
+   Nascimento: 2012-08-01
+   Mãe: DJANIRA MORAES FRAZAO
+   Pai: ADEMILSON RIBEIRO ARAUJO
+   CPF: 13186173329
+
+🆕 CANDIDA ROBERTA DA SILVA BORALHO
+   Turma GEDUC:  (ID: 1532)
+   Nascimento: 2012-04-02
+   Mãe: FRANCYNEUZA SANTOS DA SILVA BORRALHO
+   Pai: ROBERTO BORRALHO NETO 
+   CPF: 62694365329
+
+🆕 DEYVISON MARCELO CARNEIRO FERREIRA
+   Turma GEDUC:  (ID: 1538)
+   Nascimento: 2013-07-01
+   Mãe: EDILENE DO CARMO CARNEIRO
+   Pai: None
+   CPF: 62542724318
+
+🆕 ENZO DE SOUZA FURTADO
+   Turma GEDUC:  (ID: 1529)
+   Nascimento: 2017-02-23
+   Mãe: FRANCISCA ANA P DE SOUZA
+   Pai: GERALDO GARCIA FURTADO
+   CPF: 62645169376
+
+🆕 ESTHER DE JESUS MENDES
+   Turma GEDUC:  (ID: 1527)
+   Nascimento: 2019-03-22
+   Mãe: ARLETE BEZERRA DE JESUS 
+   Pai: None
+   CPF: 10433701374
+
+🆕 FERNANDO GABRIEL SOUSA DA SILVA
+   Turma GEDUC:  (ID: 1525)
+   Nascimento: 2019-11-12
+   Mãe: DELCIMAR MESQUITA DE SOUSA
+   Pai: GABRIEL VICTOR SÁ DA SILVA
+   CPF: 10894441337
+
+🆕 GABRIELLY SILVA DO NASCIMENTO
+   Turma GEDUC:  (ID: 1527)
+   Nascimento: 2018-10-03
+   Mãe: JAILENE SANTOS SILVA ARAUJO
+   Pai: JUCELINO SILVA DO NASCIMENTO
+   CPF: 63346138399
+
+🆕 GLENDA ELIZA DE OLIVEIRA RIBEIRO
+   Turma GEDUC:  (ID: 1527)
+   Nascimento: 2019-03-18
+   Mãe: DEIDIANE DE OLIVEIRA
+   Pai: EMIELSON LEITE RIBEIRO
+   CPF: 63371967328
+   Transtorno: TEA - CID: F84.0
+
+🆕 GUILHERME MARTINS DE OLIVEIRA
+   Turma GEDUC:  (ID: 1527)
+   Nascimento: 2019-03-03
+   Mãe: IVANY MARTINS DA SILVA 
+   Pai: ISMAEL PEREIRA DE OLIVEIRA
+   CPF: 63488278360
+
+🆕 HENZO HENRIQUE DOS SANTOS SERRA
+   Turma GEDUC:  (ID: 1538)
+   Nascimento: 2013-11-09
+   Mãe: ARIANA CRISTINA SILVA FERREIRA 
+   Pai: HEVYLLON HENRIQUE DUTRA SERRA 
+   CPF: 08448066332
+
+🆕 IGOR BENJAMIN RIBEIRO DE OLIVEIRA
+   Turma GEDUC:  (ID: 1525)
+   Nascimento: 2019-06-28
+   Mãe: DAISE DINIZ RIBEIRO
+   Pai: JOSE ROBERTO SOARES DE OLIVEIRA
+   CPF: 11454062380
+
+🆕 ISADORA PEREIRA MOTA
+   Turma GEDUC:  (ID: 1529)
+   Nascimento: 2016-07-04
+   Mãe: ERIKA DE CASSIA V PEREIRA MOTA
+   Pai: GILBERTO BORGES MOTA
+   CPF: 63786596301
+
+🆕 JOAO HELIO GONCALVES BARROS
+   Turma GEDUC:  (ID: 1535)
+   Nascimento: 2014-05-20
+   Mãe: ADRIANE PINHEIRO GONCALVES
+   Pai: WENER SILVA BARROS
+   CPF: 62892238366
+
+🆕 JOAO MIGUEL DA CONCEICAO
+   Turma GEDUC:  (ID: 1525)
+   Nascimento: 2020-01-14
+   Mãe: MARIA ANTONIA DA CONCEICAO
+   Pai: None
+   CPF: 08971149221
+
+🆕 JOAO MIGUEL DOS SANTOS VIEIRA
+   Turma GEDUC:  (ID: 1525)
+   Nascimento: 2019-06-17
+   Mãe: FABRICIA FERREIRA DOS SANTOS
+   Pai: WILLYAN DOS SANTOS VIEIRA
+   CPF: 63690890365
+   Transtorno: CID: F90.0
+
+🆕 KAUAN ARTHUR DOS SANTOS PORTO
+   Turma GEDUC:  (ID: 1535)
+   Nascimento: 2014-04-05
+   Mãe: RAFAELLA TAISE PAIXAO SEREJO DOS SANTOS
+   Pai: VANDER MULLER COELHO
+   CPF: 61851886354
+
+🆕 LARA CECILIA MENDES DE ALMEIDA
+   Turma GEDUC:  (ID: 1529)
+   Nascimento: 2016-06-08
+   Mãe: MYLLA CHRYTYNA FARIA MENDES
+   Pai: DIOGO PHABLO MENDES DE ALMEIDA 
+   CPF: 08600541360
+
+🆕 MARCELLY VITORIA SANTOS DA SILVA
+   Turma GEDUC:  (ID: 1530)
+   Nascimento: 2015-09-11
+   Mãe: ELIELMA SANTOS DA SILVA
+   Pai: None
+   CPF: 
+
+🆕 MARIA HELENA VERACY BISPO OLIVEIRA
+   Turma GEDUC:  (ID: 1525)
+   Nascimento: 2019-07-11
+   Mãe: FABIOLA DOS SANTOS OLIVEIRA
+   Pai: DANILO BISPO SANTOS
+   CPF: 11401215530
+
+🆕 MARIA ISABELLY FERREIRA SENA
+   Turma GEDUC:  (ID: 1525)
+   Nascimento: 2020-02-21
+   Mãe: GUILHERMILCIA RAPOSO FERREIRA
+   Pai: JOSÉ ARNALDO SOUSA SENA
+   CPF: 11183856326
+   Transtorno: TEA - CID: F84.0
+
+🆕 MARIA JULIA BATISTA DO NASCIMENTO
+   Turma GEDUC:  (ID: 1525)
+   Nascimento: 2019-09-15
+   Mãe: PATRICIA MENDONCA BATISTA
+   Pai: JONAS FERREIRA DO NASCIMENTO
+   CPF: 10791185354
+
+🆕 MIKAEL CABRAL LOPES
+   Turma GEDUC:  (ID: 1538)
+   Nascimento: 2012-06-01
+   Mãe: RAISSA DOS SANTOS CABRAL 
+   Pai: None
+   CPF: 62036900313
+
+🆕 NATALIA DA SILVA ALVES
+   Turma GEDUC:  (ID: 1531)
+   Nascimento: 2013-01-02
+   Mãe: MARIA FRANCISCA DOS REIS DA SILVA
+   Pai: ADRIANO GOMES DA SILVA ALVES
+   CPF: 63401449346
+
+🆕 NOAH BENJAMIN FERNANDES DOS SANTOS
+   Turma GEDUC:  (ID: 1525)
+   Nascimento: 2019-04-24
+   Mãe: THATIANE FERNANDES DOS SANTOS
+   Pai: TAYNAN RABELO SANTOS
+   CPF: 10520197305
+   Transtorno: TEA - CID: F84.0
+
+🆕 PIETRA BRANDAO NASCIMENTO
+   Turma GEDUC:  (ID: 1527)
+   Nascimento: 2019-04-04
+   Mãe: JESSICA BRANDAO SOARES NASCIMENTO
+   Pai: ACRISIO DE BRITO NASCIMENTO
+   CPF: 10458286370
+
+🆕 REBECA SOUSA MARTINS
+   Turma GEDUC:  (ID: 1527)
+   Nascimento: 2018-06-03
+   Mãe: ANDREA SOUSA COSTA
+   Pai: CONSUEL REIS MARTINS 
+   CPF: 63660014303
+
+🆕 RITA LARISSA MARTINS DA SILVA
+   Turma GEDUC:  (ID: 1530)
+   Nascimento: 2015-10-17
+   Mãe: MARCIA LETICIA MARTINS DA SILVA
+   Pai: None
+   CPF: 63296687360
+
+🆕 SARAH LOPES BARBOSA
+   Turma GEDUC:  (ID: 1527)
+   Nascimento: 2018-09-10
+   Mãe: ANA DALVA ALMEIDA LOPES
+   Pai: None
+   CPF: 63190909369
+
+🆕 YASMIN YSABELLY LOPES MONTEIRO
+   Turma GEDUC:  (ID: 1537)
+   Nascimento: 2014-02-06
+   Mãe: ROSANA LOPES SILVA
+   Pai: WELDER DA SILVA MONTEIRO
+   CPF: 63443111343

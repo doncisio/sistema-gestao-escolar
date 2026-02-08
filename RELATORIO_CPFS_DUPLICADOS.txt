@@ -1,0 +1,280 @@
+================================================================================
+RELATÓRIO COMPLETO: ERROS CRÍTICOS NO SISTEMA
+================================================================================
+Data: 2026-02-08
+Análise: Comparação Sistema Local vs GEDUC
+
+================================================================================
+RESUMO EXECUTIVO - SITUAÇÃO CRÍTICA
+================================================================================
+
+🚨 PROBLEMA CRÍTICO DETECTADO:
+   6 CPFs duplicados no sistema
+   13 alunos afetados
+   Risco legal e administrativo ALTO
+
+📊 ESTATÍSTICAS:
+   - 1 CPF com 3 alunos (triplicado)
+   - 5 CPFs com 2 alunos cada (duplicados)
+   - Total de registros problemáticos: 13
+
+⚠️ IMPACTO NA COMPARAÇÃO GEDUC:
+   - Erros detectados durante comparação com GEDUC
+   - Impossível identificar corretamente alunos duplicados
+   - Risco de importações incorretas
+
+================================================================================
+DETALHAMENTO DOS ERROS
+================================================================================
+
+ERRO #1: CPF 63624351338 - TRIPLICADO (3 alunos)
+────────────────────────────────────────────────────────────────────────────────
+Alunos com o mesmo CPF:
+  1. Luís Ricardo Garcias dos Santos (ID: 2799)
+  2. luis Ricardo Garcias dos Santos (ID: 2815)  
+  3. luis Ricardo Garcias dos Santos (ID: 2814)
+
+ANÁLISE:
+  - Parece ser a MESMA PESSOA com 3 cadastros
+  - Diferença: "Luís" vs "luis" (capitalização)
+  - Provável duplicata acidental
+
+AÇÃO RECOMENDADA:
+  ✅ Investigar qual é o registro principal (mais antigo)
+  ✅ Transferir matrículas para o registro principal
+  ✅ Excluir registros duplicados (IDs 2814 e 2815)
+
+
+ERRO #2: CPF 07038702386 - DUPLICADO (2 alunos)
+────────────────────────────────────────────────────────────────────────────────
+Alunos com o mesmo CPF:
+  1. Carlos Matheus de Jesus Santos (ID: 2808)
+  2. Carlos Matheus de Jesus Santos (ID: 2807)
+
+ANÁLISE:
+  - MESMA PESSOA, mesmo nome exato
+  - Duplicata acidental no cadastro
+
+AÇÃO RECOMENDADA:
+  ✅ Manter registro mais antigo
+  ✅ Transferir matrículas
+  ✅ Excluir duplicata
+
+
+ERRO #3: CPF 62079404318 - PESSOAS DIFERENTES (2 alunos)
+────────────────────────────────────────────────────────────────────────────────
+Alunos com o mesmo CPF:
+  1. Marcos Vinicius Brito Silva (ID: 597)
+  2. Marcia Hianla Silva Ataide (ID: 596)
+
+ANÁLISE:
+  - PESSOAS DIFERENTES (Marcos vs Marcia)
+  - Sexos diferentes
+  - Um dos CPFs está ERRADO
+
+AÇÃO RECOMENDADA:
+  🚨 VERIFICAR DOCUMENTOS ORIGINAIS
+  ✅ Validar qual CPF está correto
+  ✅ Corrigir ou remover CPF incorreto
+
+
+ERRO #4: CPF 62477456300 - PESSOAS DIFERENTES (2 alunos)
+────────────────────────────────────────────────────────────────────────────────
+Alunos com o mesmo CPF:
+  1. Paulo Victor Pinheiro Desterro (ID: 606)
+  2. Mirian Emanuely Chagas (ID: 605)
+
+ANÁLISE:
+  ✅ JÁ VALIDADO COM GEDUC:
+     - CPF pertence a: Mirian Emanuely Chagas
+     - Paulo Victor tem CPF incorreto
+     - CPF correto de Paulo Victor: 62754265350
+
+AÇÃO RECOMENDADA:
+  ✅ Corrigir CPF de Paulo Victor (ID 606) para 62754265350
+  
+COMANDO SQL:
+  UPDATE Alunos SET cpf = '62754265350' WHERE id = 606;
+
+
+ERRO #5: CPF 63257966326 - PESSOAS DIFERENTES (2 alunos)
+────────────────────────────────────────────────────────────────────────────────
+Alunos com o mesmo CPF:
+  1. Matheus Felipe Vale Araujo (ID: 601)
+  2. Matheus dos Santos Calisto (ID: 600)
+
+ANÁLISE:
+  - Nomes diferentes (sobrenomes não coincidem)
+  - Provável CPF incorreto em um dos cadastros
+
+AÇÃO RECOMENDADA:
+  🚨 VERIFICAR DOCUMENTOS ORIGINAIS
+  ✅ Validar com GEDUC se houver dados
+  ✅ Corrigir ou remover CPF incorreto
+
+
+ERRO #6: CPF 63545291324 - PESSOAS DIFERENTES (2 alunos)
+────────────────────────────────────────────────────────────────────────────────
+Alunos com o mesmo CPF:
+  1. Mykaella Rafisa Silva Ramos (ID: 40)
+  2. Myrella Sofia Freitas dos Santos (ID: 41)
+
+ANÁLISE:
+  - Nomes completamente diferentes
+  - Sobrenomes não coincidem
+  - Um dos CPFs está ERRADO
+
+AÇÃO RECOMENDADA:
+  🚨 VERIFICAR DOCUMENTOS ORIGINAIS
+  ✅ Validar qual CPF está correto
+  ✅ Corrigir ou remover CPF incorreto
+
+
+================================================================================
+PLANO DE AÇÃO URGENTE
+================================================================================
+
+FASE 1: CORREÇÃO IMEDIATA (CPFs validados pelo GEDUC)
+──────────────────────────────────────────────────────────────────────────────
+
+1. Corrigir Paulo Victor (ID 606):
+   UPDATE Alunos SET cpf = '62754265350' WHERE id = 606;
+
+
+FASE 2: INVESTIGAÇÃO (Solicitar documentos)
+──────────────────────────────────────────────────────────────────────────────
+
+Solicitar CPF/certidão de nascimento dos seguintes alunos:
+
+1. Marcos Vinicius Brito Silva (ID 597) OU Marcia Hianla Silva Ataide (ID 596)
+   CPF em disputa: 62079404318
+
+2. Matheus Felipe Vale Araujo (ID 601) OU Matheus dos Santos Calisto (ID 600)
+   CPF em disputa: 63257966326
+
+3. Mykaella Rafisa Silva Ramos (ID 40) OU Myrella Sofia Freitas dos Santos (ID 41)
+   CPF em disputa: 63545291324
+
+
+FASE 3: LIMPEZA DE DUPLICATAS
+──────────────────────────────────────────────────────────────────────────────
+
+Após investigação, consolidar registros duplicados:
+
+1. Luís Ricardo Garcias dos Santos (manter ID 2799, remover 2814 e 2815)
+2. Carlos Matheus de Jesus Santos (manter ID 2807, remover 2808)
+
+COMANDOS (executar SOMENTE após transferir matrículas):
+  -- Transferir matrículas primeiro!
+  -- DELETE FROM Alunos WHERE id IN (2814, 2815, 2808);
+
+
+FASE 4: PREVENÇÃO
+──────────────────────────────────────────────────────────────────────────────
+
+Após resolver todas as duplicatas, criar índice único:
+
+  CREATE UNIQUE INDEX idx_cpf_unico ON Alunos(cpf);
+
+Adicionar validação de CPF no frontend/backend:
+  - Verificar dígitos verificadores
+  - Alertar se CPF já existe antes de salvar
+  - Impedir cadastro com CPF duplicado
+
+
+================================================================================
+SCRIPT SQL DE VERIFICAÇÃO
+================================================================================
+
+-- Verificar detalhes dos CPFs duplicados
+SELECT 
+    a.id,
+    a.nome,
+    a.cpf,
+    a.data_nascimento,
+    a.sexo,
+    COUNT(m.id) as num_matriculas,
+    GROUP_CONCAT(DISTINCT m.ano_letivo_id) as anos_letivos
+FROM Alunos a
+LEFT JOIN Matriculas m ON a.id = m.aluno_id
+WHERE a.cpf IN (
+    '63624351338',
+    '07038702386', 
+    '62079404318',
+    '62477456300',
+    '63257966326',
+    '63545291324'
+)
+GROUP BY a.id, a.nome, a.cpf, a.data_nascimento, a.sexo
+ORDER BY a.cpf, a.id;
+
+
+-- Verificar se há outros CPFs duplicados não detectados
+SELECT 
+    cpf,
+    COUNT(*) as total,
+    GROUP_CONCAT(CONCAT(id, ':', nome) SEPARATOR ' | ') as alunos
+FROM Alunos
+WHERE cpf IS NOT NULL AND cpf != ''
+GROUP BY cpf
+HAVING COUNT(*) > 1;
+
+
+================================================================================
+RESPONSABILIDADES
+================================================================================
+
+SECRETARIA ESCOLAR:
+  ✅ Solicitar documentos originais (CPF, certidão)
+  ✅ Validar identidade dos alunos conflitantes
+  ✅ Informar CPFs corretos para TI
+
+TI/ADMINISTRADOR DO SISTEMA:
+  ✅ Executar correção do Paulo Victor (ID 606)
+  ✅ Aguardar validação da secretaria
+  ✅ Executar limpeza de duplicatas
+  ✅ Implementar índice único
+  ✅ Adicionar validação de CPF no sistema
+
+DIREÇÃO:
+  ✅ Aprovar correções
+  ✅ Acompanhar resolução
+  ✅ Definir procedimento para evitar recorrência
+
+
+================================================================================
+CRONOGRAMA SUGERIDO
+================================================================================
+
+DIA 1 (HOJE):
+  ✅ Executar correção validada do Paulo Victor
+  ✅ Enviar lista de documentos solicitados para secretaria
+  ✅ Backup do banco de dados antes das alterações
+
+SEMANA 1:
+  ✅ Coletar documentos da secretaria
+  ✅ Validar CPFs corretos
+  ✅ Executar correções validadas
+
+SEMANA 2:
+  ✅ Limpar duplicatas
+  ✅ Implementar índice único
+  ✅ Adicionar validação no sistema
+
+SEMANA 3:
+  ✅ Testar importação do GEDUC
+  ✅ Verificar integridade dos dados
+  ✅ Documentar procedimentos
+
+
+================================================================================
+PRIORIDADE: 🚨 URGENTE
+================================================================================
+
+Sem a resolução destes erros:
+  ❌ Impossível importar corretamente do GEDUC
+  ❌ Risco de problemas legais (CPF de terceiros)
+  ❌ Dados inconsistentes no sistema
+  ❌ Relatórios e exportações incorretos
+
+================================================================================

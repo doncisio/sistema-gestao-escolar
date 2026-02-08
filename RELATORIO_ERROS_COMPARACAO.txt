@@ -1,0 +1,186 @@
+================================================================================
+RELATÓRIO DE ERROS ENCONTRADOS NA COMPARAÇÃO
+================================================================================
+Data da Análise: 2026-02-08
+Solicitado por: Usuário
+
+================================================================================
+RESUMO EXECUTIVO
+================================================================================
+
+✅ CORREÇÃO APLICADA:
+   - Adicionado campo CPF na query de busca do sistema local
+   - Antes: Comparação por nome normalizado apenas
+   - Depois: Comparação por nome normalizado + validação por CPF
+
+📊 RESULTADO DA CORREÇÃO:
+   - "Em ambos os sistemas": 248 → 249 (+1)
+   - "Apenas no Local": 28 → 27 (-1)  
+   - "Apenas no GEDUC": 37 → 36 (-1)
+
+❌ ERROS CRÍTICOS DETECTADOS:
+   - 2 CPFs duplicados/incorretos no sistema local
+   - 1 aluno agora identificado corretamente (Ana Alicya)
+
+================================================================================
+PROBLEMA 1: ANA ALICYA - RESOLVIDO ✅
+================================================================================
+
+DESCRIÇÃO:
+   Aluna estava aparecendo duplicada no relatório:
+   - Aparecia em "Apenas no Sistema Local" como "Ana Allicya" 
+   - Aparecia em "Apenas no GEDUC" como "ANA ALICYA"
+   - São a MESMA PESSOA
+
+CAUSA RAIZ:
+   A query do script de comparação não estava selecionando o campo CPF,
+   impedindo a validação correta de identidade.
+
+SOLUÇÃO:
+   ✅ Adicionado "a.cpf AS cpf" na query de comparação
+   ✅ Agora a aluna aparece corretamente em "Em Ambos os Sistemas"
+
+DADOS DA ALUNA:
+   - Nome Sistema Local: Ana Alicya Matos Guimaraes da Silva
+   - Nome GEDUC: ANA ALICYA MATOS GUIMARAES DA SILVA
+   - CPF: 62270235312
+   - Data Nascimento: 2013-03-28
+   - ID no Sistema Local: 718
+
+================================================================================
+PROBLEMA 2: CPF DUPLICADO 62477456300 - CRÍTICO ❌
+================================================================================
+
+DESCRIÇÃO:
+   O mesmo CPF está cadastrado para DUAS pessoas diferentes no sistema local!
+
+CPF: 62477456300
+
+PESSOA 1 (CORRETO):
+   - Nome: Mirian Emanuely Chagas
+   - ID: 605
+   - Data Nascimento: 2013-12-11
+   - Status: Ativo
+   - Mãe (GEDUC): CLEIDE DAYANE CHAGAS
+   ✅ GEDUC confirma: Este é o CPF correto para Mirian
+
+PESSOA 2 (INCORRETO):
+   - Nome: Paulo Victor Pinheiro Desterro  
+   - ID: 606
+   - Data Nascimento: 2014-02-25
+   - Status: Ativo
+   - Mãe (GEDUC): ELIZIENE MARCIA CASTRO PINHEIRO
+   ❌ Este aluno está com CPF ERRADO!
+   ✅ CPF correto: 62754265350 (conforme GEDUC)
+
+AÇÃO NECESSÁRIA:
+   Corrigir CPF do aluno "Paulo Victor Pinheiro Desterro" (ID 606)
+   de 62477456300 para 62754265350
+
+COMANDO SQL:
+   UPDATE Alunos 
+   SET cpf = '62754265350' 
+   WHERE id = 606;
+
+================================================================================
+PROBLEMA 3: CPF INCORRETO 62754265350 - CRÍTICO ❌
+================================================================================
+
+DESCRIÇÃO:
+   CPF cadastrado incorretamente no sistema local
+
+CPF NO SISTEMA LOCAL: 62754265350
+
+ALUNO COM ESTE CPF:
+   - Nome: Pedro Henrique Azevedo de Lima
+   - ID: 607
+   - Data Nascimento: 2014-01-15
+   - Status: Ativo
+
+VERIFICAÇÃO NO GEDUC:
+   CPF 62754265350 pertence a:
+   - Nome: PAULO VICTOR PINHEIRO DESTERRO
+   - Data Nascimento: 2014-02-25
+   - Mãe: ELIZIENE MARCIA CASTRO PINHEIRO
+
+CONCLUSÃO:
+   ❌ Pedro Henrique está com CPF que pertence a Paulo Victor
+   ❌ CPF de Pedro Henrique precisa ser verificado/corrigido
+
+AÇÃO NECESSÁRIA:
+   1. Verificar qual o CPF correto de Pedro Henrique
+   2. Atualizar no sistema local
+   3. Ou remover o CPF até conseguir o documento correto
+
+COMANDO SQL (para remover CPF incorreto temporariamente):
+   UPDATE Alunos 
+   SET cpf = NULL 
+   WHERE id = 607;
+
+================================================================================
+IMPACTO E RECOMENDAÇÕES
+================================================================================
+
+IMPACTO IMEDIATO:
+   - 3 alunos afetados por erros de CPF
+   - 1 duplicação no relatório de comparação (resolvida)
+   - Risco de problemas legais/administrativos com CPFs duplicados
+
+RECOMENDAÇÕES:
+
+1. URGENTE - Corrigir CPFs duplicados:
+   ✅ Executar correção do Paulo Victor (ID 606)
+   ✅ Remover ou corrigir CPF do Pedro Henrique (ID 607)
+
+2. PREVENÇÃO - Adicionar constraint no banco:
+   ✅ Criar UNIQUE INDEX em Alunos.cpf para evitar duplicatas
+   ✅ Validar CPF antes de inserir/atualizar
+
+3. AUDITORIA - Verificar outros casos:
+   ✅ Executar query para encontrar outros CPFs duplicados:
+   
+   SELECT cpf, COUNT(*) as qtd, GROUP_CONCAT(nome) as nomes
+   FROM Alunos 
+   WHERE cpf IS NOT NULL AND cpf != ''
+   GROUP BY cpf 
+   HAVING COUNT(*) > 1;
+
+4. IMPORTAÇÃO - Processo mais seguro:
+   ✅ Sempre comparar por CPF + Nome + Data Nascimento
+   ✅ Validar CPF com algoritmo de dígitos verificadores
+   ✅ Alertar quando houver conflitos de CPF
+
+================================================================================
+SCRIPTS DE CORREÇÃO
+================================================================================
+
+-- 1. Corrigir Paulo Victor (ID 606)
+UPDATE Alunos 
+SET cpf = '62754265350' 
+WHERE id = 606 
+AND nome = 'Paulo Victor Pinheiro Desterro';
+
+-- 2. Remover CPF incorreto de Pedro Henrique (ID 607)
+-- (temporário, até conseguir CPF correto)
+UPDATE Alunos 
+SET cpf = NULL 
+WHERE id = 607 
+AND nome = 'Pedro Henrique Azevedo de Lima';
+
+-- 3. Verificar se há outros CPFs duplicados
+SELECT 
+    cpf, 
+    COUNT(*) as quantidade,
+    GROUP_CONCAT(CONCAT(nome, ' (ID:', id, ')') SEPARATOR ' | ') as alunos
+FROM Alunos 
+WHERE cpf IS NOT NULL AND cpf != ''
+GROUP BY cpf 
+HAVING COUNT(*) > 1;
+
+-- 4. Criar índice único para prevenir duplicatas no futuro
+-- (comentado - executar apenas após resolver duplicatas existentes)
+-- CREATE UNIQUE INDEX idx_cpf_unico ON Alunos(cpf);
+
+================================================================================
+FIM DO RELATÓRIO
+================================================================================

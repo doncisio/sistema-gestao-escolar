@@ -1,0 +1,129 @@
+{
+  "paginas_encontradas": [
+    {
+      "nome": "Lista de Escolas",
+      "url": "https://semed.geduc.com.br/index.php?class=EscolaList",
+      "acessivel": true,
+      "tabelas": 0,
+      "formularios": 0,
+      "campos_escola": 0
+    },
+    {
+      "nome": "Formulário de Escola",
+      "url": "https://semed.geduc.com.br/index.php?class=EscolaForm",
+      "acessivel": true,
+      "tabelas": 0,
+      "formularios": 0,
+      "campos_escola": 0
+    },
+    {
+      "nome": "Formulário de Instituição",
+      "url": "https://semed.geduc.com.br/index.php?class=InstituicaoForm",
+      "acessivel": true,
+      "tabelas": 5,
+      "formularios": 1,
+      "campos_escola": 8
+    },
+    {
+      "nome": "Lista de Instituições",
+      "url": "https://semed.geduc.com.br/index.php?class=InstituicaoList",
+      "acessivel": true,
+      "tabelas": 1,
+      "formularios": 1,
+      "campos_escola": 0
+    },
+    {
+      "nome": "Cadastro de Escola",
+      "url": "https://semed.geduc.com.br/index.php?class=EscolaFormList",
+      "acessivel": true,
+      "tabelas": 0,
+      "formularios": 0,
+      "campos_escola": 0
+    },
+    {
+      "nome": "Dados da Escola",
+      "url": "https://semed.geduc.com.br/index.php?class=DadosEscola",
+      "acessivel": true,
+      "tabelas": 0,
+      "formularios": 0,
+      "campos_escola": 0
+    },
+    {
+      "nome": "Escola/Unidade",
+      "url": "https://semed.geduc.com.br/index.php?class=UnidadeList",
+      "acessivel": true,
+      "tabelas": 1,
+      "formularios": 1,
+      "campos_escola": 0
+    }
+  ],
+  "menus_com_escola": [],
+  "links_escola": [
+    {
+      "texto": "Mudar de Escola",
+      "href": "index.php?class=AltEscola",
+      "completo": "https://semed.geduc.com.br/index.php?class=AltEscola"
+    },
+    {
+      "texto": "Cadastro Básico",
+      "href": "#",
+      "completo": "https://semed.geduc.com.br/#"
+    },
+    {
+      "texto": "Transf. Escolar Interna",
+      "href": "index.php?class=TransferenciaInternaForm",
+      "completo": "https://semed.geduc.com.br/index.php?class=TransferenciaInternaForm"
+    },
+    {
+      "texto": "Transf. Escolar externa",
+      "href": "index.php?class=TransferenciaExternaForm",
+      "completo": "https://semed.geduc.com.br/index.php?class=TransferenciaExternaForm"
+    },
+    {
+      "texto": "Quantitativo de funcionários/escola",
+      "href": "index.php?class=FuncionariosSinteticoEscola",
+      "completo": "https://semed.geduc.com.br/index.php?class=FuncionariosSinteticoEscola"
+    },
+    {
+      "texto": "Melhor Média por Escola",
+      "href": "index.php?class=MediaFinalEscolReport",
+      "completo": "https://semed.geduc.com.br/index.php?class=MediaFinalEscolReport"
+    },
+    {
+      "texto": "Resultado Final por Curso/Escola",
+      "href": "index.php?class=RendimentoEscolaReport",
+      "completo": "https://semed.geduc.com.br/index.php?class=RendimentoEscolaReport"
+    },
+    {
+      "texto": "Rendimento por escola",
+      "href": "index.php?class=RendimentoEscolar",
+      "completo": "https://semed.geduc.com.br/index.php?class=RendimentoEscolar"
+    },
+    {
+      "texto": "Alunos sem CPF por Escola",
+      "href": "index.php?class=AtualizacaoSemCPF",
+      "completo": "https://semed.geduc.com.br/index.php?class=AtualizacaoSemCPF"
+    },
+    {
+      "texto": "Quantitativo por Escola",
+      "href": "index.php?class=RelatorioAvulso",
+      "completo": "https://semed.geduc.com.br/index.php?class=RelatorioAvulso"
+    },
+    {
+      "texto": "Quantitativo por escola/modalidade 1",
+      "href": "index.php?class=AlunosModalidadereport",
+      "completo": "https://semed.geduc.com.br/index.php?class=AlunosModalidadereport"
+    },
+    {
+      "texto": "Quantitativo por escola/modalidade 2",
+      "href": "index.php?class=AlunosModalidade",
+      "completo": "https://semed.geduc.com.br/index.php?class=AlunosModalidade"
+    },
+    {
+      "texto": "Transporte Escolar",
+      "href": "index.php?class=AlunosTransporte",
+      "completo": "https://semed.geduc.com.br/index.php?class=AlunosTransporte"
+    }
+  ],
+  "formularios_escola": []
+}
