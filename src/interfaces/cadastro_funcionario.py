@@ -13,6 +13,7 @@ from PIL import ImageTk, Image
 import mysql.connector
 from mysql.connector import Error
 from src.core.conexao import conectar_bd
+from db.connection import get_cursor
 from tkcalendar import DateEntry
 from typing import Any, cast
 
@@ -51,6 +52,42 @@ class InterfaceCadastroFuncionario:
         self.co7 = "#038cfc"  # azul
         self.co8 = "#263238"  # +verde
         self.co9 = "#e9edf5"  # +verde
+    
+    def verifica_cpf_duplicado_funcionario(self, cpf: str, funcionario_id: int = None) -> bool:
+        """
+        Verifica se o CPF já está cadastrado em outro funcionário.
+        
+        Args:
+            cpf: CPF a ser verificado
+            funcionario_id: ID do funcionário atual (para exclusão ao editar). None ao cadastrar novo.
+            
+        Returns:
+            bool: True se CPF está duplicado, False se disponível
+        """
+        if not cpf or cpf.strip() == '':
+            return False  # CPF vazio/None não é considerado duplicado
+        
+        try:
+            with get_cursor() as cursor:
+                if funcionario_id is None:
+                    # Cadastro novo - verifica se CPF existe
+                    cursor.execute(
+                        "SELECT id, nome FROM Funcionarios WHERE cpf = %s",
+                        (cpf,)
+                    )
+                else:
+                    # Edição - verifica se CPF existe em outro funcionário
+                    cursor.execute(
+                        "SELECT id, nome FROM Funcionarios WHERE cpf = %s AND id != %s",
+                        (cpf, funcionario_id)
+                    )
+                
+                resultado = cursor.fetchone()
+                return resultado is not None
+                
+        except Exception as e:
+            logger.error(f"Erro ao verificar CPF duplicado: {e}")
+            return False  # Em caso de erro, permite continuar
 
         self.master = master
         self.master.title("Cadastro de Funcionário")
@@ -855,6 +892,12 @@ class InterfaceCadastroFuncionario:
             if campos_vazios:
                 messagebox.showerror("Erro", f"Os seguintes campos obrigatórios não foram preenchidos: {', '.join(campos_vazios)}")
                 return
+            
+            # Verificar se CPF já está sendo usado por outro funcionário
+            if cpf and cpf.strip() != '':
+                if self.verifica_cpf_duplicado_funcionario(cpf):
+                    messagebox.showerror("Erro", f"CPF {cpf} já está cadastrado para outro funcionário.\nPor favor, verifique o CPF informado.")
+                    return
             
             # Obter o valor de polivalente
             polivalente = self.c_polivalente.get()

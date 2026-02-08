@@ -2,10 +2,10 @@
 RELATÓRIO DE COMPARAÇÃO: SISTEMA LOCAL vs GEDUC
 ================================================================================
 
-Total de alunos no Sistema Local: 276
+Total de alunos no Sistema Local: 249
 Total de alunos no GEDUC: 285
 Alunos em ambos os sistemas: 249
-Apenas no Sistema Local: 27
+Apenas no Sistema Local: 0
 Apenas no GEDUC (novos): 36
 
 ================================================================================
@@ -1282,144 +1282,6 @@ ALUNOS EM AMBOS OS SISTEMAS (249)
    Local:  3º Ano -  (MAT)
    GEDUC:  Turma 
    Situação: Ativo
-
-================================================================================
-APENAS NO SISTEMA LOCAL (27)
-================================================================================
-
-⚠️  Alice Ferreira Alves
-   5º Ano -  (MAT)
-   Situação: Ativo
-   Telefones: 94991277430/985745325
-
-⚠️  Alícia Araújo do Nascimento
-   2º Ano -  (MAT)
-   Situação: Ativo
-   Telefones: 987821429/988232257
-
-⚠️  Ana Beatriz Monteiro da Silva
-   6º Ano -  (VESP)
-   Situação: Ativo
-   Telefones: 988510199/987268878
-
-⚠️  Ana Luiza Ferreira Castro
-   6º Ano -  (VESP)
-   Situação: Ativo
-   Telefones: 988208345
-
-⚠️  Barbara Ellen Barbosa Ferreira
-   4º Ano -  (MAT)
-   Situação: Ativo
-   Telefones: 992269724/988369334
-
-⚠️  Carlos Daniel Almeida Teixeira
-   7º Ano - A (VESP)
-   Situação: Ativo
-   Telefones: 988731506/985741335
-
-⚠️  Carlos Eduardo Garcias dos Santos
-   8º Ano -  (VESP)
-   Situação: Transferido
-   Telefones: 999999999/970284750
-
-⚠️  Edson Kauã Nascimento Castro
-   6º Ano -  (VESP)
-   Situação: Ativo
-   Telefones: 984750494/9914770160
-
-⚠️  Enos Natanael Matos da Silva
-   7º Ano - B (VESP)
-   Situação: Ativo
-   Telefones: 982995889/981715570
-
-⚠️  Gabriela Coelho da Silva
-   6º Ano -  (VESP)
-   Situação: Ativo
-   Telefones: 985083907
-
-⚠️  Iana Sophie Sousa Lima
-   6º Ano -  (VESP)
-   Situação: Ativo
-   Telefones: 989133289
-
-⚠️  Iasmim Vitória Abreu da Silva
-   8º Ano -  (VESP)
-   Situação: Ativo
-
-⚠️  João Miguel Frasão Montes
-   4º Ano -  (MAT)
-   Situação: Ativo
-   Telefones: 988424072/988877393
-
-⚠️  João Pedro Silva Perreira
-   9º Ano -  (VESP)
-   Situação: Ativo
-   Telefones: 986024743/
-
-⚠️  Jonilson Freitas de Sousa Neto
-   5º Ano -  (MAT)
-   Situação: Ativo
-   Telefones: 984592926/988340336
-
-⚠️  Laerth Miguel Sousa Brito
-   6º Ano -  (VESP)
-   Situação: Ativo
-   Telefones: 999708159/985485972
-
-⚠️  Lara Sophia Perna dos Santos
-   6º Ano -  (VESP)
-   Situação: Ativo
-   Telefones: 984915715/988533469
-
-⚠️  Laura Marie Matos Gonçalves
-   3º Ano -  (MAT)
-   Situação: Ativo
-   Telefones: 985064484/985528974
-
-⚠️  Lorena Vitoria Cunha Moraes
-   7º Ano - B (VESP)
-   Situação: Ativo
-   Telefones: 988805962
-
-⚠️  Luiz Miguel dos Santos Sales
-   4º Ano -  (MAT)
-   Situação: Ativo
-   Telefones: 985208866
-
-⚠️  Marcelly Vitória Santos da Silva Azevedo
-   5º Ano -  (MAT)
-   Situação: Ativo
-   Telefones: /984626104
-
-⚠️  Marcia Hianla Silva Ataide
-   7º Ano - B (VESP)
-   Situação: Ativo
-   Telefones: 98987246883/984668274
-
-⚠️  Matheus Leite Lima
-   8º Ano -  (VESP)
-   Situação: Ativo
-   Telefones: 985003333/985405770
-
-⚠️  Maxwel Ferreira Rocha
-   9º Ano -  (VESP)
-   Situação: Ativo
-   Telefones: 991374591
-
-⚠️  Pedro Victor Almeida Carvalho
-   4º Ano -  (MAT)
-   Situação: Ativo
-   Telefones: 981550248/984930560
-
-⚠️  Rayssa dos Santos da Silva
-   8º Ano -  (VESP)
-   Situação: Ativo
-   Telefones: 987072790
-
-⚠️  Rhyan Carlos Araujo Gomes
-   3º Ano -  (MAT)
-   Situação: Ativo
-   Telefones: 984974313
 
 ================================================================================
 APENAS NO GEDUC - NOVOS PARA IMPORTAR (36)

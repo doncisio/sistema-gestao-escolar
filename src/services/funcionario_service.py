@@ -41,11 +41,12 @@ def criar_funcionario(
         # Verificar se CPF já existe
         with get_cursor() as cursor:
             cursor.execute(
-                "SELECT id FROM funcionarios WHERE cpf = %s",
+                "SELECT id, nome FROM funcionarios WHERE cpf = %s",
                 (cpf,)
             )
-            if cursor.fetchone():
-                return False, f"CPF {cpf} já cadastrado", None
+            resultado = cursor.fetchone()
+            if resultado:
+                return False, f"CPF {cpf} já está cadastrado para outro funcionário", None
             
             # Preparar campos
             campos = ['nome', 'cpf', 'cargo', 'data_admissao', 'escola_id']

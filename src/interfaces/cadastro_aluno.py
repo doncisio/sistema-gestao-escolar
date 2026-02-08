@@ -62,6 +62,43 @@ class InterfaceCadastroAluno:
         self.master.grid_rowconfigure(0, weight=0)  # Logo
         self.master.grid_rowconfigure(1, weight=0)  # Separador
         self.master.grid_rowconfigure(2, weight=0)  # Botões
+    
+    def verifica_cpf_duplicado_aluno(self, cpf: str, aluno_id: int = None) -> bool:
+        """
+        Verifica se o CPF já está cadastrado em outro aluno.
+        
+        Args:
+            cpf: CPF a ser verificado
+            aluno_id: ID do aluno atual (para exclusão ao editar). None ao cadastrar novo.
+            
+        Returns:
+            bool: True se CPF está duplicado, False se disponível
+        """
+        if not cpf or cpf.strip() == '':
+            return False  # CPF vazio/None não é considerado duplicado
+        
+        try:
+            with get_cursor() as cursor:
+                if aluno_id is None:
+                    # Cadastro novo - verifica se CPF existe
+                    cursor.execute(
+                        "SELECT id, nome FROM Alunos WHERE cpf = %s",
+                        (cpf,)
+                    )
+                else:
+                    # Edição - verifica se CPF existe em outro aluno
+                    cursor.execute(
+                        "SELECT id, nome FROM Alunos WHERE cpf = %s AND id != %s",
+                        (cpf, aluno_id)
+                    )
+                
+                resultado = cursor.fetchone()
+                return resultado is not None
+                
+        except Exception as e:
+            logger.error(f"Erro ao verificar CPF duplicado: {e}")
+            return False  # Em caso de erro, permite continuar
+        
         self.master.grid_rowconfigure(3, weight=0)  # Separador
         self.master.grid_rowconfigure(4, weight=1)  # Canvas com conteúdo (modificado)
         self.master.grid_columnconfigure(0, weight=1)
@@ -487,6 +524,12 @@ class InterfaceCadastroAluno:
             if campos_vazios:
                 messagebox.showerror("Erro", f"Os seguintes campos obrigatórios não foram preenchidos: {', '.join(campos_vazios)}")
                 return
+            
+            # Verificar se CPF já está sendo usado por outro aluno
+            if cpf and cpf.strip() != '':
+                if self.verifica_cpf_duplicado_aluno(cpf):
+                    messagebox.showerror("Erro", f"CPF {cpf} já está cadastrado para outro aluno.\nPor favor, verifique o CPF informado.")
+                    return
 
             # Obter o ID da escola selecionada
             escola_id = None
