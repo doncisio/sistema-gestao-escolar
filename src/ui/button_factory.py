@@ -416,6 +416,21 @@ class ButtonFactory:
                     font=menu_font
                 )
 
+            listas_menu.add_separator()
+
+            # Livros Faltantes (Admin, Coordenador)
+            if is_admin or is_coordenador:
+                listas_menu.add_command(
+                    label="Gerenciar Livros Faltantes",
+                    command=self._abrir_gerenciar_livros_faltantes,
+                    font=menu_font
+                )
+                listas_menu.add_command(
+                    label="Imprimir Livros Faltantes (PDF)",
+                    command=self._gerar_pdf_livros_faltantes,
+                    font=menu_font
+                )
+
             menu_bar.add_cascade(label="Listas", menu=listas_menu, font=menu_font)
         
         # ========== MENU 2: GERENCIAMENTO DE NOTAS (requer permissão notas) ==========
@@ -1551,6 +1566,24 @@ class ButtonFactory:
         except Exception as e:
             logger.exception(f"Erro ao gerar Lista de Controle de Livros: {e}")
             messagebox.showerror("Erro", f"Erro ao gerar Lista de Controle de Livros: {e}")
+    
+    def _abrir_gerenciar_livros_faltantes(self):
+        """Abre interface para gerenciar livros faltantes por turma."""
+        try:
+            from src.ui.livros_faltantes_window import abrir_livros_faltantes
+            abrir_livros_faltantes(janela_principal=self.janela)
+        except Exception as e:
+            logger.exception(f"Erro ao abrir gerenciamento de livros faltantes: {e}")
+            messagebox.showerror("Erro", f"Erro ao abrir gerenciamento de livros faltantes: {e}")
+    
+    def _gerar_pdf_livros_faltantes(self):
+        """Gera PDF com lista de livros faltantes por turma."""
+        try:
+            from src.relatorios.listas.lista_livros_faltantes import gerar_pdf_livros_faltantes
+            gerar_pdf_livros_faltantes()
+        except Exception as e:
+            logger.exception(f"Erro ao gerar PDF de livros faltantes: {e}")
+            messagebox.showerror("Erro", f"Erro ao gerar PDF de livros faltantes: {e}")
     
     def configurar_interface(self):
         """
