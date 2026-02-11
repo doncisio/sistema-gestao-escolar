@@ -4,6 +4,13 @@
 
 A funcionalidade foi instalada com sucesso! A tabela `livros_faltantes` foi criada no banco de dados.
 
+## 🆕 Novidades - Suporte Completo 1º ao 9º Ano
+
+✨ **Agora suporta do 1º ao 9º ano com layouts diferenciados!**
+
+- **Anos Iniciais (1º ao 5º)**: PDF em formato retrato com disciplinas apropriadas
+- **Anos Finais (6º ao 9º)**: PDF em formato paisagem com disciplinas separadas + Inglês
+
 ## 🚀 Como Usar (Passo a Passo)
 
 ### 1️⃣ Cadastrar Livros Faltantes
@@ -13,41 +20,58 @@ A funcionalidade foi instalada com sucesso! A tabela `livros_faltantes` foi cria
 3. Selecione **"Gerenciar Livros Faltantes"**
 4. Preencha:
    - **Ano Letivo**: Selecione o ano (ex: 2026)
-   - **Série**: Escolha a série (1º Ano, 2º Ano, etc.)
+   - **Série**: Escolha a série (**1º ao 9º Ano**)
    - **Turma**: Escolha a turma (A, B, C, etc.)
 5. Clique em **"Carregar Dados"** (para ver dados já salvos)
-6. Preencha a **quantidade de livros faltantes** para cada disciplina:
-   - PRT (Português)
-   - MTM (Matemática)
-   - CNC (Ciências)
-   - HST (História)
-   - GEO (Geografia)
-   - ING (Inglês)
-   - ART (Arte)
+6. Preencha os dados para cada disciplina:
+   - **Quantidade de livros faltantes**
+   - **Editora** (opcional)
+   - **Coleção** (opcional)
+   
+   **As disciplinas mudam automaticamente conforme a série:**
+   - **1º ao 5º Ano**: PRT, MTM, CNC, GEO/HIST, ART
+   - **6º ao 9º Ano**: PRT, MTM, CNC, HST, GEO, ING, ART
+   
 7. Adicione observações se necessário
 8. Clique em **"Salvar"**
 9. Repita para todas as turmas
 
-### 2️⃣ Gerar o PDF
+### 2️⃣ Gerar os PDFs
 
 1. No menu **Listas**
 2. Clique em **"Gerar PDF Livros Faltantes"**
-3. O PDF será gerado automaticamente com:
-   - Capa profissional
-   - Uma página por turma cadastrada
-   - Tabela com quantidades por disciplina
-   - Total de livros faltantes por turma
-   - Espaço para observações
-4. Escolha onde salvar ou visualize diretamente
+3. O sistema gerará **automaticamente dois PDFs**:
+   
+   📄 **PDF Anos Iniciais** (1º ao 5º):
+   - Formato retrato (A4)
+   - Disciplinas: PRT, MTM, CNC, GEO/HIST, ART
+   - Nome: `Livros_Faltantes_Anos_Iniciais_2026.pdf`
+   
+   📄 **PDF Anos Finais** (6º ao 9º):
+   - Formato paisagem (A4)
+   - Disciplinas: PRT, MTM, CNC, HST, GEO, ING, ART
+   - Nome: `Livros_Faltantes_Anos_Finais_2026.pdf`
+
+4. Escolha onde salvar cada arquivo
+5. Os PDFs serão abertos automaticamente
 
 ## 📊 Exemplo de Cadastro
 
-**1º Ano - Turma A:**
-- PRT: 5 livros
-- MTM: 3 livros
-- CNC: 2 livros
-- HST: 0 livros
-- GEO: 0 livros
+**3º Ano - Turma A (Anos Iniciais):**
+- PRT: 15 livros - Editora: ÁTICA - Coleção: ÁPIS MAIS
+- MTM: 25 livros - Editora: ÁTICA - Coleção: DIÁLOGOS
+- CNC: 25 livros
+- GEO/HIST: 20 livros - Editora: FTD
+- ART: 20 livros
+
+**8º Ano - Turma B (Anos Finais):**
+- PRT: 10 livros - Editora: MODERNA
+- MTM: 15 livros
+- CNC: 12 livros
+- HST: 8 livros (separado de Geografia)
+- GEO: 8 livros (separado de História)
+- ING: 20 livros
+- ART: 10 livros
 - ING: 4 livros
 - ART: 1 livro
 

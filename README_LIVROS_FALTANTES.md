@@ -2,24 +2,39 @@
 
 ## 📚 Descrição
 
-Esta funcionalidade permite gerenciar e gerar relatórios de livros didáticos faltantes por turma e disciplina, facilitando o controle de estoque e a solicitação de novos livros.
+Esta funcionalidade permite gerenciar e gerar relatórios de livros didáticos faltantes por turma e disciplina, facilitando o controle de estoque e a solicitação de novos livros. O sistema suporta **1º ao 9º ano** com layouts diferenciados para anos iniciais e finais.
 
 ## 🎯 Funcionalidades
 
 ### 1. Gerenciar Livros Faltantes
 - Interface intuitiva para inserir/editar quantidades de livros faltantes
-- Organização por ano letivo, série e turma
-- Controle por disciplina (PRT, MTM, CNC, HST, GEO, ING, ART)
+- Organização por ano letivo, série (1º ao 9º ano) e turma
+- Disciplinas dinâmicas conforme o nível:
+  - **Anos Iniciais (1º ao 5º ano)**: PRT, MTM, CNC, GEO/HIST, ART
+  - **Anos Finais (6º ao 9º ano)**: PRT, MTM, CNC, HST, GEO, ING, ART
 - Campo de observações para anotações adicionais
+- Campos para editora e coleção de cada livro
 - Dados salvos no banco de dados para consulta futura
 
 ### 2. Gerar PDF com Relatório
-- PDF formatado com cabeçalho institucional
+Gera **dois PDFs separados** com layouts otimizados:
+
+#### PDF Anos Iniciais (1º ao 5º ano)
+- Formato **Retrato (A4)**
 - Página de capa profissional
 - Uma página por turma com tabela de livros faltantes
+- Disciplinas combinadas (Geografia/História juntas)
 - Total de livros faltantes por turma
 - Espaço para observações manuscritas
-- Formato paisagem para melhor visualização
+
+#### PDF Anos Finais (6º ao 9º ano)
+- Formato **Paisagem (A4)**
+- Layout com mais espaço horizontal
+- Disciplinas separadas (História e Geografia independentes)
+- Inclusão de Inglês
+- Tabela com fontes maiores para melhor legibilidade
+- Maior espaço para informações de editora e coleção
+- Mais linhas para observações
 
 ## 📋 Pré-requisitos
 
@@ -41,24 +56,36 @@ Este comando criará a tabela `livros_faltantes` com a estrutura necessária.
 2. No menu principal, clique em **Listas** → **Gerenciar Livros Faltantes**
 3. Selecione:
    - **Ano Letivo**: Escolha o ano desejado
-   - **Série**: Escolha a série (1º ao 5º ano)
+   - **Série**: Escolha a série (1º ao 9º ano)
    - **Turma**: Escolha a turma (A, B, C, etc.)
 4. Clique em **Carregar Dados** para buscar dados já salvos (se existirem)
 5. Preencha as quantidades de livros faltantes para cada disciplina
-6. Adicione observações se necessário
-7. Clique em **Salvar**
+   - As disciplinas serão exibidas automaticamente conforme a série selecionada
+6. Preencha editora e coleção de cada livro (opcional)
+7. Adicione observações se necessário
+8. Clique em **Salvar**
 
-### Passo 2: Gerar o PDF
+### Passo 2: Gerar os PDFs
 
 1. No menu principal, clique em **Listas** → **Gerar PDF Livros Faltantes**
-2. O PDF será gerado automaticamente com todas as turmas que possuem dados cadastrados
-3. Escolha onde salvar o arquivo ou abra direto para visualização
+2. O sistema gerará automaticamente **dois PDFs**:
+   - **Livros_Faltantes_Anos_Iniciais_[ano].pdf** - Para 1º ao 5º ano
+   - **Livros_Faltantes_Anos_Finais_[ano].pdf** - Para 6º ao 9º ano
+3. Escolha onde salvar cada arquivo
+4. Os PDFs serão abertos automaticamente para visualização
 
 ## 📊 Estrutura dos Dados
 
-### Disciplinas Controladas
+### Disciplinas por Nível
 
-Para séries do 1º ao 5º ano:
+**Anos Iniciais (1º ao 5º ano):**
+- **PRT**: Português
+- **MTM**: Matemática
+- **CNC**: Ciências
+- **GEO/HIST**: Geografia/História (combinadas)
+- **ART**: Arte
+
+**Anos Finais (6º ao 9º ano):**
 - **PRT**: Português
 - **MTM**: Matemática
 - **CNC**: Ciências
@@ -71,6 +98,8 @@ Para séries do 1º ao 5º ano:
 
 Para cada combinação de ano letivo + série + turma + disciplina:
 - Quantidade de livros faltantes
+- Editora
+- Coleção
 - Data de registro
 - Data da última atualização
 - Usuário que registrou

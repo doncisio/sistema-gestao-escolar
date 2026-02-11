@@ -26,8 +26,21 @@ co6 = "#F7B731"  # Amarelo botão limpar
 co7 = "#333333"  # Texto escuro
 co8 = "#BF3036"  # Vermelho botão fechar
 
-# Lista de disciplinas padrão
-DISCIPLINAS = ["PRT", "MTM", "CNC", "GEO/HIST", "ART"]
+# Lista de disciplinas por tipo de ensino
+DISCIPLINAS_ANOS_INICIAIS = ["PRT", "MTM", "CNC", "GEO/HIST", "ART"]  # 1º ao 5º ano
+DISCIPLINAS_ANOS_FINAIS = ["PRT", "MTM", "CNC", "HST", "GEO", "ING", "ART"]  # 6º ao 9º ano
+
+# Mapeamento de nomes completos das disciplinas
+NOMES_DISCIPLINAS = {
+    'PRT': 'Português',
+    'MTM': 'Matemática',
+    'CNC': 'Ciências',
+    'HST': 'História',
+    'GEO': 'Geografia',
+    'GEO/HIST': 'Geografia/História',
+    'ING': 'Inglês',
+    'ART': 'Arte'
+}
 
 
 class LivrosFaltantesWindow:
@@ -60,6 +73,9 @@ class LivrosFaltantesWindow:
         self.anos_letivos: list = []
         self.series_disponiveis: list = []
         self.turmas_disponiveis: list = []
+        
+        # Disciplinas atuais (muda conforme a série)
+        self.disciplinas_atuais: list = DISCIPLINAS_ANOS_INICIAIS
         
         # Armazenar dados da turma anterior para reuso
         self.dados_turma_anterior: Optional[Dict[str, Dict[str, str]]] = None
@@ -289,14 +305,17 @@ class LivrosFaltantesWindow:
         self.disciplinas_frame.grid_columnconfigure(3, weight=2)
         
         # Criar linhas para cada disciplina
-        for idx, disciplina in enumerate(DISCIPLINAS, start=1):
+        for idx, disciplina in enumerate(self.disciplinas_atuais, start=1):
             # Cor alternada para linhas
             bg_color = "white" if idx % 2 == 0 else "#F9F9F9"
+            
+            # Nome completo da disciplina
+            nome_completo = NOMES_DISCIPLINAS.get(disciplina, disciplina)
             
             # Coluna 1: Nome da Disciplina
             disciplina_label = tk.Label(
                 self.disciplinas_frame,
-                text=disciplina,
+                text=nome_completo,
                 font=("Segoe UI", 10, "bold"),
                 bg=bg_color,
                 fg=co7,
@@ -342,6 +361,21 @@ class LivrosFaltantesWindow:
                 'editora': editora_entry,
                 'colecao': colecao_entry
             }
+    
+    def _obter_disciplinas_por_serie(self, serie_id: int) -> list:
+        """
+        Retorna a lista de disciplinas apropriada para a série.
+        
+        Args:
+            serie_id: ID da série (3-7 = anos iniciais, 8-11 = anos finais)
+            
+        Returns:
+            Lista de códigos de disciplinas
+        """
+        if serie_id >= 8:  # 6º ao 9º ano (IDs 8-11)
+            return DISCIPLINAS_ANOS_FINAIS
+        else:  # 1º ao 5º ano (IDs 3-7)
+            return DISCIPLINAS_ANOS_INICIAIS
     
     def _criar_campo_observacoes(self, parent: tk.Frame) -> None:
         """
@@ -491,14 +525,14 @@ class LivrosFaltantesWindow:
             
             cursor = conn.cursor(dictionary=True)
             
-            # Buscar séries com turmas neste ano letivo (1º ao 7º ano)
+            # Buscar séries com turmas neste ano letivo (1º ao 9º ano)
             cursor.execute("""
                 SELECT DISTINCT s.id, s.nome
                 FROM series s
                 INNER JOIN turmas t ON s.id = t.serie_id
                 WHERE t.ano_letivo_id = %s
                   AND t.escola_id = 60
-                  AND s.id BETWEEN 1 AND 7
+                  AND s.id BETWEEN 3 AND 11
                 ORDER BY s.id, s.nome
             """, (ano_letivo_id,))
             
@@ -548,6 +582,14 @@ class LivrosFaltantesWindow:
             
             if not ano_letivo_id or not serie_id:
                 return
+            
+            # Atualizar disciplinas conforme a série selecionada
+            disciplinas_anteriores = self.disciplinas_atuais.copy()
+            self.disciplinas_atuais = self._obter_disciplinas_por_serie(serie_id)
+            
+            # Se mudou as disciplinas (ex: de anos iniciais para finais), recriar campos
+            if disciplinas_anteriores != self.disciplinas_atuais:
+                self._criar_campos_disciplinas()
             
             conn = conectar_bd()
             if not conn:
@@ -819,16 +861,19 @@ class LivrosFaltantesWindow:
         """Limpa todos os campos do formulário."""
         try:
             # Limpar campos de disciplinas
-            for disciplina, entries in self.disciplina_entries.items():
-                # Quantidade
-                entries['quantidade'].delete(0, tk.END)
-                entries['quantidade'].insert(0, "0")
-                
-                # Editora
-                entries['editora'].delete(0, tk.END)
-                
-                # Coleção
-                entries['colecao'].delete(0, tk.END)
+            for disciplina in self.disciplinas_atuais:
+                if disciplina in self.disciplina_entries:
+                    entries = self.disciplina_entries[disciplina]
+                    
+                    # Quantidade
+                    entries['quantidade'].delete(0, tk.END)
+                    entries['quantidade'].insert(0, "0")
+                    
+                    # Editora
+                    entries['editora'].delete(0, tk.END)
+                    
+                    # Coleção
+                    entries['colecao'].delete(0, tk.END)
             
             # Limpar observações
             self.observacoes_text.delete("1.0", tk.END)
