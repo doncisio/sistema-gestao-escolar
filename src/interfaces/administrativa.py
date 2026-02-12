@@ -928,16 +928,18 @@ class InterfaceAdministrativa:
                 scrollbar = ttk.Scrollbar(tree_frame)
                 scrollbar.pack(side=RIGHT, fill=Y)
                 
-                # Treeview para cargas Horárias
+                # Treeview para cargas Horárias (incluindo ID como coluna oculta)
                 carga_tree = ttk.Treeview(tree_frame, 
-                                        columns=("Ano", "Série", "Carga"),
+                                        columns=("ID", "Ano", "Série", "Carga"),
                                         show='headings',
                                         yscrollcommand=scrollbar.set)
                 
+                carga_tree.heading("ID", text="ID")
                 carga_tree.heading("Ano", text="Ano Letivo")
                 carga_tree.heading("Série", text="Série")
                 carga_tree.heading("Carga", text="Carga Horária")
                 
+                carga_tree.column("ID", width=0, stretch=False)  # Ocultar coluna ID
                 carga_tree.column("Ano", width=100)
                 carga_tree.column("Série", width=150)
                 carga_tree.column("Carga", width=100)
@@ -966,6 +968,7 @@ class InterfaceAdministrativa:
                         
                         for carga in cargas:
                             carga_tree.insert('', 'end', values=(
+                                carga[0],  # id
                                 carga[2],  # ano_letivo
                                 carga[3],  # nome da série
                                 carga[1]   # carga_horaria_total
@@ -974,17 +977,167 @@ class InterfaceAdministrativa:
                     except Exception as e:
                         logger.error(f"Erro ao carregar cargas Horárias: {str(e)}")
                 
+                # função para editar carga horária selecionada
+                def editar_carga_horaria():
+                    try:
+                        selected = carga_tree.selection()
+                        if not selected:
+                            messagebox.showwarning("Aviso", "Selecione uma carga horária para editar.")
+                            return
+                        
+                        item = selected[0]
+                        valores = carga_tree.item(item, 'values')
+                        carga_id = valores[0]
+                        ano_letivo = valores[1]
+                        serie = valores[2]
+                        carga_atual = valores[3]
+                        
+                        # Criar dialog para edição
+                        edit_dialog = Toplevel(dialog)
+                        edit_dialog.title("Editar Carga Horária Total")
+                        edit_dialog.geometry("400x200")
+                        edit_dialog.transient(dialog)
+                        edit_dialog.focus_force()
+                        edit_dialog.grab_set()
+                        edit_dialog.configure(bg=self.co10)
+                        
+                        # Centralizar
+                        self.centralizar_janela(edit_dialog)
+                        
+                        # Informações
+                        Label(edit_dialog, text=f"Ano Letivo: {ano_letivo}", 
+                             font=('Ivy 10'), bg=self.co10).pack(pady=5)
+                        Label(edit_dialog, text=f"Série: {serie}", 
+                             font=('Ivy 10'), bg=self.co10).pack(pady=5)
+                        
+                        Label(edit_dialog, text="Nova Carga Horária Total:", 
+                             font=('Ivy 10 bold'), bg=self.co10).pack(pady=5)
+                        
+                        nova_carga_entry = Entry(edit_dialog, width=20, font=('Ivy 10'))
+                        nova_carga_entry.insert(0, carga_atual)
+                        nova_carga_entry.pack(pady=5)
+                        nova_carga_entry.focus()
+                        
+                        def salvar_edicao():
+                            try:
+                                nova_carga = nova_carga_entry.get().strip()
+                                if not nova_carga:
+                                    messagebox.showerror("Erro", "Por favor, informe a carga horária.")
+                                    return
+                                
+                                try:
+                                    nova_carga_valor = int(nova_carga)
+                                except ValueError:
+                                    messagebox.showerror("Erro", "A carga horária deve ser um número inteiro.")
+                                    return
+                                
+                                # Atualizar no banco
+                                cast(Any, self.cursor).execute("""
+                                    UPDATE carga_horaria_total 
+                                    SET carga_horaria_total = %s 
+                                    WHERE id = %s
+                                """, (nova_carga_valor, carga_id))
+                                
+                                if hasattr(self, 'conn') and self.conn:
+                                    cast(Any, self.conn).commit()
+                                
+                                messagebox.showinfo("Sucesso", "Carga horária atualizada com sucesso!")
+                                edit_dialog.destroy()
+                                carregar_cargas_horarias()
+                                
+                            except Exception as e:
+                                messagebox.showerror("Erro", f"Erro ao atualizar: {str(e)}")
+                        
+                        # Botões
+                        btn_frame = Frame(edit_dialog, bg=self.co10)
+                        btn_frame.pack(pady=10)
+                        
+                        Button(btn_frame, text="Salvar", command=salvar_edicao,
+                              bg=self.co3, fg=self.co1, width=12,
+                              font=('Ivy 9 bold')).pack(side=LEFT, padx=5)
+                        
+                        Button(btn_frame, text="Cancelar", command=edit_dialog.destroy,
+                              bg=self.co12, fg=self.co1, width=12,
+                              font=('Ivy 9')).pack(side=LEFT, padx=5)
+                        
+                    except Exception as e:
+                        messagebox.showerror("Erro", f"Erro ao editar: {str(e)}")
+                
+                # função para excluir carga horária selecionada
+                def excluir_carga_horaria():
+                    try:
+                        selected = carga_tree.selection()
+                        if not selected:
+                            messagebox.showwarning("Aviso", "Selecione uma carga horária para excluir.")
+                            return
+                        
+                        item = selected[0]
+                        valores = carga_tree.item(item, 'values')
+                        carga_id = valores[0]
+                        ano_letivo = valores[1]
+                        serie = valores[2]
+                        carga = valores[3]
+                        
+                        # Confirmar exclusão
+                        if messagebox.askyesno("Confirmar Exclusão", 
+                                              f"Deseja realmente excluir a carga horária?\n\n"
+                                              f"Ano Letivo: {ano_letivo}\n"
+                                              f"Série: {serie}\n"
+                                              f"Carga Horária: {carga}h"):
+                            try:
+                                # Excluir do banco
+                                cast(Any, self.cursor).execute("""
+                                    DELETE FROM carga_horaria_total WHERE id = %s
+                                """, (carga_id,))
+                                
+                                if hasattr(self, 'conn') and self.conn:
+                                    cast(Any, self.conn).commit()
+                                
+                                messagebox.showinfo("Sucesso", "Carga horária excluída com sucesso!")
+                                carregar_cargas_horarias()
+                                
+                            except Exception as e:
+                                messagebox.showerror("Erro", f"Erro ao excluir: {str(e)}")
+                    
+                    except Exception as e:
+                        messagebox.showerror("Erro", f"Erro ao excluir: {str(e)}")
+                
                 # Carregar cargas Horárias iniciais
                 carregar_cargas_horarias()
                 
+                # Frame para botões de ação
+                acoes_frame = Frame(listagem_frame, bg=self.co10)
+                acoes_frame.pack(fill=X, pady=5)
+                
                 # botão para atualizar listagem
-                Button(listagem_frame, 
-                       text="Atualizar Listagem",
+                Button(acoes_frame, 
+                       text="Atualizar",
                        command=carregar_cargas_horarias,
                        bg=self.co7,
                        fg=self.co1,
                        font=('Ivy 9'),
-                       padx=10).pack(anchor=W, pady=5)
+                       width=12,
+                       padx=5).pack(side=LEFT, padx=2)
+                
+                # botão para editar
+                Button(acoes_frame, 
+                       text="Editar",
+                       command=editar_carga_horaria,
+                       bg=self.co3,
+                       fg=self.co1,
+                       font=('Ivy 9'),
+                       width=12,
+                       padx=5).pack(side=LEFT, padx=2)
+                
+                # botão para excluir
+                Button(acoes_frame, 
+                       text="Excluir",
+                       command=excluir_carga_horaria,
+                       bg=self.co6,
+                       fg=self.co1,
+                       font=('Ivy 9'),
+                       width=12,
+                       padx=5).pack(side=LEFT, padx=2)
                 
             except Exception as e:
                 messagebox.showerror("Erro", f"Erro ao carregar dados: {str(e)}")
@@ -1055,7 +1208,9 @@ class InterfaceAdministrativa:
                 # Campo para carga Horária
                 Label(frame, text="Carga Horária (opcional):", font=('Ivy 10'), bg=self.co10).grid(row=1, column=0, sticky=W, padx=5, pady=5)
                 carga_horaria_entry = Entry(frame, width=10)
-                carga_horaria_entry.insert(0, carga_horaria)
+                # Inserir string vazia se carga_horaria for None ou "None"
+                valor_carga = "" if carga_horaria in (None, "None", "") else str(carga_horaria)
+                carga_horaria_entry.insert(0, valor_carga)
                 carga_horaria_entry.grid(row=1, column=1, sticky=W, padx=5, pady=5)
                 
                 # Texto de status (para mostrar 'Nova' ou 'Existente')
@@ -1164,7 +1319,7 @@ class InterfaceAdministrativa:
                         for disciplina in disciplinas_nivel:
                             adicionar_campo_disciplina(
                                 nome_disciplina=str(disciplina[1]),
-                                carga_horaria=str(disciplina[2]),
+                                carga_horaria="" if disciplina[2] is None else str(disciplina[2]),
                                 disciplina_id=disciplina[0]
                             )
                     
@@ -1659,16 +1814,18 @@ class InterfaceAdministrativa:
                 scrollbar = ttk.Scrollbar(tree_frame)
                 scrollbar.pack(side=RIGHT, fill=Y)
                 
-                # Treeview para cargas Horárias
+                # Treeview para cargas Horárias (incluindo ID como coluna oculta)
                 carga_tree = ttk.Treeview(tree_frame, 
-                                        columns=("Ano", "Série", "Carga"),
+                                        columns=("ID", "Ano", "Série", "Carga"),
                                         show='headings',
                                         yscrollcommand=scrollbar.set)
                 
+                carga_tree.heading("ID", text="ID")
                 carga_tree.heading("Ano", text="Ano Letivo")
                 carga_tree.heading("Série", text="Série")
                 carga_tree.heading("Carga", text="Carga Horária")
                 
+                carga_tree.column("ID", width=0, stretch=False)  # Ocultar coluna ID
                 carga_tree.column("Ano", width=100)
                 carga_tree.column("Série", width=150)
                 carga_tree.column("Carga", width=100)
@@ -1697,6 +1854,7 @@ class InterfaceAdministrativa:
                         
                         for carga in cargas:
                             carga_tree.insert('', 'end', values=(
+                                carga[0],  # id
                                 carga[2],  # ano_letivo
                                 carga[3],  # nome da série
                                 carga[1]   # carga_horaria_total
@@ -1705,17 +1863,167 @@ class InterfaceAdministrativa:
                     except Exception as e:
                         logger.error(f"Erro ao carregar cargas Horárias: {str(e)}")
                 
+                # função para editar carga horária selecionada
+                def editar_carga_horaria():
+                    try:
+                        selected = carga_tree.selection()
+                        if not selected:
+                            messagebox.showwarning("Aviso", "Selecione uma carga horária para editar.")
+                            return
+                        
+                        item = selected[0]
+                        valores = carga_tree.item(item, 'values')
+                        carga_id = valores[0]
+                        ano_letivo = valores[1]
+                        serie = valores[2]
+                        carga_atual = valores[3]
+                        
+                        # Criar dialog para edição
+                        edit_dialog = Toplevel(dialog)
+                        edit_dialog.title("Editar Carga Horária Total")
+                        edit_dialog.geometry("400x200")
+                        edit_dialog.transient(dialog)
+                        edit_dialog.focus_force()
+                        edit_dialog.grab_set()
+                        edit_dialog.configure(bg=self.co10)
+                        
+                        # Centralizar
+                        self.centralizar_janela(edit_dialog)
+                        
+                        # Informações
+                        Label(edit_dialog, text=f"Ano Letivo: {ano_letivo}", 
+                             font=('Ivy 10'), bg=self.co10).pack(pady=5)
+                        Label(edit_dialog, text=f"Série: {serie}", 
+                             font=('Ivy 10'), bg=self.co10).pack(pady=5)
+                        
+                        Label(edit_dialog, text="Nova Carga Horária Total:", 
+                             font=('Ivy 10 bold'), bg=self.co10).pack(pady=5)
+                        
+                        nova_carga_entry = Entry(edit_dialog, width=20, font=('Ivy 10'))
+                        nova_carga_entry.insert(0, carga_atual)
+                        nova_carga_entry.pack(pady=5)
+                        nova_carga_entry.focus()
+                        
+                        def salvar_edicao():
+                            try:
+                                nova_carga = nova_carga_entry.get().strip()
+                                if not nova_carga:
+                                    messagebox.showerror("Erro", "Por favor, informe a carga horária.")
+                                    return
+                                
+                                try:
+                                    nova_carga_valor = int(nova_carga)
+                                except ValueError:
+                                    messagebox.showerror("Erro", "A carga horária deve ser um número inteiro.")
+                                    return
+                                
+                                # Atualizar no banco
+                                cast(Any, self.cursor).execute("""
+                                    UPDATE carga_horaria_total 
+                                    SET carga_horaria_total = %s 
+                                    WHERE id = %s
+                                """, (nova_carga_valor, carga_id))
+                                
+                                if hasattr(self, 'conn') and self.conn:
+                                    cast(Any, self.conn).commit()
+                                
+                                messagebox.showinfo("Sucesso", "Carga horária atualizada com sucesso!")
+                                edit_dialog.destroy()
+                                carregar_cargas_horarias()
+                                
+                            except Exception as e:
+                                messagebox.showerror("Erro", f"Erro ao atualizar: {str(e)}")
+                        
+                        # Botões
+                        btn_frame = Frame(edit_dialog, bg=self.co10)
+                        btn_frame.pack(pady=10)
+                        
+                        Button(btn_frame, text="Salvar", command=salvar_edicao,
+                              bg=self.co3, fg=self.co1, width=12,
+                              font=('Ivy 9 bold')).pack(side=LEFT, padx=5)
+                        
+                        Button(btn_frame, text="Cancelar", command=edit_dialog.destroy,
+                              bg=self.co12, fg=self.co1, width=12,
+                              font=('Ivy 9')).pack(side=LEFT, padx=5)
+                        
+                    except Exception as e:
+                        messagebox.showerror("Erro", f"Erro ao editar: {str(e)}")
+                
+                # função para excluir carga horária selecionada
+                def excluir_carga_horaria():
+                    try:
+                        selected = carga_tree.selection()
+                        if not selected:
+                            messagebox.showwarning("Aviso", "Selecione uma carga horária para excluir.")
+                            return
+                        
+                        item = selected[0]
+                        valores = carga_tree.item(item, 'values')
+                        carga_id = valores[0]
+                        ano_letivo = valores[1]
+                        serie = valores[2]
+                        carga = valores[3]
+                        
+                        # Confirmar exclusão
+                        if messagebox.askyesno("Confirmar Exclusão", 
+                                              f"Deseja realmente excluir a carga horária?\n\n"
+                                              f"Ano Letivo: {ano_letivo}\n"
+                                              f"Série: {serie}\n"
+                                              f"Carga Horária: {carga}h"):
+                            try:
+                                # Excluir do banco
+                                cast(Any, self.cursor).execute("""
+                                    DELETE FROM carga_horaria_total WHERE id = %s
+                                """, (carga_id,))
+                                
+                                if hasattr(self, 'conn') and self.conn:
+                                    cast(Any, self.conn).commit()
+                                
+                                messagebox.showinfo("Sucesso", "Carga horária excluída com sucesso!")
+                                carregar_cargas_horarias()
+                                
+                            except Exception as e:
+                                messagebox.showerror("Erro", f"Erro ao excluir: {str(e)}")
+                    
+                    except Exception as e:
+                        messagebox.showerror("Erro", f"Erro ao excluir: {str(e)}")
+                
                 # Carregar cargas Horárias iniciais
                 carregar_cargas_horarias()
                 
+                # Frame para botões de ação
+                acoes_frame = Frame(listagem_frame, bg=self.co10)
+                acoes_frame.pack(fill=X, pady=5)
+                
                 # botão para atualizar listagem
-                Button(listagem_frame, 
-                       text="Atualizar Listagem",
+                Button(acoes_frame, 
+                       text="Atualizar",
                        command=carregar_cargas_horarias,
                        bg=self.co7,
                        fg=self.co1,
                        font=('Ivy 9'),
-                       padx=10).pack(anchor=W, pady=5)
+                       width=12,
+                       padx=5).pack(side=LEFT, padx=2)
+                
+                # botão para editar
+                Button(acoes_frame, 
+                       text="Editar",
+                       command=editar_carga_horaria,
+                       bg=self.co3,
+                       fg=self.co1,
+                       font=('Ivy 9'),
+                       width=12,
+                       padx=5).pack(side=LEFT, padx=2)
+                
+                # botão para excluir
+                Button(acoes_frame, 
+                       text="Excluir",
+                       command=excluir_carga_horaria,
+                       bg=self.co6,
+                       fg=self.co1,
+                       font=('Ivy 9'),
+                       width=12,
+                       padx=5).pack(side=LEFT, padx=2)
                 
             except Exception as e:
                 messagebox.showerror("Erro", f"Erro ao carregar dados: {str(e)}")
@@ -1786,7 +2094,9 @@ class InterfaceAdministrativa:
                 # Campo para carga Horária
                 Label(frame, text="Carga Horária (opcional):", font=('Ivy 10'), bg=self.co10).grid(row=1, column=0, sticky=W, padx=5, pady=5)
                 carga_horaria_entry = Entry(frame, width=10)
-                carga_horaria_entry.insert(0, carga_horaria)
+                # Inserir string vazia se carga_horaria for None ou "None"
+                valor_carga = "" if carga_horaria in (None, "None", "") else str(carga_horaria)
+                carga_horaria_entry.insert(0, valor_carga)
                 carga_horaria_entry.grid(row=1, column=1, sticky=W, padx=5, pady=5)
                 
                 # Texto de status (para mostrar 'Nova' ou 'Existente')
@@ -1895,7 +2205,7 @@ class InterfaceAdministrativa:
                         for disciplina in disciplinas_nivel:
                             adicionar_campo_disciplina(
                                 nome_disciplina=str(disciplina[1]),
-                                carga_horaria=str(disciplina[2]),
+                                carga_horaria="" if disciplina[2] is None else str(disciplina[2]),
                                 disciplina_id=disciplina[0]
                             )
                     
