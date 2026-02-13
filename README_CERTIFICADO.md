@@ -45,9 +45,9 @@ Este script irá:
 
 ```powershell
 New-Item -ItemType Directory -Force -Path "imagens"
-Invoke-WebRequest -Uri "https://geduc-data.s3.us-east-1.amazonaws.com/logo/fcertificado3.png" -OutFile "imagens\fcertificado3.png"
-Invoke-WebRequest -Uri "https://geduc-data.s3.us-east-1.amazonaws.com/logo/2107506.png" -OutFile "imagens\logo_prefeitura.png"
-Invoke-WebRequest -Uri "https://geduc-data.s3.us-east-1.amazonaws.com/logo/brasao%20maranhao.png" -OutFile "imagens\brasao_maranhao.png"
+Invoke-WebRequest -Uri "https://geduc-data.s3.us-east-1.amazonaws.com/logo/fundo_paco.png" -OutFile "imagens\fundo_paco.png"
+Invoke-WebRequest -Uri "https://geduc-data.s3.us-east-1.amazonaws.com/logo/pacoCertificado.png" -OutFile "imagens\pacoCertificado.png"
+Invoke-WebRequest -Uri "https://geduc-data.s3.us-east-1.amazonaws.com/logo/brasao%20maranhao.png" -OutFile "imagens\brasao maranhao.png"
 ```
 
 **Importante**: Este passo precisa ser feito **apenas uma vez**. Após baixar as imagens, o sistema funcionará **completamente offline**.
@@ -150,9 +150,9 @@ gestao/
 ├── requirements_certificado.txt     # Dependências
 ├── README_CERTIFICADO.md           # Esta documentação
 ├── imagens/                        # Pasta de imagens (criar)
-│   ├── fcertificado3.png          # Fundo do certificado
-│   ├── logo_prefeitura.png        # Brasão da prefeitura
-│   └── brasao_maranhao.png        # Brasão do Maranhão
+│   ├── fundo_paco.png             # Fundo do certificado
+│   ├── pacoCertificado.png        # Brasão da prefeitura
+│   └── brasao maranhao.png        # Brasão do Maranhão
 └── certificados/                   # PDFs gerados (criado automaticamente)
     └── certificado_aluno_XXX.pdf
 ```Gothic Bold
@@ -166,7 +166,7 @@ gestao/
 ### Erro: "Imagem não encontrada"
 - Execute `python baixar_imagens_certificado.py` para baixar as imagens
 - Verifique se a pasta `imagens/` existe
-- Certifique-se de ter as 3 imagens: fcertificado3.png, logo_prefeitura.png, brasao_maranhao.png
+- Certifique-se de ter as 3 imagens: fundo_paco.png, pacoCertificado.png, brasao maranhao.png
 
 ### Texto saindo da página
 - As margens estão configuradas para 100mm
@@ -174,7 +174,7 @@ gestao/
 - Verifique se os nomes não são excessivamente longos
 
 ### Bordas não aparecem
-- As bordas estão na imagem de fundo (fcertificado3.png)
+- As bordas estão na imagem de fundo (fundo_paco.png)
 ## Requisitos do Sistema
 
 - Python 3.7+

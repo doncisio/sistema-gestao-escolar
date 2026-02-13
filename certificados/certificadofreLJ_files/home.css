@@ -1,0 +1,438 @@
+.title {
+	font-family: "Century Gothic";
+	font-size: 10px;
+	font-weight: bold;
+	color: #000000;
+}
+.titulo_tabela {
+	font-family: "Century Gothic";
+	font-size: 11px;
+	font-weight: bold;
+	color: #999999;
+	text-decoration:none;
+}
+.titulo_laranja {
+	font-family: "Century Gothic";
+	font-size: 11px;
+	font-weight: bold;
+	color: #f1b500;
+	text-decoration:none;
+}
+.titulo_tabela2 {
+	font-family: "Century Gothic";
+	font-size: 16px;
+	font-weight: normal;
+	color: #000000;
+	text-decoration:none;
+}
+.resposta {
+	font-family: "Century Gothic";
+	font-size: 12px;
+	font-weight: normal;
+	color: #000000;
+	text-decoration:none;
+}
+.titulo_tabela3 {
+	font-family: "Century Gothic";
+	font-size: 13px;
+	font-weight: normal;
+	color: #000000;
+	text-decoration:none;
+}
+
+.buttons {
+	font-family: "Century Gothic";
+	font-size: 9px;
+	color: #FFFFFF;
+	font-weight: bold;
+	background-color: #336699;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-right-style: solid;
+	border-bottom-style: solid;
+	border-top-color: #336699;
+	border-right-color: #336699;
+	border-bottom-color: #336699;
+	border-left-color: #336699;
+}
+
+
+.textboxes {
+	font-family: "Century Gothic";
+	font-size: 9px;
+}
+.texto {
+	font-family: "Century Gothic";
+	font-size: 10px;
+}
+.textoazul {
+	font-family: "Century Gothic";
+	font-size: 11px;
+	font-weight: normal;
+	color: #336699;
+}
+.textoazul2 {
+	font-family:"Century Gothic";
+	font-size: 14px;
+	font-weight:normal;
+	color: #336699;
+}
+.textoaniversario {
+	font-family: "Century Gothic";
+	font-size: 9px;
+	color: #FF0000;
+}
+.paragrafo {
+	font-family: "Century Gothic";
+	font-size: 9px;
+	color: #336699;
+	text-align: justify;
+	text-decoration:none;
+	padding: 5px;
+	font-style: normal;
+	font-weight: normal;
+
+
+}
+.paragrafopreto {
+	font-family: "Century Gothic";
+	font-size: 9px;
+	color: #000000;
+	padding-top:inherit;
+}
+.news {
+	font-family: "Century Gothic";
+	color: #336699;
+	font-size: 9px;
+}
+.menu_geral {
+	font-family: "Century Gothic";
+	font-size: 10px;
+	font-weight: normal;
+	color: #FFFFFF;
+	padding: 3px;
+}
+.menu {
+	font-family: "Century Gothic";
+	font-size: 10px;
+	font-weight: bold;
+	color: #336699;
+	cursor:pointer;
+	padding: 3px;
+}
+.menu2 {
+	font-family: "Century Gothic";
+	font-size: 10px;
+	font-weight: bold;
+	color: #336699;
+	padding: 5px;
+}
+
+.menu23 {
+	font-family: "Century Gothic";
+	font-size: 10px;
+	font-weight: normal;
+	color: #336699;
+	padding: 3px;
+}
+.textocinza{
+	font-family: "Century Gothic";
+	font-size: 20px;
+	font-weight: bold;
+	color:#FFFFFF;
+	padding: 3px;
+	font-style: normal;
+	line-height: normal;
+}
+
+.textoG{
+	font-size: 15px;
+	color: #000000;
+	padding: 3px;
+	font-style: normal;
+	line-height: normal;
+	font-weight: bold;
+}
+.textoGG{
+	font-size: 15px;
+	color: #000000;
+	padding: 3px;
+	font-style: normal;
+	line-height: normal;
+	font-weight: bolder;
+}
+
+.textoGG2{
+	font-size: 22px;
+	color: #000000;
+	padding: 3px;
+	font-style: normal;
+	line-height: normal;
+	font-weight: bolder;
+}
+.textoVer{
+	font-family: "Century Gothic";
+	font-size: 16px;
+	color:#FF0000;
+	padding: 3px;
+	font-style: normal;
+	font-weight:bold;
+	line-height: normal;
+}
+
+.textoAmarelo{
+	font-family: "Century Gothic";
+	font-size: 13px;
+	color:#FFFF00;
+	padding: 3px;
+	font-style: normal;
+	font-weight:bold;
+	line-height: normal;
+}
+
+.menuvermelho {
+	font-family: "Century Gothic";
+	font-size: 9px;
+	font-weight: bold;
+	color: #FF0000;
+	cursor:pointer;
+}
+.menuvermelho2 {
+	font-family: "Century Gothic";
+	font-size: 10px;
+	font-weight: bold;
+	color: #FF0000;
+	padding: 3px;
+}
+
+.menublack {
+	font-family: "Century Gothic";
+	font-size: 9px;
+	font-weight: normal;
+	color: #000000;
+	cursor:pointer;
+	padding: 3px;
+}
+
+.menubranco {
+	font-family: "Century Gothic";
+	font-size: 11px;
+	font-weight: bold;
+	color: #FFFFFF;
+	padding: 3px;
+}
+
+.borda {
+	border: 1px solid #336699;
+}
+.titulo {
+	font-family: "Century Gothic";
+	font-size: 12px;
+	font-weight: bold;
+	color: #000000;
+}
+.menuout{
+	color:#000000;
+	cursor:pointer;
+	font-family: "Century Gothic";
+	font-size: 12px;
+	font-weight:bold;
+}
+.menuover{
+	background-color:#666666;
+	color:#000000;
+	cursor:pointer;
+	font-family: "Century Gothic";
+	font-size: 12px;
+	font-weight:bold;
+}
+.submenu2{
+	font:bold 10px "Century Gothic";
+	color:#336699;
+	text-align:left;
+	cursor:pointer;
+	text-decoration: none;
+}
+
+.submenu{
+	font:bold 10px "Century Gothic";
+	color:#336699;
+	text-align:left;
+	cursor:pointer;
+	text-decoration: none;
+	background-image: url(../images/new_pagina_topo.jpg);
+}
+
+.submenuover{
+	color:#000000;
+	text-align:left;
+	text-decoration: none;
+	background-color:#FFFFFF;
+	font-family: "Century Gothic";
+	font-size: 9px;
+	font-weight: bold;
+}
+.butom {
+	font-family: "Century Gothic";
+	font-size: 10px;
+	font-style: normal;
+	color: #000000;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-right-style: solid;
+	border-bottom-style: solid;
+	border-top-color: #FFFFFF;
+	border-right-color: #FFFFFF;
+	border-bottom-color: #FFFFFF;
+	border-left-color: #FFFFFF;
+	border-top-width: 1px;
+	border-left-width: 1px;
+	border-top-style: solid;
+	border-left-style: solid;
+}
+
+
+.noticias{
+	font:bold 10px "Century Gothic";
+	color:#336699;
+	text-align:left;
+	cursor:pointer;
+	text-decoration: none;
+}
+
+.black{
+	font:bold 10px "Century Gothic";
+	color:#000000;
+	text-align:left;
+	cursor:pointer;
+	text-decoration: none;
+}
+.texto {
+	color: #000000;
+}
+
+.submenuout{
+	cursor:pointer;
+	font-family: "Century Gothic";
+	font-size: 12px;
+	font-weight: bold;
+	background-color: #424892;
+	color: #FFFFFF;
+	text-align: center;
+	
+	
+}
+.submenuover{
+	color:#000000;
+	cursor:pointer;
+	font-family: "Century Gothic";
+	font-size: 13px;
+	font-weight: bold;
+	background-color: #424892;
+	text-align: center;
+}
+.menuout1{
+	color:#336699;
+	cursor:pointer;
+	font-family: "Century Gothic";
+	font-size: 10px;
+	font-weight: bold;
+	padding: 3px;
+	
+	
+}
+.menuover1{
+    font-family: "Century Gothic";
+	font-size: 10px;
+	font-weight: bold;
+	color: #000000;
+	cursor:pointer;
+	padding: 3px;
+}
+.paragrafo2 {
+	font-family: "Century Gothic";
+	font-size: 9px;
+	color: #336699;
+	text-align: justify;
+	padding: 5px;
+	font-style: normal;
+	font-weight: normal;
+}
+.divout{
+font-family:"Century Gothic";
+font-size:10px;
+color:#000000;
+}
+.divover{
+background-color:#CCCCCC;
+font-family:"Century Gothic";
+font-size:10px;
+color:#000000;
+
+}
+.botao {
+	font-family: "Century Gothic";
+	font-size: 12px;
+	font-weight:bold;
+	color: #4B6B7F;
+	border: 0px solid #724B25;
+	background-image: url(../app.images/button.png);
+	background-repeat: no-repeat;
+	background-position: center center;
+	height: 35px;
+	width: 75px;
+	margin-top: 0px;
+	margin-right: 0px;
+	margin-bottom: 2px;
+	margin-left: 0px;
+}
+.botaoGrande {
+	font-family: "Century Gothic";
+	font-size: 12px;
+	font-weight:bold;
+	color: #4B6B7F;
+	border: 0px solid #724B25;
+	background-image: url(../app.images/button_g.png);
+	background-repeat: no-repeat;
+	background-position: center center;
+	height: 35px;
+	width: 180px;
+	margin-top: 0px;
+	margin-right: 0px;
+	margin-bottom: 2px;
+	margin-left: 0px;
+}
+.input {
+	font-family: "Century Gothic";
+	font-size: 12px;
+	color: #000000;
+	border: 1px solid #6ebaf4;
+	font-weight: normal;
+	padding: 2px;
+	border-radius: 1em;
+	-moz-border-radius: 2px;
+	background-color: #bbd8ee;
+	}
+	.input:hover {
+	font-family: "Century Gothic";
+	font-size: 12px;
+	color: #000000;
+	border: 1px solid #6ebaf4;
+	font-weight: normal;
+	padding: 2px;
+	border-radius: 1em;
+	-moz-border-radius: 2px;
+	background-color: #d5e2ec;
+	}
+	.login-senha {
+	font-family: "Century Gothic";
+	color: #192045;
+	font-weight:bolder;
+	font-size: 12px;
+}
+	.Titulos_tela {
+	font-family: "Century Gothic";
+	color: #3C4046;
+	font-size: 13px;
+	font-weight:bold;
+}

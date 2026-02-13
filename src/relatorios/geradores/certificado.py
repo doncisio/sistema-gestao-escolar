@@ -7,6 +7,7 @@ import os
 from datetime import datetime, date
 from reportlab.lib.pagesizes import landscape, A4
 from reportlab.lib.units import mm
+from reportlab.lib import colors
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
@@ -175,7 +176,7 @@ def renderizar_pagina_certificado(c, dados, ano_letivo=2025):
     largura, altura = landscape(A4)
     
     # Carregar e adicionar imagem de fundo
-    bg_image = carregar_imagem_local("fcertificado3.png")
+    bg_image = carregar_imagem_local("fundo_paco.png")
     if bg_image:
         # Forçar a imagem de fundo a preencher toda a página A4
         c.drawImage(bg_image, 0, 0, width=largura, height=altura, preserveAspectRatio=False, mask='auto')
@@ -191,24 +192,29 @@ def renderizar_pagina_certificado(c, dados, ano_letivo=2025):
     y = altura - margem_superior
     
     # Adicionar brasões/logos (carregando localmente)
-    logo_esq = carregar_imagem_local("logo_prefeitura.png")
+    # Tamanho: 150px do HTML convertido para ~105pt no PDF
+    logo_esq = carregar_imagem_local("pacoCertificado.png")
     if logo_esq:
-        c.drawImage(logo_esq, margem_esquerda, y - 80, width=90, height=90, preserveAspectRatio=True, mask='auto')
+        c.drawImage(logo_esq, margem_esquerda, y - 85, width=105, height=105, preserveAspectRatio=True, mask='auto')
     
-    logo_dir = carregar_imagem_local("Daco_5738580.png")
+    logo_dir = carregar_imagem_local("brasao maranhao.png")
     if logo_dir:
-        c.drawImage(logo_dir, largura - margem_direita - 90, y - 80, width=90, height=90, preserveAspectRatio=True, mask='auto')
+        c.drawImage(logo_dir, largura - margem_direita - 105, y - 85, width=105, height=105, preserveAspectRatio=True, mask='auto')
     
-    # Cabeçalho
-    c.setFont(fonte_texto, 13)
+    # Cabeçalho (cor azul #192045)
+    c.setFillColorRGB(25/255, 32/255, 69/255)  # #192045
+    c.setFont(fonte_texto, 15)
     c.drawCentredString(largura / 2, y - 15, "ESTADO DO MARANHÃO")
     c.drawCentredString(largura / 2, y - 32, "PREFEITURA MUNICIPAL DE PAÇO DO LUMIAR")
     c.drawCentredString(largura / 2, y - 49, "SECRETARIA MUNICIPAL DE EDUCAÇÃO")
     
+    # Voltar para preto
+    c.setFillColorRGB(0, 0, 0)
+    
     y -= 100
     
-    # Título CERTIFICADO
-    c.setFont(fonte_titulo, 28)
+    # Título CERTIFICADO (preto)
+    c.setFont(fonte_titulo, 22.5)
     c.drawCentredString(largura / 2, y-30, "CERTIFICADO")
     
     y -= 50
@@ -226,6 +232,16 @@ def renderizar_pagina_certificado(c, dados, ano_letivo=2025):
     else:
         nome_pai = ''
         nome_mae = ''
+    
+    # Construir texto de filiação baseado nos responsáveis disponíveis
+    if nome_pai and nome_mae:
+        texto_filiacao = f"de {nome_pai} e de {nome_mae}"
+    elif nome_pai:
+        texto_filiacao = f"de {nome_pai}"
+    elif nome_mae:
+        texto_filiacao = f"de {nome_mae}"
+    else:
+        texto_filiacao = ""
     
     data_nasc = formatar_data(dados.get('data_nascimento', ''))
     municipio = dados.get('local_nascimento', 'PAÇO DO LUMIAR').upper()
@@ -255,27 +271,34 @@ def renderizar_pagina_certificado(c, dados, ano_letivo=2025):
         nascido_label = 'nascido'
 
     # Criar texto completo justificado usando Paragraph
-    texto_completo = textwrap.dedent(f"""
-        A {escola} no uso de suas atribuições legais, confere o presente
-        Certificado de Conclusão do Ensino Fundamental para {aluno_label}
-        <b>{nome_aluno}</b>, {filho_label} de {nome_pai} e de {nome_mae},
-        {nascido_label} em {data_nasc} no município de {municipio} do
-        {('Distrito Federal' if uf_full == 'Distrito Federal' else 'Estado do ' + uf_full)} por ter concluído no ano de {ano_letivo}. Reconhecido pela Resolução Nº 19/2023-CME de 07/05/2024, do Conselho Municipal de Educação.
-    """).strip()
+    if texto_filiacao:
+        texto_completo = textwrap.dedent(f"""
+            A Diretoria do(a) {escola} no uso de suas atribuições legais, confere o presente
+            Certificado de Conclusão do Ensino Fundamental Regular para {aluno_label}
+            <b>{nome_aluno}</b>, {filho_label} {texto_filiacao},
+            {nascido_label} em {data_nasc} no município de {municipio} Estado do {uf_full} por ter concluído no ano de {ano_letivo}.
+        """).strip()
+    else:
+        texto_completo = textwrap.dedent(f"""
+            A Diretoria do(a) {escola} no uso de suas atribuições legais, confere o presente
+            Certificado de Conclusão do Ensino Fundamental Regular para {aluno_label}
+            <b>{nome_aluno}</b>, {nascido_label} em {data_nasc} no município de {municipio} Estado do {uf_full} por ter concluído no ano de {ano_letivo}.
+        """).strip()
     
-    # Criar estilo para texto justificado
+    # Criar estilo para texto justificado (preto)
     styles = getSampleStyleSheet()
     estilo_justificado = ParagraphStyle(
         'Justificado',
         parent=styles['Normal'],
-        fontSize=15,
-        leading=22,
+        fontSize=13.5,
+        leading=27,
         alignment=TA_JUSTIFY,
         fontName=fonte_texto,
         spaceBefore=0,
         spaceAfter=0,
         leftIndent=0,
-        rightIndent=0
+        rightIndent=0,
+        textColor=colors.black
     )
     
     # Criar parágrafo justificado
@@ -291,9 +314,9 @@ def renderizar_pagina_certificado(c, dados, ano_letivo=2025):
     
     y -= h + 40
     
-    # Data por extenso (com lógica condicional para 30/12/2025)
+    # Data por extenso (com lógica condicional para 30/12/2025) (preto)
     data_atual = obter_data_impressao()
-    c.setFont(fonte_texto, 13)
+    c.setFont(fonte_texto, 11.5)
     texto_data = f"PAÇO DO LUMIAR - MA, {data_atual}."
     c.drawRightString(largura - margem_direita, y, texto_data)
     
@@ -315,9 +338,9 @@ def renderizar_pagina_certificado(c, dados, ano_letivo=2025):
     c.line(pos_assinatura1, linha_y, pos_assinatura1 + largura_assinatura, linha_y)
     c.line(pos_assinatura2, linha_y, pos_assinatura2 + largura_assinatura, linha_y)
     
-    # Texto das assinaturas
-    c.setFont(fonte_texto, 10)
-    c.drawCentredString(pos_assinatura1 + largura_assinatura/2, linha_y - 18, "SECRETÁRIO(A) MUNICIPAL DE EDUCAÇÃO")
+    # Texto das assinaturas (preto)
+    c.setFont(fonte_texto, 11)
+    c.drawCentredString(pos_assinatura1 + largura_assinatura/2, linha_y - 18, "ALUNO(A)")
     c.drawCentredString(pos_assinatura2 + largura_assinatura/2, linha_y - 18, "GESTOR ESCOLAR")
 
 

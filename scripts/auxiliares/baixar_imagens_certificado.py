@@ -11,9 +11,9 @@ logger = get_logger(__name__)
 
 # URLs das imagens necessárias
 IMAGENS = {
-    "fcertificado3.png": "https://geduc-data.s3.us-east-1.amazonaws.com/logo/fcertificado3.png",
-    "logo_prefeitura.png": "https://geduc-data.s3.us-east-1.amazonaws.com/logo/2107506.png",
-    "brasao_maranhao.png": "https://geduc-data.s3.us-east-1.amazonaws.com/logo/brasao%20maranhao.png"
+    "fundo_paco.png": "https://geduc-data.s3.us-east-1.amazonaws.com/logo/fundo_paco.png",
+    "pacoCertificado.png": "https://geduc-data.s3.us-east-1.amazonaws.com/logo/pacoCertificado.png",
+    "brasao maranhao.png": "https://geduc-data.s3.us-east-1.amazonaws.com/logo/brasao%20maranhao.png"
 }
 
 def baixar_imagens():
