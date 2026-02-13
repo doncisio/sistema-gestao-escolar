@@ -1,5 +1,5 @@
 from src.core.config_logs import get_logger
-from src.core.config import get_icon_path
+from src.core.config import get_icon_path, get_ano_letivo_atual
 logger = get_logger(__name__)
 from datetime import datetime
 from tkinter import (
@@ -52,43 +52,6 @@ class InterfaceEdicaoFuncionario:
         self.co5 = "#003452"  # Azul
         self.co6 = "#ef5350"  # Vermelho
         self.co7 = "#038cfc"  # azul
-    
-    def verifica_cpf_duplicado_funcionario(self, cpf: str, funcionario_id: int = None) -> bool:
-        """
-        Verifica se o CPF já está cadastrado em outro funcionário.
-        
-        Args:
-            cpf: CPF a ser verificado
-            funcionario_id: ID do funcionário atual (para exclusão ao editar). None ao cadastrar novo.
-            
-        Returns:
-            bool: True se CPF está duplicado, False se disponível
-        """
-        if not cpf or cpf.strip() == '':
-            return False  # CPF vazio/None não é considerado duplicado
-        
-        try:
-            with get_cursor() as cursor:
-                if funcionario_id is None:
-                    # Cadastro novo - verifica se CPF existe
-                    cursor.execute(
-                        "SELECT id, nome FROM Funcionarios WHERE cpf = %s",
-                        (cpf,)
-                    )
-                else:
-                    # Edição - verifica se CPF existe em outro funcionário
-                    cursor.execute(
-                        "SELECT id, nome FROM Funcionarios WHERE cpf = %s AND id != %s",
-                        (cpf, funcionario_id)
-                    )
-                
-                resultado = cursor.fetchone()
-                return resultado is not None
-                
-        except Exception as e:
-            logger.error(f"Erro ao verificar CPF duplicado: {e}")
-            return False  # Em caso de erro, permite continuar
-        
         self.co8 = "#263238"  # +verde
         self.co9 = "#e9edf5"  # +verde
 
@@ -189,6 +152,42 @@ class InterfaceEdicaoFuncionario:
                 
         except Exception as e:
             logger.error(f"Erro ao atualizar tabela principal: {str(e)}")
+
+    def verifica_cpf_duplicado_funcionario(self, cpf: str, funcionario_id: int = None) -> bool:
+        """
+        Verifica se o CPF já está cadastrado em outro funcionário.
+        
+        Args:
+            cpf: CPF a ser verificado
+            funcionario_id: ID do funcionário atual (para exclusão ao editar). None ao cadastrar novo.
+            
+        Returns:
+            bool: True se CPF está duplicado, False se disponível
+        """
+        if not cpf or cpf.strip() == '':
+            return False  # CPF vazio/None não é considerado duplicado
+        
+        try:
+            with get_cursor() as cursor:
+                if funcionario_id is None:
+                    # Cadastro novo - verifica se CPF existe
+                    cursor.execute(
+                        "SELECT id, nome FROM Funcionarios WHERE cpf = %s",
+                        (cpf,)
+                    )
+                else:
+                    # Edição - verifica se CPF existe em outro funcionário
+                    cursor.execute(
+                        "SELECT id, nome FROM Funcionarios WHERE cpf = %s AND id != %s",
+                        (cpf, funcionario_id)
+                    )
+                
+                resultado = cursor.fetchone()
+                return resultado is not None
+                
+        except Exception as e:
+            logger.error(f"Erro ao verificar CPF duplicado: {e}")
+            return False  # Em caso de erro, permite continuar
 
     def criar_frames(self):
         # Frame Logo
@@ -785,17 +784,19 @@ class InterfaceEdicaoFuncionario:
         return frame_disc
         
     def carregar_turmas_para_disciplina(self, lista_turmas):
-        """Carrega as turmas disponíveis para a disciplina"""
+        """Carrega as turmas disponíveis para a disciplina (apenas ano atual)"""
         try:
-            # Obter as turmas da escola 60
+            # Obter o ID do ano letivo atual
+            ano_letivo = get_ano_letivo_atual()
             self.cursor.execute("""
                 SELECT t.id, s.nome as serie_nome, t.nome as turma_nome,
                 CASE WHEN t.turno = 'MAT' THEN 'Matutino' ELSE 'Vespertino' END as turno_nome
                 FROM turmas t 
-                JOIN series s ON t.serie_id = s.id 
-                WHERE t.escola_id = 60
+                JOIN series s ON t.serie_id = s.id
+                JOIN anosletivos al ON t.ano_letivo_id = al.id
+                WHERE t.escola_id = 60 AND al.ano_letivo = %s
                 ORDER BY s.nome, t.nome
-            """)
+            """, (ano_letivo,))
             
             turmas = self.cursor.fetchall()
             self.turmas_disciplina_map = {}
@@ -818,6 +819,79 @@ class InterfaceEdicaoFuncionario:
                 
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar turmas para disciplina: {str(e)}")
+    
+    def migrar_turmas_antigas_para_ano_atual(self):
+        """Migra automaticamente turmas de anos anteriores para turmas equivalentes do ano atual"""
+        try:
+            ano_letivo_atual = get_ano_letivo_atual()
+            
+            # Buscar disciplinas com turmas de anos anteriores
+            self.cursor.execute("""
+                SELECT fd.id, fd.turma_id, t.serie_id, t.nome as turma_nome, t.turno, al.ano_letivo
+                FROM funcionario_disciplinas fd
+                JOIN turmas t ON fd.turma_id = t.id
+                JOIN anosletivos al ON t.ano_letivo_id = al.id
+                WHERE fd.funcionario_id = %s AND al.ano_letivo < %s
+            """, (self.funcionario_id, ano_letivo_atual))
+            
+            registros_antigos = self.cursor.fetchall()
+            
+            if not registros_antigos:
+                logger.info(f"Nenhuma turma antiga encontrada para migração (funcionário #{self.funcionario_id})")
+                return
+            
+            migracoes_realizadas = 0
+            migracoes_falhadas = []
+            
+            for registro in registros_antigos:
+                fd_id, turma_antiga_id, serie_id, turma_nome, turno, ano_antigo = registro
+                
+                # Buscar turma equivalente no ano atual
+                self.cursor.execute("""
+                    SELECT t.id FROM turmas t
+                    JOIN anosletivos al ON t.ano_letivo_id = al.id
+                    WHERE t.serie_id = %s 
+                    AND t.nome = %s 
+                    AND t.turno = %s 
+                    AND al.ano_letivo = %s 
+                    AND t.escola_id = 60
+                    LIMIT 1
+                """, (serie_id, turma_nome, turno, ano_letivo_atual))
+                
+                turma_nova = self.cursor.fetchone()
+                
+                if turma_nova:
+                    turma_nova_id = turma_nova[0]
+                    
+                    # Atualizar a associação para a nova turma
+                    self.cursor.execute("""
+                        UPDATE funcionario_disciplinas
+                        SET turma_id = %s
+                        WHERE id = %s
+                    """, (turma_nova_id, fd_id))
+                    
+                    migracoes_realizadas += 1
+                    logger.info(f"✓ Turma migrada: {turma_antiga_id} ({ano_antigo}) → {turma_nova_id} ({ano_letivo_atual})")
+                else:
+                    migracoes_falhadas.append(f"Turma {turma_nome} (série {serie_id}, turno {turno})")
+                    logger.warning(f"✗ Turma equivalente não encontrada para {turma_nome} (série {serie_id}, turno {turno})")
+            
+            # Commit das alterações
+            if migracoes_realizadas > 0:
+                self.conn.commit()
+                logger.info(f"🔄 Migração concluída: {migracoes_realizadas} turma(s) atualizada(s) para o ano letivo {ano_letivo_atual}")
+                
+                # Mostrar mensagem apenas se houver falhas
+                if migracoes_falhadas:
+                    msg_falhadas = "\n".join(migracoes_falhadas)
+                    messagebox.showwarning(
+                        "Migração Parcial",
+                        f"{migracoes_realizadas} turma(s) foram atualizadas para {ano_letivo_atual}.\n\nAlgumas não puderam ser migradas automaticamente:\n\n{msg_falhadas}\n\nVerifique e atualize manualmente se necessário."
+                    )
+            
+        except Exception as e:
+            logger.error(f"Erro ao migrar turmas antigas: {str(e)}")
+            self.conn.rollback()
 
     def remover_disciplina(self, frame):
         if len(self.lista_frames_disciplinas) > 1:  # Garantir que haja pelo menos uma disciplina
@@ -1000,6 +1074,9 @@ class InterfaceEdicaoFuncionario:
                         self.c_volante.set(funcionario[17] or "não")  # volante
                     
                     # (Escola e checkbox já foram ajustados acima para todos os funcionários)
+                    
+                    # Migrar turmas antigas para o ano atual antes de carregar as disciplinas
+                    self.migrar_turmas_antigas_para_ano_atual()
                     
                     # Sempre carregar disciplinas para professores (polivalentes ou não)
                     self.frame_disciplinas_container.pack(fill=BOTH, expand=True, padx=10, pady=5)

@@ -1,5 +1,5 @@
 from src.core.config_logs import get_logger
-from src.core.config import get_icon_path
+from src.core.config import get_icon_path, get_ano_letivo_atual
 logger = get_logger(__name__)
 from datetime import datetime
 from tkinter import (
@@ -52,43 +52,7 @@ class InterfaceCadastroFuncionario:
         self.co7 = "#038cfc"  # azul
         self.co8 = "#263238"  # +verde
         self.co9 = "#e9edf5"  # +verde
-    
-    def verifica_cpf_duplicado_funcionario(self, cpf: str, funcionario_id: int = None) -> bool:
-        """
-        Verifica se o CPF já está cadastrado em outro funcionário.
         
-        Args:
-            cpf: CPF a ser verificado
-            funcionario_id: ID do funcionário atual (para exclusão ao editar). None ao cadastrar novo.
-            
-        Returns:
-            bool: True se CPF está duplicado, False se disponível
-        """
-        if not cpf or cpf.strip() == '':
-            return False  # CPF vazio/None não é considerado duplicado
-        
-        try:
-            with get_cursor() as cursor:
-                if funcionario_id is None:
-                    # Cadastro novo - verifica se CPF existe
-                    cursor.execute(
-                        "SELECT id, nome FROM Funcionarios WHERE cpf = %s",
-                        (cpf,)
-                    )
-                else:
-                    # Edição - verifica se CPF existe em outro funcionário
-                    cursor.execute(
-                        "SELECT id, nome FROM Funcionarios WHERE cpf = %s AND id != %s",
-                        (cpf, funcionario_id)
-                    )
-                
-                resultado = cursor.fetchone()
-                return resultado is not None
-                
-        except Exception as e:
-            logger.error(f"Erro ao verificar CPF duplicado: {e}")
-            return False  # Em caso de erro, permite continuar
-
         self.master = master
         self.master.title("Cadastro de Funcionário")
         self.master.geometry('950x670')
@@ -154,6 +118,42 @@ class InterfaceCadastroFuncionario:
             
             # Nota: A atualização automática da tabela foi removida para evitar conflitos
             # A tabela será atualizada quando o usuário interagir com ela novamente
+
+    def verifica_cpf_duplicado_funcionario(self, cpf: str, funcionario_id: int = None) -> bool:
+        """
+        Verifica se o CPF já está cadastrado em outro funcionário.
+        
+        Args:
+            cpf: CPF a ser verificado
+            funcionario_id: ID do funcionário atual (para exclusão ao editar). None ao cadastrar novo.
+            
+        Returns:
+            bool: True se CPF está duplicado, False se disponível
+        """
+        if not cpf or cpf.strip() == '':
+            return False  # CPF vazio/None não é considerado duplicado
+        
+        try:
+            with get_cursor() as cursor:
+                if funcionario_id is None:
+                    # Cadastro novo - verifica se CPF existe
+                    cursor.execute(
+                        "SELECT id, nome FROM Funcionarios WHERE cpf = %s",
+                        (cpf,)
+                    )
+                else:
+                    # Edição - verifica se CPF existe em outro funcionário
+                    cursor.execute(
+                        "SELECT id, nome FROM Funcionarios WHERE cpf = %s AND id != %s",
+                        (cpf, funcionario_id)
+                    )
+                
+                resultado = cursor.fetchone()
+                return resultado is not None
+                
+        except Exception as e:
+            logger.error(f"Erro ao verificar CPF duplicado: {e}")
+            return False  # Em caso de erro, permite continuar
 
     def atualizar_janela_principal(self):
         """Método auxiliar para atualizar a tabela principal de forma segura"""
@@ -731,15 +731,17 @@ class InterfaceCadastroFuncionario:
     def carregar_turmas_para_disciplina(self, lista_turmas):
         """Carrega as turmas disponíveis para a disciplina"""
         try:
-            # Obter as turmas da escola 60
+            # Obter o ID do ano letivo atual
+            ano_letivo = get_ano_letivo_atual()
             cast(Any, self.cursor).execute("""
                 SELECT t.id, s.nome as serie_nome, t.nome as turma_nome,
                 CASE WHEN t.turno = 'MAT' THEN 'Matutino' ELSE 'Vespertino' END as turno_nome
                 FROM turmas t 
-                JOIN series s ON t.serie_id = s.id 
-                WHERE t.escola_id = 60
+                JOIN series s ON t.serie_id = s.id
+                JOIN anosletivos al ON t.ano_letivo_id = al.id
+                WHERE t.escola_id = 60 AND al.ano_letivo = %s
                 ORDER BY s.nome, t.nome
-            """)
+            """, (ano_letivo,))
 
             turmas = cast(Any, self.cursor).fetchall()
             self.turmas_disciplina_map = {}
