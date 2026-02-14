@@ -1,5 +1,5 @@
 {
-  "data_extracao": "2026-02-13T10:03:10.234535",
+  "data_extracao": "2026-02-13T15:31:39.717989",
   "turmas": [
     {
       "id": "1525",
@@ -6570,6 +6570,40 @@
           "raca": "Parda"
         },
         {
+          "nome": "PEDRO GABRIEL RODRIGUES DE SOUSA",
+          "nome_normalizado": "PEDRO GABRIEL RODRIGUES DE SOUSA",
+          "data_nascimento": "2013-07-30",
+          "cpf": "63633061320",
+          "sexo": "1",
+          "mae": null,
+          "pai": null,
+          "responsavel_tipo": "",
+          "cpf_mae": null,
+          "cpf_pai": null,
+          "profissao_mae": null,
+          "profissao_pai": null,
+          "nascimento_mae": null,
+          "nascimento_pai": null,
+          "outros_nome": null,
+          "outros_cpf": null,
+          "outros_profissao": null,
+          "outros_nascimento": null,
+          "celular": "",
+          "email": "",
+          "fone_comercial": "",
+          "cor": "",
+          "nacionalidade": "",
+          "codigo_naturalidade": "",
+          "codigo_estado": "",
+          "cid": "",
+          "tgd": "0",
+          "althab": "0",
+          "codigo_inep": "",
+          "inep_escola": "21008485",
+          "descricao_transtorno": "Nenhum",
+          "raca": "Não declarada"
+        },
+        {
           "nome": "PEDRO VASCONCELOS FERREIRA",
           "nome_normalizado": "PEDRO VASCONCELOS FERREIRA",
           "data_nascimento": "2013-12-05",
@@ -10058,5 +10092,5 @@
       ]
     }
   ],
-  "total_alunos": 294
+  "total_alunos": 295
 }

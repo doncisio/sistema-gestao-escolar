@@ -2,14 +2,14 @@
 RELATÓRIO DE COMPARAÇÃO: SISTEMA LOCAL vs GEDUC
 ================================================================================
 
-Total de alunos no Sistema Local: 249
-Total de alunos no GEDUC: 285
-Alunos em ambos os sistemas: 249
+Total de alunos no Sistema Local: 255
+Total de alunos no GEDUC: 295
+Alunos em ambos os sistemas: 255
 Apenas no Sistema Local: 0
-Apenas no GEDUC (novos): 36
+Apenas no GEDUC (novos): 40
 
 ================================================================================
-ALUNOS EM AMBOS OS SISTEMAS (249)
+ALUNOS EM AMBOS OS SISTEMAS (255)
 ================================================================================
 
 ✅ Adriann Carlos da Silva Castro
@@ -131,6 +131,12 @@ ALUNOS EM AMBOS OS SISTEMAS (249)
    GEDUC:  Turma 
    Situação: Ativo
 
+✅ Aryella Lourenco Silva
+   Local:  1º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: CID: F91.3
+
 ✅ Assis Reis Gomes Júnior
    Local:  7º Ano - A (VESP)
    GEDUC:  Turma 
@@ -139,11 +145,6 @@ ALUNOS EM AMBOS OS SISTEMAS (249)
 
 ✅ Aylla Sophia Lisboa Silva
    Local:  3º Ano -  (MAT)
-   GEDUC:  Turma 
-   Situação: Ativo
-
-✅ Aysha Bianca Silva da Cruz
-   Local:  7º Ano - A (VESP)
    GEDUC:  Turma 
    Situação: Ativo
 
@@ -157,6 +158,11 @@ ALUNOS EM AMBOS OS SISTEMAS (249)
    GEDUC:  Turma 
    Situação: Ativo
    Transtorno: TEA, TDAH, TOD
+
+✅ Benjamin Borges Martins
+   Local:  1º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
 
 ✅ Brayan Amorim Viana dos Santos
    Local:  9º Ano -  (VESP)
@@ -410,6 +416,11 @@ ALUNOS EM AMBOS OS SISTEMAS (249)
    GEDUC:  Turma 
    Situação: Ativo
 
+✅ Fernando Gabriel Sousa da Silva
+   Local:  1º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
 ✅ Francisco Henrique Sena Brito
    Local:  8º Ano -  (VESP)
    GEDUC:  Turma 
@@ -521,6 +532,11 @@ ALUNOS EM AMBOS OS SISTEMAS (249)
    Situação: Ativo
    Transtorno: TEA
 
+✅ Igor Benjamin Ribeiro de Oliveira
+   Local:  1º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
 ✅ Ingrid Laurrany do Nascimento
    Local:  8º Ano -  (VESP)
    GEDUC:  Turma 
@@ -576,6 +592,17 @@ ALUNOS EM AMBOS OS SISTEMAS (249)
    Local:  6º Ano -  (VESP)
    GEDUC:  Turma 
    Situação: Ativo
+
+✅ Joao Miguel da Conceicao
+   Local:  1º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Joao Miguel dos Santos Vieira
+   Local:  1º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: CID: F90.0
 
 ✅ João Miguel Luna Neves
    Local:  8º Ano -  (VESP)
@@ -897,6 +924,17 @@ ALUNOS EM AMBOS OS SISTEMAS (249)
    GEDUC:  Turma 
    Situação: Ativo
 
+✅ Maria Helena Veracy Bispo Oliveira
+   Local:  1º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+
+✅ Maria Isabelly Ferreira Sena
+   Local:  1º Ano -  (MAT)
+   GEDUC:  Turma 
+   Situação: Ativo
+   Transtorno: TEA - CID: F84.0
+
 ✅ Maria Isabelly Muniz Neves
    Local:  6º Ano -  (VESP)
    GEDUC:  Turma 
@@ -1143,11 +1181,6 @@ ALUNOS EM AMBOS OS SISTEMAS (249)
    GEDUC:  Turma 
    Situação: Ativo
 
-✅ Ruan Carlos Costa Silva
-   Local:  7º Ano - B (VESP)
-   GEDUC:  Turma 
-   Situação: Ativo
-
 ✅ Samara Vitoria Moreira Marques
    Local:  9º Ano -  (VESP)
    GEDUC:  Turma 
@@ -1284,8 +1317,15 @@ ALUNOS EM AMBOS OS SISTEMAS (249)
    Situação: Ativo
 
 ================================================================================
-APENAS NO GEDUC - NOVOS PARA IMPORTAR (36)
+APENAS NO GEDUC - NOVOS PARA IMPORTAR (40)
 ================================================================================
+
+🆕 AIMEE CASTRO SOARES
+   Turma GEDUC:  (ID: 1538)
+   Nascimento: 2014-02-03
+   Mãe: RAQUEL CASTRO CASTELO BRANCO
+   Pai: FERDINAN LUZ SOARES
+   CPF: 61800119313
 
 🆕 ANA BEATRIZ MARQUES SOARES
    Turma GEDUC:  (ID: 1538)
@@ -1297,7 +1337,7 @@ APENAS NO GEDUC - NOVOS PARA IMPORTAR (36)
 🆕 ANA CLARA SANTOS SILVA 
    Turma GEDUC:  (ID: 1535)
    Nascimento: 2014-11-24
-   Mãe: ETIANE BRITO SILVA
+   Mãe: ETIANE BRITO SANTOS
    Pai: DIEGO REIS SILVA 
    CPF: 63573624332
 
@@ -1322,20 +1362,12 @@ APENAS NO GEDUC - NOVOS PARA IMPORTAR (36)
    Pai: PAULO ALVES SIMPLICIO
    CPF: 08634651371
 
-🆕 ARYELLA LOURENCO SILVA
-   Turma GEDUC:  (ID: 1525)
-   Nascimento: 2019-04-10
-   Mãe: ANA CAROLINA DE SOUSA LOURENCO
-   Pai: WANDERSON ALLAN CANTANHEDE SILVA
-   CPF: 10472319302
-   Transtorno: CID: F91.3
-
-🆕 BENJAMIN BORGES MARTINS
-   Turma GEDUC:  (ID: 1525)
-   Nascimento: 2020-02-24
-   Mãe: BRUNA SILVA BORGES 
-   Pai: RICHARDSON REIS MARTINS
-   CPF: 11177170388
+🆕 ANA SOPHIA PORTO FERREIRA
+   Turma GEDUC:  (ID: 1535)
+   Nascimento: 2013-05-09
+   Mãe: LILIANE DA SILVA PORTO
+   Pai: JOELSON FERREIRA FILHO
+   CPF: 62322723312
 
 🆕 BRUNA RAYANE FRAZAO ARAUJO
    Turma GEDUC:  (ID: 1531)
@@ -1358,6 +1390,13 @@ APENAS NO GEDUC - NOVOS PARA IMPORTAR (36)
    Pai: None
    CPF: 62542724318
 
+🆕 DIOGO SANTOS SILVA
+   Turma GEDUC:  (ID: 1538)
+   Nascimento: 2013-11-11
+   Mãe: ETIANE BRITO SANTOS
+   Pai: DIEGO REIS SILVA
+   CPF: 63573622399
+
 🆕 ENZO DE SOUZA FURTADO
    Turma GEDUC:  (ID: 1529)
    Nascimento: 2017-02-23
@@ -1371,13 +1410,6 @@ APENAS NO GEDUC - NOVOS PARA IMPORTAR (36)
    Mãe: ARLETE BEZERRA DE JESUS 
    Pai: None
    CPF: 10433701374
-
-🆕 FERNANDO GABRIEL SOUSA DA SILVA
-   Turma GEDUC:  (ID: 1525)
-   Nascimento: 2019-11-12
-   Mãe: DELCIMAR MESQUITA DE SOUSA
-   Pai: GABRIEL VICTOR SÁ DA SILVA
-   CPF: 10894441337
 
 🆕 GABRIELLY SILVA DO NASCIMENTO
    Turma GEDUC:  (ID: 1527)
@@ -1408,12 +1440,19 @@ APENAS NO GEDUC - NOVOS PARA IMPORTAR (36)
    Pai: HEVYLLON HENRIQUE DUTRA SERRA 
    CPF: 08448066332
 
-🆕 IGOR BENJAMIN RIBEIRO DE OLIVEIRA
-   Turma GEDUC:  (ID: 1525)
-   Nascimento: 2019-06-28
-   Mãe: DAISE DINIZ RIBEIRO
-   Pai: JOSE ROBERTO SOARES DE OLIVEIRA
-   CPF: 11454062380
+🆕 IARA CRISTINE LIMA PEREIRA
+   Turma GEDUC:  (ID: 1531)
+   Nascimento: 2012-10-03
+   Mãe: CHRISTIANE DOS SANTOS LIMA
+   Pai: DAVID WILSON NUNES PEREIRA
+   CPF: 62039515364
+
+🆕 IGOR SERRA DOS SANTOS
+   Turma GEDUC:  (ID: 1537)
+   Nascimento: 2013-11-15
+   Mãe: None
+   Pai: None
+   CPF: 63101694329
 
 🆕 ISADORA PEREIRA MOTA
    Turma GEDUC:  (ID: 1529)
@@ -1429,20 +1468,26 @@ APENAS NO GEDUC - NOVOS PARA IMPORTAR (36)
    Pai: WENER SILVA BARROS
    CPF: 62892238366
 
-🆕 JOAO MIGUEL DA CONCEICAO
-   Turma GEDUC:  (ID: 1525)
-   Nascimento: 2020-01-14
-   Mãe: MARIA ANTONIA DA CONCEICAO
-   Pai: None
-   CPF: 08971149221
+🆕 JOHN HENRIQUE DE JESUS ALVES
+   Turma GEDUC:  (ID: 1529)
+   Nascimento: 2016-04-26
+   Mãe: ROSANA DE JESUS ALVES 
+   Pai: JOAO HENRIQUE DA SILVA ALVES 
+   CPF: 63278947398
 
-🆕 JOAO MIGUEL DOS SANTOS VIEIRA
+🆕 JUAN DE JESUS ALVES 
    Turma GEDUC:  (ID: 1525)
-   Nascimento: 2019-06-17
-   Mãe: FABRICIA FERREIRA DOS SANTOS
-   Pai: WILLYAN DOS SANTOS VIEIRA
-   CPF: 63690890365
-   Transtorno: CID: F90.0
+   Nascimento: 2019-09-07
+   Mãe: ROSANA DE JESUS ALVES
+   Pai: JOAO HENRIQUE DA SILVA ALVES
+   CPF: 63604837340
+
+🆕 KAUA SAMUEL FERREIRA PINTO
+   Turma GEDUC:  (ID: 1538)
+   Nascimento: 2013-10-18
+   Mãe: None
+   Pai: None
+   CPF: 63267262399
 
 🆕 KAUAN ARTHUR DOS SANTOS PORTO
    Turma GEDUC:  (ID: 1535)
@@ -1464,21 +1509,6 @@ APENAS NO GEDUC - NOVOS PARA IMPORTAR (36)
    Mãe: ELIELMA SANTOS DA SILVA
    Pai: None
    CPF: 
-
-🆕 MARIA HELENA VERACY BISPO OLIVEIRA
-   Turma GEDUC:  (ID: 1525)
-   Nascimento: 2019-07-11
-   Mãe: FABIOLA DOS SANTOS OLIVEIRA
-   Pai: DANILO BISPO SANTOS
-   CPF: 11401215530
-
-🆕 MARIA ISABELLY FERREIRA SENA
-   Turma GEDUC:  (ID: 1525)
-   Nascimento: 2020-02-21
-   Mãe: GUILHERMILCIA RAPOSO FERREIRA
-   Pai: JOSÉ ARNALDO SOUSA SENA
-   CPF: 11183856326
-   Transtorno: TEA - CID: F84.0
 
 🆕 MARIA JULIA BATISTA DO NASCIMENTO
    Turma GEDUC:  (ID: 1525)
@@ -1509,6 +1539,13 @@ APENAS NO GEDUC - NOVOS PARA IMPORTAR (36)
    CPF: 10520197305
    Transtorno: TEA - CID: F84.0
 
+🆕 PEDRO GABRIEL RODRIGUES DE SOUSA
+   Turma GEDUC:  (ID: 1537)
+   Nascimento: 2013-07-30
+   Mãe: None
+   Pai: None
+   CPF: 63633061320
+
 🆕 PIETRA BRANDAO NASCIMENTO
    Turma GEDUC:  (ID: 1527)
    Nascimento: 2019-04-04
@@ -1536,6 +1573,27 @@ APENAS NO GEDUC - NOVOS PARA IMPORTAR (36)
    Mãe: ANA DALVA ALMEIDA LOPES
    Pai: None
    CPF: 63190909369
+
+🆕 SARAH VITORIA SANTOS DA COSTA 
+   Turma GEDUC:  (ID: 1527)
+   Nascimento: 2018-06-15
+   Mãe: ANA CRIS DOS SANTOS CARVALHO
+   Pai: JUCIGLEITON MACEDO DA COSTA
+   CPF: 63568538326
+
+🆕 VALENTINA DE SOUSA FRAZAO
+   Turma GEDUC:  (ID: 1530)
+   Nascimento: 2015-12-05
+   Mãe: None
+   Pai: None
+   CPF: 62340373301
+
+🆕 VITOR GABRIEL DA SILVA VIEIRA
+   Turma GEDUC:  (ID: 1535)
+   Nascimento: 2015-03-25
+   Mãe: GLENDA LARISSA DA SILVA 
+   Pai: MAURICIO ROGERIO DA SILVA VIEIRA 
+   CPF: 62645292305
 
 🆕 YASMIN YSABELLY LOPES MONTEIRO
    Turma GEDUC:  (ID: 1537)

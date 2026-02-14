@@ -221,7 +221,7 @@ def add_turma_table(elements, turma_data, nome_serie, nome_turma, figura_inferio
 def add_turma_table_anos_finais(elements, turma_data, nome_serie, nome_turma, figura_inferior, cabecalho, disciplinas):
     """
     Adiciona tabela com livros faltantes para uma turma dos anos finais (6º ao 9º ano).
-    Layout em paisagem com mais espaço para as disciplinas separadas.
+    Layout em retrato, padronizado com os anos iniciais.
     
     Args:
         elements: Lista de elementos do PDF
@@ -232,7 +232,7 @@ def add_turma_table_anos_finais(elements, turma_data, nome_serie, nome_turma, fi
         cabecalho: Lista com linhas do cabeçalho
         disciplinas: Lista de disciplinas a exibir
     """
-    # Cabeçalho com logo (ajustado para paisagem)
+    # Cabeçalho com logo
     if figura_inferior and os.path.exists(figura_inferior):
         img_elem = Image(figura_inferior, width=3 * inch, height=0.7 * inch)
     else:
@@ -242,7 +242,7 @@ def add_turma_table_anos_finais(elements, turma_data, nome_serie, nome_turma, fi
         [img_elem],
         [Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1))]
     ]
-    table = Table(data, colWidths=[6 * inch])
+    table = Table(data, colWidths=[4.5 * inch])
     table_style = TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER')
@@ -253,8 +253,8 @@ def add_turma_table_anos_finais(elements, turma_data, nome_serie, nome_turma, fi
 
     # Título da turma
     titulo = f"<b>{nome_serie} - Turma {nome_turma}</b>"
-    elements.append(Paragraph(titulo, ParagraphStyle(name='Turma', fontSize=16, alignment=1, leading=20)))
-    elements.append(Spacer(1, 0.2 * inch))
+    elements.append(Paragraph(titulo, ParagraphStyle(name='Turma', fontSize=14, alignment=1, leading=18)))
+    elements.append(Spacer(1, 0.15 * inch))
 
     # Criar tabela de livros faltantes (formato paisagem com mais colunas)
     # Cabeçalho da tabela
@@ -290,11 +290,11 @@ def add_turma_table_anos_finais(elements, turma_data, nome_serie, nome_turma, fi
             colecao or '-'
         ])
     
-    # Linha de total
+    # Linha de total (span nas colunas de editora/coleção)
     table_data.append(['TOTAL', str(total_faltantes), '', ''])
     
-    # Criar tabela com colunas ajustadas para A4 paisagem (mais largura disponível)
-    table = Table(table_data, colWidths=[2 * inch, 1.5 * inch, 2.5 * inch, 3.5 * inch])
+    # Criar tabela com colunas ajustadas para A4 retrato
+    table = Table(table_data, colWidths=[1.5 * inch, 1.5 * inch, 1 * inch, 2.5 * inch])
     
     # Estilo da tabela
     table_style = TableStyle([
@@ -303,7 +303,7 @@ def add_turma_table_anos_finais(elements, turma_data, nome_serie, nome_turma, fi
         ('TEXTCOLOR', (0, 0), (-1, 0), white),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('FONTSIZE', (0, 0), (-1, 0), 11),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
         
         # Corpo da tabela
@@ -314,15 +314,13 @@ def add_turma_table_anos_finais(elements, turma_data, nome_serie, nome_turma, fi
         ('ALIGN', (3, 1), (3, -1), 'LEFT'),       # Coleção à esquerda
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('FONTNAME', (0, 1), (-1, -2), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -2), 10),
+        ('FONTSIZE', (0, 1), (-1, -2), 9),
         ('GRID', (0, 0), (-1, -2), 1, black),
-        ('LEFTPADDING', (0, 1), (-1, -2), 8),
-        ('RIGHTPADDING', (0, 1), (-1, -2), 8),
         
         # Linha de total
         ('BACKGROUND', (0, -1), (-1, -1), lightgrey),
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, -1), (-1, -1), 12),
+        ('FONTSIZE', (0, -1), (-1, -1), 11),
         ('ALIGN', (0, -1), (0, -1), 'RIGHT'),
         ('ALIGN', (1, -1), (1, -1), 'CENTER'),
         ('GRID', (0, -1), (-1, -1), 2, black),
@@ -334,14 +332,14 @@ def add_turma_table_anos_finais(elements, turma_data, nome_serie, nome_turma, fi
     
     # Espaço para observações
     elements.append(Spacer(1, 0.3 * inch))
-    obs_style = ParagraphStyle(name='Obs', fontSize=10, alignment=0, leading=16)
+    obs_style = ParagraphStyle(name='Obs', fontSize=9, alignment=0, leading=14)
     elements.append(Paragraph("<b>Observações:</b>", obs_style))
-    elements.append(Spacer(1, 0.15 * inch))
+    elements.append(Spacer(1, 0.1 * inch))
     
-    # Linhas para observações manuscritas (ajustado para A4 paisagem)
-    for i in range(4):
-        elements.append(Paragraph("_" * 120, obs_style))
-        elements.append(Spacer(1, 0.12 * inch))
+    # Linhas para observações manuscritas (ajustado para A4 retrato)
+    for i in range(3):
+        elements.append(Paragraph("_" * 85, obs_style))
+        elements.append(Spacer(1, 0.1 * inch))
     
     elements.append(PageBreak())
 
@@ -551,13 +549,13 @@ def _gerar_pdf_anos_iniciais(cursor, ano_letivo_id, series, disciplinas, cabecal
 
 def _gerar_pdf_anos_finais(cursor, ano_letivo_id, series, disciplinas, cabecalho, figura_superior, figura_inferior, ano_letivo):
     """
-    Gera PDF para anos finais (6º ao 9º ano) em formato paisagem.
+    Gera PDF para anos finais (6º ao 9º ano) em formato retrato.
     
     Returns:
         bool: True se gerou com sucesso, False se não havia dados
     """
-    # Criar documento PDF (paisagem)
-    doc, buffer = create_pdf_buffer_landscape()
+    # Criar documento PDF (retrato)
+    doc, buffer = create_pdf_buffer()
     elements = []
     
     # Adicionar capa
