@@ -1,0 +1,84 @@
+"""
+Excluir duplicados do 4º ano
+IDs a excluir: 2896, 2897, 2898, 2899
+"""
+from db.connection import conectar_bd
+
+# IDs dos duplicados (sem matrícula)
+duplicados = [
+    {'id': 2896, 'nome': 'Breno Arthur Soares Marques'},
+    {'id': 2897, 'nome': 'Gleicy Charlyene Franca Santos'},
+    {'id': 2898, 'nome': 'Pedro Lucas Braga Ferreira'},
+    {'id': 2899, 'nome': 'Sara Emanuelle Carvalho Lisboa'}
+]
+
+print("="*80)
+print("EXCLUSÃO DE DUPLICADOS DO 4º ANO")
+print("="*80)
+
+conexao = conectar_bd()
+cursor = conexao.cursor(dictionary=True, buffered=True)
+
+try:
+    for dup in duplicados:
+        aluno_id = dup['id']
+        nome = dup['nome']
+        
+        print(f"\n📌 Excluindo: {nome} (ID: {aluno_id})")
+        
+        # Verificar se tem matrículas
+        cursor.execute("""
+            SELECT COUNT(*) as total
+            FROM Matriculas
+            WHERE aluno_id = %s
+        """, (aluno_id,))
+        
+        result = cursor.fetchone()
+        if result['total'] > 0:
+            print(f"   ⚠️ ATENÇÃO: Este aluno tem {result['total']} matrícula(s)!")
+            print(f"   ❌ NÃO SERÁ EXCLUÍDO por segurança")
+            continue
+        
+        # Excluir vínculos com responsáveis
+        cursor.execute("""
+            DELETE FROM ResponsaveisAlunos
+            WHERE aluno_id = %s
+        """, (aluno_id,))
+        responsaveis = cursor.rowcount
+        
+        # Excluir aluno
+        cursor.execute("""
+            DELETE FROM Alunos
+            WHERE id = %s
+        """, (aluno_id,))
+        
+        print(f"   ✅ Excluído com sucesso!")
+        print(f"      - Vínculos com responsáveis: {responsaveis}")
+    
+    conexao.commit()
+    print("\n" + "="*80)
+    print("✅ EXCLUSÃO CONCLUÍDA COM SUCESSO!")
+    print("="*80)
+    
+except Exception as e:
+    print(f"\n❌ ERRO: {e}")
+    conexao.rollback()
+    
+finally:
+    cursor.close()
+    conexao.close()
+
+print("\n📊 Verificando resultado...")
+conexao = conectar_bd()
+cursor = conexao.cursor(dictionary=True, buffered=True)
+
+for dup in duplicados:
+    cursor.execute("SELECT COUNT(*) as total FROM Alunos WHERE id = %s", (dup['id'],))
+    result = cursor.fetchone()
+    if result['total'] == 0:
+        print(f"   ✓ ID {dup['id']} ({dup['nome']}): EXCLUÍDO")
+    else:
+        print(f"   ⚠️ ID {dup['id']} ({dup['nome']}): AINDA EXISTE")
+
+cursor.close()
+conexao.close()
