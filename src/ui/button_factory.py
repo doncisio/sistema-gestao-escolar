@@ -748,7 +748,74 @@ class ButtonFactory:
                 font=menu_font
             )
             
+            # Submenu: Termo Cuidar dos Olhos
+            termo_olhos_menu = Menu(servicos_menu, tearoff=0, font=menu_font)
+            
+            # Adicionar opção "Todas as Turmas"
+            termo_olhos_menu.add_command(
+                label="📄 Todas as Turmas",
+                command=self.callbacks.reports.termo_cuidar_olhos,
+                font=menu_font
+            )
+            termo_olhos_menu.add_separator()
+            
+            # Adicionar opções por turma dinamicamente
+            try:
+                from src.relatorios.geradores.termo_cuidar_olhos import obter_turmas_ativas
+                turmas = obter_turmas_ativas()
+                
+                if turmas:
+                    for turma in turmas:
+                        turma_id = turma['turma_id']
+                        serie = turma['nome_serie']
+                        nome_turma = turma['nome_turma']
+                        turno = turma['turno']
+                        total = turma['total_alunos']
+                        
+                        label_turma = f"{serie} - Turma {nome_turma} ({turno}) - {total} alunos"
+                        
+                        # Criar lambda com default arguments para capturar valores
+                        termo_olhos_menu.add_command(
+                            label=label_turma,
+                            command=lambda tid=turma_id, nome=label_turma: 
+                                self.callbacks.reports.termo_cuidar_olhos_turma(tid, nome),
+                            font=menu_font
+                        )
+                else:
+                    termo_olhos_menu.add_command(
+                        label="(Nenhuma turma ativa encontrada)",
+                        state='disabled',
+                        font=menu_font
+                    )
+            except Exception as e:
+                logger.warning(f"Erro ao carregar turmas para menu: {e}")
+                termo_olhos_menu.add_command(
+                    label="(Erro ao carregar turmas)",
+                    state='disabled',
+                    font=menu_font
+                )
+            
+            # Adicionar separador e opções para funcionários
+            termo_olhos_menu.add_separator()
+            termo_olhos_menu.add_command(
+                label="📋 Professores",
+                command=self.callbacks.reports.termo_cuidar_olhos_professores,
+                font=menu_font
+            )
+            termo_olhos_menu.add_command(
+                label="📋 Demais Servidores",
+                command=self.callbacks.reports.termo_cuidar_olhos_servidores,
+                font=menu_font
+            )
+            
+            servicos_menu.add_cascade(
+                label="Termo Cuidar dos Olhos",
+                menu=termo_olhos_menu,
+                font=menu_font
+            )
+            
             # Importar Notas
+            servicos_menu.add_separator()
             servicos_menu.add_command(
                 label="Importar Notas do GEDUC (HTML → Excel)",
                 command=lambda: self._abrir_importacao_notas_html(),

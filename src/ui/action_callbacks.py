@@ -177,6 +177,42 @@ class ReportCallbacks:
             logger.exception(f"Erro ao gerar relatório: {e}")
             messagebox.showerror("Erro", f"Não foi possível gerar o relatório: {e}")
     
+    def termo_cuidar_olhos(self):
+        """Gera termo de autorização para o Programa Cuidar dos Olhos (todas as turmas)."""
+        try:
+            from src.relatorios.geradores.termo_cuidar_olhos import gerar_termo_cuidar_olhos
+            gerar_termo_cuidar_olhos()
+        except Exception as e:
+            logger.exception(f"Erro ao gerar termo: {e}")
+            messagebox.showerror("Erro", f"Não foi possível gerar o termo: {e}")
+    
+    def termo_cuidar_olhos_turma(self, turma_id, nome_turma):
+        """Gera termo de autorização para o Programa Cuidar dos Olhos de uma turma específica."""
+        try:
+            from src.relatorios.geradores.termo_cuidar_olhos import gerar_termo_turma_especifica
+            gerar_termo_turma_especifica(turma_id, nome_turma)
+        except Exception as e:
+            logger.exception(f"Erro ao gerar termo da turma: {e}")
+            messagebox.showerror("Erro", f"Não foi possível gerar o termo: {e}")
+    
+    def termo_cuidar_olhos_professores(self):
+        """Gera termo de autorização para o Programa Cuidar dos Olhos (professores)."""
+        try:
+            from src.relatorios.geradores.termo_cuidar_olhos import gerar_termo_professores
+            gerar_termo_professores()
+        except Exception as e:
+            logger.exception(f"Erro ao gerar termo de professores: {e}")
+            messagebox.showerror("Erro", f"Não foi possível gerar o termo: {e}")
+    
+    def termo_cuidar_olhos_servidores(self):
+        """Gera termo de autorização para o Programa Cuidar dos Olhos (servidores)."""
+        try:
+            from src.relatorios.geradores.termo_cuidar_olhos import gerar_termo_servidores
+            gerar_termo_servidores()
+        except Exception as e:
+            logger.exception(f"Erro ao gerar termo de servidores: {e}")
+            messagebox.showerror("Erro", f"Não foi possível gerar o termo: {e}")
+    
     def relatorio_tabela_docentes(self):
         """Gera tabela de docentes."""
         try:
