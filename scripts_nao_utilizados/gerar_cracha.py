@@ -1,7 +1,9 @@
 from src.core.conexao import conectar_bd
+from src.core.config import ANO_LETIVO_ATUAL, PROJECT_ROOT
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from PyPDF2 import PdfReader, PdfWriter, PdfMerger
+from pathlib import Path
 import io
 import os
 from datetime import datetime
@@ -143,11 +145,11 @@ def obter_todos_alunos():
             JOIN 
                 Turmas t ON m.turma_id = t.id
             JOIN 
-                Serie s ON t.serie_id = s.id
+                series s ON t.serie_id = s.id
             LEFT JOIN
                 Funcionarios f ON f.turma = t.id AND f.cargo = 'Professor@'
             WHERE 
-                m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = 2025)
+                m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
             AND 
                 a.escola_id = 60
             AND
@@ -158,8 +160,10 @@ def obter_todos_alunos():
             ORDER BY
                 s.nome, t.nome  -- Ordena por série e turma
         """
-        cursor.execute(query_alunos)
+        cursor.execute(query_alunos, (ANO_LETIVO_ATUAL,))
         alunos = cursor.fetchall()
+        print(f"Debug: Buscando alunos para ano letivo {ANO_LETIVO_ATUAL}")
+        print(f"Debug: {len(alunos)} alunos encontrados")
         return alunos
     finally:
         cursor.close()
@@ -179,11 +183,16 @@ def gerar_crachas_para_todos_os_alunos():
             grupos[serie_turma] = []
         grupos[serie_turma].append(aluno)
 
-    # Caminho para o PDF base
-    diretorio_atual = os.getcwd()
-    caminho_cracha = os.path.join(diretorio_atual, "Cracha_Anos_Iniciais")
-    os.makedirs(caminho_cracha, exist_ok=True)
-    diploma_original = os.path.join(diretorio_atual, "Modelos", "MODELO CRACHA.pdf")
+    # Caminho para o PDF base e saída
+    caminho_template = PROJECT_ROOT / 'assets' / 'templates' / 'MODELO CRACHA.pdf'
+    caminho_cracha = PROJECT_ROOT / 'assets' / 'crachas'
+    caminho_cracha.mkdir(parents=True, exist_ok=True)
+    diploma_original = str(caminho_template)
+    
+    # Verificar se o template existe
+    if not caminho_template.exists():
+        print(f"ERRO: Template não encontrado em {caminho_template}")
+        return
 
     # Gerar crachás para cada grupo
     for serie_turma, alunos_grupo in grupos.items():
@@ -204,7 +213,7 @@ def gerar_crachas_para_todos_os_alunos():
                     writer.add_page(page)
 
             # Define o nome do arquivo
-            nome_arquivo_unico = os.path.join(caminho_cracha, f"Crachas_{nome_serie}_{nome_turma}_unico.pdf")
+            nome_arquivo_unico = caminho_cracha / f"Crachas_{nome_serie}_{nome_turma}_unico.pdf"
 
             # Escreve todas as páginas no arquivo
             with open(nome_arquivo_unico, "wb") as output_pdf:
@@ -214,7 +223,175 @@ def gerar_crachas_para_todos_os_alunos():
         else:
             print(f"Nenhum crachá gerado para {nome_serie} - Turma {nome_turma}.")
 
+
+def obter_alunos_para_selecao():
+    """Obtém lista de alunos ativos para seleção em interface.
+    
+    Returns:
+        list: Lista de dicionários com id, nome, série e turma dos alunos
+    """
+    conn = conectar_bd()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        query = """
+            SELECT 
+                a.id,
+                a.nome,
+                s.nome AS serie,
+                t.nome AS turma,
+                t.turno
+            FROM 
+                Alunos a
+            JOIN 
+                Matriculas m ON a.id = m.aluno_id
+            JOIN 
+                Turmas t ON m.turma_id = t.id
+            JOIN 
+                series s ON t.serie_id = s.id
+            WHERE 
+                m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
+            AND 
+                a.escola_id = 60
+            AND
+                m.status = 'Ativo'
+            ORDER BY
+                a.nome
+        """
+        cursor.execute(query, (ANO_LETIVO_ATUAL,))
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def obter_responsaveis_do_aluno(aluno_id):
+    """Obtém lista de responsáveis de um aluno específico.
+    
+    Args:
+        aluno_id: ID do aluno
+        
+    Returns:
+        list: Lista de dicionários com id, nome e telefone dos responsáveis
+    """
+    conn = conectar_bd()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        query = """
+            SELECT 
+                r.id,
+                r.nome,
+                r.telefone,
+                r.grau_parentesco
+            FROM 
+                Responsaveis r
+            JOIN 
+                ResponsaveisAlunos ra ON r.id = ra.responsavel_id  
+            WHERE 
+                ra.aluno_id = %s
+            ORDER BY
+                r.nome
+        """
+        cursor.execute(query, (aluno_id,))
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def gerar_cracha_individual(aluno_id, responsavel_id):
+    """Gera um único crachá para um aluno e responsável específicos.
+    
+    Args:
+        aluno_id: ID do aluno
+        responsavel_id: ID do responsável
+        
+    Returns:
+        str: Caminho do arquivo PDF gerado, ou None se houver erro
+    """
+    conn = conectar_bd()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # Buscar dados do aluno
+        query_aluno = """
+            SELECT 
+                a.id,
+                a.nome AS 'NOME DO ALUNO',
+                s.nome AS 'NOME_SERIE',
+                t.nome AS 'NOME_TURMA',
+                f.nome AS 'NOME_PROFESSOR'
+            FROM 
+                Alunos a
+            JOIN 
+                Matriculas m ON a.id = m.aluno_id
+            JOIN 
+                Turmas t ON m.turma_id = t.id
+            JOIN 
+                series s ON t.serie_id = s.id
+            LEFT JOIN
+                Funcionarios f ON f.turma = t.id AND f.cargo = 'Professor@'
+            WHERE 
+                a.id = %s
+                AND m.ano_letivo_id = (SELECT id FROM AnosLetivos WHERE ano_letivo = %s)
+                AND m.status = 'Ativo'
+            LIMIT 1
+        """
+        cursor.execute(query_aluno, (aluno_id, ANO_LETIVO_ATUAL))
+        aluno = cursor.fetchone()
+        
+        if not aluno:
+            print(f"Aluno {aluno_id} não encontrado ou não está ativo.")
+            return None
+        
+        # Buscar dados do responsável
+        query_resp = """
+            SELECT 
+                r.nome AS responsavel,
+                r.telefone AS telefone
+            FROM 
+                Responsaveis r
+            WHERE 
+                r.id = %s
+        """
+        cursor.execute(query_resp, (responsavel_id,))
+        responsavel = cursor.fetchone()
+        
+        if not responsavel:
+            print(f"Responsável {responsavel_id} não encontrado.")
+            return None
+        
+        # Caminhos
+        caminho_template = PROJECT_ROOT / 'assets' / 'templates' / 'MODELO CRACHA.pdf'
+        caminho_saida = PROJECT_ROOT / 'assets' / 'crachas'
+        caminho_saida.mkdir(parents=True, exist_ok=True)
+        
+        # Verificar template
+        if not caminho_template.exists():
+            print(f"ERRO: Template não encontrado em {caminho_template}")
+            return None
+        
+        # Gerar o crachá
+        cracha_stream = criar_cracha(aluno, responsavel, str(caminho_template))
+        
+        # Sanitizar nome do arquivo
+        nome_aluno_limpo = aluno['NOME DO ALUNO'].replace(' ', '_').replace('/', '-')
+        nome_resp_limpo = responsavel['responsavel'].replace(' ', '_').replace('/', '-')
+        nome_arquivo = f"Cracha_{nome_aluno_limpo}_{nome_resp_limpo}.pdf"
+        caminho_completo = caminho_saida / nome_arquivo
+        
+        # Salvar o PDF
+        with open(caminho_completo, 'wb') as f:
+            f.write(cracha_stream.read())
+        
+        print(f"Crachá individual gerado: {caminho_completo}")
+        return str(caminho_completo)
+        
+    finally:
+        cursor.close()
+        conn.close()
+
+
 # Execução standalone (comentada para uso como módulo)
 if __name__ == "__main__":
     # Exemplo de uso: Gerar crachás para todos os alunos e criar um arquivo único por série e turma
     gerar_crachas_para_todos_os_alunos()
+

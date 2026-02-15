@@ -16,6 +16,7 @@ from src.core.conexao import conectar_bd
 from db.connection import get_connection, get_cursor
 from tkcalendar import DateEntry
 from typing import Any, cast
+from src.utils.dates import aplicar_mascara_data
 
 # Constante útil para `sticky` em grids (N, S, E, W concatenados)
 NSEW = N + E + S + W
@@ -62,6 +63,19 @@ class InterfaceCadastroAluno:
         self.master.grid_rowconfigure(0, weight=0)  # Logo
         self.master.grid_rowconfigure(1, weight=0)  # Separador
         self.master.grid_rowconfigure(2, weight=0)  # Botões
+        self.master.grid_rowconfigure(3, weight=0)  # Separador
+        self.master.grid_rowconfigure(4, weight=1)  # Canvas com conteúdo (modificado)
+        self.master.grid_columnconfigure(0, weight=1)
+
+        # Não manter conexão persistente na instância; usar context managers quando necessário
+        self.conn = None
+        self.cursor = None
+
+        # Criar frames e componentes da interface
+        self.criar_frames()
+        self.criar_header()
+        self.criar_botoes()
+        self.criar_conteudo_principal()  # Novo método para todo o conteúdo
     
     def verifica_cpf_duplicado_aluno(self, cpf: str, aluno_id: int = None) -> bool:
         """
@@ -98,20 +112,6 @@ class InterfaceCadastroAluno:
         except Exception as e:
             logger.error(f"Erro ao verificar CPF duplicado: {e}")
             return False  # Em caso de erro, permite continuar
-        
-        self.master.grid_rowconfigure(3, weight=0)  # Separador
-        self.master.grid_rowconfigure(4, weight=1)  # Canvas com conteúdo (modificado)
-        self.master.grid_columnconfigure(0, weight=1)
-
-        # Não manter conexão persistente na instância; usar context managers quando necessário
-        self.conn = None
-        self.cursor = None
-
-        # Criar frames e componentes da interface
-        self.criar_frames()
-        self.criar_header()
-        self.criar_botoes()
-        self.criar_conteudo_principal()  # Novo método para todo o conteúdo
 
     def fechar_janela(self):
         # Confirmar com o usuário se deseja realmente fechar (apenas se nenhum aluno foi cadastrado)
@@ -307,6 +307,7 @@ class InterfaceCadastroAluno:
         Label(col1_frame, text="Data de Nascimento (DD/MM/AAAA)", **label_style).pack(anchor=W, pady=(5, 0))
         self.e_data_nascimento = Entry(col1_frame, **entry_style)
         self.e_data_nascimento.pack(fill=X, pady=(0, 10))
+        aplicar_mascara_data(self.e_data_nascimento)
         
         # Local de Nascimento
         Label(col1_frame, text="Local de Nascimento", **label_style).pack(anchor=W, pady=(5, 0))

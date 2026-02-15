@@ -69,7 +69,7 @@ def obter_dados_banco():
         JOIN 
             turmas t ON t.id = m.turma_id
         JOIN 
-            serie s ON s.id = t.serie_id
+            series s ON s.id = t.serie_id
         WHERE 
             m.ano_letivo_id = %s AND s.id = %s
         ORDER BY

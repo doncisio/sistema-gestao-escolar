@@ -2,8 +2,11 @@ import os
 import sys
 import importlib
 from typing import Optional, Any, cast, Tuple
+from pathlib import Path
 
 from src.core.config_logs import get_logger
+from src.core.config import PROJECT_ROOT
+
 logger = get_logger(__name__)
 
 
@@ -162,28 +165,8 @@ def gerar_crachas_para_todos_os_alunos() -> str:
     Levanta ImportError se o módulo não estiver disponível e propaga
     outras exceções para o chamador tratar (UI/worker).
     """
-    # Adicionar o diretório scripts_nao_utilizados ao path
-    scripts_dir = os.path.join(os.getcwd(), "scripts_nao_utilizados")
-    if scripts_dir not in sys.path:
-        sys.path.insert(0, scripts_dir)
-
-    try:
-        import gerar_cracha  # type: ignore
-    except ImportError:
-        logger.exception("Módulo gerar_cracha não disponível")
-        raise
-
-    # tentar recarregar o módulo quando possível, mas ignore falhas de reload
-    try:
-        importlib.reload(gerar_cracha)
-    except Exception:
-        pass
-
-    # Executa a função principal do gerador (pode demorar)
-    gerar_cracha.gerar_crachas_para_todos_os_alunos()
-
-    caminho = os.path.join(os.getcwd(), "Cracha_Anos_Iniciais")
-    return caminho
+    from src.services import cracha_service
+    return cracha_service.gerar_crachas_todos_alunos()
 
 
 def gerar_relatorio_avancado_com_assinatura(bimestre: str, nivel_ensino: str, ano_letivo: int,

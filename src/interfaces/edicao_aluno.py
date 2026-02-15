@@ -16,6 +16,7 @@ from src.core.conexao import conectar_bd
 from db.connection import get_cursor
 from tkcalendar import DateEntry
 from typing import Any, cast
+from src.utils.dates import aplicar_mascara_data
 
 # Constante útil para `sticky` em grids (N, S, E, W concatenados)
 NSEW = N + E + S + W
@@ -308,6 +309,7 @@ class InterfaceEdicaoAluno:
         Label(col1_frame, text="Data de Nascimento (DD/MM/AAAA)", **label_style).pack(anchor=W, pady=(5, 0))
         self.e_data_nascimento = Entry(col1_frame, **entry_style)
         self.e_data_nascimento.pack(fill=X, pady=(0, 10))
+        aplicar_mascara_data(self.e_data_nascimento)
         
         # Local de Nascimento
         Label(col1_frame, text="Local de Nascimento", **label_style).pack(anchor=W, pady=(5, 0))

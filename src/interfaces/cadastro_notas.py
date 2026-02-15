@@ -245,12 +245,6 @@ class InterfaceCadastroEdicaoNotas:
         self.janela.bind('<F5>', lambda e: self.carregar_notas_alunos())
     
     def criar_interface(self):
-        # Verificar se o ano letivo foi obtido com sucesso
-        if self.ano_letivo_atual is None:
-            messagebox.showerror("Erro", "Não foi possível obter o ano letivo atual. A interface será fechada.")
-            self.janela.destroy()
-            return
-        
         # Criar barra de menu no topo (estilo página principal)
         self.criar_barra_menu()
         

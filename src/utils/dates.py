@@ -80,3 +80,49 @@ def get_nome_mes(numero_mes: int, uppercase: bool = True) -> str:
     """
     nome = nome_mes_pt(numero_mes, capitalize=True)
     return nome.upper() if uppercase else nome
+
+
+def aplicar_mascara_data(entry_widget) -> None:
+    """
+    Aplica máscara de formatação automática DD/MM/AAAA a um Entry widget.
+    
+    Comportamento:
+    - Ao digitar 2 dígitos (DD), adiciona "/" automaticamente
+    - Ao digitar 4 dígitos (DD/MM), adiciona "/" automaticamente
+    - Filtra apenas números (ignora letras e caracteres especiais)
+    - Formato final: DD/MM/AAAA
+    
+    Args:
+        entry_widget: Widget Entry do tkinter
+    """
+    def formatar_data_input(event):
+        # Ignora teclas especiais de navegação
+        if event.keysym in ('BackSpace', 'Delete', 'Left', 'Right', 'Home', 'End', 'Tab', 'Return'):
+            return
+        
+        # Pega o conteúdo atual
+        conteudo = entry_widget.get()
+        
+        # Filtra apenas números
+        apenas_numeros = ''.join(c for c in conteudo if c.isdigit())
+        
+        # Limita a 8 dígitos (DDMMAAAA)
+        if len(apenas_numeros) > 8:
+            apenas_numeros = apenas_numeros[:8]
+        
+        # Formata com as barras
+        novo_conteudo = ''
+        for i, char in enumerate(apenas_numeros):
+            if i == 2 or i == 4:
+                novo_conteudo += '/'
+            novo_conteudo += char
+        
+        # Atualiza o campo se houver mudança
+        if novo_conteudo != conteudo:
+            entry_widget.delete(0, 'end')
+            entry_widget.insert(0, novo_conteudo)
+            # Posiciona o cursor no final
+            entry_widget.icursor('end')
+    
+    # Vincula o evento de tecla ao entry
+    entry_widget.bind('<KeyRelease>', formatar_data_input)

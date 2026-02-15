@@ -132,7 +132,7 @@ def obter_todos_alunos():
             JOIN 
                 Turmas t ON m.turma_id = t.id
             JOIN 
-                Serie s ON t.serie_id = s.id
+                series s ON t.serie_id = s.id
             LEFT JOIN
                 Funcionarios f ON f.turma = t.id AND f.cargo = 'Professor@'
             WHERE 

@@ -13,6 +13,7 @@ from src.core.conexao import conectar_bd
 from src.core.config import get_image_path
 from reportlab.lib.utils import ImageReader
 from typing import Any, cast
+from src.utils.dates import aplicar_mascara_data
 
 
 class InterfaceSolicitacaoProfessores:
@@ -155,6 +156,7 @@ class InterfaceSolicitacaoProfessores:
 
         row = 0
         e_data = tk.Entry(self.form_area, textvariable=self.data_solicitacao, width=20)
+        aplicar_mascara_data(e_data)
         self._linha_grid(row, 0, "Data da solicitação:", e_data)
         row += 1
         e_unidade = tk.Entry(self.form_area, textvariable=self.unidade_escolar)

@@ -8,6 +8,7 @@ from tkinter import Toplevel, Frame, Label, Entry, Button, StringVar, Canvas, Sc
 from tkinter import LEFT, RIGHT, BOTH, X, Y, VERTICAL, W, messagebox, ttk
 from typing import Any, Optional, cast, Dict, Callable
 from src.core.config_logs import get_logger
+from src.utils.dates import aplicar_mascara_data
 
 logger = get_logger(__name__)
 
@@ -185,13 +186,15 @@ class InterfaceMatriculaUnificada:
             ).pack(anchor=W, pady=(0, 5))
             
             self.data_matricula_var = StringVar()
-            Entry(
+            entry_data = Entry(
                 data_frame,
                 textvariable=self.data_matricula_var,
                 width=50,
                 font=("Arial", 10),
                 bg=self.colors.get('co0', '#F5F5F5')
-            ).pack(fill=X, pady=5)
+            )
+            entry_data.pack(fill=X, pady=5)
+            aplicar_mascara_data(entry_data)
             
             # === SEÇÃO: STATUS ===
             status_frame = Frame(frame_principal, bg=self.colors.get('co1', '#FFFFFF'))

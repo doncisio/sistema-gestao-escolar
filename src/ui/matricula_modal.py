@@ -7,6 +7,7 @@ from tkinter import Toplevel, Label, Frame, Button, messagebox, StringVar
 from tkinter import ttk
 from typing import Optional, Callable, Dict, List
 import logging
+from src.utils.dates import aplicar_mascara_data
 
 logger = logging.getLogger(__name__)
 
@@ -183,6 +184,7 @@ class MatriculaModal:
                 font=("Arial", 10)
             )
             entry_data_matricula.pack(fill=X, pady=(0, 5))
+            aplicar_mascara_data(entry_data_matricula)
             
             # Status da matrícula
             status_frame = Frame(frame_matricula, bg=self.colors.get('co1', '#003A70'))

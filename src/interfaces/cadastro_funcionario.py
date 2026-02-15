@@ -16,6 +16,7 @@ from src.core.conexao import conectar_bd
 from db.connection import get_cursor
 from tkcalendar import DateEntry
 from typing import Any, cast
+from src.utils.dates import aplicar_mascara_data
 
 # Constante útil para `sticky` em grids (N, S, E, W concatenados)
 NSEW = N + E + S + W
@@ -334,30 +335,16 @@ class InterfaceCadastroFuncionario:
         self.e_matricula.pack(fill=X, pady=(0, 10))
         
         # Data de Admissão
-        Label(col1_frame, text="Data de Admissão", **label_style).pack(anchor=W, pady=(5, 0))
-        self.c_data_admissao = DateEntry(
-            col1_frame,
-            width=28,
-            background=self.co5,
-            foreground='white',
-            borderwidth=2,
-            date_pattern='yyyy-mm-dd',
-            font=('Arial', 10)
-        )
-        self.c_data_admissao.pack(anchor=W, pady=(0, 10))
+        Label(col1_frame, text="Data de Admissão (DD/MM/AAAA)", **label_style).pack(anchor=W, pady=(5, 0))
+        self.e_data_admissao = Entry(col1_frame, **entry_style)
+        self.e_data_admissao.pack(fill=X, pady=(0, 10))
+        aplicar_mascara_data(self.e_data_admissao)
         
         # Data de Nascimento
-        Label(col1_frame, text="Data de Nascimento", **label_style).pack(anchor=W, pady=(5, 0))
-        self.c_data_nascimento = DateEntry(
-            col1_frame,
-            width=28,
-            background=self.co5,
-            foreground='white',
-            borderwidth=2,
-            date_pattern='yyyy-mm-dd',
-            font=('Arial', 10)
-        )
-        self.c_data_nascimento.pack(anchor=W, pady=(0, 10))
+        Label(col1_frame, text="Data de Nascimento (DD/MM/AAAA)", **label_style).pack(anchor=W, pady=(5, 0))
+        self.e_data_nascimento = Entry(col1_frame, **entry_style)
+        self.e_data_nascimento.pack(fill=X, pady=(0, 10))
+        aplicar_mascara_data(self.e_data_nascimento)
         
         # COLUNA 2 - Informações Profissionais
         col2_frame = Frame(form_frame, bg=self.co1, padx=10, pady=5, relief="flat")
@@ -871,8 +858,26 @@ class InterfaceCadastroFuncionario:
             if matricula == "":
                 matricula = None
                 
-            data_admissao = self.c_data_admissao.get_date().strftime("%Y-%m-%d") if self.c_data_admissao.get() else None
-            data_nascimento = self.c_data_nascimento.get_date().strftime("%Y-%m-%d") if self.c_data_nascimento.get() else None
+            # Converter datas de DD/MM/AAAA para YYYY-MM-DD
+            data_admissao_str = self.e_data_admissao.get().strip()
+            if data_admissao_str:
+                try:
+                    data_admissao = datetime.strptime(data_admissao_str, "%d/%m/%Y").strftime("%Y-%m-%d")
+                except ValueError:
+                    messagebox.showerror("Erro", "Data de admissão inválida! Use o formato DD/MM/AAAA.")
+                    return
+            else:
+                data_admissao = None
+                
+            data_nascimento_str = self.e_data_nascimento.get().strip()
+            if data_nascimento_str:
+                try:
+                    data_nascimento = datetime.strptime(data_nascimento_str, "%d/%m/%Y").strftime("%Y-%m-%d")
+                except ValueError:
+                    messagebox.showerror("Erro", "Data de nascimento inválida! Use o formato DD/MM/AAAA.")
+                    return
+            else:
+                data_nascimento = None
             cargo = self.c_cargo.get()
             funcao = self.e_funcao.get()
             vinculo = self.c_vinculo.get()

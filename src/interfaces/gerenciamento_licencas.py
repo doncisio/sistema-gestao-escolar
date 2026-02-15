@@ -1,7 +1,7 @@
 from src.core.config_logs import get_logger
 logger = get_logger(__name__)
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, StringVar
 from datetime import datetime, timedelta
 from tkcalendar import DateEntry
 import mysql.connector
@@ -10,6 +10,7 @@ import sys
 import os
 # Importar a função de conexão correta
 from src.core.conexao import conectar_bd
+from src.utils.dates import aplicar_mascara_data
 
 # Cores baseadas em main.py
 co0 = "#F5F5F5"  # Branco suave
@@ -201,20 +202,18 @@ class InterfaceGerenciamentoLicencas:
         )
         self.c_motivo.grid(row=4, column=1, sticky='we', pady=2)
         
-        ttk.Label(self.frame_direito, text="Data de Início:").grid(row=5, column=0, sticky=tk.W, pady=2) # Estilo TLabel
-        # Aplicando cores ao DateEntry (pode variar a aparência dependendo da versão do tkcalendar)
-        self.c_data_inicio = DateEntry(self.frame_direito, width=18, background=co1, foreground=co0,
-                                       borderwidth=2, date_pattern='dd/mm/yyyy', style='TEntry', # Tentar usar estilo base
-                                       selectbackground=co4, selectforeground=co0)
-        self.c_data_inicio.grid(row=5, column=1, sticky=tk.W, pady=2)
+        ttk.Label(self.frame_direito, text="Data de Início (DD/MM/AAAA):").grid(row=5, column=0, sticky=tk.W, pady=2)
+        self.data_inicio_var = StringVar(value=datetime.now().strftime('%d/%m/%Y'))
+        self.e_data_inicio = tk.Entry(self.frame_direito, textvariable=self.data_inicio_var, width=20, font=('Ivy', 10))
+        self.e_data_inicio.grid(row=5, column=1, sticky=tk.W, pady=2)
+        aplicar_mascara_data(self.e_data_inicio)
         
-        ttk.Label(self.frame_direito, text="Data de Fim:").grid(row=6, column=0, sticky=tk.W, pady=2) # Estilo TLabel
-        self.c_data_fim = DateEntry(self.frame_direito, width=18, background=co1, foreground=co0,
-                                    borderwidth=2, date_pattern='dd/mm/yyyy', style='TEntry', # Tentar usar estilo base
-                                    selectbackground=co4, selectforeground=co0)
-        # Definir data de fim para 30 dias após a data de início por padrão
-        self.c_data_fim.set_date(datetime.now() + timedelta(days=30))
-        self.c_data_fim.grid(row=6, column=1, sticky=tk.W, pady=2)
+        ttk.Label(self.frame_direito, text="Data de Fim (DD/MM/AAAA):").grid(row=6, column=0, sticky=tk.W, pady=2)
+        data_fim_padrao = (datetime.now() + timedelta(days=30)).strftime('%d/%m/%Y')
+        self.data_fim_var = StringVar(value=data_fim_padrao)
+        self.e_data_fim = tk.Entry(self.frame_direito, textvariable=self.data_fim_var, width=20, font=('Ivy', 10))
+        self.e_data_fim.grid(row=6, column=1, sticky=tk.W, pady=2)
+        aplicar_mascara_data(self.e_data_fim)
         
         ttk.Label(self.frame_direito, text="Observação:").grid(row=7, column=0, sticky=tk.W, pady=2) # Estilo TLabel
         # Usando tk.Text, aplicar cores diretamente
@@ -466,8 +465,23 @@ class InterfaceGerenciamentoLicencas:
         
         # Obter dados do formulário
         motivo = self.c_motivo.get()
-        data_inicio = self.c_data_inicio.get_date()
-        data_fim = self.c_data_fim.get_date()
+        
+        # Converter datas de DD/MM/AAAA para objetos date
+        data_inicio_str = self.data_inicio_var.get().strip()
+        data_fim_str = self.data_fim_var.get().strip()
+        
+        try:
+            data_inicio = datetime.strptime(data_inicio_str, "%d/%m/%Y").date()
+        except ValueError:
+            messagebox.showerror("Erro", "Data de início inválida! Use o formato DD/MM/AAAA.")
+            return
+            
+        try:
+            data_fim = datetime.strptime(data_fim_str, "%d/%m/%Y").date()
+        except ValueError:
+            messagebox.showerror("Erro", "Data de fim inválida! Use o formato DD/MM/AAAA.")
+            return
+            
         observacao = self.t_observacao.get("1.0", tk.END).strip()
         
         # Validar campos
@@ -612,8 +626,8 @@ class InterfaceGerenciamentoLicencas:
     
     def limpar_formulario(self):
         self.c_motivo.set("")
-        self.c_data_inicio.set_date(datetime.now())
-        self.c_data_fim.set_date(datetime.now() + timedelta(days=30))
+        self.data_inicio_var.set(datetime.now().strftime('%d/%m/%Y'))
+        self.data_fim_var.set((datetime.now() + timedelta(days=30)).strftime('%d/%m/%Y'))
         self.t_observacao.delete("1.0", tk.END)
     
     def ao_fechar(self):

@@ -390,8 +390,10 @@ def abrir_interface_declaracao_comparecimento(aluno_id, janela_pai):
     """
     Abre uma interface para o usuário escolher os parâmetros da declaração
     """
-    from tkinter import Toplevel, Frame, Label, Entry, Button
+    from tkinter import Toplevel, Frame, Label, Entry, Button, StringVar
     from tkcalendar import DateEntry
+    from src.utils.dates import aplicar_mascara_data
+    from datetime import datetime
     
     # Cores do sistema
     co0 = "#F5F5F5"
@@ -415,13 +417,13 @@ def abrir_interface_declaracao_comparecimento(aluno_id, janela_pai):
           font=("Arial", 14, "bold"), bg=co1, fg=co0).pack(pady=(0, 20))
     
     # Data do comparecimento
-    Label(frame, text="Data do Comparecimento:", bg=co1, fg=co0, 
+    Label(frame, text="Data do Comparecimento (DD/MM/AAAA):", bg=co1, fg=co0, 
           font=("Arial", 11)).pack(anchor='w', pady=(10, 5))
     
-    data_entry = DateEntry(frame, width=30, background='darkblue', 
-                          foreground='white', borderwidth=2, 
-                          date_pattern='dd/mm/yyyy')
+    data_var = StringVar(value=datetime.now().strftime('%d/%m/%Y'))
+    data_entry = Entry(frame, textvariable=data_var, width=32, font=("Arial", 11))
     data_entry.pack(pady=(0, 10))
+    aplicar_mascara_data(data_entry)
     
     # Motivo
     Label(frame, text="Motivo do Comparecimento:", bg=co1, fg=co0, 
@@ -433,7 +435,14 @@ def abrir_interface_declaracao_comparecimento(aluno_id, janela_pai):
     
     # Função para gerar
     def gerar():
-        data_selecionada = data_entry.get_date()
+        # Converter data de DD/MM/AAAA para objeto date
+        data_str = data_var.get().strip()
+        try:
+            data_selecionada = datetime.strptime(data_str, "%d/%m/%Y").date()
+        except ValueError:
+            messagebox.showerror("Erro", "Data inválida! Use o formato DD/MM/AAAA.")
+            return
+            
         motivo = motivo_entry.get()
         janela.destroy()
         gerar_declaracao_comparecimento_responsavel(aluno_id, data_selecionada, motivo)

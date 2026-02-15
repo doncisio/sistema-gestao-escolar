@@ -18,6 +18,7 @@ import tkinter as tk
 from tkcalendar import DateEntry
 from src.interfaces.gerenciamento_licencas import abrir_interface_licencas
 from typing import Any, cast
+from src.utils.dates import aplicar_mascara_data
 
 class InterfaceEdicaoFuncionario:
     def __init__(self, master, funcionario_id, janela_principal=None):
@@ -372,30 +373,16 @@ class InterfaceEdicaoFuncionario:
         self.e_matricula.pack(fill=X, pady=(0, 10))
         
         # Data de Admissão
-        Label(col1_frame, text="Data de Admissão", **label_style).pack(anchor=W, pady=(5, 0))
-        self.c_data_admissao = DateEntry(
-            col1_frame,
-            width=28,
-            background=self.co5,
-            foreground='white',
-            borderwidth=2,
-            date_pattern='yyyy-mm-dd',
-            font=('Arial', 10)
-        )
-        self.c_data_admissao.pack(anchor=W, pady=(0, 10))
+        Label(col1_frame, text="Data de Admissão (DD/MM/AAAA)", **label_style).pack(anchor=W, pady=(5, 0))
+        self.e_data_admissao = Entry(col1_frame, **entry_style)
+        self.e_data_admissao.pack(fill=X, pady=(0, 10))
+        aplicar_mascara_data(self.e_data_admissao)
         
         # Data de Nascimento
-        Label(col1_frame, text="Data de Nascimento", **label_style).pack(anchor=W, pady=(5, 0))
-        self.c_data_nascimento = DateEntry(
-            col1_frame,
-            width=28,
-            background=self.co5,
-            foreground='white',
-            borderwidth=2,
-            date_pattern='yyyy-mm-dd',
-            font=('Arial', 10)
-        )
-        self.c_data_nascimento.pack(anchor=W, pady=(0, 10))
+        Label(col1_frame, text="Data de Nascimento (DD/MM/AAAA)", **label_style).pack(anchor=W, pady=(5, 0))
+        self.e_data_nascimento = Entry(col1_frame, **entry_style)
+        self.e_data_nascimento.pack(fill=X, pady=(0, 10))
+        aplicar_mascara_data(self.e_data_nascimento)
         
         # COLUNA 2 - Informações Profissionais
         col2_frame = Frame(form_frame, bg=self.co1, padx=10, pady=5, relief="flat")
@@ -1011,13 +998,21 @@ class InterfaceEdicaoFuncionario:
                 self.e_nome.insert(0, funcionario[3] or "")  # nome
                 self.e_matricula.insert(0, funcionario[1] or "")  # matricula
                 
-                # Data de admissão
+                # Data de admissão - converter para DD/MM/AAAA
                 if funcionario[2]:  # data_admissao
-                    self.c_data_admissao.set_date(funcionario[2])
+                    if isinstance(funcionario[2], str):
+                        data_adm = datetime.strptime(funcionario[2], '%Y-%m-%d').strftime('%d/%m/%Y')
+                    else:
+                        data_adm = funcionario[2].strftime('%d/%m/%Y')
+                    self.e_data_admissao.insert(0, data_adm)
                 
-                # Data de nascimento
+                # Data de nascimento - converter para DD/MM/AAAA
                 if funcionario[14]:  # data_nascimento
-                    self.c_data_nascimento.set_date(funcionario[14])
+                    if isinstance(funcionario[14], str):
+                        data_nasc = datetime.strptime(funcionario[14], '%Y-%m-%d').strftime('%d/%m/%Y')
+                    else:
+                        data_nasc = funcionario[14].strftime('%d/%m/%Y')
+                    self.e_data_nascimento.insert(0, data_nasc)
                 
                 self.c_cargo.set(funcionario[7] or "")  # cargo
                 self.e_funcao.insert(0, funcionario[8] or "")  # funcao
@@ -1278,8 +1273,26 @@ class InterfaceEdicaoFuncionario:
             if matricula == "":
                 matricula = None
                 
-            data_admissao = self.c_data_admissao.get_date().strftime("%Y-%m-%d") if self.c_data_admissao.get() else None
-            data_nascimento = self.c_data_nascimento.get_date().strftime("%Y-%m-%d") if self.c_data_nascimento.get() else None
+            # Converter datas de DD/MM/AAAA para YYYY-MM-DD
+            data_admissao_str = self.e_data_admissao.get().strip()
+            if data_admissao_str:
+                try:
+                    data_admissao = datetime.strptime(data_admissao_str, "%d/%m/%Y").strftime("%Y-%m-%d")
+                except ValueError:
+                    messagebox.showerror("Erro", "Data de admissão inválida! Use o formato DD/MM/AAAA.")
+                    return
+            else:
+                data_admissao = None
+                
+            data_nascimento_str = self.e_data_nascimento.get().strip()
+            if data_nascimento_str:
+                try:
+                    data_nascimento = datetime.strptime(data_nascimento_str, "%d/%m/%Y").strftime("%Y-%m-%d")
+                except ValueError:
+                    messagebox.showerror("Erro", "Data de nascimento inválida! Use o formato DD/MM/AAAA.")
+                    return
+            else:
+                data_nascimento = None
             cargo = self.c_cargo.get()
             funcao = self.e_funcao.get()
             vinculo = self.c_vinculo.get()

@@ -11,6 +11,8 @@ from tkcalendar import DateEntry
 import os
 from src.core.config_logs import get_logger
 from db.connection import get_connection
+from src.utils.dates import aplicar_mascara_data
+from datetime import datetime
 
 logger = get_logger(__name__)
 
@@ -223,13 +225,13 @@ def abrir_interface_declaracao_comparecimento(janela_pai, gerar_declaracao_func)
                                values=["Matutino", "Vespertino"])
     combo_turno.grid(row=3, column=1, sticky='w', padx=(10, 0), pady=5)
     
-    Label(frame_params, text="Data do Comparecimento:", bg=COLORS.co1, fg=COLORS.co0, 
+    Label(frame_params, text="Data do Comparecimento (DD/MM/AAAA):", bg=COLORS.co1, fg=COLORS.co0, 
           font=("Arial", 11)).grid(row=4, column=0, sticky='w', pady=5)
     
-    data_entry = DateEntry(frame_params, width=20, background='darkblue', 
-                          foreground='white', borderwidth=2, 
-                          date_pattern='dd/mm/yyyy')
+    data_var = StringVar(value=datetime.now().strftime('%d/%m/%Y'))
+    data_entry = Entry(frame_params, textvariable=data_var, width=22, font=("Arial", 11))
     data_entry.grid(row=4, column=1, sticky='w', padx=(10, 0), pady=5)
+    aplicar_mascara_data(data_entry)
     
     Label(frame_params, text="Motivo:", bg=COLORS.co1, fg=COLORS.co0, 
           font=("Arial", 11)).grid(row=5, column=0, sticky='w', pady=5)
@@ -317,7 +319,14 @@ def abrir_interface_declaracao_comparecimento(janela_pai, gerar_declaracao_func)
             messagebox.showwarning("Aviso", "Por favor, selecione o turno da reunião.")
             return
         
-        data_selecionada = data_entry.get_date()
+        # Converter data de DD/MM/AAAA para objeto date
+        data_str = data_var.get().strip()
+        try:
+            data_selecionada = datetime.strptime(data_str, "%d/%m/%Y").date()
+        except ValueError:
+            messagebox.showerror("Erro", "Data inválida! Use o formato DD/MM/AAAA.")
+            return
+            
         motivo = motivo_entry.get()
         
         # Passar os novos parâmetros para a função
@@ -357,7 +366,7 @@ def abrir_interface_crachas(janela_pai):
     resposta = messagebox.askyesno(
         "Gerar Crachás",
         "Deseja gerar crachás para todos os alunos ativos?\n\n"
-        "Os crachás serão salvos na pasta 'Cracha_Anos_Iniciais', "
+        "Os crachás serão salvos na pasta 'assets/crachas', "
         "organizados por série e turma."
     )
 
@@ -424,7 +433,8 @@ def abrir_interface_crachas(janela_pai):
             pass
 
         # Sucesso: avisar e abrir pasta
-        caminho_crachas = caminho or os.path.join(os.getcwd(), "Cracha_Anos_Iniciais")
+        from src.core.config import PROJECT_ROOT
+        caminho_crachas = caminho or str(PROJECT_ROOT / 'assets' / 'crachas')
         messagebox.showinfo(
             "Sucesso",
             f"Crachás gerados com sucesso!\n\n"

@@ -742,6 +742,11 @@ class ButtonFactory:
                 command=lambda: self._abrir_crachas(),
                 font=menu_font
             )
+            servicos_menu.add_command(
+                label="Crachá Individual (Aluno + Responsável)",
+                command=lambda: self._abrir_cracha_individual(),
+                font=menu_font
+            )
             
             # Importar Notas
             servicos_menu.add_command(
@@ -1480,6 +1485,15 @@ class ButtonFactory:
         except Exception as e:
             logger.exception(f"Erro ao abrir interface de crachás: {e}")
             messagebox.showerror("Erro", f"Erro ao abrir crachás: {e}")
+    
+    def _abrir_cracha_individual(self):
+        """Wrapper para abrir interface de crachá individual"""
+        try:
+            from src.ui.cracha_individual_window import abrir_janela_cracha_individual
+            abrir_janela_cracha_individual(self.janela)
+        except Exception as e:
+            logger.exception(f"Erro ao abrir interface de crachá individual: {e}")
+            messagebox.showerror("Erro", f"Erro ao abrir crachá individual: {e}")
     
     def _abrir_importacao_notas_html(self):
         """Wrapper para abrir importação de notas do HTML"""
