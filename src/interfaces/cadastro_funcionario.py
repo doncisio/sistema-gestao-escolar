@@ -17,6 +17,7 @@ from db.connection import get_cursor
 from tkcalendar import DateEntry
 from typing import Any, cast
 from src.utils.dates import aplicar_mascara_data
+from src.utils.formatador_cpf import aplicar_formatacao_cpf, obter_cpf_formatado
 
 # Constante útil para `sticky` em grids (N, S, E, W concatenados)
 NSEW = N + E + S + W
@@ -396,6 +397,8 @@ class InterfaceCadastroFuncionario:
         Label(col3_frame, text="CPF", **label_style).pack(anchor=W, pady=(5, 0))
         self.e_cpf = Entry(col3_frame, **entry_style)
         self.e_cpf.pack(fill=X, pady=(0, 10))
+        # Aplicar formatação automática
+        aplicar_formatacao_cpf(self.e_cpf)
 
         # Telefone
         Label(col3_frame, text="Telefone", **label_style).pack(anchor=W, pady=(5, 0))
@@ -882,7 +885,8 @@ class InterfaceCadastroFuncionario:
             funcao = self.e_funcao.get()
             vinculo = self.c_vinculo.get()
             carga_horaria = self.e_carga_horaria.get()
-            cpf = self.e_cpf.get()
+            # CPF já formatado automaticamente pelo campo
+            cpf = obter_cpf_formatado(self.e_cpf.get())
             telefone = self.e_telefone.get()
             whatsapp = self.e_whatsapp.get()
             email = self.e_email.get()

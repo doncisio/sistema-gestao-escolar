@@ -17,6 +17,7 @@ from db.connection import get_connection, get_cursor
 from tkcalendar import DateEntry
 from typing import Any, cast
 from src.utils.dates import aplicar_mascara_data
+from src.utils.formatador_cpf import aplicar_formatacao_cpf, obter_cpf_formatado
 
 # Constante útil para `sticky` em grids (N, S, E, W concatenados)
 NSEW = N + E + S + W
@@ -332,6 +333,8 @@ class InterfaceCadastroAluno:
         Label(col2_frame, text="CPF", **label_style).pack(anchor=W, pady=(5, 0))
         self.e_cpf = Entry(col2_frame, **entry_style)
         self.e_cpf.pack(fill=X, pady=(0, 10))
+        # Aplicar formatação automática
+        aplicar_formatacao_cpf(self.e_cpf)
         
         # NIS
         Label(col2_frame, text="NIS", **label_style).pack(anchor=W, pady=(5, 0))
@@ -452,6 +455,8 @@ class InterfaceCadastroAluno:
         l_cpf.grid(row=1, column=3, sticky="w", padx=10, pady=2)
         e_cpf = Entry(frame_resp, justify='left', relief='solid')
         e_cpf.grid(row=2, column=3, sticky="ew", padx=10, pady=2)
+        # Aplicar formatação automática
+        aplicar_formatacao_cpf(e_cpf)
         
         # Parentesco
         l_parentesco = Label(frame_resp, text="Parentesco", height=1, anchor=NW, 
@@ -508,7 +513,8 @@ class InterfaceCadastroAluno:
             endereco = self.e_endereco.get()
             sus = self.e_sus.get()
             sexo = self.c_sexo.get()
-            cpf = self.e_cpf.get()
+            # CPF já formatado automaticamente pelo campo
+            cpf = obter_cpf_formatado(self.e_cpf.get())
             nis = self.e_nis.get()
             raca = self.c_raca.get()
             escola_nome = self.c_escola.get()
@@ -624,7 +630,8 @@ class InterfaceCadastroAluno:
         nome = campos['nome'].get()
         telefone = campos['telefone'].get()
         rg = campos['rg'].get()
-        cpf = campos['cpf'].get()
+        # CPF já formatado automaticamente pelo campo
+        cpf = obter_cpf_formatado(campos['cpf'].get())
         parentesco = campos['parentesco'].get()
         responsavel_id = getattr(frame, 'responsavel_id', None)
         
