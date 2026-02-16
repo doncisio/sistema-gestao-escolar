@@ -13,7 +13,7 @@ from src.ui.app import Application
 @pytest.fixture
 def mock_tk():
     """Fixture que mocka a classe Tk."""
-    with patch('ui.app.Tk') as mock:
+    with patch('src.ui.app.Tk') as mock:
         instance = MagicMock()
         mock.return_value = instance
         yield mock, instance
@@ -22,7 +22,7 @@ def mock_tk():
 @pytest.fixture
 def mock_get_connection():
     """Fixture que mocka get_connection."""
-    with patch('ui.app.get_connection') as mock:
+    with patch('src.ui.app.get_connection') as mock:
         conn = MagicMock()
         cursor = MagicMock()
         cursor.fetchone.return_value = ("Escola Teste",)
@@ -35,8 +35,8 @@ def mock_get_connection():
 @pytest.fixture
 def mock_pool():
     """Fixture que mocka inicializar_pool e fechar_pool."""
-    with patch('ui.app.inicializar_pool') as mock_init:
-        with patch('ui.app.fechar_pool') as mock_close:
+    with patch('src.ui.app.inicializar_pool') as mock_init:
+        with patch('src.ui.app.fechar_pool') as mock_close:
             yield mock_init, mock_close
 
 
@@ -82,7 +82,7 @@ class TestApplicationInit:
         """Testa fallback do nome da escola quando há erro no banco."""
         _, mock_instance = mock_tk
         
-        with patch('ui.app.get_connection', side_effect=Exception("DB Error")):
+        with patch('src.ui.app.get_connection', side_effect=Exception("DB Error")):
             app = Application()
         
         mock_instance.title.assert_called_once_with("Sistema de Gerenciamento da Escola")
@@ -103,7 +103,7 @@ class TestApplicationSetup:
     
     def test_setup_frames_creates_frames_dict(self, mock_tk, mock_get_connection, mock_pool):
         """Testa que setup_frames cria o dicionário de frames."""
-        with patch('ui.frames.criar_frames') as mock_criar:
+        with patch('src.ui.frames.criar_frames') as mock_criar:
             mock_criar.return_value = {
                 'logo': Mock(),
                 'dados': Mock(),
@@ -121,7 +121,7 @@ class TestApplicationSetup:
     
     def test_setup_logo_calls_criar_logo(self, mock_tk, mock_get_connection, mock_pool):
         """Testa que setup_logo chama criar_logo com parâmetros corretos."""
-        with patch('ui.frames.criar_logo') as mock_criar:
+        with patch('src.ui.frames.criar_logo') as mock_criar:
             app = Application()
             # Mock _get_school_name
             app._get_school_name = Mock(return_value="Escola Teste")
@@ -141,7 +141,7 @@ class TestApplicationSetup:
     
     def test_setup_search_calls_criar_pesquisa(self, mock_tk, mock_get_connection, mock_pool):
         """Testa que setup_search chama criar_pesquisa."""
-        with patch('ui.frames.criar_pesquisa') as mock_criar:
+        with patch('src.ui.frames.criar_pesquisa') as mock_criar:
             app = Application()
             app.frames = {'frame_dados': Mock()}
             callback = Mock()
@@ -160,7 +160,7 @@ class TestApplicationSetup:
     
     def test_setup_footer_creates_labels(self, mock_tk, mock_get_connection, mock_pool):
         """Testa que setup_footer cria e armazena os labels."""
-        with patch('ui.frames.criar_rodape') as mock_criar:
+        with patch('src.ui.frames.criar_rodape') as mock_criar:
             mock_label_rodape = Mock()
             mock_status_label = Mock()
             # criar_rodape retorna uma tupla (label_rodape, status_label)
@@ -248,10 +248,10 @@ class TestApplicationIntegration:
     
     def test_full_setup_flow(self, mock_tk, mock_get_connection, mock_pool):
         """Testa o fluxo completo de setup da aplicação."""
-        with patch('ui.frames.criar_frames') as mock_frames:
-            with patch('ui.frames.criar_logo') as mock_logo:
-                with patch('ui.frames.criar_pesquisa') as mock_pesquisa:
-                    with patch('ui.frames.criar_rodape') as mock_rodape:
+        with patch('src.ui.frames.criar_frames') as mock_frames:
+            with patch('src.ui.frames.criar_logo') as mock_logo:
+                with patch('src.ui.frames.criar_pesquisa') as mock_pesquisa:
+                    with patch('src.ui.frames.criar_rodape') as mock_rodape:
                         # Setup mocks
                         mock_frames.return_value = {
                             'frame_logo': Mock(),

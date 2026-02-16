@@ -21,7 +21,7 @@ from src.services.turma_service import (
 class TestListarTurmas:
     """Testes para listar_turmas()"""
     
-    @patch('services.turma_service.get_connection')
+    @patch('src.services.turma_service.get_connection')
     def test_listar_todas_turmas(self, mock_conn):
         """Testa listagem de todas as turmas sem filtros"""
         # Setup
@@ -40,7 +40,7 @@ class TestListarTurmas:
         assert turmas[0]['nome'] == 'A'
         assert turmas[1]['total_alunos'] == 23
     
-    @patch('services.turma_service.get_connection')
+    @patch('src.services.turma_service.get_connection')
     def test_listar_turmas_por_serie(self, mock_conn):
         """Testa filtro por série"""
         mock_cursor = Mock()
@@ -52,7 +52,7 @@ class TestListarTurmas:
         assert len(turmas) == 1
         mock_cursor.execute.assert_called_once()
     
-    @patch('services.turma_service.get_connection')
+    @patch('src.services.turma_service.get_connection')
     def test_listar_turmas_por_turno(self, mock_conn):
         """Testa filtro por turno"""
         mock_cursor = Mock()
@@ -71,7 +71,7 @@ class TestListarTurmas:
 class TestObterTurmaPorId:
     """Testes para obter_turma_por_id()"""
     
-    @patch('services.turma_service.get_connection')
+    @patch('src.services.turma_service.get_connection')
     def test_obter_turma_existente(self, mock_conn):
         """Testa obtenção de turma existente"""
         mock_cursor = Mock()
@@ -89,7 +89,7 @@ class TestObterTurmaPorId:
         assert turma['id'] == 10
         assert turma['nome'] == 'Turma A'
     
-    @patch('services.turma_service.get_connection')
+    @patch('src.services.turma_service.get_connection')
     def test_obter_turma_inexistente(self, mock_conn):
         """Testa obtenção de turma que não existe"""
         mock_cursor = Mock()
@@ -104,7 +104,7 @@ class TestObterTurmaPorId:
 class TestVerificarCapacidadeTurma:
     """Testes para verificar_capacidade_turma()"""
     
-    @patch('services.turma_service.obter_turma_por_id')
+    @patch('src.services.turma_service.obter_turma_por_id')
     def test_turma_com_vagas(self, mock_obter):
         """Testa turma com vagas disponíveis"""
         mock_obter.return_value = {
@@ -119,7 +119,7 @@ class TestVerificarCapacidadeTurma:
         assert total == 25
         assert capacidade == 30
     
-    @patch('services.turma_service.obter_turma_por_id')
+    @patch('src.services.turma_service.obter_turma_por_id')
     def test_turma_lotada(self, mock_obter):
         """Testa turma sem vagas"""
         mock_obter.return_value = {
@@ -134,7 +134,7 @@ class TestVerificarCapacidadeTurma:
         assert total == 30
         assert capacidade == 30
     
-    @patch('services.turma_service.obter_turma_por_id')
+    @patch('src.services.turma_service.obter_turma_por_id')
     def test_turma_inexistente(self, mock_obter):
         """Testa verificação de turma que não existe"""
         mock_obter.return_value = None
@@ -149,8 +149,8 @@ class TestVerificarCapacidadeTurma:
 class TestCriarTurma:
     """Testes para criar_turma()"""
     
-    @patch('services.turma_service.get_connection')
-    @patch('services.turma_service.listar_turmas')
+    @patch('src.services.turma_service.get_connection')
+    @patch('src.services.turma_service.listar_turmas')
     def test_criar_turma_sucesso(self, mock_listar, mock_conn):
         """Testa criação de turma bem-sucedida"""
         mock_listar.return_value = []  # Nenhuma turma existente
@@ -201,7 +201,7 @@ class TestCriarTurma:
         assert sucesso is False
         assert 'inválido' in msg.lower()
     
-    @patch('services.turma_service.listar_turmas')
+    @patch('src.services.turma_service.listar_turmas')
     def test_criar_turma_duplicada(self, mock_listar):
         """Testa tentativa de criar turma com nome duplicado"""
         mock_listar.return_value = [{'nome': 'A'}]
@@ -222,8 +222,8 @@ class TestCriarTurma:
 class TestAtualizarTurma:
     """Testes para atualizar_turma()"""
     
-    @patch('services.turma_service.get_connection')
-    @patch('services.turma_service.obter_turma_por_id')
+    @patch('src.services.turma_service.get_connection')
+    @patch('src.services.turma_service.obter_turma_por_id')
     def test_atualizar_nome_turma(self, mock_obter, mock_conn):
         """Testa atualização do nome da turma"""
         mock_obter.return_value = {'id': 1, 'nome': 'A', 'total_alunos': 20}
@@ -235,7 +235,7 @@ class TestAtualizarTurma:
         assert sucesso is True
         assert 'atualizada' in msg.lower()
     
-    @patch('services.turma_service.obter_turma_por_id')
+    @patch('src.services.turma_service.obter_turma_por_id')
     def test_atualizar_turma_inexistente(self, mock_obter):
         """Testa atualização de turma que não existe"""
         mock_obter.return_value = None
@@ -245,7 +245,7 @@ class TestAtualizarTurma:
         assert sucesso is False
         assert 'não encontrada' in msg.lower()
     
-    @patch('services.turma_service.obter_turma_por_id')
+    @patch('src.services.turma_service.obter_turma_por_id')
     def test_atualizar_capacidade_menor_que_alunos(self, mock_obter):
         """Testa validação de capacidade menor que total de alunos"""
         mock_obter.return_value = {'id': 1, 'total_alunos': 30}
@@ -259,8 +259,8 @@ class TestAtualizarTurma:
 class TestExcluirTurma:
     """Testes para excluir_turma()"""
     
-    @patch('services.turma_service.get_connection')
-    @patch('services.turma_service.obter_turma_por_id')
+    @patch('src.services.turma_service.get_connection')
+    @patch('src.services.turma_service.obter_turma_por_id')
     def test_excluir_turma_vazia(self, mock_obter, mock_conn):
         """Testa exclusão de turma sem alunos"""
         mock_obter.return_value = {'id': 1, 'nome': 'A', 'total_alunos': 0}
@@ -272,7 +272,7 @@ class TestExcluirTurma:
         assert sucesso is True
         assert 'excluída' in msg.lower()
     
-    @patch('services.turma_service.obter_turma_por_id')
+    @patch('src.services.turma_service.obter_turma_por_id')
     def test_excluir_turma_com_alunos(self, mock_obter):
         """Testa validação de exclusão de turma com alunos"""
         mock_obter.return_value = {'id': 1, 'nome': 'A', 'total_alunos': 25}
@@ -286,7 +286,7 @@ class TestExcluirTurma:
 class TestBuscarTurmas:
     """Testes para buscar_turmas()"""
     
-    @patch('services.turma_service.get_connection')
+    @patch('src.services.turma_service.get_connection')
     def test_buscar_por_nome(self, mock_conn):
         """Testa busca por nome de turma"""
         mock_cursor = Mock()

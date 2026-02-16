@@ -22,7 +22,7 @@ from src.services.estatistica_service import (
 class TestDeclaracaoServiceIntegration:
     """Testes de integração para declaracao_service"""
     
-    @patch('services.declaracao_service.get_cursor')
+    @patch('src.services.declaracao_service.get_cursor')
     def test_identificar_aluno(self, mock_get_cursor):
         """Deve identificar pessoa como Aluno"""
         mock_cursor = MagicMock()
@@ -34,7 +34,7 @@ class TestDeclaracaoServiceIntegration:
         assert sucesso is True
         assert tipo == 'Aluno'
     
-    @patch('services.declaracao_service.get_cursor')
+    @patch('src.services.declaracao_service.get_cursor')
     def test_identificar_funcionario(self, mock_get_cursor):
         """Deve identificar pessoa como Funcionário"""
         mock_cursor = MagicMock()
@@ -46,7 +46,7 @@ class TestDeclaracaoServiceIntegration:
         assert sucesso is True
         assert tipo == 'Funcionário'
     
-    @patch('services.declaracao_service.get_cursor')
+    @patch('src.services.declaracao_service.get_cursor')
     def test_obter_dados_aluno_completo(self, mock_get_cursor):
         """Deve obter dados completos do aluno para declaração"""
         mock_cursor = MagicMock()
@@ -68,7 +68,7 @@ class TestDeclaracaoServiceIntegration:
         assert dados['nome'] == 'João Silva'
         assert dados['serie'] == '5º Ano'
     
-    @patch('services.declaracao_service.get_cursor')
+    @patch('src.services.declaracao_service.get_cursor')
     def test_obter_dados_funcionario_completo(self, mock_get_cursor):
         """Deve obter dados completos do funcionário para declaração"""
         mock_cursor = MagicMock()
@@ -125,7 +125,7 @@ class TestDeclaracaoServiceIntegration:
         
         assert valido is True
     
-    @patch('services.declaracao_service.get_cursor')
+    @patch('src.services.declaracao_service.get_cursor')
     def test_registrar_geracao_declaracao(self, mock_get_cursor):
         """Deve registrar geração de declaração no sistema"""
         mock_cursor = MagicMock()
@@ -145,7 +145,7 @@ class TestDeclaracaoServiceIntegration:
 class TestEstatisticaServiceIntegration:
     """Testes de integração para estatistica_service"""
     
-    @patch('services.estatistica_service.get_cursor')
+    @patch('src.services.estatistica_service.get_cursor')
     def test_obter_estatisticas_alunos(self, mock_get_cursor):
         """Deve obter estatísticas gerais de alunos"""
         mock_cursor = MagicMock()
@@ -180,7 +180,7 @@ class TestEstatisticaServiceIntegration:
         assert len(resultado['alunos_por_serie']) == 3
         assert len(resultado['alunos_por_turno']) == 2
     
-    @patch('services.estatistica_service.get_cursor')
+    @patch('src.services.estatistica_service.get_cursor')
     def test_obter_estatisticas_por_ano_letivo(self, mock_get_cursor):
         """Deve obter estatísticas por ano letivo específico"""
         mock_cursor = MagicMock()
@@ -202,7 +202,7 @@ class TestEstatisticaServiceIntegration:
         assert resultado['matriculas_ativas'] == 145
         assert resultado['taxa_conclusao'] == 98.0
     
-    @patch('services.estatistica_service.get_cursor')
+    @patch('src.services.estatistica_service.get_cursor')
     def test_obter_alunos_por_situacao_com_matricula(self, mock_get_cursor):
         """Deve filtrar alunos com matrícula"""
         mock_cursor = MagicMock()
@@ -229,7 +229,7 @@ class TestEstatisticaServiceIntegration:
         assert len(resultado) == 2
         assert resultado[0]['nome'] == 'João Silva'
     
-    @patch('services.estatistica_service.get_cursor')
+    @patch('src.services.estatistica_service.get_cursor')
     def test_obter_alunos_sem_matricula(self, mock_get_cursor):
         """Deve filtrar alunos sem matrícula"""
         mock_cursor = MagicMock()
@@ -247,7 +247,7 @@ class TestEstatisticaServiceIntegration:
         assert len(resultado) == 1
         assert resultado[0]['nome'] == 'Pedro Costa'
     
-    @patch('services.estatistica_service.get_cursor')
+    @patch('src.services.estatistica_service.get_cursor')
     def test_calcular_media_idade_alunos(self, mock_get_cursor):
         """Deve calcular média de idade dos alunos"""
         mock_cursor = MagicMock()
@@ -258,7 +258,7 @@ class TestEstatisticaServiceIntegration:
         
         assert resultado == 10.5
     
-    @patch('services.estatistica_service.get_cursor')
+    @patch('src.services.estatistica_service.get_cursor')
     def test_calcular_media_idade_retorna_zero_sem_alunos(self, mock_get_cursor):
         """Deve retornar 0 se não houver alunos"""
         mock_cursor = MagicMock()
@@ -273,7 +273,7 @@ class TestEstatisticaServiceIntegration:
 class TestFluxosCompletos:
     """Testes de fluxos completos entre services"""
     
-    @patch('services.declaracao_service.get_cursor')
+    @patch('src.services.declaracao_service.get_cursor')
     def test_fluxo_geracao_declaracao_aluno(self, mock_get_cursor):
         """Teste fluxo completo de geração de declaração de aluno"""
         mock_cursor = MagicMock()

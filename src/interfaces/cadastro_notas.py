@@ -20,7 +20,7 @@ from auth.decorators import requer_permissao
 # Import para integração com banco de questões
 from banco_questoes.resposta_service import RespostaService
 from pathlib import Path
-from src.importers.local_horarios import build_local_map_from_folder, _normalize_key
+from src.importadores.local_horarios import build_local_map_from_folder, _normalize_key
 from typing import List, Any, Optional, Dict
 
 class InterfaceCadastroEdicaoNotas:

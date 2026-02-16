@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from src.importers.geduc_horarios import parse_horario_por_turma
+from src.importadores.geduc_horarios import parse_horario_por_turma
 
 
 def test_parse_horario_por_turma_local():

@@ -9,7 +9,7 @@ from datetime import datetime, date
 class TestEstatisticaService:
     """Testes para services/estatistica_service.py"""
     
-    @patch('services.estatistica_service.get_cursor')
+    @patch('src.services.estatistica_service.get_cursor')
     def test_obter_estatisticas_alunos_basico(self, mock_cursor):
         """Deve retornar estatísticas básicas de alunos"""
         from src.services.estatistica_service import obter_estatisticas_alunos
@@ -39,7 +39,7 @@ class TestEstatisticaService:
         assert resultado is not None
         assert isinstance(resultado, dict)
     
-    @patch('services.estatistica_service.get_cursor')
+    @patch('src.services.estatistica_service.get_cursor')
     def test_obter_estatisticas_com_erro(self, mock_cursor):
         """Deve lidar com erros no banco de dados"""
         from src.services.estatistica_service import obter_estatisticas_alunos
@@ -55,7 +55,7 @@ class TestEstatisticaService:
 class TestAlunoService:
     """Testes para operações com alunos"""
     
-    @patch('services.aluno_service.get_cursor')
+    @patch('src.services.aluno_service.get_cursor')
     def test_buscar_aluno_por_id(self, mock_cursor):
         """Deve buscar aluno por ID"""
         # Mock cursor context manager
@@ -76,7 +76,7 @@ class TestAlunoService:
             # Se função não existir, teste passa
             pytest.skip("Função buscar_aluno_por_id não implementada")
     
-    @patch('services.aluno_service.get_cursor')
+    @patch('src.services.aluno_service.get_cursor')
     def test_listar_alunos_com_filtro(self, mock_cursor):
         """Deve listar alunos com filtro de nome"""
         mock_cursor_obj = MagicMock()
@@ -100,8 +100,8 @@ class TestAlunoService:
 class TestBackupService:
     """Testes para serviço de backup"""
     
-    @patch('services.backup_service.mysqldump_exists')
-    @patch('services.backup_service.subprocess.run')
+    @patch('src.services.backup_service.mysqldump_exists')
+    @patch('src.services.backup_service.subprocess.run')
     def test_fazer_backup_sucesso(self, mock_run, mock_mysqldump):
         """Deve executar backup com sucesso"""
         mock_mysqldump.return_value = True
@@ -114,7 +114,7 @@ class TestBackupService:
         except (ImportError, AttributeError):
             pytest.skip("Função fazer_backup não implementada")
     
-    @patch('services.backup_service.mysqldump_exists')
+    @patch('src.services.backup_service.mysqldump_exists')
     def test_fazer_backup_sem_mysqldump(self, mock_mysqldump):
         """Deve falhar se mysqldump não existir"""
         mock_mysqldump.return_value = False
@@ -130,7 +130,7 @@ class TestBackupService:
 class TestReportService:
     """Testes para serviço de relatórios"""
     
-    @patch('services.report_service.get_cursor')
+    @patch('src.services.report_service.get_cursor')
     def test_gerar_relatorio_alunos(self, mock_cursor):
         """Deve gerar relatório de alunos"""
         mock_cursor_obj = MagicMock()
@@ -193,8 +193,8 @@ class TestValidacaoService:
 class TestIntegracaoServices:
     """Testes de integração entre services"""
     
-    @patch('services.estatistica_service.get_cursor')
-    @patch('services.aluno_service.get_cursor')
+    @patch('src.services.estatistica_service.get_cursor')
+    @patch('src.services.aluno_service.get_cursor')
     def test_estatisticas_consistentes_com_listagem(self, mock_aluno_cursor, mock_estat_cursor):
         """Estatísticas devem ser consistentes com listagem de alunos"""
         # Mock para estatísticas

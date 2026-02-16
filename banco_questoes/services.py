@@ -994,7 +994,13 @@ class AvaliacaoService:
         try:
             with get_cursor() as cursor:
                 cursor.execute("""
-                    SELECT a.*, f.nome as professor_nome
+                    SELECT a.id, a.titulo, a.descricao, a.componente_curricular,
+                           a.ano_escolar, a.bimestre, a.tipo, a.pontuacao_total,
+                           a.tempo_limite, a.instrucoes, a.cabecalho_personalizado,
+                           a.mostrar_gabarito_professor, a.embaralhar_questoes,
+                           a.embaralhar_alternativas, a.num_versoes, a.status,
+                           a.escola_id, a.professor_id, a.created_at, a.updated_at,
+                           f.nome as professor_nome
                     FROM avaliacoes a
                     LEFT JOIN funcionarios f ON f.id = a.professor_id
                     WHERE a.id = %s
@@ -1041,7 +1047,9 @@ class AvaliacaoService:
     def _carregar_questoes(cursor, avaliacao_id: int) -> List[AvaliacaoQuestao]:
         """Carrega questões de uma avaliação."""
         cursor.execute("""
-            SELECT aq.*, q.enunciado, q.tipo, q.habilidade_bncc_codigo
+            SELECT aq.id, aq.avaliacao_id, aq.questao_id, aq.ordem,
+                   aq.pontuacao, aq.obrigatoria,
+                   q.enunciado, q.tipo, q.habilidade_bncc_codigo
             FROM avaliacoes_questoes aq
             INNER JOIN questoes q ON q.id = aq.questao_id
             WHERE aq.avaliacao_id = %s
@@ -1070,7 +1078,10 @@ class AvaliacaoService:
         try:
             with get_cursor() as cursor:
                 sql = """
-                    SELECT a.*, f.nome as professor_nome,
+                    SELECT a.id, a.titulo, a.descricao, a.componente_curricular,
+                           a.ano_escolar, a.bimestre, a.status, a.professor_id,
+                           a.created_at,
+                           f.nome as professor_nome,
                            (SELECT COUNT(*) FROM avaliacoes_questoes WHERE avaliacao_id = a.id) as total_questoes
                     FROM avaliacoes a
                     LEFT JOIN funcionarios f ON f.id = a.professor_id

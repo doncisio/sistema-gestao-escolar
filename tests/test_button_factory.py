@@ -91,12 +91,12 @@ class TestButtonFactory:
     
     def test_load_image_success(self, button_factory):
         """Testa carregamento de imagem com sucesso"""
-        with patch('ui.button_factory.Image.open') as mock_open:
+        with patch('src.ui.button_factory.Image.open') as mock_open:
             mock_img = Mock()
             mock_img.resize = Mock(return_value=mock_img)
             mock_open.return_value = mock_img
             
-            with patch('ui.button_factory.ImageTk.PhotoImage') as mock_photo:
+            with patch('src.ui.button_factory.ImageTk.PhotoImage') as mock_photo:
                 mock_photo_instance = Mock()
                 mock_photo.return_value = mock_photo_instance
                 
@@ -111,7 +111,7 @@ class TestButtonFactory:
         assert result is None
         assert 'nonexistent.png' not in button_factory._image_refs
     
-    @patch('ui.button_factory.Button')
+    @patch('src.ui.button_factory.Button')
     def test_create_button_without_icon(self, mock_button_class, button_factory):
         """Testa criação de botão sem ícone"""
         parent = Mock()
@@ -134,7 +134,7 @@ class TestButtonFactory:
         assert call_kwargs['command'] == callback
         assert call_kwargs['bg'] == '#FF0000'
     
-    @patch('ui.button_factory.Frame')
+    @patch('src.ui.button_factory.Frame')
     def test_criar_botoes_principais(self, mock_frame_class, button_factory):
         """Testa criação dos botões principais"""
         mock_frame_instance = Mock()
@@ -161,7 +161,7 @@ class TestButtonFactory:
             
             assert result == mock_frame_instance
     
-    @patch('ui.button_factory.Menu')
+    @patch('src.ui.button_factory.Menu')
     def test_criar_menu_bar(self, mock_menu_class, button_factory):
         """Testa criação da barra de menus"""
         mock_menu = Mock()
@@ -179,7 +179,7 @@ class TestButtonFactory:
     
     def test_fazer_backup(self, button_factory):
         """Testa callback de backup"""
-        with patch('ui.button_factory.Seguranca') as mock_seguranca:
+        with patch('src.ui.button_factory.Seguranca') as mock_seguranca:
             mock_seguranca.fazer_backup = Mock()
             
             button_factory._fazer_backup()
@@ -188,14 +188,14 @@ class TestButtonFactory:
     
     def test_restaurar_backup(self, button_factory):
         """Testa callback de restaurar backup"""
-        with patch('ui.button_factory.Seguranca') as mock_seguranca:
+        with patch('src.ui.button_factory.Seguranca') as mock_seguranca:
             mock_seguranca.restaurar_backup = Mock()
             
             button_factory._restaurar_backup()
             
             mock_seguranca.restaurar_backup.assert_called_once()
     
-    @patch('ui.button_factory.Menu')
+    @patch('src.ui.button_factory.Menu')
     def test_configurar_interface(self, mock_menu_class, button_factory):
         """Testa configuração completa da interface"""
         mock_menu = Mock()

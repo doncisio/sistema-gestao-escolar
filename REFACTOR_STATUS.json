@@ -11,7 +11,8 @@
   },
   "logging": {
     "title": "Adicionar logging básico e substituir print() por logger",
-    "done": false
+    "done": false,
+    "note": "batch 1 concluído (5 arquivos). Restante pendente."
   },
   "logging_batch_1": {
     "title": "Substituir prints em 5 arquivos de produção (batch 1)",
@@ -31,11 +32,14 @@
   },
   "config": {
     "title": "Externalizar constantes em config.py (ESCOLA_ID, ANO_PADRAO)",
-    "done": false
+    "done": false,
+    "note": "Parcialmente feito — settings.py e .env existem, mas nem todas as constantes foram migradas."
   },
   "main_refactor": {
     "title": "Refatorar main.py em ui/, services/, db/, models/",
-    "done": false
+    "done": true,
+    "when": "2026-02-16T00:00:00Z",
+    "note": "Estrutura src/ui/, src/services/, src/models/, db/ já existe e é usada."
   },
   "report_service_refactor": {
     "title": "Centralização _ensure_legacy_module e refactor report_service.py",
@@ -46,5 +50,103 @@
     "title": "Suíte local de testes passou (26 passed)",
     "done": true,
     "when": "2025-11-16T00:00:00Z"
+  },
+  "higiene_fase1": {
+    "title": "Fase 1 — Higiene e Fundação",
+    "done": true,
+    "when": "2026-02-16T00:00:00Z",
+    "details": {
+      "pyproject_toml": "Criado com todas as dependências fixadas",
+      "scripts_raiz": "20 scripts movidos para scripts/analise/, scripts/debug/, scripts/migracao/, scripts/utilidades/",
+      "codigo_morto_removido": [
+        "src/models/aluno_old.py (691 linhas, sem uso)",
+        "src/models/funcionario_old.py (235 linhas, stub pass — referências atualizadas)",
+        "src/services/turma_service.py.bak",
+        "src/interfaces/administrativa.py.bak"
+      ],
+      "referencias_atualizadas": [
+        "src/ui/actions.py — removido import de funcionario_old, adicionado TODO",
+        "src/ui/detalhes.py — removido import de funcionario_old, adicionado TODO"
+      ]
+    }
+  },
+  "arquitetura_fase2": {
+    "title": "Fase 2 — Arquitetura Limpa",
+    "done": true,
+    "when": "2026-02-16T00:00:00Z",
+    "details": {
+      "2.1_conexao_unificada": "db/connection.py é fonte única; src/core/conexao.py virou shim de re-exportação",
+      "2.2_importadores_consolidados": "src/importers/ → src/importadores/ com shims para compatibilidade",
+      "2.3_tkinter_removido_services": "aluno_service.py refatorado: messagebox removido, exceções tipadas (AlunoServiceError, MatriculaAtivaError, etc.)",
+      "2.4_db_removido_ui": {
+        "arquivo": "src/ui/detalhes.py",
+        "antes": "20 pontos de acesso direto ao DB (get_connection, cursor.execute)",
+        "depois": "0 pontos — todo acesso via serviços",
+        "servicos_criados": [
+          "src/services/ano_letivo_service.py (obter_ano_letivo_atual_id, obter_status_matriculas_por_anos)",
+          "aluno_service.obter_detalhes_matricula_aluno()"
+        ],
+        "funcoes_duplicadas_removidas": [
+          "detalhes.obter_ano_letivo_atual() → delega para ano_letivo_service",
+          "detalhes.verificar_matricula_ativa() → delega para aluno_service",
+          "detalhes.verificar_historico_matriculas() → delega para aluno_service"
+        ],
+        "queries_diretas_eliminadas": [
+          "SELECT nome FROM alunos em matricular_aluno_wrapper → obter_aluno_por_id",
+          "SELECT nome FROM alunos em editar_matricula_wrapper → obter_aluno_por_id",
+          "Query complexa de matrícula+responsáveis → obter_detalhes_matricula_aluno",
+          "Loop de status por ano letivo → obter_status_matriculas_por_anos"
+        ]
+      }
+    }
+  },
+  "divisao_fase3": {
+    "title": "Fase 3 — Divisão de Arquivos Grandes",
+    "done": true,
+    "when": "2026-02-16T00:00:00Z",
+    "details": {
+      "3.1_report_service": {
+        "antes": "src/services/report_service.py — 2163 linhas, 28 funções",
+        "depois": "src/services/reports/ pacote com 8 módulos + facade de 31 linhas",
+        "modulos": [
+          "_utils.py (utilitários compartilhados)",
+          "boletim.py (7 funções de boletim/notas)",
+          "declaracao.py (gerar_declaracao)",
+          "historico.py (3 funções de histórico)",
+          "frequencia.py (5 funções de frequência)",
+          "folha_ponto.py (4 funções de folha de ponto)",
+          "outros.py (6 funções diversas: crachás, pendências, etc.)",
+          "__init__.py (re-exports)"
+        ],
+        "compatibilidade": "report_service.py mantido como facade — zero alteração em chamadores"
+      },
+      "3.2_detalhes": {
+        "antes": "src/ui/detalhes.py — 796 linhas, 21 funções/classes",
+        "depois": "src/ui/detalhes/ pacote com 3 módulos",
+        "modulos": [
+          "exibir.py (utils + funções de exibição, ~210 linhas)",
+          "acoes.py (botões + wrappers de ação, ~290 linhas)",
+          "__init__.py (re-exports + DetalhesManager)"
+        ],
+        "compatibilidade": "__init__.py re-exporta todos os símbolos — zero alteração em chamadores"
+      },
+      "3.3_actions": {
+        "antes": "src/ui/actions.py — 967 linhas, 1 classe com 25 métodos",
+        "depois": "src/ui/actions/ pacote com 6 módulos (padrão mixin)",
+        "modulos": [
+          "aluno.py (AlunoActionsMixin — 6 métodos CRUD aluno)",
+          "funcionario.py (FuncionarioActionsMixin — 6 métodos CRUD funcionário)",
+          "matricula.py (MatriculaActionsMixin — 3 métodos matrícula)",
+          "relatorios.py (RelatorioActionsMixin — 4 métodos geração docs)",
+          "navegacao.py (NavegacaoActionsMixin — 2 métodos abertura UI)",
+          "__init__.py (ActionHandler herda todos os mixins)"
+        ],
+        "compatibilidade": "ActionHandler mantém mesma API — zero alteração em chamadores"
+      },
+      "3.4_queries": {
+        "status": "skip",
+        "motivo": "db/queries.py (522 linhas) contém apenas constantes SQL sem importadores — dividir não traz benefício"
+      }
+    }
   }
 }

@@ -17,7 +17,7 @@ import tempfile
 from pathlib import Path
 import unicodedata
 import re
-from src.importers.geduc_horarios import parse_horario_por_turma
+from src.importadores.geduc_horarios import parse_horario_por_turma
 
 class InterfaceHorariosEscolares:
     def __init__(self, root=None, janela_principal=None):

@@ -27,7 +27,7 @@ class TestMenuManagerInit:
 class TestMenuManagerContextual:
     """Testes de criação de menu contextual."""
     
-    @patch('ui.menu.Menu')
+    @patch('src.ui.menu.Menu')
     def test_criar_menu_contextual_com_callbacks(self, mock_menu):
         """Testa criação de menu contextual com callbacks fornecidos."""
         # Setup
@@ -51,7 +51,7 @@ class TestMenuManagerContextual:
         assert treeview.bind.called
         assert result is menu_instance
     
-    @patch('ui.menu.Menu')
+    @patch('src.ui.menu.Menu')
     def test_criar_menu_contextual_sem_action_handler(self, mock_menu):
         """Testa criação de menu contextual sem action_handler."""
         # Setup
@@ -70,7 +70,7 @@ class TestMenuManagerContextual:
         mock_menu.assert_called_once_with(janela, tearoff=0)
         assert result is menu_instance
     
-    @patch('ui.menu.Menu')
+    @patch('src.ui.menu.Menu')
     def test_criar_menu_contextual_com_callbacks_customizados(self, mock_menu):
         """Testa criação de menu com callbacks customizados."""
         # Setup
@@ -99,7 +99,7 @@ class TestMenuManagerContextual:
 class TestMenuManagerRelatorios:
     """Testes de criação de menu de relatórios."""
     
-    @patch('ui.menu.Menu')
+    @patch('src.ui.menu.Menu')
     def test_criar_menu_relatorios_completo(self, mock_menu):
         """Testa criação de menu de relatórios com todos callbacks."""
         # Setup
@@ -131,7 +131,7 @@ class TestMenuManagerRelatorios:
         assert result is menu_instance
         assert menu_instance.add_cascade.call_count == 3  # Listas, Boletins, Atas
     
-    @patch('ui.menu.Menu')
+    @patch('src.ui.menu.Menu')
     def test_criar_menu_relatorios_sem_callbacks(self, mock_menu):
         """Testa criação de menu de relatórios sem callbacks."""
         # Setup
@@ -153,7 +153,7 @@ class TestMenuManagerRelatorios:
 class TestMenuManagerDeclaracoes:
     """Testes de criação de menu de declarações."""
     
-    @patch('ui.menu.Menu')
+    @patch('src.ui.menu.Menu')
     def test_criar_menu_declaracoes_completo(self, mock_menu):
         """Testa criação de menu de declarações com callbacks."""
         # Setup
@@ -183,7 +183,7 @@ class TestMenuManagerMeses:
     """Testes de criação de menu de meses."""
     
     @patch('utils.dates.nome_mes_pt')
-    @patch('ui.menu.Menu')
+    @patch('src.ui.menu.Menu')
     def test_criar_menu_meses_cria_12_itens(self, mock_menu, mock_nome_mes):
         """Testa que menu de meses cria 12 itens (janeiro a dezembro)."""
         # Setup
@@ -235,7 +235,7 @@ class TestMenuManagerAnexar:
 class TestMenuManagerErrorHandling:
     """Testes de tratamento de erros."""
     
-    @patch('ui.menu.Menu')
+    @patch('src.ui.menu.Menu')
     def test_criar_menu_contextual_com_erro_retorna_none(self, mock_menu):
         """Testa que erro na criação retorna None."""
         # Setup
@@ -252,7 +252,7 @@ class TestMenuManagerErrorHandling:
         # Verify
         assert result is None
     
-    @patch('ui.menu.Menu')
+    @patch('src.ui.menu.Menu')
     def test_criar_menu_relatorios_com_erro_retorna_none(self, mock_menu):
         """Testa que erro na criação de relatórios retorna None."""
         # Setup

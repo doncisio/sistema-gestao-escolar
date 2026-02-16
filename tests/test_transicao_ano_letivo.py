@@ -27,7 +27,7 @@ class TestVerificacoes:
     
     def test_verificar_fim_do_ano_antes_31_12(self):
         """Deve retornar False se ainda não chegou ao fim do ano letivo"""
-        from transicao_ano_letivo import InterfaceTransicaoAnoLetivo
+        from src.interfaces.transicao_ano_letivo import InterfaceTransicaoAnoLetivo
         
         # Mock da janela Tkinter
         mock_janela = MagicMock()
@@ -60,7 +60,7 @@ class TestVerificacoes:
     
     def test_verificar_fim_do_ano_depois_data_fim(self):
         """Deve retornar True se passou da data_fim do ano letivo"""
-        from transicao_ano_letivo import InterfaceTransicaoAnoLetivo
+        from src.interfaces.transicao_ano_letivo import InterfaceTransicaoAnoLetivo
         
         mock_janela = MagicMock()
         
@@ -86,7 +86,7 @@ class TestVerificacoes:
     
     def test_verificar_fim_do_ano_fallback_31_12(self):
         """Deve usar 31/12 como fallback se data_fim não estiver definida"""
-        from transicao_ano_letivo import InterfaceTransicaoAnoLetivo
+        from src.interfaces.transicao_ano_letivo import InterfaceTransicaoAnoLetivo
         
         mock_janela = MagicMock()
         
@@ -120,7 +120,7 @@ class TestProgressaoSerie:
     
     def test_obter_proxima_turma_aprovado(self):
         """Aluno aprovado deve avançar para próxima série"""
-        from transicao_ano_letivo import InterfaceTransicaoAnoLetivo
+        from src.interfaces.transicao_ano_letivo import InterfaceTransicaoAnoLetivo
         
         mock_janela = MagicMock()
         
@@ -145,7 +145,7 @@ class TestProgressaoSerie:
     
     def test_obter_proxima_turma_reprovado(self):
         """Aluno reprovado deve permanecer na mesma turma"""
-        from transicao_ano_letivo import InterfaceTransicaoAnoLetivo
+        from src.interfaces.transicao_ano_letivo import InterfaceTransicaoAnoLetivo
         
         mock_janela = MagicMock()
         
@@ -164,7 +164,7 @@ class TestProgressaoSerie:
     
     def test_obter_proxima_turma_sem_proxima(self):
         """Se não encontrar próxima turma, deve manter na mesma"""
-        from transicao_ano_letivo import InterfaceTransicaoAnoLetivo
+        from src.interfaces.transicao_ano_letivo import InterfaceTransicaoAnoLetivo
         
         mock_janela = MagicMock()
         
@@ -255,7 +255,7 @@ class TestBackup:
     
     def test_verificar_backup_recente_existe(self):
         """Deve retornar True se backup recente existe"""
-        from transicao_ano_letivo import InterfaceTransicaoAnoLetivo
+        from src.interfaces.transicao_ano_letivo import InterfaceTransicaoAnoLetivo
         from pathlib import Path
         
         mock_janela = MagicMock()
@@ -284,7 +284,7 @@ class TestBackup:
     
     def test_verificar_backup_recente_antigo(self):
         """Deve retornar False se backup é muito antigo (>24h)"""
-        from transicao_ano_letivo import InterfaceTransicaoAnoLetivo
+        from src.interfaces.transicao_ano_letivo import InterfaceTransicaoAnoLetivo
         from pathlib import Path
         
         mock_janela = MagicMock()
@@ -318,7 +318,7 @@ class TestDryRun:
         """Modo dry-run não deve persistir alterações"""
         # Este teste verificaria que conn.rollback() é chamado
         # em vez de conn.commit() no modo dry-run
-        from transicao_ano_letivo import InterfaceTransicaoAnoLetivo
+        from src.interfaces.transicao_ano_letivo import InterfaceTransicaoAnoLetivo
         
         mock_janela = MagicMock()
         
@@ -356,7 +356,7 @@ def mock_janela():
 @pytest.fixture
 def app_transicao(mock_janela):
     """Fixture que retorna uma instância da interface mockada"""
-    from transicao_ano_letivo import InterfaceTransicaoAnoLetivo
+    from src.interfaces.transicao_ano_letivo import InterfaceTransicaoAnoLetivo
     
     with patch('transicao_ano_letivo.Frame'), \
          patch('transicao_ano_letivo.Label'), \

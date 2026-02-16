@@ -29,7 +29,7 @@ def mock_cursor():
 @pytest.fixture
 def mock_get_cursor(mock_cursor):
     """Fixture que mocka o context manager get_cursor."""
-    with patch('services.aluno_service.get_cursor') as mock:
+    with patch('src.services.aluno_service.get_cursor') as mock:
         mock.return_value.__enter__.return_value = mock_cursor
         mock.return_value.__exit__.return_value = None
         yield mock
@@ -69,14 +69,14 @@ class TestVerificarMatriculaAtiva:
         # Configurar mocks - nenhum ano letivo encontrado
         mock_cursor.fetchone.side_effect = [None, None]
         
-        with patch('services.aluno_service.messagebox.showwarning'):
+        with patch('src.services.aluno_service.messagebox.showwarning'):
             resultado = verificar_matricula_ativa(1)
         
         assert resultado is False
     
     def test_id_invalido(self):
         """Testa comportamento com ID inválido."""
-        with patch('services.aluno_service.messagebox.showerror'):
+        with patch('src.services.aluno_service.messagebox.showerror'):
             resultado = verificar_matricula_ativa(cast(int, "inválido"))
         
         assert resultado is False
@@ -116,7 +116,7 @@ class TestVerificarHistoricoMatriculas:
     
     def test_id_invalido(self):
         """Testa comportamento com ID inválido."""
-        with patch('services.aluno_service.messagebox.showerror'):
+        with patch('src.services.aluno_service.messagebox.showerror'):
             tem_historico, anos = verificar_historico_matriculas(cast(int, None))
         
         assert tem_historico is False
@@ -129,25 +129,25 @@ class TestExcluirAlunoComConfirmacao:
     def test_exclusao_cancelada_por_matricula_ativa(self, mock_get_cursor, mock_cursor):
         """Testa que não permite excluir aluno com matrícula ativa."""
         # Mock verificar_matricula_ativa para retornar True
-        with patch('services.aluno_service.verificar_matricula_ativa', return_value=True):
-            with patch('services.aluno_service.messagebox.showwarning'):
+        with patch('src.services.aluno_service.verificar_matricula_ativa', return_value=True):
+            with patch('src.services.aluno_service.messagebox.showwarning'):
                 resultado = excluir_aluno_com_confirmacao(1, "João Silva")
         
         assert resultado is False
     
     def test_exclusao_cancelada_pelo_usuario(self, mock_get_cursor, mock_cursor):
         """Testa cancelamento da exclusão pelo usuário."""
-        with patch('services.aluno_service.verificar_matricula_ativa', return_value=False):
-            with patch('services.aluno_service.messagebox.askyesno', return_value=False):
+        with patch('src.services.aluno_service.verificar_matricula_ativa', return_value=False):
+            with patch('src.services.aluno_service.messagebox.askyesno', return_value=False):
                 resultado = excluir_aluno_com_confirmacao(1, "João Silva")
         
         assert resultado is False
     
     def test_exclusao_bem_sucedida(self, mock_get_cursor, mock_cursor):
         """Testa exclusão bem-sucedida de aluno."""
-        with patch('services.aluno_service.verificar_matricula_ativa', return_value=False):
-            with patch('services.aluno_service.messagebox.askyesno', return_value=True):
-                with patch('services.aluno_service.messagebox.showinfo'):
+        with patch('src.services.aluno_service.verificar_matricula_ativa', return_value=False):
+            with patch('src.services.aluno_service.messagebox.askyesno', return_value=True):
+                with patch('src.services.aluno_service.messagebox.showinfo'):
                     resultado = excluir_aluno_com_confirmacao(1, "João Silva")
         
         assert resultado is True
@@ -159,9 +159,9 @@ class TestExcluirAlunoComConfirmacao:
         """Testa que callback é executado após exclusão bem-sucedida."""
         callback = Mock()
         
-        with patch('services.aluno_service.verificar_matricula_ativa', return_value=False):
-            with patch('services.aluno_service.messagebox.askyesno', return_value=True):
-                with patch('services.aluno_service.messagebox.showinfo'):
+        with patch('src.services.aluno_service.verificar_matricula_ativa', return_value=False):
+            with patch('src.services.aluno_service.messagebox.askyesno', return_value=True):
+                with patch('src.services.aluno_service.messagebox.showinfo'):
                     resultado = excluir_aluno_com_confirmacao(1, "João Silva", callback_sucesso=callback)
         
         assert resultado is True

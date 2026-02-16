@@ -25,8 +25,8 @@ class TestActionHandlerCadastro:
     
     def test_cadastrar_novo_aluno_abre_janela(self):
         """Testa que cadastrar_novo_aluno abre janela de cadastro."""
-        with patch('ui.actions.Toplevel') as mock_toplevel:
-            with patch('InterfaceCadastroAluno.InterfaceCadastroAluno') as mock_interface:
+        with patch('src.ui.actions.aluno.Toplevel') as mock_toplevel:
+            with patch('src.interfaces.cadastro_aluno.InterfaceCadastroAluno') as mock_interface:
                 # Setup
                 app = Mock()
                 app.janela = Mock()
@@ -51,8 +51,8 @@ class TestActionHandlerCadastro:
     
     def test_cadastrar_novo_funcionario_abre_janela(self):
         """Testa que cadastrar_novo_funcionario abre janela de cadastro."""
-        with patch('ui.actions.Toplevel') as mock_toplevel:
-            with patch('InterfaceCadastroFuncionario.InterfaceCadastroFuncionario') as mock_interface:
+        with patch('src.ui.actions.funcionario.Toplevel') as mock_toplevel:
+            with patch('src.interfaces.cadastro_funcionario.InterfaceCadastroFuncionario') as mock_interface:
                 # Setup
                 app = Mock()
                 app.janela = Mock()
@@ -76,7 +76,7 @@ class TestActionHandlerCadastro:
 class TestActionHandlerEdicao:
     """Testes de ações de edição."""
     
-    @patch('ui.actions.messagebox')
+    @patch('src.ui.actions.aluno.messagebox')
     def test_editar_aluno_sem_selecao_mostra_aviso(self, mock_messagebox):
         """Testa que editar_aluno sem seleção mostra aviso."""
         # Setup
@@ -96,38 +96,33 @@ class TestActionHandlerEdicao:
             "Selecione um aluno para editar"
         )
     
-    def test_editar_aluno_com_selecao_abre_janela(self):
-        """Testa que editar_aluno com seleção abre janela de edição."""
-        with patch('ui.actions.messagebox'):
-            with patch('ui.actions.Toplevel') as mock_toplevel:
-                with patch('InterfaceEdicaoAluno.InterfaceEdicaoAluno') as mock_interface:
-                    # Setup
-                    app = Mock()
-                    app.janela = Mock()
-                    app.colors = {'co1': '#ffffff'}
-                    app.table_manager = Mock()
-                    app.table_manager.tree = Mock()
-                    app.table_manager.get_selected_item.return_value = (123, 'João Silva', '2010-05-15')
-                    
-                    janela_edicao = Mock()
-                    mock_toplevel.return_value = janela_edicao
-                    
-                    handler = ActionHandler(app)
-                    
-                    # Execute
-                    handler.editar_aluno()
-                    
-                    # Verify
-                    mock_toplevel.assert_called_once_with(app.janela)
-                    janela_edicao.title.assert_called_once_with("Editar Aluno - ID: 123")
-                    app.janela.withdraw.assert_called_once()
-                    mock_interface.assert_called_once()
+    def test_editar_aluno_com_selecao_abre_modal(self):
+        """Testa que editar_aluno com seleção abre modal de edição."""
+        with patch('src.ui.aluno_modal.abrir_aluno_modal') as mock_modal:
+            # Setup
+            app = Mock()
+            app.janela = Mock()
+            app.cores = {'co1': '#ffffff'}
+            app.table_manager = Mock()
+            app.table_manager.tree = Mock()
+            app.table_manager.get_selected_item.return_value = (123, 'João Silva', '2010-05-15')
+            
+            handler = ActionHandler(app)
+            
+            # Execute
+            handler.editar_aluno()
+            
+            # Verify
+            mock_modal.assert_called_once()
+            call_kwargs = mock_modal.call_args[1]
+            assert call_kwargs['aluno_id'] == 123
+            assert call_kwargs['parent'] is app.janela
 
 
 class TestActionHandlerExclusao:
     """Testes de ações de exclusão."""
     
-    @patch('ui.actions.messagebox')
+    @patch('src.ui.actions.aluno.messagebox')
     def test_excluir_aluno_sem_selecao_mostra_aviso(self, mock_messagebox):
         """Testa que excluir_aluno sem seleção mostra aviso."""
         # Setup
@@ -147,8 +142,8 @@ class TestActionHandlerExclusao:
             "Selecione um aluno para excluir"
         )
     
-    @patch('ui.actions.messagebox')
-    @patch('services.aluno_service.excluir_aluno_com_confirmacao')
+    @patch('src.ui.actions.aluno.messagebox')
+    @patch('src.services.aluno_service.excluir_aluno_com_confirmacao')
     def test_excluir_aluno_com_selecao_chama_servico(self, mock_excluir, mock_messagebox):
         """Testa que excluir_aluno com seleção chama serviço de exclusão."""
         # Setup
@@ -170,8 +165,8 @@ class TestActionHandlerExclusao:
         assert call_args[0][0] == 456  # aluno_id
         assert call_args[0][1] == 'Maria Santos'  # nome_aluno
     
-    @patch('ui.actions.messagebox')
-    @patch('services.aluno_service.excluir_aluno_com_confirmacao')
+    @patch('src.ui.actions.aluno.messagebox')
+    @patch('src.services.aluno_service.excluir_aluno_com_confirmacao')
     def test_excluir_aluno_sucesso_atualiza_tabela(self, mock_excluir, mock_messagebox):
         """Testa que exclusão bem-sucedida atualiza a tabela."""
         # Setup
@@ -197,8 +192,8 @@ class TestActionHandlerNavigacao:
     
     def test_abrir_historico_escolar_abre_janela(self):
         """Testa que abrir_historico_escolar abre a interface correta."""
-        with patch('ui.actions.Toplevel') as mock_toplevel:
-            with patch('interface_historico_escolar.InterfaceHistoricoEscolar') as mock_interface:
+        with patch('src.ui.actions.navegacao.Toplevel') as mock_toplevel:
+            with patch('src.interfaces.historico_escolar.InterfaceHistoricoEscolar') as mock_interface:
                 # Setup
                 app = Mock()
                 app.janela = Mock()
@@ -220,8 +215,8 @@ class TestActionHandlerNavigacao:
     
     def test_abrir_interface_administrativa_abre_janela(self):
         """Testa que abrir_interface_administrativa abre a interface correta."""
-        with patch('ui.actions.Toplevel') as mock_toplevel:
-            with patch('interface_administrativa.InterfaceAdministrativa') as mock_interface:
+        with patch('src.ui.actions.navegacao.Toplevel') as mock_toplevel:
+            with patch('src.interfaces.administrativa.InterfaceAdministrativa') as mock_interface:
                 # Setup
                 app = Mock()
                 app.janela = Mock()
@@ -270,7 +265,7 @@ class TestActionHandlerPesquisa:
         handler.logger = Mock()
         
         # Execute
-        with patch('ui.actions.messagebox'):
+        with patch('src.ui.actions.messagebox'):
             handler.pesquisar("João")
         
         # Verify
@@ -281,7 +276,7 @@ class TestActionHandlerPesquisa:
 class TestActionHandlerDetalhes:
     """Testes de ações de visualização de detalhes."""
     
-    @patch('ui.actions.messagebox')
+    @patch('src.ui.actions.aluno.messagebox')
     def test_ver_detalhes_sem_selecao_mostra_aviso(self, mock_messagebox):
         """Testa que ver_detalhes_aluno sem seleção mostra aviso."""
         # Setup
@@ -301,7 +296,7 @@ class TestActionHandlerDetalhes:
             "Selecione um aluno para ver detalhes"
         )
     
-    @patch('ui.actions.messagebox')
+    @patch('src.ui.actions.aluno.messagebox')
     def test_ver_detalhes_com_selecao_registra_log(self, mock_messagebox):
         """Testa que ver_detalhes_aluno com seleção registra no log."""
         # Setup
@@ -324,8 +319,8 @@ class TestActionHandlerDetalhes:
 class TestActionHandlerMatricula:
     """Testes de ações de matrícula."""
     
-    @patch('ui.actions.messagebox')
-    @patch('services.aluno_service.obter_aluno_por_id')
+    @patch('src.ui.actions.matricula.messagebox')
+    @patch('src.services.aluno_service.obter_aluno_por_id')
     def test_matricular_aluno_sem_aluno_encontrado(self, mock_obter, mock_messagebox):
         """Testa que _matricular_aluno sem aluno mostra erro."""
         # Setup
@@ -343,8 +338,8 @@ class TestActionHandlerMatricula:
         mock_messagebox.showerror.assert_called_once()
         assert "não encontrado" in str(mock_messagebox.showerror.call_args)
     
-    @patch('ui.matricula_modal.abrir_matricula_modal')
-    @patch('services.aluno_service.obter_aluno_por_id')
+    @patch('src.ui.matricula_modal.abrir_matricula_modal')
+    @patch('src.services.aluno_service.obter_aluno_por_id')
     def test_matricular_aluno_com_sucesso_abre_modal(self, mock_obter, mock_modal):
         """Testa que _matricular_aluno com aluno válido abre modal."""
         # Setup
@@ -364,8 +359,8 @@ class TestActionHandlerMatricula:
         call_kwargs = mock_modal.call_args[1]
         assert call_kwargs['nome_aluno'] == 'João Silva'
     
-    @patch('ui.actions.messagebox')
-    @patch('services.aluno_service.obter_aluno_por_id')
+    @patch('src.ui.actions.matricula.messagebox')
+    @patch('src.services.aluno_service.obter_aluno_por_id')
     def test_editar_matricula_sem_aluno_encontrado(self, mock_obter, mock_messagebox):
         """Testa que _editar_matricula sem aluno mostra erro."""
         # Setup
@@ -386,8 +381,8 @@ class TestActionHandlerMatricula:
 class TestActionHandlerGeracaoDocumentos:
     """Testes de ações de geração de documentos."""
     
-    @patch('ui.actions.submit_background')
-    @patch('historico_escolar.historico_escolar')
+    @patch('src.utils.executor.submit_background')
+    @patch('src.relatorios.historico_escolar.historico_escolar')
     def test_gerar_historico_chama_funcao_correta(self, mock_historico, mock_submit):
         """Testa que _gerar_historico chama função correta em background."""
         # Setup
@@ -405,8 +400,8 @@ class TestActionHandlerGeracaoDocumentos:
         worker_fn = mock_submit.call_args[0][0]
         assert callable(worker_fn)
     
-    @patch('ui.actions.messagebox')
-    @patch('services.boletim_service.gerar_boletim_ou_transferencia')
+    @patch('src.ui.actions.relatorios.messagebox')
+    @patch('src.services.boletim_service.gerar_boletim_ou_transferencia')
     def test_gerar_boletim_sucesso_mostra_mensagem(self, mock_gerar, mock_messagebox):
         """Testa que _gerar_boletim com sucesso mostra mensagem."""
         # Setup
@@ -424,21 +419,21 @@ class TestActionHandlerGeracaoDocumentos:
         assert resultado[0] is True
         assert "sucesso" in resultado[1].lower()
     
-    @patch('ui.actions.Toplevel')
-    @patch('services.declaracao_service.obter_dados_aluno_para_declaracao')
-    def test_gerar_declaracao_aluno_abre_dialog(self, mock_obter, mock_toplevel):
+    @patch('src.ui.actions.relatorios.Entry')
+    @patch('src.ui.actions.relatorios.OptionMenu')
+    @patch('src.ui.actions.relatorios.StringVar')
+    @patch('src.ui.actions.relatorios.Button')
+    @patch('src.ui.actions.relatorios.Frame')
+    @patch('src.ui.actions.relatorios.Label')
+    @patch('src.ui.actions.relatorios.Toplevel')
+    def test_gerar_declaracao_aluno_abre_dialog(self, mock_toplevel,
+            mock_label, mock_frame, mock_button, mock_stringvar,
+            mock_optionmenu, mock_entry):
         """Testa que _gerar_declaracao_aluno abre diálogo de configuração."""
         # Setup
         app = Mock()
         app.janela = Mock()
-        app.colors = {'co0': '#000', 'co1': '#fff'}
-        
-        mock_obter.return_value = {
-            'id': 111,
-            'nome': 'Maria Santos',
-            'serie': '5º Ano',
-            'status': 'Ativo'
-        }
+        app.colors = {'co0': '#000', 'co1': '#fff', 'co2': '#333', 'co7': '#666'}
         
         dialog = Mock()
         mock_toplevel.return_value = dialog
@@ -449,12 +444,11 @@ class TestActionHandlerGeracaoDocumentos:
         handler._gerar_declaracao_aluno(111)
         
         # Verify
-        mock_obter.assert_called_once_with(111)
         mock_toplevel.assert_called_once_with(app.janela)
         dialog.title.assert_called_once()
     
-    @patch('ui.actions.submit_background')
-    @patch('services.declaracao_service.obter_funcionario_para_declaracao')
+    @patch('src.utils.executor.submit_background')
+    @patch('src.services.declaracao_service.obter_dados_funcionario_para_declaracao')
     def test_gerar_declaracao_funcionario_background(self, mock_obter, mock_submit):
         """Testa que _gerar_declaracao_funcionario executa em background."""
         # Setup
@@ -477,9 +471,9 @@ class TestActionHandlerGeracaoDocumentos:
         # Verificar que submit_background foi chamado
         assert mock_submit.called or True  # Fallback para threading
     
-    @patch('ui.actions.messagebox')
-    @patch('services.funcionario_service.obter_funcionario_por_id')
-    @patch('services.funcionario_service.excluir_funcionario')
+    @patch('src.ui.actions.funcionario.messagebox')
+    @patch('src.services.funcionario_service.obter_funcionario_por_id')
+    @patch('src.services.funcionario_service.excluir_funcionario')
     def test_excluir_funcionario_com_confirmacao(self, mock_excluir, mock_obter, mock_messagebox):
         """Testa que _excluir_funcionario pede confirmação antes de excluir."""
         # Setup
@@ -505,8 +499,8 @@ class TestActionHandlerGeracaoDocumentos:
         mock_excluir.assert_called_once_with(333, verificar_vinculos=True)
         handler._atualizar_tabela.assert_called_once()
     
-    @patch('ui.actions.messagebox')
-    @patch('services.funcionario_service.obter_funcionario_por_id')
+    @patch('src.ui.actions.funcionario.messagebox')
+    @patch('src.services.funcionario_service.obter_funcionario_por_id')
     def test_excluir_funcionario_cancelado_nao_exclui(self, mock_obter, mock_messagebox):
         """Testa que _excluir_funcionario cancelado não exclui."""
         # Setup
@@ -527,14 +521,14 @@ class TestActionHandlerGeracaoDocumentos:
         mock_obter.assert_called_once_with(444)
         mock_messagebox.askyesno.assert_called_once()
         # Não deve chamar excluir_funcionario
-        with patch('services.funcionario_service.excluir_funcionario') as mock_excluir:
+        with patch('src.services.funcionario_service.excluir_funcionario') as mock_excluir:
             assert not mock_excluir.called
 
 
 class TestActionHandlerBusca:
     """Testes de ações de busca e listagem."""
     
-    @patch('services.aluno_service.buscar_alunos')
+    @patch('src.services.aluno_service.buscar_alunos')
     def test_buscar_aluno_chama_servico(self, mock_buscar):
         """Testa que buscar_aluno chama serviço de busca."""
         # Setup
@@ -553,7 +547,7 @@ class TestActionHandlerBusca:
         # Verify
         mock_buscar.assert_called_once_with("João")
     
-    @patch('services.funcionario_service.buscar_funcionarios')
+    @patch('src.services.funcionario_service.buscar_funcionario')
     def test_buscar_funcionario_chama_servico(self, mock_buscar):
         """Testa que buscar_funcionario chama serviço de busca."""
         # Setup
@@ -572,7 +566,7 @@ class TestActionHandlerBusca:
         # Verify
         mock_buscar.assert_called_once_with("Ana")
     
-    @patch('services.aluno_service.listar_alunos_ativos')
+    @patch('src.services.aluno_service.listar_alunos_ativos')
     def test_listar_alunos_ativos_retorna_lista(self, mock_listar):
         """Testa que listar_alunos_ativos retorna lista correta."""
         # Setup
@@ -591,7 +585,7 @@ class TestActionHandlerBusca:
         # Verify
         mock_listar.assert_called_once()
     
-    @patch('services.funcionario_service.listar_funcionarios')
+    @patch('src.services.funcionario_service.listar_funcionarios')
     def test_listar_funcionarios_por_cargo(self, mock_listar):
         """Testa que listar_funcionarios filtra por cargo."""
         # Setup

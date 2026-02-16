@@ -44,11 +44,11 @@ class TestTableManagerInit:
 class TestTableManagerCriarTabela:
     """Testes para o método criar_tabela."""
     
-    @patch('ui.table.Frame')
-    @patch('ui.table.ttk.Treeview')
-    @patch('ui.table.ttk.Scrollbar')
-    @patch('ui.table.ttk.Style')
-    @patch('ui.table.Label')
+    @patch('src.ui.table.Frame')
+    @patch('src.ui.table.ttk.Treeview')
+    @patch('src.ui.table.ttk.Scrollbar')
+    @patch('src.ui.table.ttk.Style')
+    @patch('src.ui.table.Label')
     def test_criar_tabela_basic(
         self,
         mock_label,
@@ -72,11 +72,11 @@ class TestTableManagerCriarTabela:
         assert manager.tabela_frame is not None
         assert manager.instrucao_label is not None
     
-    @patch('ui.table.Frame')
-    @patch('ui.table.ttk.Treeview')
-    @patch('ui.table.ttk.Scrollbar')
-    @patch('ui.table.ttk.Style')
-    @patch('ui.table.Label')
+    @patch('src.ui.table.Frame')
+    @patch('src.ui.table.ttk.Treeview')
+    @patch('src.ui.table.ttk.Scrollbar')
+    @patch('src.ui.table.ttk.Style')
+    @patch('src.ui.table.Label')
     def test_criar_tabela_with_columns(
         self,
         mock_label,
@@ -95,11 +95,11 @@ class TestTableManagerCriarTabela:
         
         assert manager.colunas == colunas_custom
     
-    @patch('ui.table.Frame')
-    @patch('ui.table.ttk.Treeview')
-    @patch('ui.table.ttk.Scrollbar')
-    @patch('ui.table.ttk.Style')
-    @patch('ui.table.Label')
+    @patch('src.ui.table.Frame')
+    @patch('src.ui.table.ttk.Treeview')
+    @patch('src.ui.table.ttk.Scrollbar')
+    @patch('src.ui.table.ttk.Style')
+    @patch('src.ui.table.Label')
     def test_criar_tabela_with_callback(
         self,
         mock_label,
@@ -143,11 +143,11 @@ class TestTableManagerMethods:
         
         assert result == 'não é data'
     
-    @patch('ui.table.Frame')
-    @patch('ui.table.ttk.Treeview')
-    @patch('ui.table.ttk.Scrollbar')
-    @patch('ui.table.ttk.Style')
-    @patch('ui.table.Label')
+    @patch('src.ui.table.Frame')
+    @patch('src.ui.table.ttk.Treeview')
+    @patch('src.ui.table.ttk.Scrollbar')
+    @patch('src.ui.table.ttk.Style')
+    @patch('src.ui.table.Label')
     def test_atualizar_dados(
         self,
         mock_label,
@@ -173,11 +173,11 @@ class TestTableManagerMethods:
         assert len(manager.df) == 3
         assert manager.df['Nome'].tolist() == ['Ana', 'Bruno', 'Carlos']
     
-    @patch('ui.table.Frame')
-    @patch('ui.table.ttk.Treeview')
-    @patch('ui.table.ttk.Scrollbar')
-    @patch('ui.table.ttk.Style')
-    @patch('ui.table.Label')
+    @patch('src.ui.table.Frame')
+    @patch('src.ui.table.ttk.Treeview')
+    @patch('src.ui.table.ttk.Scrollbar')
+    @patch('src.ui.table.ttk.Style')
+    @patch('src.ui.table.Label')
     def test_show_hide(
         self,
         mock_label,
@@ -208,11 +208,11 @@ class TestTableManagerMethods:
         manager.tabela_frame.pack_forget.assert_called_once()
         manager.instrucao_label.pack_forget.assert_called_once()
     
-    @patch('ui.table.Frame')
-    @patch('ui.table.ttk.Treeview')
-    @patch('ui.table.ttk.Scrollbar')
-    @patch('ui.table.ttk.Style')
-    @patch('ui.table.Label')
+    @patch('src.ui.table.Frame')
+    @patch('src.ui.table.ttk.Treeview')
+    @patch('src.ui.table.ttk.Scrollbar')
+    @patch('src.ui.table.ttk.Style')
+    @patch('src.ui.table.Label')
     def test_limpar(
         self,
         mock_label,

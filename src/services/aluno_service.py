@@ -8,10 +8,10 @@ Este módulo centraliza todas as operações de negócio relacionadas a alunos:
 
 Extraído do main.py como parte da refatoração do Sprint 2.
 Atualizado no Sprint 18 com validação Pydantic.
+Refatorado no Sprint 22 — removido acoplamento com tkinter.
 """
 
 from typing import Tuple, List, Dict, Optional
-from tkinter import messagebox
 from mysql.connector import Error as MySQLError
 from db.connection import get_cursor
 from src.core.config_logs import get_logger
@@ -27,6 +27,30 @@ except ImportError:
     logger.warning("Modelos Pydantic não disponíveis, validação desabilitada")
 
 logger = get_logger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Exceções de negócio (capturadas pela UI para exibir mensagens)
+# ---------------------------------------------------------------------------
+
+class AlunoServiceError(Exception):
+    """Erro genérico do serviço de alunos."""
+    pass
+
+
+class AlunoIdInvalidoError(AlunoServiceError):
+    """ID de aluno inválido."""
+    pass
+
+
+class MatriculaAtivaError(AlunoServiceError):
+    """Aluno possui matrícula ativa e não pode ser excluído."""
+    pass
+
+
+class AnoLetivoNaoEncontradoError(AlunoServiceError):
+    """Ano letivo não encontrado no sistema."""
+    pass
 
 
 def validar_dados_aluno(dados: Dict, is_update: bool = False) -> Tuple[bool, Optional[str]]:
@@ -80,8 +104,7 @@ def verificar_matricula_ativa(aluno_id: int) -> bool:
         aluno_id_int = int(str(aluno_id))
     except (ValueError, TypeError) as e:
         logger.error(f"ID de aluno inválido: {aluno_id} - {e}")
-        messagebox.showerror("Erro", "ID de aluno inválido.")
-        return False
+        raise AlunoIdInvalidoError(f"ID de aluno inválido: {aluno_id}")
     
     try:
         with get_cursor() as cursor:
@@ -97,7 +120,7 @@ def verificar_matricula_ativa(aluno_id: int) -> bool:
 
             if not resultado_ano:
                 logger.warning("Nenhum ano letivo encontrado no sistema")
-                messagebox.showwarning("Aviso", "Não foi possível determinar o ano letivo atual.")
+                raise AnoLetivoNaoEncontradoError("Não foi possível determinar o ano letivo atual.")
                 return False
 
             ano_letivo_id = int(str(resultado_ano['id'] if isinstance(resultado_ano, dict) else resultado_ano[0]))
@@ -122,12 +145,12 @@ def verificar_matricula_ativa(aluno_id: int) -> bool:
             
     except MySQLError as e:
         logger.exception(f"Erro MySQL ao verificar matrícula do aluno {aluno_id}: {e}")
-        messagebox.showerror("Erro", f"Erro ao verificar matrícula: {str(e)}")
-        return False
+        raise AlunoServiceError(f"Erro ao verificar matrícula: {str(e)}") from e
+    except AlunoServiceError:
+        raise
     except Exception as e:
         logger.exception(f"Erro inesperado ao verificar matrícula do aluno {aluno_id}: {e}")
-        messagebox.showerror("Erro", f"Erro ao verificar matrícula: {str(e)}")
-        return False
+        raise AlunoServiceError(f"Erro ao verificar matrícula: {str(e)}") from e
 
 
 def verificar_historico_matriculas(aluno_id: int) -> Tuple[bool, List[Tuple[int, int]]]:
@@ -146,8 +169,7 @@ def verificar_historico_matriculas(aluno_id: int) -> Tuple[bool, List[Tuple[int,
         aluno_id_int = int(str(aluno_id))
     except (ValueError, TypeError) as e:
         logger.error(f"ID de aluno inválido em verificar_historico_matriculas: {aluno_id} - {e}")
-        messagebox.showerror("Erro", "ID de aluno inválido.")
-        return False, []
+        raise AlunoIdInvalidoError(f"ID de aluno inválido: {aluno_id}")
     
     try:
         with get_cursor() as cursor:
@@ -214,66 +236,54 @@ def verificar_historico_matriculas(aluno_id: int) -> Tuple[bool, List[Tuple[int,
                 
     except MySQLError as e:
         logger.exception(f"Erro MySQL ao verificar histórico de matrículas do aluno {aluno_id}: {e}")
-        messagebox.showerror("Erro", f"Erro ao verificar histórico de matrículas: {str(e)}")
-        return False, []
+        raise AlunoServiceError(f"Erro ao verificar histórico de matrículas: {str(e)}") from e
+    except AlunoServiceError:
+        raise
     except Exception as e:
         logger.exception(f"Erro inesperado ao verificar histórico de matrículas do aluno {aluno_id}: {e}")
-        messagebox.showerror("Erro", f"Erro ao verificar histórico de matrículas: {str(e)}")
-        return False, []
+        raise AlunoServiceError(f"Erro ao verificar histórico de matrículas: {str(e)}") from e
 
 
-def excluir_aluno_com_confirmacao(aluno_id: int, nome_aluno: str, callback_sucesso=None) -> bool:
+def excluir_aluno_com_confirmacao(aluno_id: int, nome_aluno: str, callback_sucesso=None, confirmado: bool = False) -> bool:
     """
-    Exclui um aluno após confirmação do usuário.
+    Exclui um aluno após verificações de segurança.
     
     Verifica se o aluno possui matrícula ativa antes de permitir a exclusão.
-    Se tiver matrícula ativa, não permite exclusão.
+    Se tiver matrícula ativa, levanta MatriculaAtivaError.
     
     Args:
         aluno_id: ID do aluno a ser excluído
-        nome_aluno: Nome do aluno (para exibir na confirmação)
+        nome_aluno: Nome do aluno (para logging)
         callback_sucesso: Função opcional a ser chamada após exclusão bem-sucedida
+        confirmado: Se True, pula confirmação (a UI já confirmou)
         
     Returns:
-        bool: True se o aluno foi excluído, False caso contrário
+        bool: True se o aluno foi excluído
+        
+    Raises:
+        AlunoIdInvalidoError: Se o ID for inválido
+        MatriculaAtivaError: Se o aluno possui matrícula ativa
+        AlunoServiceError: Em caso de erro de banco
     """
     try:
         aluno_id_int = int(str(aluno_id))
     except (ValueError, TypeError) as e:
         logger.error(f"ID de aluno inválido em excluir_aluno: {aluno_id} - {e}")
-        messagebox.showerror("Erro", "ID de aluno inválido.")
-        return False
+        raise AlunoIdInvalidoError(f"ID de aluno inválido: {aluno_id}")
     
     # Verificar se o aluno possui matrícula ativa
     if verificar_matricula_ativa(aluno_id_int):
         logger.warning(f"Tentativa de excluir aluno {aluno_id_int} com matrícula ativa")
-        messagebox.showwarning(
-            "Aviso",
+        raise MatriculaAtivaError(
             f"O aluno {nome_aluno} possui matrícula ativa e não pode ser excluído.\n\n"
             "Para excluir este aluno, primeiro remova ou transfira a matrícula."
         )
-        return False
-    
-    # Confirmar exclusão com o usuário
-    resposta = messagebox.askyesno(
-        "Confirmar Exclusão",
-        f"Tem certeza que deseja excluir o aluno {nome_aluno}?\n\n"
-        "Esta ação não pode ser desfeita."
-    )
-    
-    if not resposta:
-        logger.debug(f"Exclusão de aluno {aluno_id_int} cancelada pelo usuário")
-        return False
     
     try:
         with get_cursor(commit=True) as cursor:
-            # Excluir o aluno
             cursor.execute("DELETE FROM alunos WHERE id = %s", (aluno_id_int,))
             logger.info(f"Aluno {aluno_id_int} ({nome_aluno}) excluído com sucesso")
             
-            messagebox.showinfo("Sucesso", f"Aluno {nome_aluno} excluído com sucesso!")
-            
-            # Executar callback se fornecido
             if callback_sucesso:
                 try:
                     callback_sucesso()
@@ -284,12 +294,12 @@ def excluir_aluno_com_confirmacao(aluno_id: int, nome_aluno: str, callback_suces
             
     except MySQLError as e:
         logger.exception(f"Erro MySQL ao excluir aluno {aluno_id_int}: {e}")
-        messagebox.showerror("Erro", f"Erro ao excluir aluno: {str(e)}")
-        return False
+        raise AlunoServiceError(f"Erro ao excluir aluno: {str(e)}") from e
+    except AlunoServiceError:
+        raise
     except Exception as e:
         logger.exception(f"Erro inesperado ao excluir aluno {aluno_id_int}: {e}")
-        messagebox.showerror("Erro", f"Erro ao excluir aluno: {str(e)}")
-        return False
+        raise AlunoServiceError(f"Erro ao excluir aluno: {str(e)}") from e
 
 
 def obter_aluno_por_id(aluno_id: int) -> Optional[Dict]:
@@ -559,3 +569,69 @@ def listar_alunos_ativos(escola_id: int = 60, ano_letivo_id: Optional[int] = Non
     except Exception as e:
         logger.exception(f"Erro inesperado ao listar alunos ativos: {e}")
         return []
+
+
+def obter_detalhes_matricula_aluno(aluno_id: int, ano_letivo_id: int) -> Optional[Dict]:
+    """
+    Retorna detalhes de matrícula, série, turma e responsáveis do aluno para
+    exibição no painel de detalhes.
+
+    Args:
+        aluno_id: ID do aluno
+        ano_letivo_id: ID do ano letivo
+
+    Returns:
+        Dict com chaves: status, data_matricula, serie_nome, turma_nome,
+        turma_id, data_transferencia, nome_mae, nome_pai.
+        None se não encontrar dados.
+    """
+    try:
+        aluno_id_int = converter_para_int_seguro(aluno_id)
+        if aluno_id_int is None:
+            return None
+
+        with get_cursor() as cursor:
+            cursor.execute("""
+                SELECT 
+                    m.status, 
+                    m.data_matricula,
+                    s.nome as serie_nome,
+                    t.nome as turma_nome,
+                    t.id as turma_id,
+                    (SELECT hm.data_mudanca 
+                     FROM historico_matricula hm 
+                     WHERE hm.matricula_id = m.id 
+                     AND hm.status_novo IN ('Transferido', 'Transferida')
+                     ORDER BY hm.data_mudanca DESC 
+                     LIMIT 1) as data_transferencia,
+                    GROUP_CONCAT(DISTINCT CASE WHEN r.grau_parentesco = 'Mãe' THEN r.nome END) as nome_mae,
+                    GROUP_CONCAT(DISTINCT CASE WHEN r.grau_parentesco = 'Pai' THEN r.nome END) as nome_pai
+                FROM alunos a
+                LEFT JOIN matriculas m ON a.id = m.aluno_id AND m.ano_letivo_id = %s AND m.status IN ('Ativo', 'Transferido')
+                LEFT JOIN turmas t ON m.turma_id = t.id AND t.escola_id = 60
+                LEFT JOIN series s ON t.serie_id = s.id
+                LEFT JOIN responsaveisalunos ra ON a.id = ra.aluno_id
+                LEFT JOIN responsaveis r ON ra.responsavel_id = r.id AND r.grau_parentesco IN ('Mãe', 'Pai')
+                WHERE a.id = %s
+                GROUP BY m.id, m.status, m.data_matricula, s.nome, t.nome, t.id
+                ORDER BY m.data_matricula DESC
+                LIMIT 1
+            """, (ano_letivo_id, aluno_id_int))
+
+            resultado = cursor.fetchone()
+            if resultado is None:
+                return None
+
+            # Normaliza para dict independente de formato retornado
+            if isinstance(resultado, dict):
+                return resultado
+
+            keys = [
+                'status', 'data_matricula', 'serie_nome', 'turma_nome',
+                'turma_id', 'data_transferencia', 'nome_mae', 'nome_pai',
+            ]
+            return dict(zip(keys, resultado))
+
+    except Exception as e:
+        logger.exception(f"Erro ao obter detalhes de matrícula do aluno {aluno_id}: {e}")
+        return None

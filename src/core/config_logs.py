@@ -77,7 +77,7 @@ def setup_logging(
     log_file: str = 'logs/app.log',
     level: Optional[int] = None,
     use_json: Optional[bool] = None,
-    rotation_type: str = 'size',  # 'size', 'time', 'both'
+    rotation_type: str = 'size',  # 'size' ou 'time' (evite 'both' — gera 2 logs confusos)
     max_bytes: int = 10 * 1024 * 1024,  # 10MB
     backup_count: int = 5,
     when: str = 'midnight'  # Para TimedRotatingFileHandler
@@ -131,13 +131,15 @@ def setup_logging(
         fmt = '%(asctime)s level=%(levelname)s name=%(name)s message=%(message)s'
         formatter = logging.Formatter(fmt)
 
-    # Console handler (sempre key=value simples)
-    console_fmt = '%(asctime)s level=%(levelname)s name=%(name)s message=%(message)s'
-    console_formatter: logging.Formatter = logging.Formatter(console_fmt)
-    ch = logging.StreamHandler()
-    ch.setLevel(level)
-    ch.setFormatter(console_formatter)
-    logger.addHandler(ch)
+    # Console handler — apenas em modo debug ou quando variável de ambiente solicita
+    enable_console = os.getenv('GESTAO_LOG_CONSOLE', '').lower() in ('true', '1', 'yes') or __debug__
+    if enable_console:
+        console_fmt = '%(asctime)s level=%(levelname)s name=%(name)s message=%(message)s'
+        console_formatter: logging.Formatter = logging.Formatter(console_fmt)
+        ch = logging.StreamHandler()
+        ch.setLevel(level)
+        ch.setFormatter(console_formatter)
+        logger.addHandler(ch)
 
     # File handlers com rotação
     if rotation_type in ('size', 'both'):
@@ -170,17 +172,27 @@ def setup_logging(
     setattr(logger, '_configured_for_app', True)
 
 
+# Flag de módulo — mais eficiente que checar atributo no root logger a cada chamada
+_logging_configured = False
+
+
 def get_logger(name: Optional[str] = None) -> logging.Logger:
     """
     Retorna um logger já configurado.
-    
+
+    Na primeira chamada, invoca ``setup_logging()`` automaticamente.
+    Chamadas subsequentes retornam diretamente o logger sem overhead.
+
     Args:
         name: Nome do logger (geralmente __name__ do módulo)
-        
+
     Returns:
         Logger configurado
     """
-    setup_logging()
+    global _logging_configured
+    if not _logging_configured:
+        setup_logging()
+        _logging_configured = True
     return logging.getLogger(name)
 
 

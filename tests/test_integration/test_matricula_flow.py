@@ -38,9 +38,9 @@ def mock_app(root):
 class TestMatriculaIntegrationFlow:
     """Testes de integração para fluxo de matrícula."""
     
-    @patch('ui.matricula_modal.obter_ano_letivo_atual')
-    @patch('ui.matricula_modal.verificar_matricula_existente')
-    @patch('ui.matricula_modal.obter_series_disponiveis')
+    @patch('src.ui.matricula_modal.obter_ano_letivo_atual')
+    @patch('src.ui.matricula_modal.verificar_matricula_existente')
+    @patch('src.ui.matricula_modal.obter_series_disponiveis')
     def test_abrir_modal_matricula_com_sucesso(
         self, mock_series, mock_verificar, mock_ano, root, mock_app
     ):
@@ -68,7 +68,7 @@ class TestMatriculaIntegrationFlow:
         mock_verificar.assert_called_once_with(123, 1)
         mock_series.assert_called_once()
     
-    @patch('ui.matricula_modal.obter_ano_letivo_atual')
+    @patch('src.ui.matricula_modal.obter_ano_letivo_atual')
     def test_modal_falha_sem_ano_letivo(self, mock_ano, root, mock_app):
         """Testa que modal não abre se não há ano letivo configurado."""
         # Arrange
@@ -84,8 +84,8 @@ class TestMatriculaIntegrationFlow:
             )
             mock_error.assert_called_once()
     
-    @patch('ui.matricula_modal.obter_ano_letivo_atual')
-    @patch('ui.matricula_modal.verificar_matricula_existente')
+    @patch('src.ui.matricula_modal.obter_ano_letivo_atual')
+    @patch('src.ui.matricula_modal.verificar_matricula_existente')
     def test_modal_alerta_matricula_existente(
         self, mock_verificar, mock_ano, root, mock_app
     ):
@@ -104,10 +104,10 @@ class TestMatriculaIntegrationFlow:
             )
             mock_warning.assert_called_once()
     
-    @patch('ui.matricula_modal.obter_ano_letivo_atual')
-    @patch('ui.matricula_modal.verificar_matricula_existente')
-    @patch('ui.matricula_modal.obter_series_disponiveis')
-    @patch('ui.matricula_modal.obter_turmas_por_serie')
+    @patch('src.ui.matricula_modal.obter_ano_letivo_atual')
+    @patch('src.ui.matricula_modal.verificar_matricula_existente')
+    @patch('src.ui.matricula_modal.obter_series_disponiveis')
+    @patch('src.ui.matricula_modal.obter_turmas_por_serie')
     def test_atualizar_turmas_ao_selecionar_serie(
         self, mock_turmas, mock_series, mock_verificar, mock_ano, root, mock_app
     ):
@@ -139,10 +139,10 @@ class TestMatriculaIntegrationFlow:
             # Assert
             mock_turmas.assert_called_once_with(1, 1)
     
-    @patch('ui.matricula_modal.obter_ano_letivo_atual')
-    @patch('ui.matricula_modal.verificar_matricula_existente')
-    @patch('ui.matricula_modal.obter_series_disponiveis')
-    @patch('ui.matricula_modal.matricular_aluno')
+    @patch('src.ui.matricula_modal.obter_ano_letivo_atual')
+    @patch('src.ui.matricula_modal.verificar_matricula_existente')
+    @patch('src.ui.matricula_modal.obter_series_disponiveis')
+    @patch('src.ui.matricula_modal.matricular_aluno')
     def test_confirmar_matricula_com_sucesso(
         self, mock_matricular, mock_series, mock_verificar, mock_ano, root, mock_app
     ):
@@ -180,9 +180,9 @@ class TestMatriculaIntegrationFlow:
             mock_info.assert_called_once()
             callback.assert_called_once()
     
-    @patch('ui.matricula_modal.obter_ano_letivo_atual')
-    @patch('ui.matricula_modal.verificar_matricula_existente')
-    @patch('ui.matricula_modal.obter_series_disponiveis')
+    @patch('src.ui.matricula_modal.obter_ano_letivo_atual')
+    @patch('src.ui.matricula_modal.verificar_matricula_existente')
+    @patch('src.ui.matricula_modal.obter_series_disponiveis')
     def test_confirmar_matricula_sem_serie_selecionada(
         self, mock_series, mock_verificar, mock_ano, root, mock_app
     ):
@@ -204,7 +204,7 @@ class TestMatriculaIntegrationFlow:
             modal._confirmar_matricula()
             mock_warning.assert_called_once()
     
-    @patch('ui.actions.abrir_matricula_modal')
+    @patch('src.ui.actions.abrir_matricula_modal')
     def test_action_handler_matricular_aluno(self, mock_abrir_modal, mock_app):
         """Testa que ActionHandler chama o modal de matrícula corretamente."""
         # Arrange
@@ -226,7 +226,7 @@ class TestMatriculaIntegrationFlow:
             callback_sucesso=handler._atualizar_tabela
         )
     
-    @patch('ui.actions.abrir_matricula_modal')
+    @patch('src.ui.actions.abrir_matricula_modal')
     def test_action_handler_matricular_sem_selecao(self, mock_abrir_modal, mock_app):
         """Testa que ActionHandler alerta quando nenhum aluno está selecionado."""
         # Arrange
@@ -243,7 +243,7 @@ class TestMatriculaIntegrationFlow:
 class TestFuncionarioIntegrationFlow:
     """Testes de integração para operações de funcionários."""
     
-    @patch('services.funcionario_service.buscar_funcionario')
+    @patch('src.services.funcionario_service.buscar_funcionario')
     def test_buscar_funcionario_com_resultados(self, mock_buscar, mock_app):
         """Testa busca de funcionário com resultados."""
         # Arrange
@@ -261,7 +261,7 @@ class TestFuncionarioIntegrationFlow:
         mock_app.table_manager.atualizar_dados.assert_called_once()
         mock_app.update_status.assert_called_once()
     
-    @patch('services.funcionario_service.buscar_funcionario')
+    @patch('src.services.funcionario_service.buscar_funcionario')
     def test_buscar_funcionario_sem_resultados(self, mock_buscar, mock_app):
         """Testa busca de funcionário sem resultados."""
         # Arrange
@@ -275,7 +275,7 @@ class TestFuncionarioIntegrationFlow:
             # Assert
             mock_info.assert_called_once()
     
-    @patch('services.funcionario_service.listar_funcionarios')
+    @patch('src.services.funcionario_service.listar_funcionarios')
     def test_listar_funcionarios_todos(self, mock_listar, mock_app):
         """Testa listagem de todos os funcionários."""
         # Arrange
@@ -292,7 +292,7 @@ class TestFuncionarioIntegrationFlow:
         mock_listar.assert_called_once_with(None)
         mock_app.table_manager.atualizar_dados.assert_called_once()
     
-    @patch('services.funcionario_service.listar_funcionarios')
+    @patch('src.services.funcionario_service.listar_funcionarios')
     def test_listar_funcionarios_por_cargo(self, mock_listar, mock_app):
         """Testa listagem de funcionários filtrada por cargo."""
         # Arrange
@@ -307,7 +307,7 @@ class TestFuncionarioIntegrationFlow:
         # Assert
         mock_listar.assert_called_once_with("Professor")
     
-    @patch('services.funcionario_service.excluir_funcionario')
+    @patch('src.services.funcionario_service.excluir_funcionario')
     def test_excluir_funcionario_com_sucesso(self, mock_excluir, mock_app):
         """Testa exclusão de funcionário com sucesso."""
         # Arrange
@@ -328,7 +328,7 @@ class TestFuncionarioIntegrationFlow:
                 mock_info.assert_called_once()
                 mock_app.table_manager.atualizar_dados.assert_called_once()
     
-    @patch('services.funcionario_service.excluir_funcionario')
+    @patch('src.services.funcionario_service.excluir_funcionario')
     def test_excluir_funcionario_com_vinculos(self, mock_excluir, mock_app):
         """Testa que exclusão falha quando funcionário tem vínculos."""
         # Arrange
@@ -350,7 +350,7 @@ class TestFuncionarioIntegrationFlow:
                 # Assert
                 mock_error.assert_called_once()
     
-    @patch('services.funcionario_service.excluir_funcionario')
+    @patch('src.services.funcionario_service.excluir_funcionario')
     def test_excluir_funcionario_cancelado(self, mock_excluir, mock_app):
         """Testa que exclusão não ocorre quando usuário cancela."""
         # Arrange

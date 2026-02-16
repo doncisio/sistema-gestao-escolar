@@ -43,7 +43,19 @@ QUERY_LISTAR_ALUNOS = """
 
 QUERY_BUSCAR_ALUNO_POR_ID = """
     SELECT 
-        a.*,
+        a.id,
+        a.nome,
+        a.data_nascimento,
+        a.local_nascimento,
+        a.UF_nascimento,
+        a.endereco,
+        a.sus,
+        a.sexo,
+        a.cpf,
+        a.nis,
+        a.raca,
+        a.escola_id,
+        a.descricao_transtorno,
         m.id as matricula_id,
         m.status as matricula_status,
         t.nome as turma_nome,
@@ -284,7 +296,31 @@ QUERY_LISTAR_FUNCIONARIOS = """
 
 QUERY_FUNCIONARIO_POR_ID = """
     SELECT 
-        f.*,
+        f.id,
+        f.matricula,
+        f.data_admissao,
+        f.nome,
+        f.cpf,
+        f.carga_horaria,
+        f.vinculo,
+        f.cargo,
+        f.funcao,
+        f.turno,
+        f.turma,
+        f.telefone,
+        f.whatsapp,
+        f.email,
+        f.polivalente,
+        f.data_nascimento,
+        f.endereco_logradouro,
+        f.endereco_numero,
+        f.endereco_complemento,
+        f.endereco_bairro,
+        f.endereco_cidade,
+        f.endereco_estado,
+        f.endereco_cep,
+        f.escola_id,
+        f.volante,
         COUNT(DISTINCT t.id) as total_turmas
     FROM funcionarios f
     LEFT JOIN turmas t ON f.id = t.professor_id

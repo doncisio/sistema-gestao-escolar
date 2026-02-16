@@ -126,6 +126,18 @@ class Settings:
         
         self.version = VERSION
         
+        # Validação automática no boot — loga avisos sem abortar
+        self._boot_validate()
+        
+    def _boot_validate(self) -> None:
+        """Valida configurações no momento da criação e loga erros encontrados."""
+        import logging
+        _logger = logging.getLogger(__name__)
+        is_valid, errors = self.validate_all()
+        if not is_valid:
+            for err in errors:
+                _logger.warning("Configuração inválida: %s", err)
+
     def validate_all(self) -> tuple[bool, list[str]]:
         """
         Valida todas as configurações.

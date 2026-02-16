@@ -21,7 +21,7 @@ from src.services.serie_service import (
 class TestListarSeries:
     """Testes para listar_series()"""
     
-    @patch('services.serie_service.get_connection')
+    @patch('src.services.serie_service.get_connection')
     def test_listar_todas_series(self, mock_conn):
         """Testa listagem de todas as séries"""
         mock_cursor = Mock()
@@ -36,7 +36,7 @@ class TestListarSeries:
         assert len(series) == 2
         assert series[0]['nome'] == '1º Ano'
     
-    @patch('services.serie_service.get_connection')
+    @patch('src.services.serie_service.get_connection')
     def test_listar_series_por_ciclo(self, mock_conn):
         """Testa filtro por ciclo"""
         mock_cursor = Mock()
@@ -54,7 +54,7 @@ class TestListarSeries:
 class TestObterSeriePorId:
     """Testes para obter_serie_por_id()"""
     
-    @patch('services.serie_service.get_connection')
+    @patch('src.services.serie_service.get_connection')
     def test_obter_serie_existente(self, mock_conn):
         """Testa obtenção de série existente"""
         mock_cursor = Mock()
@@ -71,7 +71,7 @@ class TestObterSeriePorId:
         assert serie is not None
         assert serie['nome'] == '5º Ano'
     
-    @patch('services.serie_service.get_connection')
+    @patch('src.services.serie_service.get_connection')
     def test_obter_serie_inexistente(self, mock_conn):
         """Testa série que não existe"""
         mock_cursor = Mock()
@@ -86,7 +86,7 @@ class TestObterSeriePorId:
 class TestObterSeriePorNome:
     """Testes para obter_serie_por_nome()"""
     
-    @patch('services.serie_service.get_connection')
+    @patch('src.services.serie_service.get_connection')
     def test_obter_serie_por_nome_existente(self, mock_conn):
         """Testa busca por nome"""
         mock_cursor = Mock()
@@ -106,8 +106,8 @@ class TestObterSeriePorNome:
 class TestProximaSerie:
     """Testes para obter_proxima_serie()"""
     
-    @patch('services.serie_service.get_connection')
-    @patch('services.serie_service.obter_serie_por_id')
+    @patch('src.services.serie_service.get_connection')
+    @patch('src.services.serie_service.obter_serie_por_id')
     def test_obter_proxima_serie(self, mock_obter, mock_conn):
         """Testa obtenção da próxima série"""
         mock_obter.return_value = {'id': 1, 'nome': '1º Ano', 'ordem': 1}
@@ -124,8 +124,8 @@ class TestProximaSerie:
         assert proxima is not None
         assert proxima['nome'] == '2º Ano'
     
-    @patch('services.serie_service.get_connection')
-    @patch('services.serie_service.obter_serie_por_id')
+    @patch('src.services.serie_service.get_connection')
+    @patch('src.services.serie_service.obter_serie_por_id')
     def test_ultima_serie_sem_proxima(self, mock_obter, mock_conn):
         """Testa última série sem próxima"""
         mock_obter.return_value = {'id': 12, 'nome': '3º Ano EM', 'ordem': 12}
@@ -141,8 +141,8 @@ class TestProximaSerie:
 class TestSerieAnterior:
     """Testes para obter_serie_anterior()"""
     
-    @patch('services.serie_service.get_connection')
-    @patch('services.serie_service.obter_serie_por_id')
+    @patch('src.services.serie_service.get_connection')
+    @patch('src.services.serie_service.obter_serie_por_id')
     def test_obter_serie_anterior(self, mock_obter, mock_conn):
         """Testa obtenção da série anterior"""
         mock_obter.return_value = {'id': 5, 'nome': '5º Ano', 'ordem': 5}
@@ -163,7 +163,7 @@ class TestSerieAnterior:
 class TestValidarProgressao:
     """Testes para validar_progressao_serie()"""
     
-    @patch('services.serie_service.obter_serie_por_id')
+    @patch('src.services.serie_service.obter_serie_por_id')
     def test_progressao_valida_sequencial(self, mock_obter):
         """Testa progressão válida sequencial"""
         mock_obter.side_effect = [
@@ -176,7 +176,7 @@ class TestValidarProgressao:
         assert valido is True
         assert 'válida' in msg.lower()
     
-    @patch('services.serie_service.obter_serie_por_id')
+    @patch('src.services.serie_service.obter_serie_por_id')
     def test_progressao_invalida_regressiva(self, mock_obter):
         """Testa progressão inválida (regressiva)"""
         mock_obter.side_effect = [
@@ -189,7 +189,7 @@ class TestValidarProgressao:
         assert valido is False
         assert 'inválida' in msg.lower()
     
-    @patch('services.serie_service.obter_serie_por_id')
+    @patch('src.services.serie_service.obter_serie_por_id')
     def test_progressao_pulando_series(self, mock_obter):
         """Testa progressão pulando séries"""
         mock_obter.side_effect = [
@@ -206,7 +206,7 @@ class TestValidarProgressao:
 class TestEstatisticasSerie:
     """Testes para obter_estatisticas_serie()"""
     
-    @patch('services.serie_service.get_connection')
+    @patch('src.services.serie_service.get_connection')
     def test_obter_estatisticas(self, mock_conn):
         """Testa obtenção de estatísticas de série"""
         mock_cursor = Mock()
@@ -226,7 +226,7 @@ class TestEstatisticasSerie:
         assert stats['total_turmas'] == 3
         assert 'taxa_ocupacao' in stats
     
-    @patch('services.serie_service.get_connection')
+    @patch('src.services.serie_service.get_connection')
     def test_estatisticas_serie_sem_turmas(self, mock_conn):
         """Testa estatísticas de série sem turmas"""
         mock_cursor = Mock()
@@ -242,7 +242,7 @@ class TestEstatisticasSerie:
 class TestBuscarSeries:
     """Testes para buscar_series()"""
     
-    @patch('services.serie_service.get_connection')
+    @patch('src.services.serie_service.get_connection')
     def test_buscar_series_por_nome(self, mock_conn):
         """Testa busca por nome"""
         mock_cursor = Mock()
@@ -260,7 +260,7 @@ class TestBuscarSeries:
 class TestObterCiclos:
     """Testes para obter_ciclos()"""
     
-    @patch('services.serie_service.get_connection')
+    @patch('src.services.serie_service.get_connection')
     def test_obter_todos_ciclos(self, mock_conn):
         """Testa obtenção de todos os ciclos"""
         mock_cursor = Mock()

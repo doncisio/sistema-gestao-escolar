@@ -1,0 +1,69 @@
+[project]
+name = "gestao-escolar"
+version = "2.0.0"
+description = "Sistema de Gestão Escolar"
+requires-python = ">=3.12"
+readme = "README.md"
+
+dependencies = [
+    "mysql-connector-python>=8.2.0",
+    "pydantic>=2.12.0",
+    "pydantic-settings>=2.12.0",
+    "python-dotenv>=1.0.0",
+    "Pillow>=12.0.0",
+    "reportlab>=4.4.0",
+    "pandas>=2.2.0",
+    "openpyxl>=3.1.0",
+    "XlsxWriter>=3.2.0",
+    "plotly>=6.0.0",
+    "dash>=3.0.0",
+    "PyPDF2>=3.0.0",
+    "beautifulsoup4>=4.12.0",
+    "selenium>=4.25.0",
+    "tkcalendar>=1.6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.0",
+    "pytest-cov>=7.0.0",
+    "pytest-asyncio>=1.3.0",
+    "mypy>=1.0.0",
+]
+
+[project.scripts]
+gestao = "main:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore::DeprecationWarning:reportlab",
+    "ignore::DeprecationWarning:dateutil",
+    "ignore::DeprecationWarning:PyPDF2",
+]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["src", "db", "banco_questoes", "auth"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/migrations/*",
+    "scripts/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.",
+    "if TYPE_CHECKING:",
+    "pass",
+]
+fail_under = 0
