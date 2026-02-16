@@ -241,7 +241,7 @@ def adicionar_rodape_pagina(canvas_obj, doc):
     
     # Posição: x = 0 (borda esquerda da página), y = bem no fundo
     x_pos = 0
-    y_pos = 0 * inch  # 0.5 inch acima da borda inferior da página
+    y_pos = 0 * inch  # 0 inch acima da borda inferior da página
     
     # Desenhar imagem no canvas ocupando toda a largura da página
     canvas_obj.drawImage(
@@ -276,7 +276,7 @@ def gerar_termo_individual(aluno, responsavel, nome_escola, tipo_participante='e
         pagesize=A4,
         leftMargin=2*cm,
         rightMargin=2*cm,
-        topMargin=1.5*cm,
+        topMargin=1.0*cm,
         bottomMargin=3*cm  # Aumentar margem inferior para acomodar rodapé
     )
     
@@ -480,7 +480,7 @@ pelos organizadores da ação."""
         f'<para align="right">Paço do Lumiar - MA, <b>{data_formatada}</b></para>',
         campo_style
     ))
-    elements.append(Spacer(1, 0.3*inch))
+    elements.append(Spacer(1, 0.5*inch))
     
     # Assinatura
     elements.append(Paragraph(
