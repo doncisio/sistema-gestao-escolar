@@ -6,7 +6,8 @@ from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 import datetime
 import mysql.connector as mysql_connector
 from reportlab.lib.pagesizes import letter, landscape
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, PageBreak, Image
+from src.services.utils.pdf import create_pdf_doc
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import black, white
@@ -497,20 +498,12 @@ def gerar_documento_pdf(df, bimestre, nome_arquivo, disciplinas, nivel_ensino, a
         # Criar um espaço em branco no lugar da imagem
         figura_inferior = Spacer(1.5 * inch, 1 * inch)
     
-    # Define as margens da página (em pontos) para margens estreitas
-    left_margin = 36    # Margem esquerda (0,5 polegadas)
-    right_margin = 18   # Margem direita (0,5 polegadas)
-    top_margin = 18     # Margem superior (0,5 polegadas)
-    bottom_margin = 18  # Margem inferior (0,5 polegadas)
-    
-    # Cria o documento PDF com as margens ajustadas e orientação apropriada
-    doc = SimpleDocTemplate(
-        nome_arquivo, 
-        pagesize=letter,  # Sempre usar orientação retrato
-        leftMargin=left_margin, 
-        rightMargin=right_margin, 
-        topMargin=top_margin, 
-        bottomMargin=bottom_margin
+    # Cria o documento PDF com margens ajustadas e orientação retrato
+    doc = create_pdf_doc(
+        nome_arquivo,
+        pagesize=letter,
+        topMargin=18,
+        bottomMargin=18
     )
     elements = []
     
@@ -742,20 +735,12 @@ def gerar_documento_pdf_com_assinatura(df, bimestre, nome_arquivo, disciplinas, 
         # Criar um espaço em branco no lugar da imagem
         figura_inferior = Spacer(1.5 * inch, 1 * inch)
     
-    # Define as margens da página (em pontos) para margens estreitas
-    left_margin = 36    # Margem esquerda (0,5 polegadas)
-    right_margin = 18   # Margem direita (0,5 polegadas)
-    top_margin = 18     # Margem superior (0,5 polegadas)
-    bottom_margin = 18  # Margem inferior (0,5 polegadas)
-    
-    # Cria o documento PDF com as margens ajustadas e orientação paisagem
-    doc = SimpleDocTemplate(
-        nome_arquivo, 
-        pagesize=landscape(letter), 
-        leftMargin=left_margin, 
-        rightMargin=right_margin, 
-        topMargin=top_margin, 
-        bottomMargin=bottom_margin
+    # Cria o documento PDF com margens ajustadas e orientação paisagem
+    doc = create_pdf_doc(
+        nome_arquivo,
+        pagesize=landscape(letter),
+        topMargin=18,
+        bottomMargin=18
     )
     elements = []
     

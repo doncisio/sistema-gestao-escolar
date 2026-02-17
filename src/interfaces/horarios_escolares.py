@@ -9,7 +9,8 @@ from src.core.conexao import conectar_bd
 from PIL import ImageTk, Image
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import Table, TableStyle, Paragraph, Spacer
+from src.services.utils.pdf import create_pdf_doc
 from reportlab.lib.styles import getSampleStyleSheet
 import json
 import os
@@ -1342,7 +1343,7 @@ class InterfaceHorariosEscolares:
                 cores_professor[prof_id] = cores_disponiveis[idx % len(cores_disponiveis)]
             
             # Criar documento PDF em modo paisagem
-            doc = SimpleDocTemplate(caminho, pagesize=landscape(A4))
+            doc = create_pdf_doc(caminho, pagesize=landscape(A4))
             elementos = []
             
             # Estilos
@@ -1610,7 +1611,7 @@ class InterfaceHorariosEscolares:
                 turno = "Matutino"
             
             # Criar documento PDF em modo paisagem
-            doc = SimpleDocTemplate(caminho, pagesize=landscape(A4))
+            doc = create_pdf_doc(caminho, pagesize=landscape(A4))
             elementos = []
             
             # Estilos

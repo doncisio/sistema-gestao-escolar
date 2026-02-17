@@ -120,19 +120,12 @@ def _impl_gerar_lista_reuniao(dados_aluno=None, ano_letivo: Optional[int] = None
     import io
     import datetime
     from reportlab.lib.pagesizes import letter, landscape
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, PageBreak
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.units import inch
     from reportlab.lib import colors
 
-    try:
-        from src.services.utils.pdf import salvar_e_abrir_pdf
-    except Exception:
-        try:
-            from src.relatorios.gerar_pdf import salvar_e_abrir_pdf
-        except Exception:
-            logger.exception('Não foi possível importar helpers de PDF para gerar_lista_reuniao')
-            raise
+    from src.services.utils.pdf import salvar_e_abrir_pdf, create_pdf_buffer
 
     if dados_aluno is None:
         if ano_letivo is None:
@@ -189,12 +182,8 @@ def _impl_gerar_lista_reuniao(dados_aluno=None, ano_letivo: Optional[int] = None
             logger.info(f"Turma '{nome_turma_completo}' não mapeada em pastas_turmas — pulando")
             continue
 
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
+        doc, buffer = create_pdf_buffer(
             pagesize=landscape(letter),
-            leftMargin=36,
-            rightMargin=18,
             topMargin=18,
             bottomMargin=18
         )
@@ -272,16 +261,7 @@ def _impl_gerar_lista_reuniao(dados_aluno=None, ano_letivo: Optional[int] = None
             filename = None
 
         try:
-            salvar_helper = None
-            try:
-                from src.services.utils.pdf import salvar_e_abrir_pdf as _sh
-                salvar_helper = _sh
-            except Exception:
-                try:
-                    from src.relatorios.gerar_pdf import salvar_e_abrir_pdf as _sh
-                    salvar_helper = _sh
-                except Exception:
-                    salvar_helper = None
+            from src.services.utils.pdf import salvar_e_abrir_pdf as salvar_helper
 
             saved_path = None
             if salvar_helper is not None:

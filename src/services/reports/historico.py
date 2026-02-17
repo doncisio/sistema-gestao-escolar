@@ -66,14 +66,7 @@ def _impl_gerar_relatorio_series_faltantes(alunos_ativos=None, historico_lookup=
     """Implementação migrada do gerador ``gerar_relatorio_series_faltantes``."""
     import calendar
     import time
-    try:
-        from src.services.utils.pdf import create_pdf_buffer, salvar_e_abrir_pdf
-    except Exception:
-        try:
-            from src.relatorios.gerar_pdf import create_pdf_buffer, salvar_e_abrir_pdf
-        except Exception:
-            logger.exception('Não foi possível importar helpers de PDF para relatorio_series_faltantes')
-            raise
+    from src.services.utils.pdf import create_pdf_buffer, salvar_e_abrir_pdf
 
     conn = None
     try:

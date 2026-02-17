@@ -7,10 +7,9 @@ import os
 from src.core.conexao import conectar_bd
 from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 from typing import Any, cast
-from scripts.auxiliares.biblio_editor import create_pdf_buffer, quebra_linha
-from src.relatorios.gerar_pdf import salvar_e_abrir_pdf
+from scripts.auxiliares.biblio_editor import quebra_linha
+from src.services.utils.pdf import create_pdf_buffer, salvar_e_abrir_pdf
 import io
-from reportlab.platypus import SimpleDocTemplate
 
 # Cache global para imagens e estilos
 _IMAGE_CACHE = {}
@@ -105,15 +104,9 @@ def gerar_tabela_docentes():
     # Buscar dados dos professores
     professores = buscar_docentes(cursor, escola_id=60)
     
-    # Criar um novo buffer
-    buffer = io.BytesIO()
-    
-    # Criar documento PDF em modo paisagem
-    doc = SimpleDocTemplate(
-        buffer,
+    # Criar documento PDF em modo paisagem com margens personalizadas
+    doc, buffer = create_pdf_buffer(
         pagesize=landscape(letter),
-        leftMargin=36,
-        rightMargin=18,
         topMargin=10,
         bottomMargin=10
     )

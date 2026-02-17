@@ -122,14 +122,7 @@ def _impl_gerar_tabela_frequencia() -> bool:
         logger.exception('Não foi possível importar fetch_student_data para gerar_tabela_frequencia')
         raise
 
-    try:
-        from src.services.utils.pdf import salvar_e_abrir_pdf, create_pdf_buffer
-    except Exception:
-        try:
-            from src.relatorios.gerar_pdf import salvar_e_abrir_pdf, create_pdf_buffer
-        except Exception:
-            logger.exception('Não foi possível importar helpers de PDF para gerar_tabela_frequencia')
-            raise
+    from src.services.utils.pdf import salvar_e_abrir_pdf, create_pdf_buffer
 
     ano_letivo = datetime.datetime.now().year
     dados_aluno = fetch_student_data(ano_letivo)
@@ -235,14 +228,7 @@ def _impl_lista_frequencia() -> bool:
         logger.exception('Não foi possível importar fetch_student_data para lista_frequencia')
         raise
 
-    try:
-        from src.services.utils.pdf import salvar_e_abrir_pdf, create_pdf_buffer
-    except Exception:
-        try:
-            from src.relatorios.gerar_pdf import salvar_e_abrir_pdf, create_pdf_buffer
-        except Exception:
-            logger.exception('Não foi possível importar helpers de PDF para lista_frequencia')
-            raise
+    from src.services.utils.pdf import salvar_e_abrir_pdf, create_pdf_buffer
 
     ano_letivo = datetime.datetime.now().year
     dados_aluno = fetch_student_data(ano_letivo)

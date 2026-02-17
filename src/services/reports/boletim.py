@@ -172,13 +172,7 @@ def _impl_gerar_relatorio_notas_com_assinatura(*args, **kwargs) -> bool:
     if dados is None:
         raise NotImplementedError("_impl_gerar_relatorio_notas_com_assinatura requer 'dados' injetados")
 
-    try:
-        from src.services.utils.pdf import create_pdf_buffer, salvar_e_abrir_pdf
-    except Exception:
-        try:
-            from src.relatorios.gerar_pdf import create_pdf_buffer, salvar_e_abrir_pdf
-        except Exception:
-            return True
+    from src.services.utils.pdf import create_pdf_buffer, salvar_e_abrir_pdf
 
     import tempfile
     import pandas as pd
@@ -244,13 +238,10 @@ def _impl_gerar_relatorio_notas_com_assinatura(*args, **kwargs) -> bool:
         elif not need_in_memory and hasattr(legacy, 'gerar_documento_pdf'):
             legacy.gerar_documento_pdf(df, kwargs.get('bimestre', ''), filename, disciplinas, tipo_ensino, kwargs.get('ano_letivo'))
         else:
-            try:
-                from src.services.utils.pdf import create_pdf_buffer, salvar_e_abrir_pdf
-                from reportlab.platypus import Paragraph, Spacer
-                from reportlab.lib.styles import ParagraphStyle
-                from reportlab.lib.units import inch
-            except Exception:
-                raise NotImplementedError("Sem função de geração de PDF disponível in-process")
+            from src.services.utils.pdf import create_pdf_buffer, salvar_e_abrir_pdf
+            from reportlab.platypus import Paragraph, Spacer
+            from reportlab.lib.styles import ParagraphStyle
+            from reportlab.lib.units import inch
 
             doc, buffer = create_pdf_buffer()
             elements = []
@@ -263,16 +254,7 @@ def _impl_gerar_relatorio_notas_com_assinatura(*args, **kwargs) -> bool:
 
             saved_path = None
             try:
-                salvar_helper = None
-                try:
-                    from src.services.utils.pdf import salvar_e_abrir_pdf as _sh
-                    salvar_helper = _sh
-                except Exception:
-                    try:
-                        from src.relatorios.gerar_pdf import salvar_e_abrir_pdf as _sh
-                        salvar_helper = _sh
-                    except Exception:
-                        salvar_helper = None
+                from src.services.utils.pdf import salvar_e_abrir_pdf as salvar_helper
 
                 if salvar_helper is not None:
                     try:
@@ -352,14 +334,7 @@ def _impl_lista_notas(dados_aluno=None, ano_letivo: Optional[int] = None, out_di
     from reportlab.lib.units import inch
     from reportlab.lib import colors
 
-    try:
-        from src.services.utils.pdf import create_pdf_buffer, salvar_e_abrir_pdf
-    except Exception:
-        try:
-            from src.relatorios.gerar_pdf import create_pdf_buffer, salvar_e_abrir_pdf
-        except Exception:
-            logger.exception('Não foi possível importar helpers de PDF para lista_notas')
-            raise
+    from src.services.utils.pdf import create_pdf_buffer, salvar_e_abrir_pdf
 
     if dados_aluno is None:
         if ano_letivo is None:
@@ -404,16 +379,7 @@ def _impl_lista_notas(dados_aluno=None, ano_letivo: Optional[int] = None, out_di
 
     try:
         saved_path = None
-        salvar_helper = None
-        try:
-            from src.services.utils.pdf import salvar_e_abrir_pdf as _sh
-            salvar_helper = _sh
-        except Exception:
-            try:
-                from src.relatorios.gerar_pdf import salvar_e_abrir_pdf as _sh
-                salvar_helper = _sh
-            except Exception:
-                salvar_helper = None
+        from src.services.utils.pdf import salvar_e_abrir_pdf as salvar_helper
 
         if salvar_helper is not None:
             try:

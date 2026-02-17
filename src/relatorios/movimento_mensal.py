@@ -8,9 +8,9 @@ from reportlab.lib.colors import black, HexColor, Color
 import datetime
 import os
 import pandas as pd
-from scripts.auxiliares.biblio_editor import create_pdf_buffer, quebra_linha, get_nome_mes
+from scripts.auxiliares.biblio_editor import quebra_linha, get_nome_mes
 from src.relatorios.listas.lista_atualizada import fetch_student_data
-from src.relatorios.gerar_pdf import salvar_e_abrir_pdf
+from src.services.utils.pdf import create_pdf_buffer, salvar_e_abrir_pdf
 from src.core.conexao import conectar_bd
 from db.connection import get_connection, get_cursor
 import pymysql

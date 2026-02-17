@@ -9,7 +9,8 @@ from src.core.config import get_image_path, ANO_LETIVO_ATUAL
 from db.connection import get_connection
 from typing import Any, cast
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, PageBreak, Image
+from src.services.utils.pdf import create_pdf_buffer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
@@ -139,22 +140,13 @@ def gerar_documento_transferencia(aluno_id, ano_letivo_id):
         figura_superior = str(get_image_path('pacologo.png'))
         figura_inferior = str(get_image_path('logopacobranco.png'))
 
-        # Criar o PDF em memória
-        buffer = io.BytesIO()
-        # Define as margens da página (em pontos) para margens estreitas
-        left_margin = 85.05    # Margem esquerda (3cm)
-        right_margin = 56.7   # Margem direita (2cm)
-        top_margin = 56.7     # Margem superior (2cm) - Reduzida de 3cm para 2cm
-        bottom_margin = 56.7  # Margem inferior (2cm)
-
-        # Cria o documento PDF com as margens ajustadas
-        doc = SimpleDocTemplate(
-            buffer, 
-            pagesize=letter, 
-            leftMargin=left_margin, 
-            rightMargin=right_margin, 
-            topMargin=top_margin, 
-            bottomMargin=bottom_margin
+        # Criar o PDF em memória com margens personalizadas (cm → pontos)
+        doc, buffer = create_pdf_buffer(
+            pagesize=letter,
+            leftMargin=85,     # ~3cm
+            rightMargin=57,    # ~2cm
+            topMargin=57,      # ~2cm
+            bottomMargin=57    # ~2cm
         )
         
         # Estilos para o documento

@@ -83,14 +83,7 @@ def _impl_gerar_folhas_de_ponto(*args, **kwargs) -> bool:
     if profissionais is None:
         raise NotImplementedError("_impl_gerar_folhas_de_ponto requer 'profissionais' injetados")
 
-    try:
-        from src.services.utils.pdf import create_pdf_buffer, salvar_e_abrir_pdf
-    except Exception:
-        try:
-            from src.relatorios.gerar_pdf import create_pdf_buffer, salvar_e_abrir_pdf
-        except Exception:
-            logger.exception('Não foi possível importar helpers de PDF para gerar_folhas_de_ponto')
-            raise
+    from src.services.utils.pdf import create_pdf_buffer, salvar_e_abrir_pdf
 
     from reportlab.platypus import Table, TableStyle, Paragraph, Spacer
     from reportlab.lib.styles import ParagraphStyle
@@ -155,13 +148,7 @@ def _impl_gerar_resumo_ponto(*args, **kwargs) -> bool:
     base3_path = kwargs.get('base3_path')
     base4_path = kwargs.get('base4_path')
 
-    try:
-        from src.services.utils.pdf import salvar_e_abrir_pdf
-    except Exception:
-        try:
-            from src.relatorios.gerar_pdf import salvar_e_abrir_pdf
-        except Exception:
-            raise
+    from src.services.utils.pdf import salvar_e_abrir_pdf
 
     legacy = _ensure_legacy_module('gerar_resumo_ponto', required=[
         'nome_mes_pt',

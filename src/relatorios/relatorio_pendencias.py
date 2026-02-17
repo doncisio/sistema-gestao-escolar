@@ -6,7 +6,8 @@ Módulo para gerar relatórios de pendências de notas
 Identifica alunos sem notas e disciplinas sem lançamento
 """
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, PageBreak, Image
+from src.services.utils.pdf import create_pdf_doc
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import black, white, lightgrey, red, grey
@@ -179,7 +180,7 @@ def gerar_pdf_pendencias(bimestre, nivel_ensino="iniciais", ano_letivo=None, esc
     nome_arquivo = f"Pendencias_Notas_{bimestre.replace(' ', '_')}_{nivel_ensino}_{ano_letivo}.pdf"
     
     # Criar documento PDF com margens maiores
-    doc = SimpleDocTemplate(
+    doc = create_pdf_doc(
         nome_arquivo,
         pagesize=letter,
         leftMargin=40,

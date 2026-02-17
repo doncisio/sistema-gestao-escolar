@@ -7,9 +7,8 @@ from reportlab.lib import colors
 import os
 import datetime
 from src.core.config import get_image_path, ANO_LETIVO_ATUAL
-from src.relatorios.gerar_pdf import salvar_e_abrir_pdf
+from src.services.utils.pdf import salvar_e_abrir_pdf, create_pdf_buffer
 from src.relatorios.listas.lista_atualizada import fetch_student_data
-from src.relatorios.gerar_pdf import create_pdf_buffer
 import unicodedata
 
 # Cache global para imagens e estilos
@@ -61,8 +60,11 @@ def lista_frequencia():
     figura_superior = str(get_image_path('logopacobranco.png'))
     figura_inferior = str(get_image_path('logopaco.jpg'))
 
-    # Criar o documento PDF
-    doc, buffer = create_pdf_buffer()
+    # Criar o documento PDF com margens reduzidas para aproveitar espaço
+    doc, buffer = create_pdf_buffer(
+        topMargin=5,
+        bottomMargin=5
+    )
     elements = []
     # Estilo para o texto "TOTAL" com quebra de linha
     style_total = _get_cached_style('TotalStyle', fontSize=10, alignment=1, wordWrap='CJK')

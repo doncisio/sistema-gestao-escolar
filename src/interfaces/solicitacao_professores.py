@@ -5,7 +5,8 @@ import platform
 import os
 
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, Image
+from src.services.utils.pdf import create_pdf_doc
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.lib.colors import black, white
@@ -735,8 +736,8 @@ class InterfaceSolicitacaoProfessores:
             return
 
         try:
-            doc = SimpleDocTemplate(caminho, pagesize=A4,
-                                    leftMargin=36, rightMargin=36, topMargin=36, bottomMargin=36)
+            doc = create_pdf_doc(caminho, pagesize=A4,
+                                leftMargin=36, rightMargin=36, topMargin=36, bottomMargin=36)
 
             # Resolver imagem de rodapé
             def _resolver_img_rodape() -> str | None:
