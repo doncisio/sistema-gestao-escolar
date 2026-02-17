@@ -15,6 +15,8 @@ from typing import Tuple, List, Dict, Optional
 from mysql.connector import Error as MySQLError
 from db.connection import get_cursor
 from src.core.config_logs import get_logger
+from src.core.config import ANO_LETIVO_ATUAL
+from src.utils.safe import converter_para_int_seguro
 from pydantic import ValidationError
 
 # Import condicional dos modelos Pydantic (para compatibilidade)

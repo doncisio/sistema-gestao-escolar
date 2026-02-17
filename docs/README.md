@@ -1,26 +1,241 @@
-# 🎓 Sistema de Gestão Escolar
+# 📚 Documentação do Sistema de Gestão Escolar
 
-Sistema completo de gestão escolar desenvolvido em Python com interface Tkinter, focado em escolas municipais brasileiras.
+> **Índice centralizado de toda a documentação do projeto**  
+> **Última atualização**: 17/02/2026
 
-[![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-59%20files-brightgreen.svg)](tests/)
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](MELHORIAS_IMPLEMENTADAS.md)
+## 📖 Documentação Principal
 
-> **Última atualização**: Dezembro 2025 - v2.0.0  
-> **Status**: Sistema refatorado com configuração centralizada e observabilidade aprimorada
+Documentos essenciais para entender e contribuir com o projeto:
 
-## 📋 Índice
+| Documento | Descrição |
+|-----------|-----------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Arquitetura do sistema, camadas e fluxos de dados |
+| [API.md](API.md) | Documentação das APIs e interfaces públicas |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Guia para desenvolvedores (setup, padrões, debugging) |
+| [ESTRUTURA_PROJETO.md](ESTRUTURA_PROJETO.md) | Estrutura de diretórios e organização do código |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | Como contribuir (código, commits, PRs, testes) |
+| [CHANGELOG.md](../CHANGELOG.md) | Histórico de versões e mudanças |
 
-- [Funcionalidades](#-funcionalidades)
-- [Tecnologias](#-tecnologias)
-- [Instalação](#-instalação)
-- [Configuração](#-configuração)
-- [Uso](#-uso)
-- [Testes](#-testes)
-- [Arquitetura](#-arquitetura)
-- [Contribuição](#-contribuição)
-- [Licença](#-licença)
+## 🔐 Segurança e Permissões
+
+| Documento | Descrição |
+|-----------|-----------|
+| [RBAC_PERMISSOES.md](RBAC_PERMISSOES.md) | Matriz completa de permissões por perfil (Admin, Coordenador, Professor) |
+
+## 🎛️ Configuração e Features
+
+| Documento | Descrição |
+|-----------|-----------|
+| [FEATURE_FLAGS.md](FEATURE_FLAGS.md) | Sistema de feature flags (cache, debug, backup, etc) |
+
+## 🆘 Suporte e Troubleshooting
+
+| Documento | Descrição |
+|-----------|-----------|
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Resolução de problemas comuns (DB, imports, UI, performance) |
+
+---
+
+## 📁 Documentação Organizada por Categoria
+
+### 🔍 [analises/](analises/)
+**31 documentos** - Análises técnicas, relatórios de bugs corrigidos, otimizações implementadas
+
+```
+✓ Correções de importação GEDUC
+✓ Otimizações de performance (startup, cache, queries)
+✓ Eliminação de dependências circulares
+✓ Relatórios de reorganização do código
+✓ Documentação de melhorias implementadas
+```
+
+<details>
+<summary>📄 Ver documentos principais</summary>
+
+- [ANALISE_IMPORTACAO_GEDUC.md](analises/ANALISE_IMPORTACAO_GEDUC.md)
+- [OTIMIZACAO_PERFORMANCE_STARTUP.md](analises/OTIMIZACAO_PERFORMANCE_STARTUP.md)
+- [ELIMINACAO_DEPENDENCIAS_CIRCULARES.md](analises/ELIMINACAO_DEPENDENCIAS_CIRCULARES.md)
+- [RELATORIO_REORGANIZACAO_FINAL.md](analises/RELATORIO_REORGANIZACAO_FINAL.md)
+- [ESTRUTURA_FINAL.md](analises/ESTRUTURA_FINAL.md)
+
+</details>
+
+---
+
+### 📘 [guias/](guias/)
+**20 documentos** - Guias práticos, tutoriais, instruções de uso
+
+```
+✓ Importação/exportação GEDUC
+✓ Integração de horários
+✓ Configuração de ano letivo
+✓ Geração de relatórios PDF
+✓ Guias rápidos de funcionalidades
+```
+
+<details>
+<summary>📄 Ver guias principais</summary>
+
+- [GUIA_RAPIDO_IMPORTACAO_HORARIOS.md](../GUIA_RAPIDO_IMPORTACAO_HORARIOS.md)
+- [GUIA_RAPIDO_EXPORTACAO_GEDUC.md](../GUIA_RAPIDO_EXPORTACAO_GEDUC.md)
+- [GUIA_RAPIDO_LIVROS_FALTANTES.md](../GUIA_RAPIDO_LIVROS_FALTANTES.md)
+- [ANO_LETIVO_CONFIGURACAO.md](guias/ANO_LETIVO_CONFIGURACAO.md)
+- [STORAGE_MANAGER_GUIA.md](guias/STORAGE_MANAGER_GUIA.md)
+
+</details>
+
+---
+
+### 📋 [planos/](planos/)
+**17 documentos** - Planos de melhorias, roadmaps, especificações técnicas
+
+```
+✓ Melhorias e novas funcionalidades
+✓ Especificações BNCC
+✓ Planos de integração GEDUC
+✓ Sistema de banco de questões
+✓ Roadmap do projeto
+```
+
+<details>
+<summary>📄 Ver planos principais</summary>
+
+- [MELHORIAS_E_FUNCIONALIDADES.md](planos/MELHORIAS_E_FUNCIONALIDADES.md) ⭐ **Documento central de melhorias**
+- [MELHORIAS_SISTEMA.md](planos/MELHORIAS_SISTEMA.md)
+- [especificacao_sistema_escolar_bncc.md](planos/especificacao_sistema_escolar_bncc.md)
+- [IMPLEMENTACOES_BANCO_QUESTOES_PRIORIZADAS.md](planos/IMPLEMENTACOES_BANCO_QUESTOES_PRIORIZADAS.md)
+- [SISTEMA_MAPEAMENTO_GEDUC.md](planos/SISTEMA_MAPEAMENTO_GEDUC.md)
+
+</details>
+
+---
+
+### 🚀 [sprints/](sprints/)
+**5 documentos** - Documentação de sprints de desenvolvimento
+
+```
+✓ Sprint 1-10: Qualidade e Segurança
+✓ Sprint 11: Refatoração de Imports
+✓ Sprint 12: Melhorias Priorizadas
+✓ Features implementadas por sprint
+```
+
+<details>
+<summary>📄 Ver sprints</summary>
+
+- [SPRINT_1-10_QUALIDADE_SEGURANCA.md](sprints/SPRINT_1-10_QUALIDADE_SEGURANCA.md)
+- [SPRINT_11_IMPORTS.md](sprints/SPRINT_11_IMPORTS.md)
+- [SPRINT_12_MELHORIAS_PRIORIZADAS.md](sprints/SPRINT_12_MELHORIAS_PRIORIZADAS.md)
+- [DASHBOARD_TURMAS_DETALHADAS.md](sprints/DASHBOARD_TURMAS_DETALHADAS.md)
+
+</details>
+
+---
+
+### 🌐 [planos_multiplataforma/](planos_multiplataforma/)
+**7 documentos** - Plano estratégico de migração multiplataforma
+
+```
+✓ Plano geral de arquitetura multiplataforma
+✓ Backend API (FastAPI)
+✓ Web (React + Vite)
+✓ Desktop (Tauri)
+✓ Mobile (React Native)
+✓ Cloud/SaaS
+✓ Sprints de migração
+```
+
+<details>
+<summary>📄 Ver planos</summary>
+
+- [PLANO_GERAL_MULTIPLATAFORMA.md](planos_multiplataforma/PLANO_GERAL_MULTIPLATAFORMA.md) ⭐ **Visão geral**
+- [PLANO_API_BACKEND.md](planos_multiplataforma/PLANO_API_BACKEND.md)
+- [PLANO_WEB_REACT.md](planos_multiplataforma/PLANO_WEB_REACT.md)
+- [PLANO_DESKTOP_TAURI.md](planos_multiplataforma/PLANO_DESKTOP_TAURI.md)
+- [PLANO_MOBILE_REACT_NATIVE.md](planos_multiplataforma/PLANO_MOBILE_REACT_NATIVE.md)
+- [PLANO_CLOUD_SAAS.md](planos_multiplataforma/PLANO_CLOUD_SAAS.md)
+- [SPRINTS_MIGRACAO_MULTIPLATAFORMA.md](planos_multiplataforma/SPRINTS_MIGRACAO_MULTIPLATAFORMA.md)
+
+</details>
+
+---
+
+### 📑 [externos/](externos/)
+**4 documentos** - Documentos de órgãos públicos e editais
+
+```
+✓ Editais SEMED
+✓ Propostas para secretarias
+✓ Especificações de habilidades BNCC
+✓ Orientações estratégicas
+```
+
+---
+
+## 🎯 Início Rápido
+
+**Novo no projeto?** Siga esta ordem de leitura:
+
+1. 📖 [README.md principal](../README.md) - Visão geral e instalação
+2. 🏗️ [ARCHITECTURE.md](ARCHITECTURE.md) - Entenda a arquitetura
+3. 🛠️ [DEVELOPMENT.md](DEVELOPMENT.md) - Configure seu ambiente
+4. 📂 [ESTRUTURA_PROJETO.md](ESTRUTURA_PROJETO.md) - Navegue pelo código
+5. 🤝 [CONTRIBUTING.md](../CONTRIBUTING.md) - Comece a contribuir
+
+**Problemas?** Consulte:
+- 🆘 [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Resolução de problemas
+- 🎛️ [FEATURE_FLAGS.md](FEATURE_FLAGS.md) - Configure features
+- 🔐 [RBAC_PERMISSOES.md](RBAC_PERMISSOES.md) - Entenda permissões
+
+---
+
+## 📊 Estatísticas da Documentação
+
+| Categoria | Documentos | Última atualização |
+|-----------|:----------:|-------------------|
+| Principal | 8 | 17/02/2026 |
+| Análises | 31 | 15/01/2026 |
+| Guias | 20 | 10/02/2026 |
+| Planos | 17 | 17/02/2026 |
+| Sprints | 5 | 20/01/2026 |
+| Multiplataforma | 7 | 05/01/2026 |
+| Externos | 4 | 2026 |
+| **TOTAL** | **92** | - |
+
+---
+
+## 🔍 Busca Rápida
+
+**Procurando por:**
+- Como importar dados do GEDUC? → [guias/EXPORTACAO_GEDUC_SELENIUM.md](guias/EXPORTACAO_GEDUC_SELENIUM.md)
+- Como configurar backup? → [FEATURE_FLAGS.md](FEATURE_FLAGS.md#backup)
+- Erro de conexão MySQL? → [TROUBLESHOOTING.md](TROUBLESHOOTING.md#1-problemas-de-conexão-com-banco-de-dados)
+- Como funciona o cache? → [FEATURE_FLAGS.md](FEATURE_FLAGS.md#performance)
+- Quais permissões cada perfil tem? → [RBAC_PERMISSOES.md](RBAC_PERMISSOES.md)
+- Roadmap do projeto? → [planos/MELHORIAS_E_FUNCIONALIDADES.md](planos/MELHORIAS_E_FUNCIONALIDADES.md)
+- Como gerar relatório PDF? → [guias/GERACAO_PDF_AVALIACOES.md](guias/GERACAO_PDF_AVALIACOES.md)
+
+---
+
+## 🤝 Contribuindo
+
+Para adicionar ou atualizar documentação:
+
+1. **Documentos principais** → raiz de `docs/`
+2. **Análises técnicas** → `docs/analises/`
+3. **Guias de uso** → `docs/guias/`
+4. **Planos e propostas** → `docs/planos/`
+5. **Documentação de sprints** → `docs/sprints/`
+6. **Documentos externos** → `docs/externos/`
+
+Mantenha este README atualizado ao adicionar novos documentos importantes!
+
+---
+
+## 📋 Índice Original (Legado)
+
+<details>
+<summary>Clique para expandir índice detalhado do sistema</summary>
 
 ## ✨ Funcionalidades
 
@@ -514,3 +729,8 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 ---
 
 **Desenvolvido com ❤️ para educação brasileira**
+</details>
+
+---
+
+> 📝 **Nota**: Este README serve como índice da documentação. Para informações gerais do projeto, consulte o [README principal](../README.md).
