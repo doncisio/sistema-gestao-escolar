@@ -60,8 +60,9 @@ def lista_frequencia():
     figura_superior = str(get_image_path('logopacobranco.png'))
     figura_inferior = str(get_image_path('logopaco.jpg'))
 
-    # Criar o documento PDF com margens reduzidas para aproveitar espaço
+    # Criar o documento PDF em modo paisagem com margens reduzidas
     doc, buffer = create_pdf_buffer(
+        pagesize=landscape(letter),
         topMargin=5,
         bottomMargin=5
     )
