@@ -61,8 +61,8 @@ def upsert_horarios(dados: List[Dict]) -> int:
         
         sql = (
             "INSERT INTO horarios_importados "
-            "(turma_id, dia, horario, valor, disciplina_id, professor_id) "
-            "VALUES (%s, %s, %s, %s, %s, %s) "
+            "(turma_id, dia, horario, valor, disciplina_id, professor_id, ano_letivo) "
+            "VALUES (%s, %s, %s, %s, %s, %s, 2026) "
             "ON DUPLICATE KEY UPDATE "
             "valor=VALUES(valor), "
             "disciplina_id=VALUES(disciplina_id), "

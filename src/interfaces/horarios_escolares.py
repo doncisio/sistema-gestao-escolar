@@ -25,27 +25,31 @@ class InterfaceHorariosEscolares:
         # Armazenar referência à janela principal
         self.janela_principal = janela_principal
         
-        # Esconder janela principal quando abrir horários
-        if self.janela_principal:
-            self.janela_principal.withdraw()
+        logger.info("Iniciando InterfaceHorariosEscolares...")
+        logger.info(f"  root={root}, janela_principal={janela_principal}")
+        
+        if janela_principal:
+            logger.info(f"  Estado janela principal: {janela_principal.state()}")
+            logger.info(f"  Visível janela principal: {janela_principal.winfo_viewable()}")
         
         # Se root for None, cria uma nova janela
         if root is None:
+            logger.info("Criando nova janela Toplevel...")
             self.janela = tk.Toplevel(self.janela_principal)  # Passando o pai corretamente
             self.janela.title("Gerenciamento de Horários Escolares")
+            
+            # Forçar estado normal ANTES de definir geometria
+            self.janela.state('normal')
             self.janela.geometry("1200x700")
             
-            # Garantir que a janela principal existe antes de chamar grab_set
-            if self.janela_principal:
-                self.janela.transient(self.janela_principal)  # Define a janela principal como proprietária
-                # Não usar grab_set para permitir fechar corretamente
-                
+            # NÃO usar transient inicialmente - vai configurar depois que estiver visível
             self.janela.focus_force()
-            
-            # Configurar evento de fechamento
-            self.janela.protocol("WM_DELETE_WINDOW", self.ao_fechar_janela)
         else:
+            logger.info("Usando root fornecido...")
             self.janela = root
+        
+        # Configurar evento de fechamento sempre (independente de root)
+        self.janela.protocol("WM_DELETE_WINDOW", self.ao_fechar_janela)
 
         # Definir as cores da interface - mesmas cores da main.py
         self.co0 = "#F5F5F5"  # Branco suave para o fundo
@@ -81,7 +85,37 @@ class InterfaceHorariosEscolares:
         self.carregar_dados_iniciais()
         
         # Inicializar interface
-        self.criar_interface()
+        try:
+            self.criar_interface()
+            
+            # Garantir que ESTA janela seja exibida PRIMEIRO
+            self.janela.state('normal')  # Garantir que não está minimizada
+            self.janela.deiconify()
+            self.janela.update_idletasks()  # Processar eventos pendentes
+            self.janela.update()  # Forçar atualização completa
+            self.janela.lift()
+            self.janela.focus_force()
+            
+            # Força janela no topo temporariamente
+            self.janela.attributes('-topmost', True)
+            self.janela.after(100, lambda: self.janela.attributes('-topmost', False))
+            
+            # DEPOIS que a janela estiver visível, ocultar janela principal
+            if self.janela_principal:
+                logger.info("Ocultando janela principal...")
+                self.janela_principal.withdraw()
+            
+            logger.info(f"✓ Interface de horários escolares criada com sucesso")
+            logger.info(f"  Estado da janela: {self.janela.state()}")
+            logger.info(f"  Geometria: {self.janela.geometry()}")
+            logger.info(f"  Visível: {self.janela.winfo_viewable()}")
+            logger.info(f"  Mapeada: {self.janela.winfo_ismapped()}")
+        except Exception as e:
+            logger.exception(f"Erro ao criar interface de horários escolares: {e}")
+            # Se houver erro, restaurar janela principal
+            if self.janela_principal:
+                self.janela_principal.deiconify()
+            raise
     
     def carregar_dados_iniciais(self):
         """Carrega dados iniciais do banco de dados."""
@@ -161,12 +195,33 @@ class InterfaceHorariosEscolares:
             
             # Buscar todos os professores com tratamento de erro
             try:
+                # Verificar se a coluna data_saida existe
                 cursor.execute("""
-                    SELECT id, nome, cargo, polivalente FROM funcionarios 
-                    WHERE cargo IN ('Professor@', 'Especialista (Coordenadora)')
-                    AND escola_id = 60
-                    ORDER BY nome
+                    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_SCHEMA = DATABASE() 
+                    AND TABLE_NAME = 'funcionarios' 
+                    AND COLUMN_NAME = 'data_saida'
                 """)
+                has_data_saida = cursor.fetchone()['COUNT(*)'] > 0
+                
+                # Construir query baseado na existência da coluna
+                if has_data_saida:
+                    query = """
+                        SELECT id, nome, cargo, polivalente FROM funcionarios 
+                        WHERE cargo IN ('Professor@', 'Especialista (Coordenadora)')
+                        AND escola_id = 60
+                        AND (data_saida IS NULL OR data_saida = '')
+                        ORDER BY nome
+                    """
+                else:
+                    query = """
+                        SELECT id, nome, cargo, polivalente FROM funcionarios 
+                        WHERE cargo IN ('Professor@', 'Especialista (Coordenadora)')
+                        AND escola_id = 60
+                        ORDER BY nome
+                    """
+                
+                cursor.execute(query)
                 self.professores = cursor.fetchall()
                 logger.info(f"Professores carregados: {len(self.professores)}")
             except Exception as e:
@@ -406,20 +461,26 @@ class InterfaceHorariosEscolares:
 
     
     def criar_interface(self):
+        logger.info("criar_interface: Iniciando criação da interface...")
         # Criar frames principais
         self.criar_frames()
+        logger.info("criar_interface: Frames criados")
         
         # Criar título da janela
         self.criar_cabecalho("Gerenciamento de Horários Escolares")
+        logger.info("criar_interface: Cabeçalho criado")
         
         # Criar área de seleção
         self.criar_area_selecao()
+        logger.info("criar_interface: Área de seleção criada")
         
         # Criar grade de horários
         self.criar_grade_horarios()
+        logger.info("criar_interface: Grade de horários criada")
         
         # Criar barra de botões
         self.criar_barra_botoes()
+        logger.info("criar_interface: Barra de botões criada")
     
     def criar_frames(self):
         # Frame superior para título
@@ -542,12 +603,16 @@ class InterfaceHorariosEscolares:
             # Para simplificar, mapeamos MAT para Matutino e VESP para Vespertino
             turno_bd = "MAT" if self.turno_atual == "Matutino" else "VESP"
             
+            # Buscar turmas do ano letivo 2026
             cursor.execute("""
-                SELECT id, nome, serie_id FROM turmas 
-                WHERE serie_id = %s 
-                AND turno = %s
-                AND escola_id = 60
-                ORDER BY nome
+                SELECT t.id, t.nome, t.serie_id 
+                FROM turmas t
+                INNER JOIN anosletivos al ON t.ano_letivo_id = al.id
+                WHERE t.serie_id = %s 
+                AND t.turno = %s
+                AND t.escola_id = 60
+                AND al.ano_letivo = 2026
+                ORDER BY t.nome
             """, (serie_id, turno_bd))
             
             turmas = cursor.fetchall()
@@ -633,11 +698,34 @@ class InterfaceHorariosEscolares:
                 try:
                     conn = conectar_bd()
                     cursor = conn.cursor(dictionary=True)
-                    cursor.execute(
-                        "SELECT dia, horario, valor, disciplina_id, professor_id "
-                        "FROM horarios_importados WHERE turma_id = %s",
-                        (self.turma_id,)
-                    )
+                    
+                    # Verificar se coluna data_saida existe
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                        WHERE TABLE_SCHEMA = DATABASE() 
+                        AND TABLE_NAME = 'funcionarios' 
+                        AND COLUMN_NAME = 'data_saida'
+                    """)
+                    has_data_saida = cursor.fetchone()['COUNT(*)'] > 0
+                    
+                    # Construir query com filtro de professores ativos
+                    if has_data_saida:
+                        query = """
+                            SELECT h.dia, h.horario, h.valor, h.disciplina_id, h.professor_id
+                            FROM horarios_importados h
+                            LEFT JOIN funcionarios f ON h.professor_id = f.id
+                            WHERE h.turma_id = %s
+                            AND h.ano_letivo = 2026
+                            AND (h.professor_id IS NULL OR f.data_saida IS NULL OR f.data_saida = '')
+                        """
+                    else:
+                        query = """
+                            SELECT dia, horario, valor, disciplina_id, professor_id 
+                            FROM horarios_importados 
+                            WHERE turma_id = %s AND ano_letivo = 2026
+                        """
+                    
+                    cursor.execute(query, (self.turma_id,))
                     rows = cursor.fetchall()
                     cursor.close()
                     conn.close()
@@ -1308,12 +1396,34 @@ class InterfaceHorariosEscolares:
             # Buscar dados do banco de dados com informações de professor
             conn = conectar_bd()
             cursor = conn.cursor(dictionary=True)
+            
+            # Verificar se coluna data_saida existe
             cursor.execute("""
-                SELECT h.dia, h.horario, h.valor, h.professor_id, f.nome as professor_nome
-                FROM horarios_importados h
-                LEFT JOIN funcionarios f ON h.professor_id = f.id
-                WHERE h.turma_id = %s
-            """, (self.turma_id,))
+                SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'funcionarios' 
+                AND COLUMN_NAME = 'data_saida'
+            """)
+            has_data_saida = cursor.fetchone()['COUNT(*)'] > 0
+            
+            # Construir query com filtro de vínculo ativo
+            if has_data_saida:
+                query = """
+                    SELECT h.dia, h.horario, h.valor, h.professor_id, f.nome as professor_nome
+                    FROM horarios_importados h
+                    LEFT JOIN funcionarios f ON h.professor_id = f.id 
+                        AND (f.data_saida IS NULL OR f.data_saida = '')
+                    WHERE h.turma_id = %s AND h.ano_letivo = 2026
+                """
+            else:
+                query = """
+                    SELECT h.dia, h.horario, h.valor, h.professor_id, f.nome as professor_nome
+                    FROM horarios_importados h
+                    LEFT JOIN funcionarios f ON h.professor_id = f.id
+                    WHERE h.turma_id = %s AND h.ano_letivo = 2026
+                """
+            
+            cursor.execute(query, (self.turma_id,))
             horarios_bd = cursor.fetchall()
             cursor.close()
             conn.close()
@@ -1529,13 +1639,38 @@ class InterfaceHorariosEscolares:
             # Buscar professores do banco
             conn = conectar_bd()
             cursor = conn.cursor(dictionary=True)
+            
+            # Verificar se a coluna data_saida existe
             cursor.execute("""
-                SELECT DISTINCT f.id, f.nome 
-                FROM funcionarios f
-                INNER JOIN horarios_importados h ON f.id = h.professor_id
-                WHERE f.escola_id = 60
-                ORDER BY f.nome
+                SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'funcionarios' 
+                AND COLUMN_NAME = 'data_saida'
             """)
+            has_data_saida = cursor.fetchone()['COUNT(*)'] > 0
+            
+            # Construir query baseado na existência da coluna
+            if has_data_saida:
+                query = """
+                    SELECT DISTINCT f.id, f.nome 
+                    FROM funcionarios f
+                    INNER JOIN horarios_importados h ON f.id = h.professor_id
+                    WHERE f.escola_id = 60
+                    AND h.ano_letivo = 2026
+                    AND (f.data_saida IS NULL OR f.data_saida = '')
+                    ORDER BY f.nome
+                """
+            else:
+                query = """
+                    SELECT DISTINCT f.id, f.nome 
+                    FROM funcionarios f
+                    INNER JOIN horarios_importados h ON f.id = h.professor_id
+                    WHERE f.escola_id = 60
+                    AND h.ano_letivo = 2026
+                    ORDER BY f.nome
+                """
+            
+            cursor.execute(query)
             professores = cursor.fetchall()
             cursor.close()
             conn.close()
@@ -1577,7 +1712,7 @@ class InterfaceHorariosEscolares:
             if not professor_selecionado['id']:
                 return
             
-            # Buscar horários do professor
+            # Buscar horários do professor (já filtrado na seleção, mas garantir)
             conn = conectar_bd()
             cursor = conn.cursor(dictionary=True)
             cursor.execute("""
@@ -1587,7 +1722,7 @@ class InterfaceHorariosEscolares:
                 LEFT JOIN turmas t ON h.turma_id = t.id
                 LEFT JOIN series s ON t.serie_id = s.id
                 LEFT JOIN disciplinas d ON h.disciplina_id = d.id
-                WHERE h.professor_id = %s
+                WHERE h.professor_id = %s AND h.ano_letivo = 2026
                 ORDER BY h.dia, h.horario
             """, (professor_selecionado['id'],))
             horarios_prof = cursor.fetchall()
@@ -2255,11 +2390,47 @@ class InterfaceHorariosEscolares:
               disciplina_id INT NULL,
               professor_id INT NULL,
               geduc_turma_id INT NULL,
-              UNIQUE KEY ux_horario_turma (turma_id, dia, horario)
+              ano_letivo INT NOT NULL DEFAULT 2026,
+              UNIQUE KEY ux_horario_turma (turma_id, dia, horario, ano_letivo)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """
             
             cursor.execute(sql)
+            
+            # Adicionar coluna ano_letivo se não existir (para tabelas antigas)
+            try:
+                cursor.execute("""
+                    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_SCHEMA = DATABASE() 
+                    AND TABLE_NAME = 'horarios_importados' 
+                    AND COLUMN_NAME = 'ano_letivo'
+                """)
+                
+                if cursor.fetchone()[0] == 0:
+                    logger.info("Adicionando coluna ano_letivo à tabela horarios_importados...")
+                    cursor.execute("""
+                        ALTER TABLE horarios_importados 
+                        ADD COLUMN ano_letivo INT NOT NULL DEFAULT 2026
+                    """)
+                    
+                    # Atualizar horários existentes para serem de 2025
+                    cursor.execute("""
+                        UPDATE horarios_importados 
+                        SET ano_letivo = 2025 
+                        WHERE ano_letivo = 2026
+                    """)
+                    
+                    # Recriar índice único incluindo ano_letivo
+                    cursor.execute("DROP INDEX ux_horario_turma ON horarios_importados")
+                    cursor.execute("""
+                        CREATE UNIQUE INDEX ux_horario_turma 
+                        ON horarios_importados(turma_id, dia, horario, ano_letivo)
+                    """)
+                    
+                    logger.info("Coluna ano_letivo adicionada e horários antigos marcados como 2025")
+            except Exception as e:
+                logger.warning(f"Aviso ao adicionar coluna ano_letivo: {e}")
+            
             conn.commit()
             cursor.close()
             conn.close()
@@ -2366,8 +2537,8 @@ class InterfaceHorariosEscolares:
                 # Inserir ou atualizar horário
                 sql = """
                     INSERT INTO horarios_importados 
-                    (turma_id, dia, horario, valor, disciplina_id, professor_id, geduc_turma_id)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    (turma_id, dia, horario, valor, disciplina_id, professor_id, geduc_turma_id, ano_letivo)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, 2026)
                     ON DUPLICATE KEY UPDATE
                     valor = VALUES(valor),
                     disciplina_id = VALUES(disciplina_id),

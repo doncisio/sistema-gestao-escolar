@@ -458,11 +458,9 @@ class AdministrativoCallbacks:
         try:
             from src.interfaces.horarios_escolares import InterfaceHorariosEscolares
             
-            horarios_window = Toplevel(self.janela)
-            horarios_window.title("Horários Escolares")
-            horarios_window.geometry('1200x700')
-            
-            InterfaceHorariosEscolares(horarios_window, self.janela)
+            # Passar apenas a janela principal, deixar a interface criar sua própria janela
+            # IMPORTANTE: Manter referência para evitar garbage collection
+            self.interface_horarios = InterfaceHorariosEscolares(janela_principal=self.janela)
             
             logger.info("Interface de horários escolares aberta")
             

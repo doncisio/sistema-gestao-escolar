@@ -1,4 +1,70 @@
-# Guia de Contribuição
+2026-02-18 09:39:15,623 level=INFO name=__main__ message=======================================================================
+2026-02-18 09:39:15,623 level=INFO name=__main__ message=Sistema de Gestão Escolar v2.0.0
+2026-02-18 09:39:15,624 level=INFO name=__main__ message=======================================================================
+2026-02-18 09:39:15,624 level=INFO name=__main__ message=Ambiente: PRODUÇÃO
+2026-02-18 09:39:15,624 level=INFO name=__main__ message=Banco: localhost/redeescola
+2026-02-18 09:39:15,624 level=INFO name=__main__ message=Escola ID: 60
+2026-02-18 09:39:15,624 level=INFO name=__main__ message=Backup automático: HABILITADO
+2026-02-18 09:39:15,625 level=INFO name=__main__ message=Log Level: INFO
+2026-02-18 09:39:15,625 level=INFO name=__main__ message=Log Format: text
+2026-02-18 09:39:15,625 level=INFO name=__main__ message=======================================================================
+2026-02-18 09:39:16,432 level=INFO name=db.connection message=✓ Conexão testada com sucesso
+2026-02-18 09:39:16,464 level=INFO name=db.connection message=✓ Connection Pool inicializado: gestao_escolar_pool (size=5)
+2026-02-18 09:39:17,135 level=INFO name=src.ui.app message=Sistema inicializado com sucesso
+2026-02-18 09:39:17,172 level=INFO name=src.core.seguranca message=Sistema de Backup Automático ativado (14:05 e 17:00)
+2026-02-18 09:39:17,173 level=INFO name=src.core.seguranca message=✓ Sistema de backup automático iniciado com sucesso
+2026-02-18 09:39:17,173 level=INFO name=__main__ message=✅ Sistema pronto - Iniciando interface
+2026-02-18 09:39:19,519 level=INFO name=src.interfaces.horarios_escolares message=Iniciando InterfaceHorariosEscolares...
+2026-02-18 09:39:19,519 level=INFO name=src.interfaces.horarios_escolares message=  root=None, janela_principal=.
+2026-02-18 09:39:19,519 level=INFO name=src.interfaces.horarios_escolares message=  Estado janela principal: normal
+2026-02-18 09:39:19,520 level=INFO name=src.interfaces.horarios_escolares message=  Visível janela principal: 1
+2026-02-18 09:39:19,520 level=INFO name=src.interfaces.horarios_escolares message=Criando nova janela Toplevel...
+2026-02-18 09:39:19,521 level=INFO name=src.interfaces.horarios_escolares message=Níveis de ensino disponíveis:
+2026-02-18 09:39:19,522 level=INFO name=src.interfaces.horarios_escolares message=  ID: 1, Nome: Ensino Infantil
+2026-02-18 09:39:19,522 level=INFO name=src.interfaces.horarios_escolares message=  ID: 2, Nome: Ensino Fundamental I
+2026-02-18 09:39:19,522 level=INFO name=src.interfaces.horarios_escolares message=  ID: 3, Nome: Ensino Fundamental II
+2026-02-18 09:39:19,523 level=INFO name=src.interfaces.horarios_escolares message=
+Todas as séries disponíveis:
+2026-02-18 09:39:19,523 level=INFO name=src.interfaces.horarios_escolares message=  ID: 1, Nome: Infantil 1, Nível ID: 1
+2026-02-18 09:39:19,523 level=INFO name=src.interfaces.horarios_escolares message=  ID: 2, Nome: Infantil 2, Nível ID: 1
+2026-02-18 09:39:19,523 level=INFO name=src.interfaces.horarios_escolares message=  ID: 3, Nome: 1º Ano, Nível ID: 2
+2026-02-18 09:39:19,523 level=INFO name=src.interfaces.horarios_escolares message=  ID: 4, Nome: 2º Ano, Nível ID: 2
+2026-02-18 09:39:19,523 level=INFO name=src.interfaces.horarios_escolares message=  ID: 5, Nome: 3º Ano, Nível ID: 2
+2026-02-18 09:39:19,524 level=INFO name=src.interfaces.horarios_escolares message=  ID: 6, Nome: 4º Ano, Nível ID: 2
+2026-02-18 09:39:19,524 level=INFO name=src.interfaces.horarios_escolares message=  ID: 7, Nome: 5º Ano, Nível ID: 2
+2026-02-18 09:39:19,524 level=INFO name=src.interfaces.horarios_escolares message=  ID: 8, Nome: 6º Ano, Nível ID: 3
+2026-02-18 09:39:19,524 level=INFO name=src.interfaces.horarios_escolares message=  ID: 9, Nome: 7º Ano, Nível ID: 3
+2026-02-18 09:39:19,524 level=INFO name=src.interfaces.horarios_escolares message=  ID: 10, Nome: 8º Ano, Nível ID: 3
+2026-02-18 09:39:19,524 level=INFO name=src.interfaces.horarios_escolares message=  ID: 11, Nome: 9º Ano, Nível ID: 3
+2026-02-18 09:39:19,525 level=INFO name=src.interfaces.horarios_escolares message=
+Séries específicas carregadas: 9
+2026-02-18 09:39:19,525 level=INFO name=src.interfaces.horarios_escolares message=  ID: 3, Nome: 1º Ano
+2026-02-18 09:39:19,525 level=INFO name=src.interfaces.horarios_escolares message=  ID: 4, Nome: 2º Ano
+2026-02-18 09:39:19,526 level=INFO name=src.interfaces.horarios_escolares message=  ID: 5, Nome: 3º Ano
+2026-02-18 09:39:19,526 level=INFO name=src.interfaces.horarios_escolares message=  ID: 6, Nome: 4º Ano
+2026-02-18 09:39:19,526 level=INFO name=src.interfaces.horarios_escolares message=  ID: 7, Nome: 5º Ano
+2026-02-18 09:39:19,526 level=INFO name=src.interfaces.horarios_escolares message=  ID: 8, Nome: 6º Ano
+2026-02-18 09:39:19,526 level=INFO name=src.interfaces.horarios_escolares message=  ID: 9, Nome: 7º Ano
+2026-02-18 09:39:19,526 level=INFO name=src.interfaces.horarios_escolares message=  ID: 10, Nome: 8º Ano
+2026-02-18 09:39:19,526 level=INFO name=src.interfaces.horarios_escolares message=  ID: 11, Nome: 9º Ano
+2026-02-18 09:39:19,528 level=INFO name=src.interfaces.horarios_escolares message=Professores carregados: 18
+2026-02-18 09:39:19,529 level=INFO name=src.interfaces.horarios_escolares message=Disciplinas carregadas: 18
+2026-02-18 09:39:19,530 level=INFO name=src.interfaces.horarios_escolares message=criar_interface: Iniciando criação da interface...
+2026-02-18 09:39:19,530 level=INFO name=src.interfaces.horarios_escolares message=criar_interface: Frames criados
+2026-02-18 09:39:19,532 level=INFO name=src.interfaces.horarios_escolares message=criar_interface: Cabeçalho criado
+2026-02-18 09:39:19,537 level=INFO name=src.interfaces.horarios_escolares message=criar_interface: Área de seleção criada
+2026-02-18 09:39:19,542 level=INFO name=src.interfaces.horarios_escolares message=criar_interface: Grade de horários criada
+2026-02-18 09:39:19,597 level=INFO name=src.interfaces.horarios_escolares message=criar_interface: Barra de botões criada
+2026-02-18 09:39:19,710 level=INFO name=src.interfaces.horarios_escolares message=Ocultando janela principal...
+2026-02-18 09:39:19,713 level=INFO name=src.interfaces.horarios_escolares message=✓ Interface de horários escolares criada com sucesso
+2026-02-18 09:39:19,714 level=INFO name=src.interfaces.horarios_escolares message=  Estado da janela: normal
+2026-02-18 09:39:19,714 level=INFO name=src.interfaces.horarios_escolares message=  Geometria: 1200x700+26+26
+2026-02-18 09:39:19,714 level=INFO name=src.interfaces.horarios_escolares message=  Visível: 1
+2026-02-18 09:39:19,715 level=INFO name=src.interfaces.horarios_escolares message=  Mapeada: 1
+2026-02-18 09:39:19,715 level=INFO name=src.ui.action_callbacks message=Interface de horários escolares aberta
+2026-02-18 09:39:22,148 level=INFO name=src.interfaces.horarios_escolares message=Turmas encontradas para série 3, turno MAT:
+2026-02-18 09:39:22,148 level=INFO name=src.interfaces.horarios_escolares message=  ID: 28, Nome: '', Serie ID: 3
+2026-02-18 09:39:22,149 level=INFO name=src.interfaces.horarios_escolares message=  ID: 38, Nome: '', Serie ID: 3# Guia de Contribuição
 
 Obrigado por considerar contribuir com o Sistema de Gestão Escolar! Este documento fornece diretrizes para garantir que o código mantenha qualidade e consistência.
 
