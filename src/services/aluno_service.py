@@ -323,7 +323,9 @@ def obter_aluno_por_id(aluno_id: int) -> Optional[Dict]:
     try:
         with get_cursor() as cursor:
             cursor.execute("""
-                SELECT id, nome, data_nascimento, cpf, email, telefone, endereco, escola_id
+                SELECT id, nome, data_nascimento, cpf, endereco, escola_id, 
+                       sexo, nis, sus, raca, local_nascimento, UF_nascimento, 
+                       descricao_transtorno
                 FROM alunos 
                 WHERE id = %s
             """, (aluno_id_int,))
@@ -337,10 +339,15 @@ def obter_aluno_por_id(aluno_id: int) -> Optional[Dict]:
                     'nome': resultado[1],
                     'data_nascimento': resultado[2],
                     'cpf': resultado[3],
-                    'email': resultado[4],
-                    'telefone': resultado[5],
-                    'endereco': resultado[6],
-                    'escola_id': resultado[7]
+                    'endereco': resultado[4],
+                    'escola_id': resultado[5],
+                    'sexo': resultado[6],
+                    'nis': resultado[7],
+                    'sus': resultado[8],
+                    'raca': resultado[9],
+                    'local_nascimento': resultado[10],
+                    'UF_nascimento': resultado[11],
+                    'descricao_transtorno': resultado[12]
                 }
             else:
                 logger.warning(f"Aluno {aluno_id_int} não encontrado")

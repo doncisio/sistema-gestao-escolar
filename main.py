@@ -65,16 +65,18 @@ def main():
         # Log de inicialização com informações do ambiente
         log_startup_info()
         
-        # Importar Application após validar settings
+        # Importar Application após validar settings (lazy import)
+        logger.debug("Importando módulos da aplicação...")
         from src.ui.app import Application
+        logger.debug("✓ Módulos importados")
         # Verificar se sistema de perfis está habilitado
         if perfis_habilitados():
             logger.info("🔐 Sistema de perfis habilitado - Exibindo tela de login")
             
-            # Importar e exibir tela de login
+            # Importar e exibir tela de login (lazy imports)
+            import tkinter as tk
             from src.ui.login import LoginWindow
             from auth import UsuarioLogado
-            import tkinter as tk
             
             # Criar uma janela Tk temporária para o login
             root_temp = tk.Tk()
@@ -100,16 +102,19 @@ def main():
             
             logger.debug("Janela de login destruída, criando aplicação principal...")
             
+            # Feedback visual de carregamento
+            logger.info("Inicializando interface principal...")
+            
             # Criar aplicação passando o usuário logado
             app = Application(usuario=usuario)
             logger.debug("Aplicação criada com sucesso")
         else:
             # Fluxo normal - sem login (comportamento atual)
-            logger.debug("Sistema de perfis desabilitado - Abrindo direto")
+            logger.info("Sistema de perfis desabilitado - Carregando sistema...")
             app = Application()
         
         # Inicializar todos os componentes (método único que orquestra tudo)
-        logger.debug("Inicializando componentes...")
+        logger.info("Configurando interface...")
         app.initialize()
         
         # Garantir que a janela principal fique visível e em foco

@@ -21,11 +21,12 @@ try:
     from src.core.config.settings import settings
 except ImportError:
     settings = None
-from src.ui.dashboard import DashboardManager
-from src.ui.table import TableManager
-from src.ui.action_callbacks import ActionCallbacksManager
-from src.ui.button_factory import ButtonFactory
-from src.ui.menu import MenuManager
+# Lazy loading para módulos pesados - importados apenas quando necessários
+# from src.ui.dashboard import DashboardManager
+# from src.ui.table import TableManager
+# from src.ui.action_callbacks import ActionCallbacksManager
+# from src.ui.button_factory import ButtonFactory
+# from src.ui.menu import MenuManager
 
 # Logger
 logger = get_logger(__name__)
@@ -72,12 +73,12 @@ class Application:
         self.label_rodape: Optional[Any] = None
         self.readonly_mode: bool = False  # Flag para modo somente leitura
         
-        # Managers
-        self.dashboard_manager: Optional[DashboardManager] = None
-        self.table_manager: Optional[TableManager] = None
-        self.action_callbacks: Optional[ActionCallbacksManager] = None
-        self.button_factory: Optional[ButtonFactory] = None
-        self.menu_manager: Optional[MenuManager] = None
+        # Managers (lazy loaded)
+        self.dashboard_manager: Optional[Any] = None
+        self.table_manager: Optional[Any] = None
+        self.action_callbacks: Optional[Any] = None
+        self.button_factory: Optional[Any] = None
+        self.menu_manager: Optional[Any] = None
         self.e_nome_pesquisa = None  # Entry de pesquisa
         
         # Janela principal (será criada no setup)
@@ -89,10 +90,7 @@ class Application:
         # Frames da interface
         self.frames: Dict[str, Frame] = {}
         
-        # Inicializar pool de conexões
-        self._initialize_connection_pool()
-        
-        # Setup da aplicação
+        # Setup da aplicação (sem inicializar pool ainda)
         self._setup_window()
         self._setup_colors()
         self._setup_styles()
@@ -315,6 +313,9 @@ class Application:
             logger.warning("Frame de tabela não existe ainda. Execute setup_frames() primeiro.")
             return
         
+        # Lazy import
+        from src.ui.table import TableManager
+        
         self.table_manager = TableManager(
             parent_frame=self.frames['frame_tabela'],
             colors=self.colors
@@ -329,6 +330,9 @@ class Application:
     
     def setup_action_callbacks(self, atualizar_tabela_callback=None):
         """Cria e configura o ActionCallbacksManager para gerenciar ações da UI."""
+        # Lazy import
+        from src.ui.action_callbacks import ActionCallbacksManager
+        
         self.action_callbacks = ActionCallbacksManager(self.janela, atualizar_tabela_callback)
         logger.debug("ActionCallbacksManager configurado")
     
@@ -341,6 +345,9 @@ class Application:
             logger.warning("Frame de dados não existe. Execute setup_frames() primeiro.")
             return
         
+        # Lazy import
+        from src.ui.button_factory import ButtonFactory
+        
         self.button_factory = ButtonFactory(
             janela=self.janela,
             frame_dados=self.frames['frame_dados'],
@@ -351,6 +358,9 @@ class Application:
     
     def setup_menu_manager(self):
         """Cria e configura o MenuManager para gerenciar menus contextuais."""
+        # Lazy import
+        from src.ui.menu import MenuManager
+        
         self.menu_manager = MenuManager(self.janela)
         logger.debug("MenuManager configurado")
     
@@ -421,8 +431,10 @@ class Application:
             return
         
         try:
+            # Lazy imports
             from src.services.db_service import DbService
             from src.core.config import get_flag
+            from src.ui.dashboard import DashboardManager
             
             # Frame getter para o dashboard
             frame_getter = lambda: self.frames.get('frame_tabela')
@@ -467,6 +479,33 @@ class Application:
         except Exception as e:
             logger.error(f"Erro ao configurar dashboard: {e}", exc_info=True)
     
+    def _delayed_dashboard_setup(self):
+        """
+        Carrega o dashboard de forma assíncrona após a janela estar pronta.
+        
+        Este método é agendado com janela.after() para não bloquear a inicialização.
+        """
+        try:
+            logger.debug("Iniciando carregamento assíncrono do dashboard...")
+            
+            # Atualizar status
+            if self.status_label:
+                self.status_label.config(text="Carregando dashboard...")
+            
+            # Setup e criação do dashboard
+            self.setup_dashboard(criar_agora=True)
+            
+            # Atualizar status
+            if self.status_label:
+                self.status_label.config(text="Sistema pronto")
+                
+            logger.info("✓ Dashboard carregado com sucesso")
+            
+        except Exception as e:
+            logger.error(f"Erro ao carregar dashboard: {e}", exc_info=True)
+            if self.status_label:
+                self.status_label.config(text="Dashboard indisponível")
+    
     def update_status(self, message: str):
         """
         Atualiza a mensagem de status no rodapé.
@@ -510,23 +549,27 @@ class Application:
             event: Evento Tkinter de seleção
         """
         try:
+            logger.debug("=== Callback de seleção disparado ===")
             from src.ui.detalhes import exibir_detalhes_item
             from tkinter import Frame, Label, LEFT, BOTH, TRUE, X
             from PIL import Image, ImageTk
             
             if not self.table_manager or not self.table_manager.treeview:
+                logger.warning("TableManager ou treeview não disponível")
                 return
             
             treeview = self.table_manager.treeview
             selected = treeview.selection()
             
             if not selected:
+                logger.debug("Nenhum item selecionado")
                 return
             
             item = selected[0]
             values = treeview.item(item, 'values')
             
             if not values or len(values) < 3:
+                logger.warning(f"Valores insuficientes: {values}")
                 return
             
             # Estrutura Sprint 15: (id, nome, tipo, cargo, data_nascimento)
@@ -536,10 +579,20 @@ class Application:
             # Atualizar selected_item na aplicação
             self.selected_item = {'tipo': tipo, 'id': item_id, 'values': values}
             
+            logger.info(f"Item selecionado: {tipo} ID={item_id}, Nome={values[1]}")
+            
+            # Verificar se frames existem
+            if 'frame_logo' not in self.frames:
+                logger.error("frame_logo não existe!")
+            if 'frame_detalhes' not in self.frames:
+                logger.error("frame_detalhes não existe!")
+                return
+            
             logger.debug(f"Item selecionado: {tipo} ID={item_id}")
             
             # Atualizar logo/título
             if 'frame_logo' in self.frames:
+                logger.debug("Atualizando frame_logo...")
                 frame_logo = self.frames['frame_logo']
                 for widget in frame_logo.winfo_children():
                     widget.destroy()
@@ -559,15 +612,19 @@ class Application:
                     # Manter referência à imagem
                     setattr(app_logo, '_image_ref', app_lp)
                     app_logo.pack(fill=X, expand=TRUE)
-                except:
+                    logger.debug("✓ Logo atualizado com ícone")
+                except Exception as icon_error:
                     # Fallback sem ícone
+                    logger.debug(f"Ícone não carregado: {icon_error}, usando fallback")
                     app_logo = Label(titulo_frame, text=f"Detalhes: {values[1]}", 
                                     anchor='w', font=('Ivy 15 bold'), 
                                     bg=self.colors['co0'], fg=self.colors['co1'], padx=10, pady=5)
                     app_logo.pack(fill=X, expand=TRUE)
+                    logger.debug("✓ Logo atualizado sem ícone")
             
             # Exibir detalhes no frame_detalhes
             if 'frame_detalhes' in self.frames:
+                logger.debug("Exibindo detalhes no frame_detalhes...")
                 exibir_detalhes_item(
                     frame_detalhes=self.frames['frame_detalhes'],
                     tipo=tipo,
@@ -575,6 +632,7 @@ class Application:
                     values=values,
                     colors=self.colors
                 )
+                logger.info(f"✓ Detalhes de {tipo} exibidos com sucesso")
             
         except Exception as e:
             logger.exception(f"Erro ao processar seleção: {e}")
@@ -761,6 +819,10 @@ class Application:
         if self.janela:
             setattr(self.janela, '_app_instance', self)  # type: ignore
         
+        # Inicializar pool de conexões no momento certo
+        logger.debug("Inicializando connection pool...")
+        self._initialize_connection_pool()
+        
         # 1. Configurar frames principais
         logger.debug("Configurando frames...")
         self.setup_frames()
@@ -792,9 +854,9 @@ class Application:
         logger.debug("Configurando rodapé...")
         self.setup_footer()
         
-        # 8. Configurar e exibir dashboard automaticamente (otimizado)
-        logger.debug("Configurando dashboard...")
-        self.setup_dashboard(criar_agora=True)
+        # 8. Agendar carregamento do dashboard APÓS janela aparecer (não-bloqueante)
+        logger.debug("Agendando dashboard para carregamento assíncrono...")
+        self.janela.after(100, self._delayed_dashboard_setup)
         
         # 9. Configurar menu contextual
         logger.debug("Configurando menu contextual...")

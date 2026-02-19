@@ -56,6 +56,9 @@ def criar_frames(janela, co0, co1):
     frame_detalhes.grid_columnconfigure(0, weight=1)
     frame_detalhes.grid_rowconfigure(0, weight=1)
 
+    # Separador 3 (entre detalhes e tabela)
+    ttk.Separator(janela, orient='horizontal').grid(row=5, columnspan=1, sticky=EW)
+
     frame_tabela = Frame(janela, bg=co1)
     frame_tabela.grid(row=6, column=0, pady=0, padx=10, sticky=NSEW)
     
