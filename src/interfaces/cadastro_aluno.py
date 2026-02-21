@@ -341,6 +341,11 @@ class InterfaceCadastroAluno:
         self.e_nis = Entry(col2_frame, **entry_style)
         self.e_nis.pack(fill=X, pady=(0, 10))
         
+        # Código INEP
+        Label(col2_frame, text="Código INEP", **label_style).pack(anchor=W, pady=(5, 0))
+        self.e_codigo_inep = Entry(col2_frame, **entry_style)
+        self.e_codigo_inep.pack(fill=X, pady=(0, 10))
+        
         # Cartão SUS
         Label(col2_frame, text="Cartão SUS", **label_style).pack(anchor=W, pady=(5, 0))
         self.e_sus = Entry(col2_frame, **entry_style)
@@ -516,6 +521,7 @@ class InterfaceCadastroAluno:
             # CPF já formatado automaticamente pelo campo
             cpf = obter_cpf_formatado(self.e_cpf.get())
             nis = self.e_nis.get()
+            codigo_inep = self.e_codigo_inep.get()
             raca = self.c_raca.get()
             escola_nome = self.c_escola.get()
             descricao_transtorno = self.e_descricao_transtorno.get()
@@ -553,14 +559,14 @@ class InterfaceCadastroAluno:
                     """
                     INSERT INTO alunos (
                         nome, data_nascimento, local_nascimento, UF_nascimento,
-                        endereco, sus, sexo, cpf, nis, raca, escola_id, 
+                        endereco, sus, sexo, cpf, codigo_inep, nis, raca, escola_id, 
                         descricao_transtorno
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         nome, data_nascimento, local_nascimento, uf_nascimento,
-                        endereco, sus, sexo, cpf, nis, raca, escola_id, 
+                        endereco, sus, sexo, cpf, codigo_inep, nis, raca, escola_id, 
                         descricao_transtorno
                     )
                 )

@@ -341,6 +341,11 @@ class InterfaceEdicaoAluno:
         self.e_nis = Entry(col2_frame, **entry_style)
         self.e_nis.pack(fill=X, pady=(0, 10))
         
+        # Código INEP
+        Label(col2_frame, text="Código INEP", **label_style).pack(anchor=W, pady=(5, 0))
+        self.e_codigo_inep = Entry(col2_frame, **entry_style)
+        self.e_codigo_inep.pack(fill=X, pady=(0, 10))
+        
         # Cartão SUS
         Label(col2_frame, text="Cartão SUS", **label_style).pack(anchor=W, pady=(5, 0))
         self.e_sus = Entry(col2_frame, **entry_style)
@@ -535,7 +540,7 @@ class InterfaceEdicaoAluno:
             # Buscar dados do aluno
             cast(Any, self.cursor).execute("""
                 SELECT nome, data_nascimento, local_nascimento, UF_nascimento,
-                       endereco, sus, sexo, cpf, nis, raca, escola_id,
+                       endereco, sus, sexo, cpf, codigo_inep, nis, raca, escola_id,
                        descricao_transtorno
                 FROM alunos
                 WHERE id = %s
@@ -543,7 +548,7 @@ class InterfaceEdicaoAluno:
             aluno = cast(Any, self.cursor).fetchone()
             
             if aluno:
-                nome, data_nascimento, local_nascimento, uf_nascimento, endereco, sus, sexo, cpf, nis, raca, escola_id, descricao_transtorno = aluno
+                nome, data_nascimento, local_nascimento, uf_nascimento, endereco, sus, sexo, cpf, codigo_inep, nis, raca, escola_id, descricao_transtorno = aluno
                 self.e_nome.delete(0, END)
                 self.e_nome.insert(0, nome if nome else "")
                 # Exibir data no formato DD/MM/YYYY
@@ -570,6 +575,9 @@ class InterfaceEdicaoAluno:
                 
                 self.e_cpf.delete(0, END)
                 self.e_cpf.insert(0, cpf if cpf else "")
+                
+                self.e_codigo_inep.delete(0, END)
+                self.e_codigo_inep.insert(0, codigo_inep if codigo_inep else "")
                 
                 self.e_nis.delete(0, END)
                 self.e_nis.insert(0, nis if nis else "")
@@ -639,6 +647,7 @@ class InterfaceEdicaoAluno:
             sexo = self.c_sexo.get()
             # CPF já formatado automaticamente pelo campo
             cpf = obter_cpf_formatado(self.e_cpf.get())
+            codigo_inep = self.e_codigo_inep.get()
             nis = self.e_nis.get()
             raca = self.c_raca.get()
             escola_nome = self.c_escola.get()
@@ -682,6 +691,7 @@ class InterfaceEdicaoAluno:
                     sus = %s,
                     sexo = %s,
                     cpf = %s,
+                    codigo_inep = %s,
                     nis = %s,
                     raca = %s,
                     escola_id = %s,
@@ -690,7 +700,7 @@ class InterfaceEdicaoAluno:
                 """,
                 (
                     nome, data_nascimento, local_nascimento, uf_nascimento,
-                    endereco, sus, sexo, cpf, nis, raca, escola_id,
+                    endereco, sus, sexo, cpf, codigo_inep, nis, raca, escola_id,
                     descricao_transtorno, self.aluno_id
                 )
             )
