@@ -1,0 +1,205 @@
+{
+  "data_geracao": "22/02/2026 09:15:44",
+  "total_alunos": 316,
+  "turmas": {
+    "31956109": {
+      "codigo": "31956109",
+      "nome": "1º ANO-MATU",
+      "total_alunos": 17,
+      "situacoes": {
+        "Aprovado": 17
+      }
+    },
+    "31956426": {
+      "codigo": "31956426",
+      "nome": "2º ANO-MATU",
+      "total_alunos": 30,
+      "situacoes": {
+        "Aprovado": 30
+      }
+    },
+    "31957286": {
+      "codigo": "31957286",
+      "nome": "3º ANO-MATU",
+      "total_alunos": 32,
+      "situacoes": {
+        "Aprovado": 30,
+        "Transferido": 2
+      }
+    },
+    "31957839": {
+      "codigo": "31957839",
+      "nome": "4º ANO-MATU",
+      "total_alunos": 34,
+      "situacoes": {
+        "Aprovado": 33,
+        "Transferido": 1
+      }
+    },
+    "31958469": {
+      "codigo": "31958469",
+      "nome": "5º ANO-MATU",
+      "total_alunos": 34,
+      "situacoes": {
+        "Aprovado": 27,
+        "Transferido": 4,
+        "Reprovado": 3
+      }
+    },
+    "31959746": {
+      "codigo": "31959746",
+      "nome": "6º ANO-VESP - A",
+      "total_alunos": 30,
+      "situacoes": {
+        "Aprovado": 27,
+        "Reprovado": 2,
+        "Transferido": 1
+      }
+    },
+    "31961215": {
+      "codigo": "31961215",
+      "nome": "6º ANO-VESP - B",
+      "total_alunos": 31,
+      "situacoes": {
+        "Aprovado": 24,
+        "Transferido": 4,
+        "Reprovado": 2,
+        "Deixou de frequentar": 1
+      }
+    },
+    "31961653": {
+      "codigo": "31961653",
+      "nome": "7º ANO-VESP",
+      "total_alunos": 35,
+      "situacoes": {
+        "Aprovado": 32,
+        "Transferido": 1,
+        "Sem situação informada": 1,
+        "Reprovado": 1
+      }
+    },
+    "31962151": {
+      "codigo": "31962151",
+      "nome": "8º ANO-VESP",
+      "total_alunos": 37,
+      "situacoes": {
+        "Aprovado": 30,
+        "Reprovado": 4,
+        "Transferido": 3
+      }
+    },
+    "31962662": {
+      "codigo": "31962662",
+      "nome": "9º ANO-VESP",
+      "total_alunos": 36,
+      "situacoes": {
+        "Aprovado": 33,
+        "Transferido": 3
+      }
+    }
+  },
+  "situacoes": {
+    "Aprovado": 283,
+    "Transferido": 19,
+    "Reprovado": 12,
+    "Deixou de frequentar": 1,
+    "Sem situação informada": 1
+  },
+  "analise_detalhada": [
+    {
+      "turma": "31956109",
+      "nome_turma": "1º ANO-MATU",
+      "total": 17,
+      "situacoes": {
+        "Aprovado": 17
+      }
+    },
+    {
+      "turma": "31956426",
+      "nome_turma": "2º ANO-MATU",
+      "total": 30,
+      "situacoes": {
+        "Aprovado": 30
+      }
+    },
+    {
+      "turma": "31957286",
+      "nome_turma": "3º ANO-MATU",
+      "total": 32,
+      "situacoes": {
+        "Aprovado": 30,
+        "Transferido": 2
+      }
+    },
+    {
+      "turma": "31957839",
+      "nome_turma": "4º ANO-MATU",
+      "total": 34,
+      "situacoes": {
+        "Aprovado": 33,
+        "Transferido": 1
+      }
+    },
+    {
+      "turma": "31958469",
+      "nome_turma": "5º ANO-MATU",
+      "total": 34,
+      "situacoes": {
+        "Aprovado": 27,
+        "Transferido": 4,
+        "Reprovado": 3
+      }
+    },
+    {
+      "turma": "31959746",
+      "nome_turma": "6º ANO-VESP - A",
+      "total": 30,
+      "situacoes": {
+        "Aprovado": 27,
+        "Reprovado": 2,
+        "Transferido": 1
+      }
+    },
+    {
+      "turma": "31961215",
+      "nome_turma": "6º ANO-VESP - B",
+      "total": 31,
+      "situacoes": {
+        "Aprovado": 24,
+        "Transferido": 4,
+        "Reprovado": 2,
+        "Deixou de frequentar": 1
+      }
+    },
+    {
+      "turma": "31961653",
+      "nome_turma": "7º ANO-VESP",
+      "total": 35,
+      "situacoes": {
+        "Aprovado": 32,
+        "Transferido": 1,
+        "Sem situação informada": 1,
+        "Reprovado": 1
+      }
+    },
+    {
+      "turma": "31962151",
+      "nome_turma": "8º ANO-VESP",
+      "total": 37,
+      "situacoes": {
+        "Aprovado": 30,
+        "Reprovado": 4,
+        "Transferido": 3
+      }
+    },
+    {
+      "turma": "31962662",
+      "nome_turma": "9º ANO-VESP",
+      "total": 36,
+      "situacoes": {
+        "Aprovado": 33,
+        "Transferido": 3
+      }
+    }
+  ]
+}
