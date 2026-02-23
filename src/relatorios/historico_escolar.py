@@ -352,7 +352,7 @@ def criar_tabela_caminho_escolar(resultados):
 
 def criar_tabela_observacoes(resultados, num_disciplinas_desconhecidas=0):
     # Texto base da observação
-    texto_base = "Observação: Documento expedido em época legal, sem emendas ou rasuras."
+    texto_base = "Observação: Documento expedido em época legal, sem emendas ou rasuras.<br/>Documento expedido conforme a Resolução nº 001/2026-CME, publicada no Diário Oficial em 13/01/2026."
     
     # Cache do estilo de tabela de observações
     if 'observacoes_table' not in _STYLE_CACHE:

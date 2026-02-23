@@ -230,7 +230,7 @@ def lista_livros_recebidos():
                 add_class_table15(
                     elements, turma_df_15, nome_serie, nome_turma, turno, nome_professor,
                     figura_inferior, cabecalho,
-                    desc_text=f"Lista de livros devolvidos por alunos do {nome_serie} {nome_turma} {turno}. Registre a assinatura do responsável."
+                    desc_text=f"Lista de livros recebidos por alunos do {nome_serie} {nome_turma} {turno}. Registre a assinatura do responsável."
                 )
 
             # Adiciona a tabela para alunos com ID_SERIE > 7
@@ -238,7 +238,7 @@ def lista_livros_recebidos():
                 add_class_table69(
                     elements, turma_df_69, nome_serie, nome_turma, turno, nome_professor,
                     figura_inferior, cabecalho,
-                    desc_text=f"Lista de livros devolvidos por alunos do {nome_serie} {nome_turma} {turno}. Registre a assinatura do responsável."
+                    desc_text=f"Lista de livros recebidos por alunos do {nome_serie} {nome_turma} {turno}. Registre a assinatura do responsável."
                 )
         else:
             print(f"Coluna 'ID_SERIE' não encontrada para a turma: {nome_serie}, {nome_turma}, {turno}")
@@ -252,7 +252,7 @@ def lista_livros_recebidos():
 
 def lista_livros_devolvidos():
     """
-    Gera um PDF com lista de livros devolvidos por turma.
+    Gera um PDF com lista de livros recebidos por turma.
     Implementação simples que reutiliza os dados de alunos e cria
     uma tabela com coluna para indicar devolução/assinatura.
     """
@@ -277,7 +277,7 @@ def lista_livros_devolvidos():
     elements = []
 
     # Capa (texto ajustado para devolvidos)
-    capa_text = "<b>LISTA DE ALUNOS <br/> E <br/>LIVROS DEVOLVIDOS</b>"
+    capa_text = "<b>LISTA DE ALUNOS <br/> E <br/>LIVROS RECEBIDOS</b>"
     add_cover_page(doc, elements, cabecalho, figura_superior, figura_inferior, capa_text=capa_text)
 
     # Tabelas por turma (usar mesmas tabelas do relatório de recebidos)
@@ -303,7 +303,7 @@ def lista_livros_devolvidos():
                 add_class_table15(
                     elements, turma_df_15, nome_serie, nome_turma, turno, nome_professor,
                     figura_inferior, cabecalho,
-                    desc_text=f"Lista de livros devolvidos por alunos do {nome_serie} {nome_turma} {turno}. Registre a assinatura do responsável."
+                    desc_text=f"Lista de livros recebidos por alunos do {nome_serie} {nome_turma} {turno}. Registre a assinatura do responsável."
                 )
 
             # Adiciona a tabela para alunos com ID_SERIE > 7
@@ -311,7 +311,7 @@ def lista_livros_devolvidos():
                 add_class_table69(
                     elements, turma_df_69, nome_serie, nome_turma, turno, nome_professor,
                     figura_inferior, cabecalho,
-                    desc_text=f"Lista de livros devolvidos por alunos do {nome_serie} {nome_turma} {turno}. Registre a assinatura do responsável."
+                    desc_text=f"Lista de livros recebidos por alunos do {nome_serie} {nome_turma} {turno}. Registre a assinatura do responsável."
                 )
         else:
             print(f"Coluna 'ID_SERIE' não encontrada para a turma: {nome_serie}, {nome_turma}, {turno}")
@@ -332,4 +332,4 @@ def gerar_controle_livros():
     try:
         lista_livros_devolvidos()
     except Exception as e:
-        print(f"Erro ao gerar lista de livros devolvidos: {e}")
+        print(f"Erro ao gerar lista de livros recebidos: {e}")
