@@ -138,7 +138,7 @@ def obter_turmas_ativas():
 
 
 def obter_responsaveis_do_aluno(aluno_id):
-    """Obtém o primeiro responsável de um aluno específico."""
+    """Obtém todos os responsáveis de um aluno específico."""
     conn = conectar_bd()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -155,10 +155,9 @@ def obter_responsaveis_do_aluno(aluno_id):
                 ra.aluno_id = %s
             ORDER BY
                 r.nome
-            LIMIT 1
         """
         cursor.execute(query, (aluno_id,))
-        return cursor.fetchone()
+        return cursor.fetchall()
     finally:
         cursor.close()
         conn.close()
@@ -556,24 +555,26 @@ def gerar_termo_cuidar_olhos():
             logger.info(f"Processando {serie} - Turma {turma} ({turno}) - {len(alunos_turma)} alunos")
             
             for aluno in alunos_turma:
-                # Obter responsável do aluno
-                responsavel = obter_responsaveis_do_aluno(aluno['id'])
+                # Obter todos os responsáveis do aluno
+                responsaveis = obter_responsaveis_do_aluno(aluno['id'])
                 
-                if not responsavel:
+                if not responsaveis:
                     logger.warning(f"  Aluno {aluno['nome_aluno']} sem responsável - pulando")
                     continue
                 
-                # Gerar termo individual
-                buffer_termo = gerar_termo_individual(aluno, responsavel, nome_escola)
-                
-                if buffer_termo:
-                    # Adicionar ao PDF da turma
-                    from PyPDF2 import PdfReader
-                    reader = PdfReader(buffer_termo)
-                    for page in reader.pages:
-                        writer.add_page(page)
-                    termos_turma += 1
-                    logger.debug(f"  ✓ {aluno['nome_aluno']}")
+                # Gerar um termo para cada responsável
+                for responsavel in responsaveis:
+                    # Gerar termo individual
+                    buffer_termo = gerar_termo_individual(aluno, responsavel, nome_escola)
+                    
+                    if buffer_termo:
+                        # Adicionar ao PDF da turma
+                        from PyPDF2 import PdfReader
+                        reader = PdfReader(buffer_termo)
+                        for page in reader.pages:
+                            writer.add_page(page)
+                        termos_turma += 1
+                        logger.debug(f"  ✓ {aluno['nome_aluno']} - {responsavel['nome']}")
             
             # Salvar PDF da turma se houver termos
             if termos_turma > 0:
@@ -661,24 +662,26 @@ def gerar_termo_turma_especifica(turma_id, nome_turma_display=None):
         termos_gerados = 0
         
         for aluno in alunos:
-            # Obter responsável do aluno
-            responsavel = obter_responsaveis_do_aluno(aluno['id'])
+            # Obter todos os responsáveis do aluno
+            responsaveis = obter_responsaveis_do_aluno(aluno['id'])
             
-            if not responsavel:
+            if not responsaveis:
                 logger.warning(f"  Aluno {aluno['nome_aluno']} sem responsável - pulando")
                 continue
             
-            # Gerar termo individual
-            buffer_termo = gerar_termo_individual(aluno, responsavel, nome_escola)
-            
-            if buffer_termo:
-                # Adicionar ao PDF
-                from PyPDF2 import PdfReader
-                reader = PdfReader(buffer_termo)
-                for page in reader.pages:
-                    writer.add_page(page)
-                termos_gerados += 1
-                logger.debug(f"  ✓ {aluno['nome_aluno']}")
+            # Gerar um termo para cada responsável
+            for responsavel in responsaveis:
+                # Gerar termo individual
+                buffer_termo = gerar_termo_individual(aluno, responsavel, nome_escola)
+                
+                if buffer_termo:
+                    # Adicionar ao PDF
+                    from PyPDF2 import PdfReader
+                    reader = PdfReader(buffer_termo)
+                    for page in reader.pages:
+                        writer.add_page(page)
+                    termos_gerados += 1
+                    logger.debug(f"  ✓ {aluno['nome_aluno']} - {responsavel['nome']}")
         
         if termos_gerados == 0:
             logger.warning(f"Nenhum termo foi gerado para a turma")
@@ -866,6 +869,348 @@ def gerar_termo_servidores():
         
     except Exception as e:
         logger.exception(f"Erro ao gerar termos de servidores: {e}")
+        return False
+
+
+def gerar_planilha_estudantes(alunos_responsaveis):
+    """
+    Gera planilha PDF com os estudantes que assinaram os termos.
+    
+    Args:
+        alunos_responsaveis: Lista de tuplas (aluno, responsavel)
+        
+    Returns:
+        bool: True se gerado com sucesso, False caso contrário
+    """
+    try:
+        logger.info(f"Iniciando geração da Planilha de Estudantes - {len(alunos_responsaveis)} registros")
+        
+        # Obter dados da escola
+        nome_escola = obter_dados_escola(60)
+        
+        # Criar pasta de saída
+        pasta_saida = PROJECT_ROOT / 'Programa Cuidar dos Olhos'
+        pasta_saida.mkdir(parents=True, exist_ok=True)
+        
+        # Criar documento PDF
+        nome_arquivo = pasta_saida / "Planilha_Levantamento_Estudantes.pdf"
+        
+        doc = SimpleDocTemplate(
+            str(nome_arquivo),
+            pagesize=A4,
+            leftMargin=1.5*cm,
+            rightMargin=1.5*cm,
+            topMargin=2*cm,
+            bottomMargin=2*cm
+        )
+        
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Título
+        titulo_style = ParagraphStyle(
+            'Titulo',
+            parent=styles['Heading1'],
+            fontSize=12,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold',
+            spaceAfter=0.2*inch
+        )
+        
+        elements.append(Paragraph(
+            "<b>PLANILHA DE LEVANTAMENTO DE INTERESSADOS - ESTUDANTES<br/>PROGRAMA 'CUIDAR DOS OLHOS'</b>",
+            titulo_style
+        ))
+        
+        # Nome da escola
+        escola_style = ParagraphStyle(
+            'Escola',
+            parent=styles['Normal'],
+            fontSize=11,
+            alignment=TA_LEFT,
+            fontName='Helvetica-Bold',
+            spaceAfter=0.3*inch
+        )
+        
+        elements.append(Paragraph(f"<b>Escola Municipal:</b> {nome_escola}", escola_style))
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Preparar dados da tabela
+        data_tabela = [
+            ['Nº', 'Nome Completo', 'CPF', 'Data de Nascimento', 'Responsável Legal\n(se menor)', 'Telefone']
+        ]
+        
+        for i, (aluno, responsavel) in enumerate(alunos_responsaveis, 1):
+            # Nome do aluno
+            nome_aluno = aluno.get('nome_aluno', '')
+            
+            # CPF do aluno
+            cpf_aluno = aluno.get('cpf', '-') if aluno.get('cpf') else '-'
+            
+            # Data de nascimento
+            data_nasc = aluno.get('data_nascimento')
+            if data_nasc:
+                data_nasc_formatada = data_nasc.strftime('%d/%m/%Y') if hasattr(data_nasc, 'strftime') else str(data_nasc)
+            else:
+                data_nasc_formatada = '-'
+            
+            # Nome do responsável
+            nome_responsavel = responsavel.get('nome', '-')
+            
+            # Telefone
+            telefone = responsavel.get('telefone', '-') if responsavel.get('telefone') else '-'
+            
+            data_tabela.append([
+                str(i),
+                nome_aluno,
+                cpf_aluno,
+                data_nasc_formatada,
+                nome_responsavel,
+                telefone
+            ])
+        
+        # Criar tabela
+        tabela = Table(data_tabela, colWidths=[0.8*cm, 5*cm, 3*cm, 2.5*cm, 4.5*cm, 2.5*cm])
+        
+        # Estilo da tabela
+        tabela.setStyle(TableStyle([
+            # Cabeçalho
+            ('BACKGROUND', (0, 0), (-1, 0), '#4472C4'),
+            ('TEXTCOLOR', (0, 0), (-1, 0), 'white'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+            
+            # Corpo
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # Coluna Nº centralizada
+            ('ALIGN', (1, 1), (-1, -1), 'LEFT'),   # Outras colunas à esquerda
+            ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
+            
+            # Linhas
+            ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), ['white', '#E7E6E6']),
+            
+            # Padding
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        
+        elements.append(tabela)
+        elements.append(Spacer(1, 0.3*inch))
+        
+        # Observação
+        obs_style = ParagraphStyle(
+            'Obs',
+            parent=styles['Normal'],
+            fontSize=9,
+            alignment=TA_JUSTIFY,
+            fontName='Helvetica-Bold'
+        )
+        
+        elements.append(Paragraph(
+            "<b>Observação:</b> A planilha deverá ser encaminhada à SEMED juntamente com os Termos de Autorização devidamente assinados, conforme orientações do Ofício Circular.",
+            obs_style
+        ))
+        
+        # Gerar PDF
+        doc.build(elements)
+        
+        logger.info(f"✅ Planilha gerada com sucesso: {nome_arquivo.name}")
+        
+        # Abrir o PDF
+        try:
+            import platform
+            if platform.system() == "Windows":
+                os.startfile(str(nome_arquivo))
+            elif platform.system() == "Darwin":
+                os.system(f"open '{nome_arquivo}'")
+            else:
+                os.system(f"xdg-open '{nome_arquivo}'")
+        except Exception as e:
+            logger.warning(f"Não foi possível abrir o PDF automaticamente: {e}")
+        
+        return True
+        
+    except Exception as e:
+        logger.exception(f"Erro ao gerar planilha de estudantes: {e}")
+        return False
+
+
+def gerar_planilha_profissionais(profissionais):
+    """
+    Gera planilha PDF com os professores e servidores que assinaram os termos.
+    
+    Args:
+        profissionais: Lista de tuplas (funcionario, tipo)
+        
+    Returns:
+        bool: True se gerado com sucesso, False caso contrário
+    """
+    try:
+        logger.info(f"Iniciando geração da Planilha de Profissionais - {len(profissionais)} registros")
+        
+        # Obter dados da escola
+        nome_escola = obter_dados_escola(60)
+        
+        # Criar pasta de saída
+        pasta_saida = PROJECT_ROOT / 'Programa Cuidar dos Olhos'
+        pasta_saida.mkdir(parents=True, exist_ok=True)
+        
+        # Criar documento PDF
+        nome_arquivo = pasta_saida / "Planilha_Levantamento_Professores_Servidores.pdf"
+        
+        doc = SimpleDocTemplate(
+            str(nome_arquivo),
+            pagesize=A4,
+            leftMargin=1.5*cm,
+            rightMargin=1.5*cm,
+            topMargin=2*cm,
+            bottomMargin=2*cm
+        )
+        
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Título
+        titulo_style = ParagraphStyle(
+            'Titulo',
+            parent=styles['Heading1'],
+            fontSize=12,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold',
+            spaceAfter=0.2*inch
+        )
+        
+        elements.append(Paragraph(
+            "<b>PLANILHA DE LEVANTAMENTO DE INTERESSADOS - PROFESSORES E SERVIDORES<br/>PROGRAMA 'CUIDAR DOS OLHOS'</b>",
+            titulo_style
+        ))
+        
+        # Nome da escola
+        escola_style = ParagraphStyle(
+            'Escola',
+            parent=styles['Normal'],
+            fontSize=11,
+            alignment=TA_LEFT,
+            fontName='Helvetica-Bold',
+            spaceAfter=0.3*inch
+        )
+        
+        elements.append(Paragraph(f"<b>Escola Municipal:</b> {nome_escola}", escola_style))
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Preparar dados da tabela
+        data_tabela = [
+            ['Nº', 'Nome Completo', 'CPF', 'Data de\nNascimento', 'Cargo/Função', 'Matrícula\nFuncional', 'Telefone']
+        ]
+        
+        for i, (funcionario, tipo) in enumerate(profissionais, 1):
+            # Nome
+            nome = funcionario.get('nome', '')
+            
+            # CPF
+            cpf = funcionario.get('cpf', '-') if funcionario.get('cpf') else '-'
+            
+            # Data de nascimento
+            data_nasc = funcionario.get('data_nascimento')
+            if data_nasc:
+                data_nasc_formatada = data_nasc.strftime('%d/%m/%Y') if hasattr(data_nasc, 'strftime') else str(data_nasc)
+            else:
+                data_nasc_formatada = '-'
+            
+            # Cargo
+            cargo = funcionario.get('cargo', tipo)
+            
+            # Matrícula funcional (pode não existir no banco)
+            matricula = funcionario.get('matricula_funcional', '-') if funcionario.get('matricula_funcional') else '-'
+            
+            # Telefone (pode não existir)
+            telefone = funcionario.get('telefone', '-') if funcionario.get('telefone') else '-'
+            
+            data_tabela.append([
+                str(i),
+                nome,
+                cpf,
+                data_nasc_formatada,
+                cargo,
+                matricula,
+                telefone
+            ])
+        
+        # Criar tabela
+        tabela = Table(data_tabela, colWidths=[0.8*cm, 4.5*cm, 2.8*cm, 2*cm, 3*cm, 2.2*cm, 2.2*cm])
+        
+        # Estilo da tabela
+        tabela.setStyle(TableStyle([
+            # Cabeçalho
+            ('BACKGROUND', (0, 0), (-1, 0), '#4472C4'),
+            ('TEXTCOLOR', (0, 0), (-1, 0), 'white'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 8),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+            
+            # Corpo
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 7),
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # Coluna Nº centralizada
+            ('ALIGN', (1, 1), (-1, -1), 'LEFT'),   # Outras colunas à esquerda
+            ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
+            
+            # Linhas
+            ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), ['white', '#E7E6E6']),
+            
+            # Padding
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        
+        elements.append(tabela)
+        elements.append(Spacer(1, 0.3*inch))
+        
+        # Observação
+        obs_style = ParagraphStyle(
+            'Obs',
+            parent=styles['Normal'],
+            fontSize=9,
+            alignment=TA_JUSTIFY,
+            fontName='Helvetica-Bold'
+        )
+        
+        elements.append(Paragraph(
+            "<b>Observação:</b> A planilha deverá ser encaminhada à SEMED juntamente com os Termos de Autorização devidamente assinados, conforme orientações do Ofício Circular.",
+            obs_style
+        ))
+        
+        # Gerar PDF
+        doc.build(elements)
+        
+        logger.info(f"✅ Planilha gerada com sucesso: {nome_arquivo.name}")
+        
+        # Abrir o PDF
+        try:
+            import platform
+            if platform.system() == "Windows":
+                os.startfile(str(nome_arquivo))
+            elif platform.system() == "Darwin":
+                os.system(f"open '{nome_arquivo}'")
+            else:
+                os.system(f"xdg-open '{nome_arquivo}'")
+        except Exception as e:
+            logger.warning(f"Não foi possível abrir o PDF automaticamente: {e}")
+        
+        return True
+        
+    except Exception as e:
+        logger.exception(f"Erro ao gerar planilha de profissionais: {e}")
         return False
 
 

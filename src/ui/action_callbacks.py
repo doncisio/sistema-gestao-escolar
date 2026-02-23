@@ -213,6 +213,24 @@ class ReportCallbacks:
             logger.exception(f"Erro ao gerar termo de servidores: {e}")
             messagebox.showerror("Erro", f"Não foi possível gerar o termo: {e}")
     
+    def planilha_cuidar_olhos_estudantes(self):
+        """Abre interface para gerar planilha de estudantes do Programa Cuidar dos Olhos."""
+        try:
+            from src.ui.planilha_estudantes_window import PlanilhaEstudantesWindow
+            PlanilhaEstudantesWindow(self.janela)
+        except Exception as e:
+            logger.exception(f"Erro ao abrir interface de planilha de estudantes: {e}")
+            messagebox.showerror("Erro", f"Não foi possível abrir a interface: {e}")
+    
+    def planilha_cuidar_olhos_profissionais(self):
+        """Abre interface para gerar planilha de professores/servidores do Programa Cuidar dos Olhos."""
+        try:
+            from src.ui.planilha_profissionais_window import PlanilhaProfissionaisWindow
+            PlanilhaProfissionaisWindow(self.janela)
+        except Exception as e:
+            logger.exception(f"Erro ao abrir interface de planilha de profissionais: {e}")
+            messagebox.showerror("Erro", f"Não foi possível abrir a interface: {e}")
+    
     def relatorio_tabela_docentes(self):
         """Gera tabela de docentes."""
         try:

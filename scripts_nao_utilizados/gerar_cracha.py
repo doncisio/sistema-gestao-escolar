@@ -46,10 +46,15 @@ def reduzir_nome(nome_completo):
 
 def criar_cracha(aluno, responsavel, pdf_base):
     """Cria um crachá em PDF para um aluno e seu responsável, retornando um objeto BytesIO."""
-    pdf_base_reader = PdfReader(pdf_base)
-    primeira_pagina = pdf_base_reader.pages[0]
-    largura_pagina = float(primeira_pagina.mediabox.width)
-    altura_pagina = float(primeira_pagina.mediabox.height)
+    try:
+        pdf_base_reader = PdfReader(pdf_base)
+        primeira_pagina = pdf_base_reader.pages[0]
+        largura_pagina = float(primeira_pagina.mediabox.width)
+        altura_pagina = float(primeira_pagina.mediabox.height)
+    except Exception as e:
+        print(f"ERRO ao ler template PDF: {e}")
+        raise
+    
     packet = io.BytesIO()
     can = canvas.Canvas(packet, pagesize=(largura_pagina, altura_pagina))
     fonte_tamanho = 7.5
@@ -71,18 +76,26 @@ def criar_cracha(aluno, responsavel, pdf_base):
     can.drawString(x_pos1, y_pos4, reduzir_nome(aluno['NOME_PROFESSOR']) if aluno['NOME_PROFESSOR'] else "")
     can.save()
     packet.seek(0)
-    overlay = PdfReader(packet)
-    writer = PdfWriter()
-    for page in pdf_base_reader.pages:
-        page.merge_page(overlay.pages[0])
-        writer.add_page(page)
+    
+    try:
+        overlay = PdfReader(packet)
+        writer = PdfWriter()
+        
+        for page in pdf_base_reader.pages:
+            # Cria uma cópia da página original
+            new_page = writer.add_page(page)
+            # Faz o merge com o overlay
+            new_page.merge_page(overlay.pages[0])
 
-    # Prepare um BytesIO para retornar o PDF
-    output_stream = io.BytesIO()
-    writer.write(output_stream)
-    output_stream.seek(0)
-    print(f"Cracha criado para {aluno['NOME DO ALUNO']} - {responsavel['responsavel']}.")
-    return output_stream
+        # Prepare um BytesIO para retornar o PDF
+        output_stream = io.BytesIO()
+        writer.write(output_stream)
+        output_stream.seek(0)
+        print(f"Cracha criado para {aluno['NOME DO ALUNO']} - {responsavel['responsavel']}.")
+        return output_stream
+    except Exception as e:
+        print(f"ERRO ao criar crachá: {e}")
+        raise
 
 def gerar_crachas_responsaveis(aluno, pdf_base):
     """Gera crachás para os responsáveis de um aluno, retornando uma lista de objetos BytesIO."""
@@ -184,7 +197,7 @@ def gerar_crachas_para_todos_os_alunos():
         grupos[serie_turma].append(aluno)
 
     # Caminho para o PDF base e saída
-    caminho_template = PROJECT_ROOT / 'assets' / 'templates' / 'MODELO CRACHA.pdf'
+    caminho_template = PROJECT_ROOT / 'Modelos' / 'MODELO CRACHA.pdf'
     caminho_cracha = PROJECT_ROOT / 'assets' / 'crachas'
     caminho_cracha.mkdir(parents=True, exist_ok=True)
     diploma_original = str(caminho_template)
@@ -192,6 +205,7 @@ def gerar_crachas_para_todos_os_alunos():
     # Verificar se o template existe
     if not caminho_template.exists():
         print(f"ERRO: Template não encontrado em {caminho_template}")
+        print(f"Verifique se o arquivo existe na pasta 'Modelos'")
         return
 
     # Gerar crachás para cada grupo
@@ -360,13 +374,14 @@ def gerar_cracha_individual(aluno_id, responsavel_id):
             return None
         
         # Caminhos
-        caminho_template = PROJECT_ROOT / 'assets' / 'templates' / 'MODELO CRACHA.pdf'
+        caminho_template = PROJECT_ROOT / 'Modelos' / 'MODELO CRACHA.pdf'
         caminho_saida = PROJECT_ROOT / 'assets' / 'crachas'
         caminho_saida.mkdir(parents=True, exist_ok=True)
         
         # Verificar template
         if not caminho_template.exists():
             print(f"ERRO: Template não encontrado em {caminho_template}")
+            print(f"Verifique se o arquivo existe na pasta 'Modelos'")
             return None
         
         # Gerar o crachá

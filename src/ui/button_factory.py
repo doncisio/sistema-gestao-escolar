@@ -808,6 +808,19 @@ class ButtonFactory:
                 font=menu_font
             )
             
+            # Adicionar separador e opções de planilhas de levantamento
+            termo_olhos_menu.add_separator()
+            termo_olhos_menu.add_command(
+                label="📊 Planilha de Levantamento - Estudantes",
+                command=self.callbacks.reports.planilha_cuidar_olhos_estudantes,
+                font=menu_font
+            )
+            termo_olhos_menu.add_command(
+                label="📊 Planilha de Levantamento - Professores/Servidores",
+                command=self.callbacks.reports.planilha_cuidar_olhos_profissionais,
+                font=menu_font
+            )
+            
             servicos_menu.add_cascade(
                 label="Termo Cuidar dos Olhos",
                 menu=termo_olhos_menu,
