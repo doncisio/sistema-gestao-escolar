@@ -174,7 +174,10 @@ def obter_professores_ativos(escola_id=60):
                 nome,
                 cpf,
                 data_nascimento,
-                cargo
+                cargo,
+                matricula,
+                telefone,
+                whatsapp
             FROM 
                 funcionarios
             WHERE 
@@ -201,7 +204,10 @@ def obter_servidores_ativos(escola_id=60):
                 nome,
                 cpf,
                 data_nascimento,
-                cargo
+                cargo,
+                matricula,
+                telefone,
+                whatsapp
             FROM 
                 funcionarios
             WHERE 
@@ -937,7 +943,7 @@ def gerar_planilha_estudantes(alunos_responsaveis):
         
         # Preparar dados da tabela
         data_tabela = [
-            ['Nº', 'Nome Completo', 'CPF', 'Data de Nascimento', 'Responsável Legal\n(se menor)', 'Telefone']
+            ['Nº', 'Nome Completo', 'CPF', 'Data de\nNascimento', 'Responsável Legal\n(se menor)', 'Telefone']
         ]
         
         for i, (aluno, responsavel) in enumerate(alunos_responsaveis, 1):
@@ -1106,7 +1112,7 @@ def gerar_planilha_profissionais(profissionais):
         
         # Preparar dados da tabela
         data_tabela = [
-            ['Nº', 'Nome Completo', 'CPF', 'Data de\nNascimento', 'Cargo/Função', 'Matrícula\nFuncional', 'Telefone']
+            ['Nº', 'Nome Completo', 'CPF', 'Data de\nNascimento', 'Cargo/Função\n(Professor/Servidor)', 'Matrícula\nFuncional', 'Telefone']
         ]
         
         for i, (funcionario, tipo) in enumerate(profissionais, 1):
@@ -1123,14 +1129,17 @@ def gerar_planilha_profissionais(profissionais):
             else:
                 data_nasc_formatada = '-'
             
-            # Cargo
-            cargo = funcionario.get('cargo', tipo)
+            # Cargo/Função - definir se é Professor ou Servidor
+            cargo_db = funcionario.get('cargo', '')
+            cargo = 'Professor' if cargo_db == 'Professor@' else 'Servidor'
             
-            # Matrícula funcional (pode não existir no banco)
-            matricula = funcionario.get('matricula_funcional', '-') if funcionario.get('matricula_funcional') else '-'
+            # Matrícula funcional
+            matricula = funcionario.get('matricula', '-') if funcionario.get('matricula') else '-'
             
-            # Telefone (pode não existir)
-            telefone = funcionario.get('telefone', '-') if funcionario.get('telefone') else '-'
+            # Telefone - priorizar whatsapp sobre telefone normal
+            whatsapp = funcionario.get('whatsapp', '')
+            telefone_normal = funcionario.get('telefone', '')
+            telefone = whatsapp if whatsapp else (telefone_normal if telefone_normal else '-')
             
             data_tabela.append([
                 str(i),
