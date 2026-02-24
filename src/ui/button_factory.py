@@ -919,6 +919,12 @@ class ButtonFactory:
             command=lambda: self._abrir_documento_escola('regimento'),
             font=menu_font
         )
+        documentos_menu.add_separator()
+        documentos_menu.add_command(
+            label="📄 Gerar Documentos SMTT",
+            command=lambda: self._abrir_geracao_smtt(),
+            font=menu_font
+        )
         menu_bar.add_cascade(label="Documentos da Escola", menu=documentos_menu, font=menu_font)
         
         # ========== MENU 7: USUÁRIO (quando perfis habilitados) ==========
@@ -1650,6 +1656,15 @@ class ButtonFactory:
         except Exception as e:
             logger.exception(f"Erro ao abrir documento da escola: {e}")
             messagebox.showerror("Erro ao abrir documento", str(e))
+
+    def _abrir_geracao_smtt(self):
+        """Abre a interface para gerar documentos SMTT preenchidos"""
+        try:
+            from src.relatorios.geradores.preencher_smtt import abrir_interface_smtt
+            abrir_interface_smtt()
+        except Exception as e:
+            logger.exception(f"Erro ao abrir geração de documentos SMTT: {e}")
+            messagebox.showerror("Erro", f"Erro ao abrir interface SMTT:\n{str(e)}")
 
     def _abrir_lista_controle_livros(self):
         """Abre/gera as listas de controle de livros (recebidos e devolvidos)."""

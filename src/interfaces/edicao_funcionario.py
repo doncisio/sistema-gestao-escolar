@@ -437,6 +437,22 @@ class InterfaceEdicaoFuncionario:
         self.e_cpf.pack(fill=X, pady=(0, 10))
         # Aplicar formatação automática
         aplicar_formatacao_cpf(self.e_cpf)
+        
+        # RG
+        Label(col3_frame, text="RG", **label_style).pack(anchor=W, pady=(5, 0))
+        self.e_rg = Entry(col3_frame, **entry_style)
+        self.e_rg.pack(fill=X, pady=(0, 10))
+        
+        # Órgão Expedidor
+        Label(col3_frame, text="Órgão Expedidor", **label_style).pack(anchor=W, pady=(5, 0))
+        self.e_orgao_expedidor = Entry(col3_frame, **entry_style)
+        self.e_orgao_expedidor.pack(fill=X, pady=(0, 10))
+        
+        # Data de Expedição
+        Label(col3_frame, text="Data de Expedição", **label_style).pack(anchor=W, pady=(5, 0))
+        self.e_data_expedicao_rg = Entry(col3_frame, **entry_style)
+        self.e_data_expedicao_rg.pack(fill=X, pady=(0, 10))
+        aplicar_mascara_data(self.e_data_expedicao_rg)
 
         # Telefone
         Label(col3_frame, text="Telefone", **label_style).pack(anchor=W, pady=(5, 0))
@@ -452,6 +468,42 @@ class InterfaceEdicaoFuncionario:
         Label(col3_frame, text="Email", **label_style).pack(anchor=W, pady=(5, 0))
         self.e_email = Entry(col3_frame, **entry_style)
         self.e_email.pack(fill=X, pady=(0, 10))
+        
+        # === SEÇÃO DE ENDEREÇO ===
+        # Criar frame separador para endereço
+        endereco_frame = Frame(self.frame_funcionario, bg=self.co1, padx=10, pady=10)
+        endereco_frame.pack(fill=X, pady=(10, 0))
+        
+        # Título da seção
+        Label(endereco_frame, text="Informações de Endereço", font=('Arial 11 bold'), bg=self.co1, fg=self.co5).pack(anchor=W, pady=(0, 10))
+        
+        # Grid para organizar os campos de endereço
+        end_grid = Frame(endereco_frame, bg=self.co1)
+        end_grid.pack(fill=X)
+        
+        # Configurar grid
+        for i in range(3):
+            end_grid.grid_columnconfigure(i, weight=1)
+        
+        # Endereço (Linha 1 - coluna 0)
+        Label(end_grid, text="Endereço", **label_style).grid(row=0, column=0, sticky=W, padx=(0, 10))
+        self.e_endereco = Entry(end_grid, **entry_style)
+        self.e_endereco.grid(row=1, column=0, sticky='ew', padx=(0, 10), pady=(0, 10))
+        
+        # Bairro (Linha 1 - coluna 1)
+        Label(end_grid, text="Bairro", **label_style).grid(row=0, column=1, sticky=W, padx=(0, 10))
+        self.e_bairro = Entry(end_grid, **entry_style)
+        self.e_bairro.grid(row=1, column=1, sticky='ew', padx=(0, 10), pady=(0, 10))
+        
+        # CEP (Linha 1 - coluna 2)
+        Label(end_grid, text="CEP", **label_style).grid(row=0, column=2, sticky=W)
+        self.e_cep = Entry(end_grid, **entry_style)
+        self.e_cep.grid(row=1, column=2, sticky='ew', pady=(0, 10))
+        
+        # Município (Linha 2 - coluna 0)
+        Label(end_grid, text="Município", **label_style).grid(row=2, column=0, sticky=W, padx=(0, 10))
+        self.e_municipio = Entry(end_grid, **entry_style)
+        self.e_municipio.grid(row=3, column=0, sticky='ew', padx=(0, 10), pady=(0, 10))
 
         # Seção para professores (inicialmente oculta)
         self.frame_professor = Frame(self.frame_funcionario, bg=self.co1)
@@ -988,7 +1040,9 @@ class InterfaceEdicaoFuncionario:
                     f.id, f.matricula, f.data_admissao, f.nome, f.cpf, f.carga_horaria,
                     f.vinculo, f.cargo, f.funcao, f.turno, f.turma, f.telefone, f.whatsapp, 
                     f.email, f.data_nascimento, f.polivalente, f.escola_id, f.volante,
-                    e.nome as escola_nome
+                    e.nome as escola_nome,
+                    f.rg, f.orgao_expedidor, f.data_expedicao_rg,
+                    f.endereco_logradouro, f.endereco_bairro, f.endereco_cep, f.endereco_cidade
                 FROM funcionarios f
                 LEFT JOIN escolas e ON f.escola_id = e.id
                 WHERE f.id = %s
@@ -1022,9 +1076,26 @@ class InterfaceEdicaoFuncionario:
                 self.c_vinculo.set(funcionario[6] or "")  # vinculo
                 self.e_carga_horaria.insert(0, funcionario[5] or "")  # carga_horaria
                 self.e_cpf.insert(0, funcionario[4] or "")  # cpf
+                self.e_rg.insert(0, funcionario[19] or "")  # rg
+                self.e_orgao_expedidor.insert(0, funcionario[20] or "")  # orgao_expedidor
+                
+                # Data de expedição do RG - converter para DD/MM/AAAA
+                if funcionario[21]:  # data_expedicao_rg
+                    if isinstance(funcionario[21], str):
+                        data_exp_rg = datetime.strptime(funcionario[21], '%Y-%m-%d').strftime('%d/%m/%Y')
+                    else:
+                        data_exp_rg = funcionario[21].strftime('%d/%m/%Y')
+                    self.e_data_expedicao_rg.insert(0, data_exp_rg)
+                
                 self.e_telefone.insert(0, funcionario[11] or "")  # telefone
                 self.e_whatsapp.insert(0, funcionario[12] or "")  # whatsapp
                 self.e_email.insert(0, funcionario[13] or "")  # email
+                
+                # Campos de endereço
+                self.e_endereco.insert(0, funcionario[22] or "")  # endereco_logradouro
+                self.e_bairro.insert(0, funcionario[23] or "")  # endereco_bairro
+                self.e_cep.insert(0, funcionario[24] or "")  # endereco_cep
+                self.e_municipio.insert(0, funcionario[25] or "")  # endereco_cidade
                 
                 # Salvar estado de escola carregado para uso como fallback
                 try:
@@ -1298,9 +1369,29 @@ class InterfaceEdicaoFuncionario:
             carga_horaria = self.e_carga_horaria.get()
             # CPF já formatado automaticamente pelo campo
             cpf = obter_cpf_formatado(self.e_cpf.get())
+            rg = self.e_rg.get().strip() or None
+            orgao_expedidor = self.e_orgao_expedidor.get().strip() or None
+            
+            # Data de expedição do RG
+            data_expedicao_rg_str = self.e_data_expedicao_rg.get().strip()
+            if data_expedicao_rg_str:
+                try:
+                    data_expedicao_rg = datetime.strptime(data_expedicao_rg_str, "%d/%m/%Y").strftime("%Y-%m-%d")
+                except ValueError:
+                    messagebox.showerror("Erro", "Data de expedição do RG inválida! Use o formato DD/MM/AAAA.")
+                    return
+            else:
+                data_expedicao_rg = None
+            
             telefone = self.e_telefone.get()
             whatsapp = self.e_whatsapp.get()
             email = self.e_email.get()
+            
+            # Dados de endereço
+            endereco = self.e_endereco.get().strip() or None
+            bairro = self.e_bairro.get().strip() or None
+            cep = self.e_cep.get().strip() or None
+            municipio = self.e_municipio.get().strip() or None
             
             # Campos obrigatórios para todos
             campos_obrigatorios = {
@@ -1396,14 +1487,17 @@ class InterfaceEdicaoFuncionario:
                 """
                 UPDATE funcionarios SET
                     nome = %s, matricula = %s, data_admissao = %s, data_nascimento = %s,
-                    cpf = %s, carga_horaria = %s, vinculo = %s, cargo = %s, funcao = %s,
+                    cpf = %s, rg = %s, orgao_expedidor = %s, data_expedicao_rg = %s,
+                    carga_horaria = %s, vinculo = %s, cargo = %s, funcao = %s,
                     turno = %s, turma = %s, telefone = %s, whatsapp = %s, email = %s,
+                    endereco_logradouro = %s, endereco_bairro = %s, endereco_cep = %s, endereco_cidade = %s,
                     polivalente = %s, escola_id = %s, volante = %s
                 WHERE id = %s
                 """,
                 (
-                    nome, matricula, data_admissao, data_nascimento, cpf, carga_horaria,
-                    vinculo, cargo, funcao, turno, turma_id, telefone, whatsapp, email,
+                    nome, matricula, data_admissao, data_nascimento, cpf, rg, orgao_expedidor, data_expedicao_rg,
+                    carga_horaria, vinculo, cargo, funcao, turno, turma_id, telefone, whatsapp, email,
+                    endereco, bairro, cep, municipio,
                     polivalente, escola_id, self.c_volante.get() if cargo == "Professor@" and polivalente == "sim" else "não",
                     self.funcionario_id
                 )
