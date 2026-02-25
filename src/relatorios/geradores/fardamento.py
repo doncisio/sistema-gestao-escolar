@@ -52,13 +52,13 @@ def adicionar_pagina_em_branco(elements, cabecalho, figura_superior, figura_infe
     elements.append(Spacer(1, 0.1 * inch))
 
     data = [
-        ['Nº', 'Nome', 'TAMANHO/PONTUAÇÃO', '', 'Assinatura do Responsável'],
-        ['', '', 'Fardamento', 'Calçados', '']
+        ['Nº', 'Nome', 'TAMANHO/PONTUAÇÃO', '', 'Mochila', 'Estojo', 'Assinatura do Responsável'],
+        ['', '', 'Fardamento', 'Calçados', '', '', '']
     ]
     for _ in range(linhas):
-        data.append(['', '', '', '', ''])
+        data.append(['', '', '', '', '', '', ''])
 
-    table = Table(data, colWidths=[0.4 * inch, 3.5 * inch, 1.2 * inch, 1.2 * inch, 3.7 * inch])
+    table = Table(data, colWidths=[0.4 * inch, 3.0 * inch, 1.0 * inch, 1.0 * inch, 0.8 * inch, 0.8 * inch, 3.0 * inch])
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), white),
         ('TEXTCOLOR', (0, 0), (-1, 0), black),
@@ -76,6 +76,8 @@ def adicionar_pagina_em_branco(elements, cabecalho, figura_superior, figura_infe
         ('SPAN', (1, 0), (1, 1)),
         ('SPAN', (2, 0), (3, 0)),
         ('SPAN', (4, 0), (4, 1)),
+        ('SPAN', (5, 0), (5, 1)),
+        ('SPAN', (6, 0), (6, 1)),
         ('ALIGN', (1, 2), (1, -1), 'LEFT'),
         ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 2), (-1, -1), 10),
@@ -154,8 +156,8 @@ def gerar_lista_fardamento():
         # Criar tabela de presença com larguras ajustadas para modo paisagem
         # Cabeçalho com duas linhas para sub-colunas
         data = [
-            ['Nº', 'Nome', 'TAMANHO/PONTUAÇÃO', '', 'Assinatura do Responsável'],
-            ['', '', 'Fardamento', 'Calçados', '']
+            ['Nº', 'Nome', 'TAMANHO/PONTUAÇÃO', '', 'Mochila', 'Estojo', 'Assinatura do Responsável'],
+            ['', '', 'Fardamento', 'Calçados', '', '', '']
         ]
         for row_num, (index, row) in enumerate(turma_df.iterrows(), start=1):
             nome = row['NOME DO ALUNO']
@@ -163,11 +165,13 @@ def gerar_lista_fardamento():
             nome_str = str(nome) if pd.notnull(nome) else ""
             fardamento = ''
             calcados = ''
+            mochila = ''
+            estojo = ''
             assinatura = ''
-            data.append([str(row_num), nome_str, fardamento, calcados, assinatura])
+            data.append([str(row_num), nome_str, fardamento, calcados, mochila, estojo, assinatura])
         
         # Ajustando as larguras das colunas para melhor aproveitamento do espaço horizontal
-        table = Table(data, colWidths=[0.4 * inch, 3.5 * inch, 1.2 * inch, 1.2 * inch, 3.7 * inch])
+        table = Table(data, colWidths=[0.4 * inch, 3.0 * inch, 1.0 * inch, 1.0 * inch, 0.8 * inch, 0.8 * inch, 3.0 * inch])
         table.setStyle(TableStyle([
             # Cabeçalho principal (linha 0)
             ('BACKGROUND', (0, 0), (-1, 0), white),
@@ -189,7 +193,9 @@ def gerar_lista_fardamento():
             ('SPAN', (0, 0), (0, 1)),  # Nº
             ('SPAN', (1, 0), (1, 1)),  # Nome
             ('SPAN', (2, 0), (3, 0)),  # TAMANHO/PONTUAÇÃO
-            ('SPAN', (4, 0), (4, 1)),  # Assinatura do Responsável
+            ('SPAN', (4, 0), (4, 1)),  # Mochila
+            ('SPAN', (5, 0), (5, 1)),  # Estojo
+            ('SPAN', (6, 0), (6, 1)),  # Assinatura do Responsável
             
             # Dados (a partir da linha 2)
             ('ALIGN', (1, 2), (1, -1), 'LEFT'),

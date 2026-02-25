@@ -1,9 +1,9 @@
 {
-  "data_extracao": "2026-02-13T15:31:39.717989",
+  "data_extracao": "2026-02-25T16:31:20.052084",
   "turmas": [
     {
       "id": "1525",
-      "nome": "1º Ano",
+      "nome": "",
       "alunos": [
         {
           "nome": "ALICE VITORIA FERREIRA SOUSA",
@@ -655,7 +655,7 @@
     },
     {
       "id": "1527",
-      "nome": "2º Ano",
+      "nome": "",
       "alunos": [
         {
           "nome": "ALESSANDRO PEREIRA ALVES",
@@ -1057,12 +1057,12 @@
           "nacionalidade": "BRASILEIRA",
           "codigo_naturalidade": "2111300",
           "codigo_estado": "21",
-          "cid": "",
-          "tgd": "0",
+          "cid": "CID10 F84.0",
+          "tgd": "1",
           "althab": "0",
           "codigo_inep": "",
           "inep_escola": "21008485",
-          "descricao_transtorno": "Nenhum",
+          "descricao_transtorno": "TEA - CID: CID10 F84.0",
           "raca": "Parda"
         },
         {
@@ -1105,7 +1105,7 @@
           "data_nascimento": "2018-08-19",
           "cpf": "09940714343",
           "sexo": "1",
-          "mae": "MILENE DE CáSSIA MOREIRA MARQUES",
+          "mae": "MILENE DE CASSIA MOREIRA MARQUES",
           "pai": "DIEGO HENRIQUE SOUSA MARQUES",
           "responsavel_tipo": "",
           "cpf_mae": "",
@@ -1477,7 +1477,7 @@
     },
     {
       "id": "1528",
-      "nome": "3º Ano",
+      "nome": "",
       "alunos": [
         {
           "nome": "AGATA SOFIA AMORIM FRANCA",
@@ -2435,7 +2435,7 @@
     },
     {
       "id": "1529",
-      "nome": "4º Ano",
+      "nome": "",
       "alunos": [
         {
           "nome": "ANA JULIA RIBEIRO SIMPLICIO",
@@ -3461,7 +3461,7 @@
     },
     {
       "id": "1530",
-      "nome": "5º Ano",
+      "nome": "",
       "alunos": [
         {
           "nome": "AGATHA CRISTINA DA SILVA FEITOSA",
@@ -3591,12 +3591,12 @@
           "nacionalidade": "BRASILEIRA",
           "codigo_naturalidade": "2111201",
           "codigo_estado": "21",
-          "cid": "",
-          "tgd": "0",
+          "cid": "CID10 F84.0",
+          "tgd": "1",
           "althab": "0",
           "codigo_inep": "",
           "inep_escola": "21008485",
-          "descricao_transtorno": "Nenhum",
+          "descricao_transtorno": "TEA - CID: CID10 F84.0",
           "raca": "Parda"
         },
         {
@@ -3652,19 +3652,19 @@
           "outros_cpf": null,
           "outros_profissao": null,
           "outros_nascimento": null,
-          "celular": "",
+          "celular": "98988454409",
           "email": "",
           "fone_comercial": "",
           "cor": "3",
           "nacionalidade": "BRASILEIRA",
           "codigo_naturalidade": "2111201",
           "codigo_estado": "21",
-          "cid": "",
-          "tgd": "0",
+          "cid": "CID10 F84.0",
+          "tgd": "1",
           "althab": "0",
           "codigo_inep": "",
           "inep_escola": "21008485",
-          "descricao_transtorno": "Nenhum",
+          "descricao_transtorno": "TEA - CID: CID10 F84.0",
           "raca": "Parda"
         },
         {
@@ -4314,14 +4314,14 @@
           "raca": "Parda"
         },
         {
-          "nome": "MARCELLY VITORIA SANTOS DA SILVA",
-          "nome_normalizado": "MARCELLY VITORIA SANTOS DA SILVA",
+          "nome": "MARCELLY VITORIA SANTOS DA SILVA AZEVEDO",
+          "nome_normalizado": "MARCELLY VITORIA SANTOS DA SILVA AZEVEDO",
           "data_nascimento": "2015-09-11",
-          "cpf": "",
+          "cpf": "13278715306",
           "sexo": "1",
           "mae": "ELIELMA SANTOS DA SILVA",
           "pai": null,
-          "responsavel_tipo": "",
+          "responsavel_tipo": "0",
           "cpf_mae": "01077971273",
           "cpf_pai": null,
           "profissao_mae": "",
@@ -4332,7 +4332,7 @@
           "outros_cpf": null,
           "outros_profissao": null,
           "outros_nascimento": null,
-          "celular": "",
+          "celular": "984626104",
           "email": "",
           "fone_comercial": "",
           "cor": "3",
@@ -4725,7 +4725,7 @@
     },
     {
       "id": "1535",
-      "nome": "6º Ano",
+      "nome": "",
       "alunos": [
         {
           "nome": "ALEX RAYLAN COSTA NOGUEIRA",
@@ -4942,9 +4942,9 @@
           "responsavel_tipo": "",
           "cpf_mae": "02603732307",
           "cpf_pai": null,
-          "profissao_mae": "",
+          "profissao_mae": "AUTÔNOMA",
           "profissao_pai": null,
-          "nascimento_mae": "1986-04-23",
+          "nascimento_mae": null,
           "nascimento_pai": null,
           "outros_nome": null,
           "outros_cpf": null,
@@ -5374,40 +5374,6 @@
           "raca": "Parda"
         },
         {
-          "nome": "JOAO HELIO GONCALVES BARROS",
-          "nome_normalizado": "JOAO HELIO GONCALVES BARROS",
-          "data_nascimento": "2014-05-20",
-          "cpf": "62892238366",
-          "sexo": "1",
-          "mae": "ADRIANE PINHEIRO GONCALVES",
-          "pai": "WENER SILVA BARROS",
-          "responsavel_tipo": "0",
-          "cpf_mae": "01621972330",
-          "cpf_pai": "",
-          "profissao_mae": "",
-          "profissao_pai": "",
-          "nascimento_mae": null,
-          "nascimento_pai": null,
-          "outros_nome": null,
-          "outros_cpf": null,
-          "outros_profissao": null,
-          "outros_nascimento": null,
-          "celular": "988144848",
-          "email": "",
-          "fone_comercial": "",
-          "cor": "3",
-          "nacionalidade": "BRASILEIRA",
-          "codigo_naturalidade": "2111300",
-          "codigo_estado": "21",
-          "cid": "",
-          "tgd": "0",
-          "althab": "0",
-          "codigo_inep": "",
-          "inep_escola": "21008485",
-          "descricao_transtorno": "Nenhum",
-          "raca": "Parda"
-        },
-        {
           "nome": "JULIANNA SOPHIE PEREIRA MEIRELES",
           "nome_normalizado": "JULIANNA SOPHIE PEREIRA MEIRELES",
           "data_nascimento": "2013-12-08",
@@ -5751,7 +5717,7 @@
     },
     {
       "id": "1537",
-      "nome": "7º Ano",
+      "nome": "",
       "alunos": [
         {
           "nome": "AGDA VITORIA LEAL DOS PASSOS",
@@ -6777,7 +6743,7 @@
     },
     {
       "id": "1538",
-      "nome": "7º Ano",
+      "nome": "",
       "alunos": [
         {
           "nome": "AIMEE CASTRO SOARES",
@@ -7186,6 +7152,40 @@
           "inep_escola": "21008485",
           "descricao_transtorno": "Nenhum",
           "raca": "Parda"
+        },
+        {
+          "nome": "KARLLOS AUGUSTO XIMENES DOS SANTOS",
+          "nome_normalizado": "KARLLOS AUGUSTO XIMENES DOS SANTOS",
+          "data_nascimento": "2013-07-03",
+          "cpf": "61982585307",
+          "sexo": "1",
+          "mae": "PATRICIA NASCIMENTO XIMENES",
+          "pai": "CAROS ANDRE MENDES DOS SANTOS ",
+          "responsavel_tipo": "",
+          "cpf_mae": "",
+          "cpf_pai": "",
+          "profissao_mae": "",
+          "profissao_pai": "",
+          "nascimento_mae": "1993-05-07",
+          "nascimento_pai": null,
+          "outros_nome": null,
+          "outros_cpf": null,
+          "outros_profissao": null,
+          "outros_nascimento": null,
+          "celular": "",
+          "email": "",
+          "fone_comercial": "",
+          "cor": "1",
+          "nacionalidade": "1",
+          "codigo_naturalidade": "2111300",
+          "codigo_estado": "21",
+          "cid": "",
+          "tgd": "0",
+          "althab": "0",
+          "codigo_inep": "",
+          "inep_escola": "21008485",
+          "descricao_transtorno": "Nenhum",
+          "raca": "Branca"
         },
         {
           "nome": "KAUA SAMUEL FERREIRA PINTO",
@@ -7769,7 +7769,7 @@
     },
     {
       "id": "1531",
-      "nome": "8º Ano",
+      "nome": "",
       "alunos": [
         {
           "nome": "ADRIANN CARLOS DA SILVA CASTRO",
@@ -8965,7 +8965,7 @@
     },
     {
       "id": "1532",
-      "nome": "9º Ano",
+      "nome": "",
       "alunos": [
         {
           "nome": "ANA CAROLINE SILVA MARTINS",
@@ -9928,11 +9928,11 @@
           "mae": "MILENE DE CASSIA MOREIRA MARQUES",
           "pai": null,
           "responsavel_tipo": "",
-          "cpf_mae": "04459766329",
+          "cpf_mae": "",
           "cpf_pai": null,
           "profissao_mae": "",
           "profissao_pai": null,
-          "nascimento_mae": "1990-08-16",
+          "nascimento_mae": null,
           "nascimento_pai": null,
           "outros_nome": null,
           "outros_cpf": null,

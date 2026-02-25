@@ -6,6 +6,7 @@ Importa apenas alunos que não existem no sistema (verifica por nome normalizado
 """
 
 import os
+import sys
 import re
 import time
 import json
@@ -13,12 +14,17 @@ import traceback
 import unicodedata
 from datetime import datetime
 from typing import Dict, List, Optional
+from pathlib import Path
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+
+# Adicionar diretório raiz ao path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
 from db.connection import conectar_bd
 from src.core.config_logs import get_logger
 

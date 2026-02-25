@@ -10,6 +10,8 @@ from pathlib import Path
 
 from src.ui.colors import COLORS
 from src.core.config_logs import get_logger
+from src.core.conexao import conectar_bd
+from src.core.config import ANO_LETIVO_ATUAL
 from src.relatorios.geradores.termo_cuidar_olhos import obter_professores_ativos, obter_servidores_ativos
 
 logger = get_logger(__name__)
@@ -524,35 +526,76 @@ class PlanilhaProfissionaisWindow:
             self._salvar_selecoes()
     
     def _salvar_selecoes(self):
-        """Salva as seleções atuais em arquivo JSON."""
+        """Salva as seleções atuais no banco de dados."""
         try:
-            selecoes = []
+            conn = conectar_bd()
+            if not conn:
+                logger.warning("Não foi possível conectar ao banco para salvar seleções")
+                return
+            
+            cursor = conn.cursor()
+            ano_letivo = ANO_LETIVO_ATUAL
+            
+            # Primeiro, marcar todas as seleções do ano atual como não selecionadas
+            cursor.execute("""
+                UPDATE cuidar_olhos_selecoes
+                SET selecionado = FALSE
+                WHERE tipo = 'profissional' AND ano_letivo = %s
+            """, (ano_letivo,))
+            
+            # Salvar seleções atuais
+            count = 0
             for funcionario, var, tipo, _ in self.profissionais:
                 if var.get():
-                    # Usar ID do funcionário como chave
-                    selecoes.append(funcionario['id'])
+                    # Inserir ou atualizar seleção
+                    cursor.execute("""
+                        INSERT INTO cuidar_olhos_selecoes
+                        (tipo, funcionario_id, categoria, ano_letivo, selecionado)
+                        VALUES ('profissional', %s, %s, %s, TRUE)
+                        ON DUPLICATE KEY UPDATE
+                        selecionado = TRUE,
+                        data_atualizacao = CURRENT_TIMESTAMP
+                    """, (funcionario['id'], tipo, ano_letivo))
+                    count += 1
             
-            with open(SELECOES_FILE, 'w', encoding='utf-8') as f:
-                json.dump(selecoes, f)
+            conn.commit()
+            cursor.close()
+            conn.close()
             
-            logger.debug(f"Seleções salvas: {len(selecoes)} itens")
+            logger.debug(f"Seleções salvas no BD: {count} itens")
         except Exception as e:
-            logger.warning(f"Erro ao salvar seleções: {e}")
+            logger.warning(f"Erro ao salvar seleções no BD: {e}")
     
     def _carregar_selecoes_salvas(self):
-        """Carrega seleções salvas do arquivo JSON."""
+        """Carrega seleções salvas do banco de dados."""
         try:
-            if not SELECOES_FILE.exists():
-                logger.debug("Nenhuma seleção salva encontrada")
+            conn = conectar_bd()
+            if not conn:
+                logger.warning("Não foi possível conectar ao banco para carregar seleções")
                 return
             
-            with open(SELECOES_FILE, 'r', encoding='utf-8') as f:
-                selecoes = json.load(f)
+            cursor = conn.cursor(dictionary=True)
+            ano_letivo = ANO_LETIVO_ATUAL
             
-            if not selecoes:
+            # Buscar seleções salvas do ano atual
+            cursor.execute("""
+                SELECT funcionario_id
+                FROM cuidar_olhos_selecoes
+                WHERE tipo = 'profissional'
+                AND ano_letivo = %s
+                AND selecionado = TRUE
+            """, (ano_letivo,))
+            
+            selecoes_bd = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            if not selecoes_bd:
+                logger.debug("Nenhuma seleção salva encontrada no BD")
                 return
             
-            selecoes_set = set(selecoes)
+            # Criar set de IDs para busca rápida
+            selecoes_set = {s['funcionario_id'] for s in selecoes_bd}
             count = 0
             
             # Aplicar seleções
@@ -563,7 +606,7 @@ class PlanilhaProfissionaisWindow:
                         self._atualizar_destaque(frame, var, salvar=False)
                     count += 1
             
-            logger.info(f"Seleções carregadas: {count} de {len(selecoes)} itens encontrados")
+            logger.info(f"Seleções carregadas do BD: {count} de {len(selecoes_bd)} itens encontrados")
             
             if count > 0:
                 messagebox.showinfo(
@@ -573,24 +616,66 @@ class PlanilhaProfissionaisWindow:
                 )
         
         except Exception as e:
-            logger.warning(f"Erro ao carregar seleções: {e}")
+            logger.warning(f"Erro ao carregar seleções do BD: {e}")
     
     def _limpar_selecoes_salvas(self):
-        """Remove o arquivo de seleções salvas."""
+        """Remove as seleções salvas do banco de dados."""
         try:
-            if SELECOES_FILE.exists():
-                SELECOES_FILE.unlink()
-                logger.info("Arquivo de seleções salvas removido")
-                messagebox.showinfo(
-                    "Limpeza Concluída",
-                    "Seleções salvas foram apagadas.\n\n"
-                    "Da próxima vez que abrir, começará sem nenhuma seleção."
+            conn = conectar_bd()
+            if not conn:
+                messagebox.showerror(
+                    "Erro",
+                    "Não foi possível conectar ao banco de dados."
                 )
-            else:
+                return
+            
+            cursor = conn.cursor()
+            ano_letivo = ANO_LETIVO_ATUAL
+            
+            # Contar seleções antes de limpar
+            cursor.execute("""
+                SELECT COUNT(*) as total
+                FROM cuidar_olhos_selecoes
+                WHERE tipo = 'profissional' AND ano_letivo = %s AND selecionado = TRUE
+            """, (ano_letivo,))
+            result = cursor.fetchone()
+            total = result[0] if result else 0
+            
+            if total == 0:
                 messagebox.showinfo(
                     "Sem Seleções",
                     "Não há seleções salvas para limpar."
                 )
+                cursor.close()
+                conn.close()
+                return
+            
+            # Confirmar limpeza
+            resposta = messagebox.askyesno(
+                "Confirmar Limpeza",
+                f"Deseja realmente limpar {total} seleção(ões)?\n\n"
+                f"Esta ação não pode ser desfeita."
+            )
+            
+            if resposta:
+                # Deletar seleções do ano atual
+                cursor.execute("""
+                    DELETE FROM cuidar_olhos_selecoes
+                    WHERE tipo = 'profissional' AND ano_letivo = %s
+                """, (ano_letivo,))
+                
+                conn.commit()
+                logger.info(f"Seleções limpas do BD: {total} itens")
+                
+                messagebox.showinfo(
+                    "Limpeza Concluída",
+                    f"{total} seleção(ões) foram apagadas.\n\n"
+                    "Da próxima vez que abrir, começará sem nenhuma seleção."
+                )
+            
+            cursor.close()
+            conn.close()
+            
         except Exception as e:
             logger.exception(f"Erro ao limpar seleções: {e}")
             messagebox.showerror("Erro", f"Erro ao limpar seleções: {e}")
