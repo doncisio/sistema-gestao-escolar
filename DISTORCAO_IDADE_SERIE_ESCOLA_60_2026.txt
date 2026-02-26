@@ -1,0 +1,255 @@
+====================================================================================================
+RELATÓRIO DE ALUNOS EM DISTORÇÃO IDADE-SÉRIE
+Escola ID: 60 | Ano Letivo: 2026
+Data de geração: 26/02/2026 08:28:39
+====================================================================================================
+
+Total de alunos em distorção: 27
+
+----------------------------------------------------------------------------------------------------
+3º Ano - Total: 2 alunos em distorção
+----------------------------------------------------------------------------------------------------
+
+1. Alexandre Gregory do Rosario Abreu
+   ID: 474 | CPF: 095.076.843-01
+   Data Nascimento: 11/09/2016
+   Idade em 2026: 10 anos (Ideal: 8 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: MAT
+   Sexo: M
+
+2. Anna Leticia Nascimento Castro
+   ID: 477 | CPF: 637.003.403-70
+   Data Nascimento: 12/09/2016
+   Idade em 2026: 10 anos (Ideal: 8 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: MAT
+   Sexo: F
+
+----------------------------------------------------------------------------------------------------
+4º Ano - Total: 1 alunos em distorção
+----------------------------------------------------------------------------------------------------
+
+1. Sara Emanuelle Carvalho Lisboa
+   ID: 500 | CPF: Não cadastrado
+   Data Nascimento: 20/09/2015
+   Idade em 2026: 11 anos (Ideal: 9 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: MAT
+   Sexo: F
+
+----------------------------------------------------------------------------------------------------
+5º Ano - Total: 7 alunos em distorção
+----------------------------------------------------------------------------------------------------
+
+1. Angélica do Espirito Santo Bezerra
+   ID: 476 | CPF: 8042737319
+   Data Nascimento: 08/07/2014
+   Idade em 2026: 12 anos (Ideal: 10 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: MAT
+   Sexo: F
+
+2. Davi Luís Moreira Marques
+   ID: 2728 | CPF: 632.483.983-45
+   Data Nascimento: 23/11/2014
+   Idade em 2026: 12 anos (Ideal: 10 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: MAT
+   Sexo: M
+
+3. Emilly Sophia Sena Ribeiro
+   ID: 552 | CPF: 625.681.273-50
+   Data Nascimento: 09/10/2014
+   Idade em 2026: 12 anos (Ideal: 10 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: MAT
+   Sexo: F
+
+4. Luan Carlos Carneiro Sousa
+   ID: 2794 | CPF: 010.397.093-20
+   Data Nascimento: 03/03/2014
+   Idade em 2026: 12 anos (Ideal: 10 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: MAT
+   Sexo: M
+
+5. Luís Davi Martins da Silva
+   ID: 2784 | CPF: 624.164.243-00
+   Data Nascimento: 22/04/2013
+   Idade em 2026: 13 anos (Ideal: 10 anos)
+   Distorção: 3 anos
+   Turma:  - Turno: MAT
+   Sexo: M
+
+6. Marcos Henrique Sena Sodre
+   ID: 567 | CPF: 620.996.493-16
+   Data Nascimento: 31/05/2013
+   Idade em 2026: 13 anos (Ideal: 10 anos)
+   Distorção: 3 anos
+   Turma:  - Turno: MAT
+   Sexo: M
+
+7. Maria Eduarda Garcias dos Santos
+   ID: 2798 | CPF: 636.243.523-00
+   Data Nascimento: 03/04/2014
+   Idade em 2026: 12 anos (Ideal: 10 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: MAT
+   Sexo: F
+
+----------------------------------------------------------------------------------------------------
+6º Ano - Total: 6 alunos em distorção
+----------------------------------------------------------------------------------------------------
+
+1. Alex Raylan Costa Nogueira
+   ID: 576 | CPF: 632.711.293-55
+   Data Nascimento: 29/10/2013
+   Idade em 2026: 13 anos (Ideal: 11 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: VESP
+   Sexo: M
+
+2. Ana Sophia Porto Ferreira
+   ID: 2908 | CPF: 623.227.233-12
+   Data Nascimento: 09/05/2013
+   Idade em 2026: 13 anos (Ideal: 11 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: VESP
+   Sexo: F
+
+3. Dandara Cristina Santos Costa
+   ID: 579 | CPF: 633.449.003-66
+   Data Nascimento: 01/04/2013
+   Idade em 2026: 13 anos (Ideal: 11 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: VESP
+   Sexo: F
+
+4. Davi Emanuel dos Santos Cabral
+   ID: 547 | CPF: 624.966.643-54
+   Data Nascimento: 30/10/2013
+   Idade em 2026: 13 anos (Ideal: 11 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: VESP
+   Sexo: M
+
+5. Julianna Sophie Pereira Meireles
+   ID: 2648 | CPF: 626.247.613-06
+   Data Nascimento: 08/12/2013
+   Idade em 2026: 13 anos (Ideal: 11 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: VESP
+   Sexo: F
+
+6. Mirian Emanuely Chagas
+   ID: 605 | CPF: 624.774.563-00
+   Data Nascimento: 11/12/2013
+   Idade em 2026: 13 anos (Ideal: 11 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: VESP
+   Sexo: F
+
+----------------------------------------------------------------------------------------------------
+7º Ano - Total: 7 alunos em distorção
+----------------------------------------------------------------------------------------------------
+
+1. Henrique Gabriel de Matos Ribeiro
+   ID: 2675 | CPF: 620.272.503-60
+   Data Nascimento: 13/09/2012
+   Idade em 2026: 14 anos (Ideal: 12 anos)
+   Distorção: 2 anos
+   Turma: A - Turno: VESP
+   Sexo: M
+
+2. Nayra Nycolle Gaspar Costa
+   ID: 2752 | CPF: 636.713.323-28
+   Data Nascimento: 28/09/2012
+   Idade em 2026: 14 anos (Ideal: 12 anos)
+   Distorção: 2 anos
+   Turma: A - Turno: VESP
+   Sexo: F
+
+3. Ronaldo dos Santos Rodrigues
+   ID: 2708 | CPF: 633.196.903-96
+   Data Nascimento: 30/05/2012
+   Idade em 2026: 14 anos (Ideal: 12 anos)
+   Distorção: 2 anos
+   Turma: A - Turno: VESP
+   Sexo: M
+
+4. Luna Lorrany Duarte Bitencourt Ferreira
+   ID: 2731 | CPF: 629.994.343-24
+   Data Nascimento: 02/08/2012
+   Idade em 2026: 14 anos (Ideal: 12 anos)
+   Distorção: 2 anos
+   Turma: B - Turno: VESP
+   Sexo: F
+
+5. Mikael Cabral Lopes
+   ID: 2696 | CPF: 620.369.003-13
+   Data Nascimento: 01/06/2012
+   Idade em 2026: 14 anos (Ideal: 12 anos)
+   Distorção: 2 anos
+   Turma: B - Turno: VESP
+   Sexo: M
+
+6. Sophia Eduarda Coelho Marques
+   ID: 612 | CPF: 630.228.333-77
+   Data Nascimento: 12/09/2012
+   Idade em 2026: 14 anos (Ideal: 12 anos)
+   Distorção: 2 anos
+   Turma: B - Turno: VESP
+   Sexo: F
+
+7. Vinícius Meerchel Cutrim
+   ID: 2804 | CPF: 043.289.510-84
+   Data Nascimento: 29/10/2012
+   Idade em 2026: 14 anos (Ideal: 12 anos)
+   Distorção: 2 anos
+   Turma: B - Turno: VESP
+   Sexo: M
+
+----------------------------------------------------------------------------------------------------
+8º Ano - Total: 2 alunos em distorção
+----------------------------------------------------------------------------------------------------
+
+1. Kaik Ruã Pereira de Morais
+   ID: 2751 | CPF: Não cadastrado
+   Data Nascimento: 08/03/2011
+   Idade em 2026: 15 anos (Ideal: 13 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: VESP
+   Sexo: M
+
+2. Luiz Fernando Santos do Nascimento
+   ID: 737 | CPF: 625.804.803-07
+   Data Nascimento: 30/08/2010
+   Idade em 2026: 16 anos (Ideal: 13 anos)
+   Distorção: 3 anos
+   Turma:  - Turno: VESP
+   Sexo: M
+
+----------------------------------------------------------------------------------------------------
+9º Ano - Total: 2 alunos em distorção
+----------------------------------------------------------------------------------------------------
+
+1. Nicholas Gabriel Soares Queiroz
+   ID: 772 | CPF: 068.509.843-57
+   Data Nascimento: 30/09/2010
+   Idade em 2026: 16 anos (Ideal: 14 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: VESP
+   Sexo: M
+
+2. Olimar Davi Cabral Barbiero
+   ID: 2737 | CPF: 618.302.123-70
+   Data Nascimento: 26/10/2010
+   Idade em 2026: 16 anos (Ideal: 14 anos)
+   Distorção: 2 anos
+   Turma:  - Turno: VESP
+   Sexo: M
+
+====================================================================================================
+FIM DO RELATÓRIO
+====================================================================================================

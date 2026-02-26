@@ -150,6 +150,22 @@ class ReportCallbacks:
             logger.exception(f"Erro ao gerar relatório: {e}")
             messagebox.showerror("Erro", f"Não foi possível gerar o relatório: {e}")
     
+    def lista_distorcao_fluxo(self):
+        """Gera formulário de mapeamento de alunos em distorção idade-série."""
+        try:
+            from src.relatorios.listas.lista_distorcao_fluxo import gerar_lista_distorcao_fluxo
+            from src.ui.dashboard import run_report_in_background
+            
+            run_report_in_background(
+                gerar_lista_distorcao_fluxo,
+                "Lista de Distorção de Fluxo",
+                janela=self.janela
+            )
+        except Exception as e:
+            logger.exception(f"Erro ao gerar lista de distorção: {e}")
+            messagebox.showerror("Erro", f"Não foi possível gerar a lista: {e}")
+            messagebox.showerror("Erro", f"Não foi possível gerar o relatório: {e}")
+    
     def relatorio_lista_alfabetica(self):
         """Gera lista alfabética de alunos."""
         try:
@@ -167,6 +183,25 @@ class ReportCallbacks:
         except Exception as e:
             logger.exception(f"Erro ao gerar relatório: {e}")
             messagebox.showerror("Erro", f"Não foi possível gerar o relatório: {e}")
+    
+    def lista_nao_rematriculados(self):
+        """Gera lista de alunos não rematriculados no ano atual."""
+        try:
+            from src.relatorios.listas.lista_nao_rematriculados import gerar_pdf_nao_rematriculados
+            from src.core.config import ANO_LETIVO_ATUAL
+            from src.ui.dashboard import run_report_in_background
+            
+            ano_anterior = ANO_LETIVO_ATUAL - 1
+            ano_atual = ANO_LETIVO_ATUAL
+            
+            run_report_in_background(
+                lambda: gerar_pdf_nao_rematriculados(ano_anterior, ano_atual),
+                "Lista de Não Rematriculados",
+                janela=self.janela
+            )
+        except Exception as e:
+            logger.exception(f"Erro ao gerar lista de não rematriculados: {e}")
+            messagebox.showerror("Erro", f"Não foi possível gerar a lista: {e}")
     
     def relatorio_termo_responsabilidade(self):
         """Gera termo de responsabilidade."""

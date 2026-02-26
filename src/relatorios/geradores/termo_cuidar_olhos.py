@@ -9,7 +9,7 @@ logger = get_logger(__name__)
 
 import io
 import os
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch, cm
@@ -903,10 +903,10 @@ def gerar_planilha_estudantes(alunos_responsaveis):
         
         doc = SimpleDocTemplate(
             str(nome_arquivo),
-            pagesize=A4,
+            pagesize=landscape(A4),
             leftMargin=1.5*cm,
             rightMargin=1.5*cm,
-            topMargin=2*cm,
+            topMargin=1.0*cm,
             bottomMargin=2*cm
         )
         
@@ -975,8 +975,8 @@ def gerar_planilha_estudantes(alunos_responsaveis):
                 telefone
             ])
         
-        # Criar tabela
-        tabela = Table(data_tabela, colWidths=[0.8*cm, 5*cm, 3*cm, 2.5*cm, 4.5*cm, 2.5*cm])
+        # Criar tabela (A4 paisagem tem ~26.7cm de largura útil)
+        tabela = Table(data_tabela, colWidths=[1*cm, 7*cm, 3*cm, 2.5*cm, 7*cm, 3.5*cm])
         
         # Estilo da tabela
         tabela.setStyle(TableStyle([
@@ -1072,10 +1072,10 @@ def gerar_planilha_profissionais(profissionais):
         
         doc = SimpleDocTemplate(
             str(nome_arquivo),
-            pagesize=A4,
+            pagesize=landscape(A4),
             leftMargin=1.5*cm,
             rightMargin=1.5*cm,
-            topMargin=2*cm,
+            topMargin=1.0*cm,
             bottomMargin=2*cm
         )
         
@@ -1151,8 +1151,8 @@ def gerar_planilha_profissionais(profissionais):
                 telefone
             ])
         
-        # Criar tabela
-        tabela = Table(data_tabela, colWidths=[0.8*cm, 4.5*cm, 2.8*cm, 2*cm, 3*cm, 2.2*cm, 2.2*cm])
+        # Criar tabela (A4 paisagem tem ~26.7cm de largura útil)
+        tabela = Table(data_tabela, colWidths=[1*cm, 6.5*cm, 3*cm, 2.5*cm, 3.5*cm, 2.5*cm, 3.5*cm])
         
         # Estilo da tabela
         tabela.setStyle(TableStyle([
@@ -1160,13 +1160,13 @@ def gerar_planilha_profissionais(profissionais):
             ('BACKGROUND', (0, 0), (-1, 0), '#4472C4'),
             ('TEXTCOLOR', (0, 0), (-1, 0), 'white'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 8),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
             
             # Corpo
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 7),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
             ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # Coluna Nº centralizada
             ('ALIGN', (1, 1), (-1, -1), 'LEFT'),   # Outras colunas à esquerda
             ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),

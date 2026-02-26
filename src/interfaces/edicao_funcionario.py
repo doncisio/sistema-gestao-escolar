@@ -1051,51 +1051,122 @@ class InterfaceEdicaoFuncionario:
             funcionario = self.cursor.fetchone()
             
             if funcionario:
+                logger.info(f"Carregando dados do funcionário ID {self.funcionario_id}: {funcionario[3]}")
+                
                 # Preencher os campos com os dados do funcionário
-                self.e_nome.insert(0, funcionario[3] or "")  # nome
-                self.e_matricula.insert(0, funcionario[1] or "")  # matricula
+                try:
+                    self.e_nome.insert(0, funcionario[3] or "")  # nome
+                except Exception as e:
+                    logger.error(f"Erro ao carregar nome: {e}")
+                
+                try:
+                    self.e_matricula.insert(0, funcionario[1] or "")  # matricula
+                except Exception as e:
+                    logger.error(f"Erro ao carregar matrícula: {e}")
                 
                 # Data de admissão - converter para DD/MM/AAAA
-                if funcionario[2]:  # data_admissao
-                    if isinstance(funcionario[2], str):
-                        data_adm = datetime.strptime(funcionario[2], '%Y-%m-%d').strftime('%d/%m/%Y')
-                    else:
-                        data_adm = funcionario[2].strftime('%d/%m/%Y')
-                    self.e_data_admissao.insert(0, data_adm)
+                try:
+                    if funcionario[2]:  # data_admissao
+                        if isinstance(funcionario[2], str):
+                            data_adm = datetime.strptime(funcionario[2], '%Y-%m-%d').strftime('%d/%m/%Y')
+                        else:
+                            data_adm = funcionario[2].strftime('%d/%m/%Y')
+                        self.e_data_admissao.insert(0, data_adm)
+                except Exception as e:
+                    logger.error(f"Erro ao carregar data de admissão: {e}")
                 
                 # Data de nascimento - converter para DD/MM/AAAA
-                if funcionario[14]:  # data_nascimento
-                    if isinstance(funcionario[14], str):
-                        data_nasc = datetime.strptime(funcionario[14], '%Y-%m-%d').strftime('%d/%m/%Y')
-                    else:
-                        data_nasc = funcionario[14].strftime('%d/%m/%Y')
-                    self.e_data_nascimento.insert(0, data_nasc)
+                try:
+                    if funcionario[14]:  # data_nascimento
+                        if isinstance(funcionario[14], str):
+                            data_nasc = datetime.strptime(funcionario[14], '%Y-%m-%d').strftime('%d/%m/%Y')
+                        else:
+                            data_nasc = funcionario[14].strftime('%d/%m/%Y')
+                        self.e_data_nascimento.insert(0, data_nasc)
+                except Exception as e:
+                    logger.error(f"Erro ao carregar data de nascimento: {e}")
                 
-                self.c_cargo.set(funcionario[7] or "")  # cargo
-                self.e_funcao.insert(0, funcionario[8] or "")  # funcao
-                self.c_vinculo.set(funcionario[6] or "")  # vinculo
-                self.e_carga_horaria.insert(0, funcionario[5] or "")  # carga_horaria
-                self.e_cpf.insert(0, funcionario[4] or "")  # cpf
-                self.e_rg.insert(0, funcionario[19] or "")  # rg
-                self.e_orgao_expedidor.insert(0, funcionario[20] or "")  # orgao_expedidor
+                try:
+                    self.c_cargo.set(funcionario[7] or "")  # cargo
+                except Exception as e:
+                    logger.error(f"Erro ao carregar cargo: {e}")
+                
+                try:
+                    self.e_funcao.insert(0, funcionario[8] or "")  # funcao
+                except Exception as e:
+                    logger.error(f"Erro ao carregar função: {e}")
+                
+                try:
+                    self.c_vinculo.set(funcionario[6] or "")  # vinculo
+                except Exception as e:
+                    logger.error(f"Erro ao carregar vínculo: {e}")
+                
+                try:
+                    self.e_carga_horaria.insert(0, funcionario[5] or "")  # carga_horaria
+                except Exception as e:
+                    logger.error(f"Erro ao carregar carga horária: {e}")
+                
+                try:
+                    self.e_cpf.insert(0, funcionario[4] or "")  # cpf
+                except Exception as e:
+                    logger.error(f"Erro ao carregar CPF: {e}")
+                
+                try:
+                    self.e_rg.insert(0, funcionario[19] or "")  # rg
+                except Exception as e:
+                    logger.error(f"Erro ao carregar RG: {e}")
+                
+                try:
+                    self.e_orgao_expedidor.insert(0, funcionario[20] or "")  # orgao_expedidor
+                except Exception as e:
+                    logger.error(f"Erro ao carregar órgão expedidor: {e}")
                 
                 # Data de expedição do RG - converter para DD/MM/AAAA
-                if funcionario[21]:  # data_expedicao_rg
-                    if isinstance(funcionario[21], str):
-                        data_exp_rg = datetime.strptime(funcionario[21], '%Y-%m-%d').strftime('%d/%m/%Y')
-                    else:
-                        data_exp_rg = funcionario[21].strftime('%d/%m/%Y')
-                    self.e_data_expedicao_rg.insert(0, data_exp_rg)
+                try:
+                    if funcionario[21]:  # data_expedicao_rg
+                        if isinstance(funcionario[21], str):
+                            data_exp_rg = datetime.strptime(funcionario[21], '%Y-%m-%d').strftime('%d/%m/%Y')
+                        else:
+                            data_exp_rg = funcionario[21].strftime('%d/%m/%Y')
+                        self.e_data_expedicao_rg.insert(0, data_exp_rg)
+                except Exception as e:
+                    logger.error(f"Erro ao carregar data de expedição do RG: {e}")
                 
-                self.e_telefone.insert(0, funcionario[11] or "")  # telefone
-                self.e_whatsapp.insert(0, funcionario[12] or "")  # whatsapp
-                self.e_email.insert(0, funcionario[13] or "")  # email
+                try:
+                    self.e_telefone.insert(0, funcionario[11] or "")  # telefone
+                except Exception as e:
+                    logger.error(f"Erro ao carregar telefone: {e}")
+                
+                try:
+                    self.e_whatsapp.insert(0, funcionario[12] or "")  # whatsapp
+                except Exception as e:
+                    logger.error(f"Erro ao carregar whatsapp: {e}")
+                
+                try:
+                    self.e_email.insert(0, funcionario[13] or "")  # email
+                except Exception as e:
+                    logger.error(f"Erro ao carregar email: {e}")
                 
                 # Campos de endereço
-                self.e_endereco.insert(0, funcionario[22] or "")  # endereco_logradouro
-                self.e_bairro.insert(0, funcionario[23] or "")  # endereco_bairro
-                self.e_cep.insert(0, funcionario[24] or "")  # endereco_cep
-                self.e_municipio.insert(0, funcionario[25] or "")  # endereco_cidade
+                try:
+                    self.e_endereco.insert(0, funcionario[22] or "")  # endereco_logradouro
+                except Exception as e:
+                    logger.error(f"Erro ao carregar endereço: {e}")
+                
+                try:
+                    self.e_bairro.insert(0, funcionario[23] or "")  # endereco_bairro
+                except Exception as e:
+                    logger.error(f"Erro ao carregar bairro: {e}")
+                
+                try:
+                    self.e_cep.insert(0, funcionario[24] or "")  # endereco_cep
+                except Exception as e:
+                    logger.error(f"Erro ao carregar CEP: {e}")
+                
+                try:
+                    self.e_municipio.insert(0, funcionario[25] or "")  # endereco_cidade
+                except Exception as e:
+                    logger.error(f"Erro ao carregar município: {e}")
                 
                 # Salvar estado de escola carregado para uso como fallback
                 try:
@@ -1124,11 +1195,22 @@ class InterfaceEdicaoFuncionario:
 
                 # Carregar turno para todos os funcionários
                 try:
-                    ui_turno = self.db_to_ui_turno(funcionario[9]) or ""
-                    self.c_turno.set(ui_turno)
-                    logger.info(f"Carregado turno para funcionário #{self.funcionario_id}: db='{funcionario[9]}' ui='{ui_turno}' values={self.c_turno['values']}")
+                    turno_db = funcionario[9]  # valor do turno do banco
+                    logger.info(f"Carregando turno do banco: '{turno_db}' (tipo: {type(turno_db).__name__})")
+                    
+                    if turno_db is not None:
+                        ui_turno = self.db_to_ui_turno(turno_db)
+                        if ui_turno:
+                            self.c_turno.set(ui_turno)
+                            logger.info(f"Turno carregado com sucesso: db='{turno_db}' → ui='{ui_turno}'")
+                        else:
+                            logger.warning(f"Turno do banco '{turno_db}' não foi mapeado para a UI")
+                    else:
+                        logger.info(f"Funcionário {self.funcionario_id} ({funcionario[3]}) não tem turno definido")
                 except Exception as e:
-                    logger.error(f"Erro ao setar c_turno: {e}")
+                    logger.error(f"Erro ao carregar turno do funcionário {self.funcionario_id} ({funcionario[3]}): {e}", exc_info=True)
+                    # Não bloquear o carregamento por causa do turno
+                    pass
 
                 # Se for professor, carregar dados específicos
                 # Aceitar variações do cargo que indiquem "Professor"
@@ -1154,11 +1236,15 @@ class InterfaceEdicaoFuncionario:
                 # Ajustar visibilidade dos botões de vínculo
                 try:
                     self.update_vinculo_buttons()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Erro ao atualizar botões de vínculo: {e}")
+            else:
+                logger.error(f"Funcionário ID {self.funcionario_id} não encontrado no banco de dados")
+                messagebox.showerror("Erro", f"Funcionário ID {self.funcionario_id} não encontrado")
             
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao carregar dados do funcionário: {str(e)}")
+            logger.error(f"Erro ao carregar dados do funcionário {self.funcionario_id}: {e}", exc_info=True)
+            messagebox.showerror("Erro", f"Erro ao carregar dados do funcionário:\n\n{str(e)}\n\nVerifique o log para mais detalhes.")
 
     def carregar_disciplinas_funcionario(self):
         try:

@@ -391,6 +391,22 @@ class ButtonFactory:
                     font=menu_font
                 )
 
+            # Lista de Distorção de Fluxo (Admin, Coordenador)
+            if is_admin or is_coordenador:
+                listas_menu.add_command(
+                    label="Mapeamento - Distorção de Fluxo",
+                    command=self.callbacks.reports.lista_distorcao_fluxo,
+                    font=menu_font
+                )
+
+            # Lista de Não Rematriculados (Admin, Coordenador)
+            if is_admin or is_coordenador:
+                listas_menu.add_command(
+                    label="Alunos Não Rematriculados",
+                    command=self.callbacks.reports.lista_nao_rematriculados,
+                    font=menu_font
+                )
+
             listas_menu.add_separator()
 
             # Transferências (Admin)
