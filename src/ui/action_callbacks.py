@@ -509,6 +509,16 @@ class AdministrativoCallbacks:
     def abrir_horarios_escolares(self):
         """Abre interface de horários escolares."""
         try:
+            import sys
+            import importlib
+            
+            # Forçar reload do módulo se já estiver em cache
+            module_name = 'src.interfaces.horarios_escolares'
+            if module_name in sys.modules:
+                logger.info(f"⚠️ Módulo {module_name} já estava em cache, forçando recarga...")
+                importlib.reload(sys.modules[module_name])
+                logger.info("✓ Módulo recarregado com sucesso")
+            
             from src.interfaces.horarios_escolares import InterfaceHorariosEscolares
             
             # Passar apenas a janela principal, deixar a interface criar sua própria janela
