@@ -447,38 +447,50 @@ class InterfaceHorariosEscolares:
             widget.destroy()
         
         # Frame para turno
-        frame_turno = tk.Frame(self.frame_selecao, bg=self.co0)
-        frame_turno.pack(side=tk.LEFT, padx=10, pady=5)
+        self.frame_turno_sel = tk.Frame(self.frame_selecao, bg=self.co0)
+        self.frame_turno_sel.pack(side=tk.LEFT, padx=10, pady=5)
         
-        tk.Label(frame_turno, text="Turno:", bg=self.co0, font=("Arial", 10)).pack(side=tk.LEFT, padx=(0, 5))
+        tk.Label(self.frame_turno_sel, text="Turno:", bg=self.co0, font=("Arial", 10)).pack(side=tk.LEFT, padx=(0, 5))
         self.turno_var = tk.StringVar(value=self.turno_atual)
-        turno_cb = ttk.Combobox(frame_turno, textvariable=self.turno_var, values=["Matutino", "Vespertino"], width=15, state="readonly")
+        turno_cb = ttk.Combobox(self.frame_turno_sel, textvariable=self.turno_var, values=["Matutino", "Vespertino"], width=15, state="readonly")
         turno_cb.pack(side=tk.LEFT)
         turno_cb.bind("<<ComboboxSelected>>", self.atualizar_horarios)
         
         # Frame para série/ano
-        frame_serie = tk.Frame(self.frame_selecao, bg=self.co0)
-        frame_serie.pack(side=tk.LEFT, padx=10, pady=5)
+        self.frame_serie_sel = tk.Frame(self.frame_selecao, bg=self.co0)
+        self.frame_serie_sel.pack(side=tk.LEFT, padx=10, pady=5)
         
-        tk.Label(frame_serie, text="Série/Ano:", bg=self.co0, font=("Arial", 10)).pack(side=tk.LEFT, padx=(0, 5))
+        tk.Label(self.frame_serie_sel, text="Série/Ano:", bg=self.co0, font=("Arial", 10)).pack(side=tk.LEFT, padx=(0, 5))
         
         # Valores vêm do banco de dados
         series_nomes = [serie['nome'] for serie in self.series_dados] if self.series_dados else ["1º Ano", "2º Ano", "3º Ano", "4º Ano", "5º Ano", "6º Ano", "7º Ano", "8º Ano", "9º Ano"]
         self.serie_var = tk.StringVar()
-        serie_cb = ttk.Combobox(frame_serie, textvariable=self.serie_var, values=series_nomes, width=15, state="readonly")
+        serie_cb = ttk.Combobox(self.frame_serie_sel, textvariable=self.serie_var, values=series_nomes, width=15, state="readonly")
         serie_cb.pack(side=tk.LEFT)
         serie_cb.bind("<<ComboboxSelected>>", self.carregar_turmas)
         
         # Frame para turma
-        frame_turma = tk.Frame(self.frame_selecao, bg=self.co0)
-        frame_turma.pack(side=tk.LEFT, padx=10, pady=5)
+        self.frame_turma_sel = tk.Frame(self.frame_selecao, bg=self.co0)
+        self.frame_turma_sel.pack(side=tk.LEFT, padx=10, pady=5)
         
-        tk.Label(frame_turma, text="Turma:", bg=self.co0, font=("Arial", 10)).pack(side=tk.LEFT, padx=(0, 5))
+        tk.Label(self.frame_turma_sel, text="Turma:", bg=self.co0, font=("Arial", 10)).pack(side=tk.LEFT, padx=(0, 5))
         self.turma_var = tk.StringVar()
-        self.turma_cb = ttk.Combobox(frame_turma, textvariable=self.turma_var, width=15, state="readonly")
+        self.turma_cb = ttk.Combobox(self.frame_turma_sel, textvariable=self.turma_var, width=15, state="readonly")
         self.turma_cb.pack(side=tk.LEFT)
         self.turma_cb.bind("<<ComboboxSelected>>", self.carregar_horarios)
         
+        # Frame para seleção de professor (oculto até modo Professor ser escolhido)
+        self.frame_prof_sel = tk.Frame(self.frame_selecao, bg=self.co0)
+        # não chama .pack() aqui
+        tk.Label(self.frame_prof_sel, text="Professor:", bg=self.co0,
+                 font=("Arial", 10)).pack(side=tk.LEFT, padx=(0, 5))
+        self.professor_var = tk.StringVar()
+        prof_nomes = [p['nome'] for p in (self.professores or [])]
+        self.professor_cb = ttk.Combobox(self.frame_prof_sel, textvariable=self.professor_var,
+                                         values=prof_nomes, width=28, state="readonly")
+        self.professor_cb.pack(side=tk.LEFT)
+        self.professor_cb.bind("<<ComboboxSelected>>", self._on_professor_selecionado)
+
         # Frame para seleção de visualização
         frame_visualizacao = tk.Frame(self.frame_selecao, bg=self.co0)
         frame_visualizacao.pack(side=tk.RIGHT, padx=10, pady=5)
@@ -718,15 +730,188 @@ class InterfaceHorariosEscolares:
 
     def atualizar_visualizacao(self, event=None):
         visualizacao = self.visualizacao_var.get()
+        _frames_turma = ('frame_turno_sel', 'frame_serie_sel', 'frame_turma_sel')
         if visualizacao == "Turma":
+            # Mostrar seletores de turma, ocultar seletor de professor
+            for attr in _frames_turma:
+                f = getattr(self, attr, None)
+                if f:
+                    f.pack(side=tk.LEFT, padx=10, pady=5)
+            if hasattr(self, 'frame_prof_sel'):
+                self.frame_prof_sel.pack_forget()
             self.criar_grade_horarios()
         elif visualizacao == "Professor":
-            # Implementar visualização por professor
-            messagebox.showinfo("Info", "Visualização por professor será implementada")
+            # Ocultar seletores de turma, mostrar seletor de professor
+            for attr in _frames_turma:
+                f = getattr(self, attr, None)
+                if f:
+                    f.pack_forget()
+            if hasattr(self, 'frame_prof_sel'):
+                self.frame_prof_sel.pack(side=tk.LEFT, padx=10, pady=5)
+            self.criar_grade_horarios_professor()
         elif visualizacao == "Dia da Semana":
-            # Implementar visualização por dia da semana
             messagebox.showinfo("Info", "Visualização por dia da semana será implementada")
-    
+
+    def _on_professor_selecionado(self, event=None):
+        self.criar_grade_horarios_professor()
+
+    def _abreviar_disciplina(self, nome):
+        """Retorna abreviação compacta do nome da disciplina."""
+        _ABREV = {
+            'LÍNGUA PORTUGUESA': 'L.PORT', 'LINGUA PORTUGUESA': 'L.PORT',
+            'MATEMÁTICA': 'MAT', 'MATEMATICA': 'MAT',
+            'CIÊNCIAS': 'CNC', 'CIENCIAS': 'CNC',
+            'HISTÓRIA': 'HST', 'HISTORIA': 'HST',
+            'GEOGRAFIA': 'GGF',
+            'ARTE': 'ARTE',
+            'EDUCAÇÃO FÍSICA': 'ED.FÍS', 'EDUCACAO FISICA': 'ED.FÍS',
+            'ENSINO RELIGIOSO': 'ENS.REL',
+            'INGLÊS': 'INGL', 'INGLES': 'INGL',
+            'ESPANHOL': 'ESP',
+            'FÍSICA': 'FÍS', 'FISICA': 'FÍS',
+            'QUÍMICA': 'QUÍM', 'QUIMICA': 'QUÍM',
+            'BIOLOGIA': 'BIO',
+            'FILOSOFIA': 'FILOS',
+            'SOCIOLOGIA': 'SOCIO',
+            'REDAÇÃO': 'RED', 'REDACAO': 'RED',
+            '<VAGO>': 'VAGO',
+        }
+        nome_u = (nome or '').upper().strip()
+        if nome_u in _ABREV:
+            return _ABREV[nome_u]
+        # desconhecida: primeiras 7 letras
+        return nome_u[:7] if nome_u else ''
+
+    def criar_grade_horarios_professor(self):
+        """Cria grade de leitura com todos os horários do professor selecionado.
+        Células preenchidas: '{disc_abrev}\n{série_num}{turma_letra}-{turno_abrev}'
+        Células sem aula: 'VAGO'
+        """
+        for widget in self.frame_grade.winfo_children():
+            widget.destroy()
+
+        prof_nome = self.professor_var.get() if hasattr(self, 'professor_var') else ''
+        if not prof_nome:
+            tk.Label(self.frame_grade, text="Selecione um professor para visualizar os horários.",
+                     bg=self.co0, font=("Arial", 12), fg=self.co7).pack(pady=60)
+            return
+
+        # Encontrar professor_id
+        professor_id = None
+        for p in (self.professores or []):
+            if p['nome'] == prof_nome:
+                professor_id = p['id']
+                break
+        if not professor_id:
+            tk.Label(self.frame_grade, text="Professor não encontrado.",
+                     bg=self.co0, font=("Arial", 11), fg=self.co8).pack(pady=40)
+            return
+
+        try:
+            conn = conectar_bd()
+            if not conn:
+                return
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("""
+                SELECT DISTINCT h.dia, h.horario, h.valor,
+                       t.nome AS turma_nome, s.nome AS serie_nome, t.turno
+                FROM horarios_importados h
+                INNER JOIN turmas t ON h.turma_id = t.id
+                INNER JOIN series s ON t.serie_id = s.id
+                INNER JOIN disciplinas dh ON h.disciplina_id = dh.id
+                INNER JOIN disciplinas dfd ON dfd.nome = dh.nome
+                INNER JOIN funcionario_disciplinas fd
+                    ON fd.disciplina_id = dfd.id
+                    AND (fd.turma_id = h.turma_id OR fd.turma_id IS NULL)
+                WHERE fd.funcionario_id = %s AND h.ano_letivo = 2026
+            """, (professor_id,))
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Erro ao buscar horários do professor: {e}")
+            messagebox.showerror("Erro", f"Erro ao buscar horários:\n{e}")
+            return
+
+        # Mapa {(horario, dia): texto_celula}
+        _turno_abrev = {'MAT': 'MAT', 'VESP': 'VESP',
+                        'Matutino': 'MAT', 'Vespertino': 'VESP'}
+        mapa_prof = {}
+        for item in rows:
+            dia = item['dia']
+            horario = item['horario']
+            disc = self._abreviar_disciplina(item['valor'])
+            digits = ''.join(c for c in (item['serie_nome'] or '') if c.isdigit())
+            serie_num = digits[:1] if digits else '?'
+            turma_letra = (item['turma_nome'] or '').strip().upper()
+            turno_ab = _turno_abrev.get((item['turno'] or '').strip(), '')
+            turma_info = f"{serie_num}{turma_letra}-{turno_ab}"
+            mapa_prof[(horario, dia)] = f"{disc}\n{turma_info}"
+
+        # Canvas + scrollbars
+        canvas = tk.Canvas(self.frame_grade, bg=self.co0)
+        scrollbar = ttk.Scrollbar(self.frame_grade, orient="vertical", command=canvas.yview)
+        scrollbar_h = ttk.Scrollbar(self.frame_grade, orient="horizontal", command=canvas.xview)
+        canvas.configure(yscrollcommand=scrollbar.set, xscrollcommand=scrollbar_h.set)
+        canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        scrollbar.pack(side="right", fill="y")
+        scrollbar_h.pack(side="bottom", fill="x")
+        canvas.pack(side="left", fill="both", expand=True)
+
+        frame_c = tk.Frame(canvas, bg=self.co0)
+        canvas.create_window((0, 0), window=frame_c, anchor="nw")
+
+        # Cabeçalho
+        tk.Label(frame_c, text="Horário", bg=self.co1, fg=self.co0,
+                 font=("Arial", 10, "bold"), width=13, relief="ridge", pady=5
+                 ).grid(row=0, column=0, sticky="nsew")
+        for col, dia in enumerate(self.dias_semana, 1):
+            tk.Label(frame_c, text=dia, bg=self.co1, fg=self.co0,
+                     font=("Arial", 10, "bold"), width=18, relief="ridge", pady=5
+                     ).grid(row=0, column=col, sticky="nsew")
+
+        todos_horarios = self.horarios_matutino + self.horarios_vespertino
+        grid_row = 1
+        turno_bloco = None
+        for horario in todos_horarios:
+            bloco = "MAT" if horario in self.horarios_matutino else "VESP"
+
+            # Separador visual entre matutino e vespertino
+            if turno_bloco is not None and bloco != turno_bloco:
+                sep = tk.Frame(frame_c, bg=self.co9, height=3)
+                sep.grid(row=grid_row, column=0, columnspan=6, sticky="ew")
+                grid_row += 1
+            turno_bloco = bloco
+
+            # Linha de intervalo
+            if horario in ("09:40-10:00", "15:40-16:00"):
+                tk.Label(frame_c, text="INTERVALO", bg=self.co6, fg=self.co7,
+                         font=("Arial", 10, "bold"), width=13, relief="ridge", pady=4
+                         ).grid(row=grid_row, column=0, sticky="nsew")
+                tk.Label(frame_c, text="INTERVALO", bg=self.co6, fg=self.co7,
+                         font=("Arial", 10, "bold"), relief="ridge", pady=4
+                         ).grid(row=grid_row, column=1, columnspan=5, sticky="nsew")
+            else:
+                tk.Label(frame_c, text=horario, bg=self.co4, fg=self.co0,
+                         font=("Arial", 10), width=13, relief="ridge", pady=4
+                         ).grid(row=grid_row, column=0, sticky="nsew")
+                for col, dia in enumerate(self.dias_semana, 1):
+                    texto = mapa_prof.get((horario, dia), "VAGO")
+                    preenchido = texto != "VAGO"
+                    bg = self.co2 if preenchido else "#EFEFEF"
+                    fg = "white" if preenchido else "#999999"
+                    fnt = ("Arial", 9, "bold") if preenchido else ("Arial", 9)
+                    tk.Label(frame_c, text=texto, bg=bg, fg=fg,
+                             font=fnt, width=18, relief="ridge",
+                             pady=4, justify="center", wraplength=130
+                             ).grid(row=grid_row, column=col, sticky="nsew")
+            grid_row += 1
+
+        for i in range(grid_row):
+            frame_c.grid_rowconfigure(i, weight=1)
+        for i in range(len(self.dias_semana) + 1):
+            frame_c.grid_columnconfigure(i, weight=1)
+
     def atualizar_horarios(self, event=None):
         self.turno_atual = self.turno_var.get()
         self.criar_grade_horarios()
@@ -1466,13 +1651,17 @@ class InterfaceHorariosEscolares:
             conn = conectar_bd()
             cursor = conn.cursor(dictionary=True)
             cursor.execute("""
-                SELECT h.dia, h.horario, h.valor, t.nome as turma_nome, s.nome as serie_nome,
-                       d.nome as disciplina_nome
+                SELECT DISTINCT h.dia, h.horario, h.valor, t.nome as turma_nome, s.nome as serie_nome,
+                       dh.nome as disciplina_nome
                 FROM horarios_importados h
                 LEFT JOIN turmas t ON h.turma_id = t.id
                 LEFT JOIN series s ON t.serie_id = s.id
-                LEFT JOIN disciplinas d ON h.disciplina_id = d.id
-                WHERE h.professor_id = %s AND h.ano_letivo = 2026
+                INNER JOIN disciplinas dh ON h.disciplina_id = dh.id
+                INNER JOIN disciplinas dfd ON dfd.nome = dh.nome
+                INNER JOIN funcionario_disciplinas fd
+                    ON fd.disciplina_id = dfd.id
+                    AND (fd.turma_id = h.turma_id OR fd.turma_id IS NULL)
+                WHERE fd.funcionario_id = %s AND h.ano_letivo = 2026
                 ORDER BY h.dia, h.horario
             """, (professor_selecionado['id'],))
             horarios_prof = cursor.fetchall()
