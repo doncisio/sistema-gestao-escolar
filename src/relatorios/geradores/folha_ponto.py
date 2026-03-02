@@ -78,14 +78,14 @@ class FolhaPontoGenerator:
             if funcionario.get('data_admissao'):
                 funcionario['data_admissao_formatada'] = funcionario['data_admissao'].strftime('%d/%m/%Y')
             else:
-                funcionario['data_admissao_formatada'] = 'Não informada'
+                funcionario['data_admissao_formatada'] = ''
                 
-            # Valores padrão para campos nulos
-            funcionario['matricula'] = funcionario.get('matricula') or 'Não informada'
-            funcionario['carga_horaria'] = funcionario.get('carga_horaria') or 'Não informada'
-            funcionario['telefone'] = funcionario.get('telefone') or 'Não informado'
-            funcionario['email'] = funcionario.get('email') or 'Não informado'
-            funcionario['escola_nome'] = funcionario.get('escola_nome') or 'Não informada'
+            # Valores padrão para campos nulos (linha em branco para preenchimento manual)
+            funcionario['matricula'] = funcionario.get('matricula') or ''
+            funcionario['carga_horaria'] = funcionario.get('carga_horaria') or ''
+            funcionario['telefone'] = funcionario.get('telefone') or ''
+            funcionario['email'] = funcionario.get('email') or ''
+            funcionario['escola_nome'] = funcionario.get('escola_nome') or ''
             
             return funcionario
             
@@ -258,25 +258,28 @@ class FolhaPontoGenerator:
 
         elementos.append(Spacer(1, 0.2 * cm))
 
+        # Linha em branco para campos sem valor
+        _linha = "___________________________"
+
         # Título da seção
         elementos.append(Paragraph("<b>Dados do Empregado (a):</b>", style_dados))
         
         # Nome
-        elementos.append(Paragraph(f"<b>Nome:</b> {funcionario['nome']}", style_dados))
+        elementos.append(Paragraph(f"<b>Nome:</b> {funcionario['nome'] or _linha}", style_dados))
         
         # Matrícula e Admissão
-        texto_mat_adm = f"<b>Matrícula:</b> {funcionario['matricula']} &nbsp;&nbsp;&nbsp;&nbsp; <b>Admissão:</b> {funcionario['data_admissao_formatada']}"
+        texto_mat_adm = f"<b>Matrícula:</b> {funcionario['matricula'] or _linha} &nbsp;&nbsp;&nbsp;&nbsp; <b>Admissão:</b> {funcionario['data_admissao_formatada'] or _linha}"
         elementos.append(Paragraph(texto_mat_adm, style_dados))
         
         # Função e Carga Horária
-        texto_func_carga = f"<b>Função:</b> {funcionario['cargo']} &nbsp;&nbsp;&nbsp;&nbsp; <b>Carga horária:</b> {funcionario['carga_horaria']}"
+        texto_func_carga = f"<b>Função:</b> {funcionario['cargo'] or _linha} &nbsp;&nbsp;&nbsp;&nbsp; <b>Carga horária:</b> {funcionario['carga_horaria'] or _linha}"
         elementos.append(Paragraph(texto_func_carga, style_dados))
         
         # Lotação
-        elementos.append(Paragraph(f"<b>Lotação:</b> {funcionario['escola_nome']}", style_dados))
+        elementos.append(Paragraph(f"<b>Lotação:</b> {funcionario['escola_nome'] or _linha}", style_dados))
         
         # Contato e E-mail
-        texto_contato = f"<b>Contato:</b> {funcionario['telefone']} &nbsp;&nbsp;&nbsp;&nbsp; <b>E-mail:</b> {funcionario['email']}"
+        texto_contato = f"<b>Contato:</b> {funcionario['telefone'] or _linha} &nbsp;&nbsp;&nbsp;&nbsp; <b>E-mail:</b> {funcionario['email'] or _linha}"
         elementos.append(Paragraph(texto_contato, style_dados))
         
         elementos.append(Spacer(1, 0.5 * cm))

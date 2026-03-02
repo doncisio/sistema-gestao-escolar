@@ -60,16 +60,6 @@ def abrir_dialogo_folhas_ponto(janela_pai, status_label=None):
     def gerar():
         dialog.destroy()
         try:
-            try:
-                from src.services.utils.templates import find_template
-                base_pdf = find_template("folha de ponto.pdf")
-            except Exception:
-                base_pdf = os.path.join(os.getcwd(), "Modelos", "folha de ponto.pdf")
-                if not os.path.isfile(base_pdf):
-                    base_pdf = os.path.join(os.getcwd(), "folha de ponto.pdf")
-            if not os.path.isfile(base_pdf):
-                messagebox.showerror("Erro", f"Arquivo base não encontrado: {base_pdf}")
-                return
             mes = mes_var.get()
             ano = ano_var.get()
             nome_mes = nome_mes_pt(mes)
@@ -84,7 +74,16 @@ def abrir_dialogo_folhas_ponto(janela_pai, status_label=None):
                     from src.relatorios.geradores.folha_ponto import gerar_folhas_para_escola
                     gerar_folhas_para_escola(60, mes=mes, ano=ano, output_path=saida)
                 except Exception:
-                    # Fallback: tentar usar a implementação antiga
+                    # Fallback: tentar usar a implementação antiga (requer o template físico)
+                    try:
+                        from src.services.utils.templates import find_template
+                        base_pdf = find_template("folha de ponto.pdf")
+                    except Exception:
+                        base_pdf = os.path.join(os.getcwd(), "Modelos", "folha de ponto.pdf")
+                        if not os.path.isfile(base_pdf):
+                            base_pdf = os.path.join(os.getcwd(), "folha de ponto.pdf")
+                    if not os.path.isfile(base_pdf):
+                        raise FileNotFoundError(f"Arquivo base não encontrado: {base_pdf}")
                     try:
                         from scripts.auxiliares.preencher_folha_ponto import gerar_folhas_de_ponto
                         gerar_folhas_de_ponto(base_pdf, saida, mes_referencia=mes, ano_referencia=ano)
