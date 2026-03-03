@@ -57,9 +57,22 @@ MAPA_RACA = {
     '3': 'Parda', '4': 'Amarela', '5': 'Indígena'
 }
 
+# Mapa de raça GEDUC → ENUM do banco local
+MAPA_RACA_ENUM = {
+    'Branca': 'branco',
+    'Preta': 'preto',
+    'Parda': 'pardo',
+    'Amarela': 'amarelo',
+    'Indígena': 'indígena',
+    'Não declarada': 'pardo',
+}
+
+# Preposições que não são capitalizadas em nomes próprios
+_PREPOSICOES = {'de', 'da', 'das', 'do', 'dos', 'e', 'em', 'a', 'o', 'ao'}
+
 
 def normalizar_nome(nome: str) -> str:
-    """Normaliza nome: remove acentos, maiúsculo, sem caracteres especiais"""
+    """Normaliza nome: remove acentos, maiúsculo, sem caracteres especiais (usado para comparação)"""
     if not nome:
         return ""
     nome_sem_acento = unicodedata.normalize('NFKD', nome)
@@ -67,6 +80,30 @@ def normalizar_nome(nome: str) -> str:
     nome_upper = nome_sem_acento.upper()
     nome_limpo = re.sub(r'[^A-Z\s]', '', nome_upper)
     return ' '.join(nome_limpo.split())
+
+
+def capitalizar_nome(nome: str) -> str:
+    """Converte nome para Title Case respeitando preposições (padrão do banco)"""
+    if not nome:
+        return ""
+    partes = nome.strip().split()
+    resultado = []
+    for i, p in enumerate(partes):
+        if i == 0 or p.lower() not in _PREPOSICOES:
+            resultado.append(p.capitalize())
+        else:
+            resultado.append(p.lower())
+    return ' '.join(resultado)
+
+
+def formatar_cpf(cpf_raw: str) -> Optional[str]:
+    """Formata CPF de 11 dígitos para xxx.xxx.xxx-xx"""
+    if not cpf_raw:
+        return None
+    digits = re.sub(r'\D', '', cpf_raw)
+    if len(digits) == 11:
+        return f"{digits[:3]}.{digits[3:6]}.{digits[6:9]}-{digits[9:11]}"
+    return cpf_raw or None
 
 
 def extrair_valor_campo(html_content: str, campo: str) -> Optional[str]:
@@ -447,7 +484,7 @@ def buscar_escola_por_inep(cursor, codigo_inep: str) -> Optional[int]:
     """Busca escola por INEP"""
     if not codigo_inep:
         return None
-    cursor.execute("SELECT id FROM escolas WHERE codigo_inep = %s", (codigo_inep,))
+    cursor.execute("SELECT id FROM escolas WHERE inep = %s", (codigo_inep,))
     result = cursor.fetchone()
     return result[0] if result else None
 
@@ -464,28 +501,88 @@ def obter_escola_padrao(cursor) -> int:
 def inserir_aluno(cursor, dados: Dict, escola_id: int) -> int:
     """Insere aluno no banco"""
     query = """
-        INSERT INTO alunos (nome, data_nascimento, sexo, cpf, mae, pai, raca, 
+        INSERT INTO alunos (nome, data_nascimento, sexo, cpf, raca,
                            descricao_transtorno, escola_id, local_nascimento, UF_nascimento)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    valores = (dados['nome'], dados['data_nascimento'], dados['sexo'], dados.get('cpf'),
-               dados.get('mae'), dados.get('pai'), dados.get('raca'),
-               dados.get('descricao_transtorno'), escola_id, None, None)
+    raca_enum = MAPA_RACA_ENUM.get(dados.get('raca', 'Não declarada'), 'pardo')
+    valores = (
+        capitalizar_nome(dados['nome']),
+        dados['data_nascimento'],
+        dados.get('sexo', 'M'),
+        formatar_cpf(dados.get('cpf')),
+        raca_enum,
+        dados.get('descricao_transtorno', 'Nenhum'),
+        escola_id,
+        None, None
+    )
     cursor.execute(query, valores)
     return cursor.lastrowid
 
 
-def inserir_responsavel(cursor, nome: str, cpf: str, telefone: str, 
-                       parentesco: str, profissao: str = None) -> int:
-    """Insere ou retorna responsável existente"""
-    if cpf:
-        cursor.execute("SELECT id FROM responsaveis WHERE cpf = %s", (cpf,))
+def _carregar_cache_responsaveis(cursor) -> Dict:
+    """Carrega cache de responsáveis existentes: {nome_normalizado: id} e {cpf: id}"""
+    cursor.execute("SELECT id, nome, cpf FROM responsaveis")
+    cache_nome = {}
+    cache_cpf = {}
+    for row in cursor.fetchall():
+        rid = row[0] if not isinstance(row, dict) else row['id']
+        rnome = row[1] if not isinstance(row, dict) else row['nome']
+        rcpf = row[2] if not isinstance(row, dict) else row['cpf']
+        if rnome:
+            cache_nome[normalizar_nome(rnome)] = rid
+        if rcpf:
+            cache_cpf[rcpf] = rid
+    return {'nome': cache_nome, 'cpf': cache_cpf}
+
+
+def inserir_responsavel(cursor, nome: str, cpf: str, telefone: str,
+                        parentesco: str, profissao: str = None,
+                        cache: Dict = None) -> int:
+    """Insere ou retorna responsável existente.
+    Verifica duplicatas por CPF (prioritário) e depois por nome normalizado.
+    Passa `cache` (retornado por _carregar_cache_responsaveis) para evitar
+    SELECT repetido a cada chamada.
+    """
+    cpf_fmt = formatar_cpf(cpf) if cpf else None
+    nome_fmt = capitalizar_nome(nome) if nome else nome
+    nome_norm = normalizar_nome(nome_fmt) if nome_fmt else None
+
+    # 1. Verifica por CPF
+    if cpf_fmt:
+        if cache and cpf_fmt in cache['cpf']:
+            return cache['cpf'][cpf_fmt]
+        cursor.execute("SELECT id FROM responsaveis WHERE cpf = %s", (cpf_fmt,))
         result = cursor.fetchone()
         if result:
-            return result[0]
+            rid = result[0] if not isinstance(result, dict) else result['id']
+            if cache is not None:
+                cache['cpf'][cpf_fmt] = rid
+            return rid
+
+    # 2. Verifica por nome normalizado
+    if nome_norm:
+        if cache and nome_norm in cache['nome']:
+            return cache['nome'][nome_norm]
+        cursor.execute("SELECT id, nome FROM responsaveis")
+        for row in cursor.fetchall():
+            rid = row[0] if not isinstance(row, dict) else row['id']
+            rnome = row[1] if not isinstance(row, dict) else row['nome']
+            if normalizar_nome(rnome) == nome_norm:
+                if cache is not None:
+                    cache['nome'][nome_norm] = rid
+                return rid
+
+    # 3. Insere novo
     query = "INSERT INTO responsaveis (nome, cpf, telefone, grau_parentesco) VALUES (%s, %s, %s, %s)"
-    cursor.execute(query, (nome, cpf, telefone, parentesco))
-    return cursor.lastrowid
+    cursor.execute(query, (nome_fmt, cpf_fmt, telefone, parentesco))
+    novo_id = cursor.lastrowid
+    if cache is not None:
+        if nome_norm:
+            cache['nome'][nome_norm] = novo_id
+        if cpf_fmt:
+            cache['cpf'][cpf_fmt] = novo_id
+    return novo_id
 
 
 def vincular_responsavel(cursor, aluno_id: int, responsavel_id: int):
@@ -494,23 +591,24 @@ def vincular_responsavel(cursor, aluno_id: int, responsavel_id: int):
                   (responsavel_id, aluno_id))
 
 
-def processar_responsaveis(cursor, dados: Dict, aluno_id: int, celular: str):
-    """Processa responsáveis"""
+def processar_responsaveis(cursor, dados: Dict, aluno_id: int, celular: str,
+                           cache: Dict = None):
+    """Processa responsáveis — usa cache para evitar duplicatas por nome ou CPF"""
     resp_tipo = dados.get('responsavel_tipo', '0')
     if dados.get('mae'):
         resp_id = inserir_responsavel(cursor, dados['mae'], dados.get('cpf_mae'),
                                       celular if resp_tipo == '0' else '', 'Mãe',
-                                      dados.get('profissao_mae'))
+                                      dados.get('profissao_mae'), cache)
         vincular_responsavel(cursor, aluno_id, resp_id)
     if dados.get('pai'):
         resp_id = inserir_responsavel(cursor, dados['pai'], dados.get('cpf_pai'),
                                       celular if resp_tipo == '1' else '', 'Pai',
-                                      dados.get('profissao_pai'))
+                                      dados.get('profissao_pai'), cache)
         vincular_responsavel(cursor, aluno_id, resp_id)
     if dados.get('outros_nome'):
         resp_id = inserir_responsavel(cursor, dados['outros_nome'], dados.get('outros_cpf'),
                                       celular if resp_tipo == '2' else '', 'Outro Responsável',
-                                      dados.get('outros_profissao'))
+                                      dados.get('outros_profissao'), cache)
         vincular_responsavel(cursor, aluno_id, resp_id)
 
 
@@ -530,9 +628,12 @@ def importar_do_arquivo(arquivo_json: str, escola_padrao_id: int = None):
         total_importados = 0
         total_duplicados = 0
         total_erros = 0
-        
+
         if not escola_padrao_id:
             escola_padrao_id = obter_escola_padrao(cursor)
+
+        # Cache de responsáveis para evitar duplicatas por nome ou CPF
+        cache_resp = _carregar_cache_responsaveis(cursor)
         
         logger.info(f"Escola padrão: {escola_padrao_id}")
         logger.info(f"Total no arquivo: {dados_completos.get('total_alunos', 0)}")
@@ -565,7 +666,7 @@ def importar_do_arquivo(arquivo_json: str, escola_padrao_id: int = None):
                     logger.info(f"  ✅ Importado ID: {aluno_id}")
                     
                     if dados.get('celular') or dados.get('mae') or dados.get('pai'):
-                        processar_responsaveis(cursor, dados, aluno_id, dados.get('celular', ''))
+                        processar_responsaveis(cursor, dados, aluno_id, dados.get('celular', ''), cache_resp)
                     
                     conn.commit()
                     total_importados += 1

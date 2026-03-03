@@ -3,7 +3,7 @@ from src.core.config import get_icon_path
 logger = get_logger(__name__)
 from datetime import datetime
 from tkinter import (
-    Label, Frame, Button, Entry, Toplevel, Canvas, Scrollbar,
+    Label, Frame, Button, Entry, Toplevel, Canvas, Scrollbar, Listbox,
     NW, LEFT, RIGHT, TOP, BOTTOM, W, E, N, S,
     BOTH, X, Y, VERTICAL, HORIZONTAL, END,
     TRUE, FALSE, GROOVE, RAISED, FLAT, RIDGE, StringVar
@@ -461,6 +461,7 @@ class InterfaceEdicaoAluno:
         l_nome_resp.grid(row=1, column=0, sticky="w", padx=10, pady=2)
         e_nome_resp = Entry(frame_resp, justify='left', relief='solid', font=('Arial', 10))
         e_nome_resp.grid(row=2, column=0, sticky="ew", padx=10, pady=2)
+        self._configurar_autocomplete_nome_resp(frame_resp, e_nome_resp)
         
         # Telefone - não é mais obrigatório
         l_telefone = Label(frame_resp, text="Telefone", height=1, anchor=NW, 
@@ -484,6 +485,8 @@ class InterfaceEdicaoAluno:
         e_cpf.grid(row=2, column=3, sticky="ew", padx=10, pady=2)
         # Aplicar formatação automática
         aplicar_formatacao_cpf(e_cpf)
+        # Ao sair do campo CPF, busca responsável existente e preenche nome
+        e_cpf.bind('<FocusOut>', lambda e, f=frame_resp: self._ao_sair_cpf_responsavel(f))
         
         # Parentesco
         l_parentesco = Label(frame_resp, text="Parentesco", height=1, anchor=NW, 
@@ -726,6 +729,159 @@ class InterfaceEdicaoAluno:
             if hasattr(self, 'conn') and self.conn:
                 cast(Any, self.conn).rollback()
 
+    def _ao_sair_cpf_responsavel(self, frame_resp):
+        """Ao sair do campo CPF: se o CPF já existir no banco, preenche nome, telefone e RG."""
+        if not frame_resp.winfo_exists():
+            return
+        campos = frame_resp.campos
+        cpf = obter_cpf_formatado(campos['cpf'].get())
+        if not cpf:
+            return
+        # Só auto-preenche se o nome ainda estiver em branco
+        if campos['nome'].get().strip():
+            return
+        try:
+            cast(Any, self.cursor).execute(
+                "SELECT id, nome, telefone, rg, grau_parentesco FROM responsaveis WHERE cpf = %s",
+                (cpf,)
+            )
+            resp = cast(Any, self.cursor).fetchone()
+            if resp:
+                rid  = resp[0] if not isinstance(resp, dict) else resp['id']
+                nome = resp[1] if not isinstance(resp, dict) else resp['nome']
+                tel  = resp[2] if not isinstance(resp, dict) else resp['telefone']
+                rg   = resp[3] if not isinstance(resp, dict) else resp['rg']
+                par  = resp[4] if not isinstance(resp, dict) else resp['grau_parentesco']
+                campos['nome'].delete(0, END)
+                campos['nome'].insert(0, nome or '')
+                if tel:
+                    campos['telefone'].delete(0, END)
+                    campos['telefone'].insert(0, tel)
+                if rg:
+                    campos['rg'].delete(0, END)
+                    campos['rg'].insert(0, rg)
+                if par and par in self.opcoes_parentesco:
+                    campos['parentesco'].set(par)
+                cast(Any, frame_resp).responsavel_id = rid
+        except Exception:
+            pass  # silencioso — não bloqueia a edição
+
+    def _configurar_autocomplete_nome_resp(self, frame_resp, e_nome_resp):
+        """Autocomplete no campo nome: exibe sugestões do banco à medida que o usuário digita."""
+        popup_state: dict = {'window': None}
+
+        def _fechar_popup():
+            if popup_state['window'] and popup_state['window'].winfo_exists():
+                popup_state['window'].destroy()
+            popup_state['window'] = None
+
+        def _selecionar(resultados, idx):
+            if idx < 0 or idx >= len(resultados):
+                return
+            r = resultados[idx]
+            rid  = r[0] if not isinstance(r, dict) else r['id']
+            nome = r[1] if not isinstance(r, dict) else r['nome']
+            tel  = r[2] if not isinstance(r, dict) else r['telefone']
+            rg   = r[3] if not isinstance(r, dict) else r['rg']
+            cpf  = r[4] if not isinstance(r, dict) else r['cpf']
+            par  = r[5] if not isinstance(r, dict) else r['grau_parentesco']
+            campos = frame_resp.campos
+            campos['nome'].delete(0, END)
+            campos['nome'].insert(0, nome or '')
+            if tel:
+                campos['telefone'].delete(0, END)
+                campos['telefone'].insert(0, tel)
+            if rg:
+                campos['rg'].delete(0, END)
+                campos['rg'].insert(0, rg)
+            if cpf:
+                campos['cpf'].delete(0, END)
+                campos['cpf'].insert(0, cpf)
+            if par and par in self.opcoes_parentesco:
+                campos['parentesco'].set(par)
+            cast(Any, frame_resp).responsavel_id = rid
+            _fechar_popup()
+
+        def _mostrar_popup(resultados):
+            _fechar_popup()
+            if not resultados:
+                return
+            x = e_nome_resp.winfo_rootx()
+            y = e_nome_resp.winfo_rooty() + e_nome_resp.winfo_height()
+            largura = max(e_nome_resp.winfo_width(), 250)
+            altura = min(len(resultados), 7) * 22 + 4
+            win = Toplevel(frame_resp)
+            win.wm_overrideredirect(True)
+            win.geometry(f"{largura}x{altura}+{x}+{y}")
+            win.lift()
+            lb = Listbox(win, relief='solid', bd=1,
+                         selectbackground='#0078d7', selectforeground='white',
+                         font=('Arial', 10))
+            lb.pack(fill=BOTH, expand=True)
+            for r in resultados:
+                nm = r[1] if not isinstance(r, dict) else r['nome']
+                lb.insert(END, nm)
+            popup_state['window'] = win
+
+            def _ao_clicar(event):
+                sel = lb.curselection()
+                if sel:
+                    _selecionar(resultados, sel[0])
+                    e_nome_resp.focus_set()
+
+            def _ao_navegar_lb(event):
+                sel = lb.curselection()
+                if event.keysym == 'Return':
+                    if sel:
+                        _selecionar(resultados, sel[0])
+                        e_nome_resp.focus_set()
+                elif event.keysym == 'Escape':
+                    _fechar_popup()
+                    e_nome_resp.focus_set()
+                elif event.keysym == 'Up' and sel and sel[0] == 0:
+                    _fechar_popup()
+                    e_nome_resp.focus_set()
+
+            lb.bind('<ButtonRelease-1>', _ao_clicar)
+            lb.bind('<KeyPress>', _ao_navegar_lb)
+
+        def _on_key_release(event):
+            if event.keysym in ('Return', 'Escape', 'Tab', 'Left', 'Right',
+                                 'Home', 'End', 'Up', 'Down',
+                                 'Shift_L', 'Shift_R', 'Control_L', 'Control_R',
+                                 'Alt_L', 'Alt_R'):
+                return
+            texto = e_nome_resp.get().strip()
+            if len(texto) < 3:
+                _fechar_popup()
+                return
+            try:
+                cast(Any, self.cursor).execute(
+                    "SELECT id, nome, telefone, rg, cpf, grau_parentesco "
+                    "FROM responsaveis WHERE nome LIKE %s ORDER BY nome LIMIT 10",
+                    (f'{texto}%',)
+                )
+                resultados = cast(Any, self.cursor).fetchall()
+                if resultados:
+                    _mostrar_popup(resultados)
+                else:
+                    _fechar_popup()
+            except Exception:
+                _fechar_popup()
+
+        def _on_key_down(event):
+            if popup_state['window'] and popup_state['window'].winfo_exists():
+                for w in popup_state['window'].winfo_children():
+                    if isinstance(w, Listbox):
+                        w.focus_set()
+                        if not w.curselection():
+                            w.selection_set(0)
+                        return
+
+        e_nome_resp.bind('<KeyRelease>', _on_key_release)
+        e_nome_resp.bind('<Down>', _on_key_down)
+        e_nome_resp.bind('<FocusOut>', lambda e: frame_resp.after(200, _fechar_popup))
+
     def salvar_responsaveis(self):
         # Verificar se há pelo menos um responsável
         responsaveis_validos = [frame for frame in self.lista_frames_responsaveis if frame.winfo_exists() and frame.campos['nome'].get()]
@@ -753,6 +909,29 @@ class InterfaceEdicaoAluno:
         for frame in responsaveis_validos:
             self.salvar_ou_atualizar_responsavel(frame)
     
+    @staticmethod
+    def _normalizar_nome_resp(nome: str) -> str:
+        """Remove acentos, espaços extras e converte para maiúsculo (para comparação)."""
+        import unicodedata, re
+        if not nome:
+            return ""
+        s = unicodedata.normalize('NFKD', nome.strip())
+        s = ''.join(c for c in s if not unicodedata.combining(c))
+        s = re.sub(r'[^A-Z\s]', '', s.upper())
+        return ' '.join(s.split())
+
+    def _vincular_se_nao_existe(self, responsavel_id: int):
+        """Insere vínculo responsavel↔aluno apenas se ainda não existir."""
+        cast(Any, self.cursor).execute(
+            "SELECT id FROM responsaveisalunos WHERE responsavel_id = %s AND aluno_id = %s",
+            (responsavel_id, self.aluno_id)
+        )
+        if not cast(Any, self.cursor).fetchone():
+            cast(Any, self.cursor).execute(
+                "INSERT INTO responsaveisalunos (responsavel_id, aluno_id) VALUES (%s, %s)",
+                (responsavel_id, self.aluno_id)
+            )
+
     def salvar_ou_atualizar_responsavel(self, frame):
         campos = frame.campos
         nome = campos['nome'].get()
@@ -762,54 +941,53 @@ class InterfaceEdicaoAluno:
         cpf = obter_cpf_formatado(campos['cpf'].get())
         parentesco = campos['parentesco'].get()
         responsavel_id = getattr(frame, 'responsavel_id', None)
-        
+
         if not nome:  # Se o nome estiver vazio, não processa
             return None
 
+        nome_norm = self._normalizar_nome_resp(nome)
+
         try:
-            # Verificar se já existe um responsável com esse CPF (somente se CPF não estiver vazio e for um novo responsável)
-            if cpf and not responsavel_id:
-                cast(Any, self.cursor).execute("SELECT id FROM responsaveis WHERE cpf = %s", (cpf,))
-                resp_existente = cast(Any, self.cursor).fetchone()
-                if resp_existente:
-                    responsavel_id = resp_existente[0]
-                    # Atualizar os dados do responsável existente
+            # Para novos responsáveis: verificar duplicata por CPF e depois por nome
+            if not responsavel_id:
+                # 1. Verificar por CPF
+                if cpf:
+                    cast(Any, self.cursor).execute("SELECT id FROM responsaveis WHERE cpf = %s", (cpf,))
+                    resp_existente = cast(Any, self.cursor).fetchone()
+                    if resp_existente:
+                        responsavel_id = resp_existente[0] if not isinstance(resp_existente, dict) else resp_existente['id']
+
+                # 2. Verificar por nome normalizado (quando não encontrou por CPF)
+                if not responsavel_id and nome_norm:
+                    cast(Any, self.cursor).execute("SELECT id, nome FROM responsaveis")
+                    for row in cast(Any, self.cursor).fetchall():
+                        rid = row[0] if not isinstance(row, dict) else row['id']
+                        rnome = row[1] if not isinstance(row, dict) else row['nome']
+                        if self._normalizar_nome_resp(rnome) == nome_norm:
+                            responsavel_id = rid
+                            break
+
+                if responsavel_id:
+                    # Responsável existente encontrado — atualiza dados e vincula
                     cast(Any, self.cursor).execute(
-                        """
-                        UPDATE responsaveis 
-                        SET nome = %s, grau_parentesco = %s, telefone = %s, rg = %s
-                        WHERE id = %s
-                        """,
-                        (nome, parentesco, telefone, rg, responsavel_id)
+                        "UPDATE responsaveis SET grau_parentesco = %s, telefone = %s, rg = %s WHERE id = %s",
+                        (parentesco, telefone, rg, responsavel_id)
                     )
-                    
-                    # Associar o responsável ao aluno
-                    cast(Any, self.cursor).execute(
-                        "INSERT INTO responsaveisalunos (responsavel_id, aluno_id) VALUES (%s, %s)",
-                        (responsavel_id, self.aluno_id)
-                    )
-                    
+                    self._vincular_se_nao_existe(responsavel_id)
                     return responsavel_id
 
-            if responsavel_id:  # Responsável existente, atualizar
+            if responsavel_id:  # Responsável já conhecido (carregado da edição)
                 cast(Any, self.cursor).execute(
                     """
-                    UPDATE responsaveis 
+                    UPDATE responsaveis
                     SET nome = %s, grau_parentesco = %s, telefone = %s, rg = %s, cpf = %s
                     WHERE id = %s
                     """,
                     (nome, parentesco, telefone, rg, cpf, responsavel_id)
                 )
-                
-                # Associar o responsável ao aluno
-                cast(Any, self.cursor).execute(
-                    "INSERT INTO responsaveisalunos (responsavel_id, aluno_id) VALUES (%s, %s)",
-                    (responsavel_id, self.aluno_id)
-                )
-                
+                self._vincular_se_nao_existe(responsavel_id)
                 return responsavel_id
-            else:  # Novo responsável, inserir
-                # Inserir novo responsável
+            else:  # Novo responsável
                 cast(Any, self.cursor).execute(
                     """
                     INSERT INTO responsaveis (nome, grau_parentesco, telefone, rg, cpf)
@@ -818,13 +996,7 @@ class InterfaceEdicaoAluno:
                     (nome, parentesco, telefone, rg, cpf)
                 )
                 novo_responsavel_id = cast(Any, self.cursor).lastrowid
-                
-                # Associar o novo responsável ao aluno
-                cast(Any, self.cursor).execute(
-                    "INSERT INTO responsaveisalunos (responsavel_id, aluno_id) VALUES (%s, %s)",
-                    (novo_responsavel_id, self.aluno_id)
-                )
-                
+                self._vincular_se_nao_existe(novo_responsavel_id)
                 return novo_responsavel_id
         except mysql.connector.Error as err:
             if err.errno == 1062:  # Erro de duplicidade (código para DUPLICATE ENTRY)
