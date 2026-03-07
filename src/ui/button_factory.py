@@ -850,6 +850,11 @@ class ButtonFactory:
                 command=lambda: self._abrir_importacao_notas_html(),
                 font=menu_font
             )
+            servicos_menu.add_command(
+                label="📥 Importar Alunos do GEDUC",
+                command=lambda: self._abrir_importacao_alunos_geduc(),
+                font=menu_font
+            )
             
             # Transição de Ano Letivo
             servicos_menu.add_separator()
@@ -1606,6 +1611,16 @@ class ButtonFactory:
         except Exception as e:
             logger.exception(f"Erro ao abrir importação de notas: {e}")
             messagebox.showerror("Erro", f"Erro ao abrir importação: {e}")
+            self.janela.deiconify()
+
+    def _abrir_importacao_alunos_geduc(self):
+        """Wrapper para abrir importação de alunos do GEDUC"""
+        try:
+            from src.importadores.alunos_geduc import abrir_importacao_alunos_geduc
+            abrir_importacao_alunos_geduc(janela_pai=self.janela)
+        except Exception as e:
+            logger.exception(f"Erro ao abrir importação de alunos GEDUC: {e}")
+            messagebox.showerror("Erro", f"Erro ao abrir interface:\n{e}")
             self.janela.deiconify()
     
     def _mostrar_dashboard(self):
