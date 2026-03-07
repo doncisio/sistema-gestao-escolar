@@ -265,12 +265,17 @@ class InterfaceCadastroEdicaoFaltas:
 
                 cur.execute(
                     """
-                    SELECT f.id, f.matricula, f.nome
+                    SELECT f.id, f.matricula, f.nome, f.data_admissao
                     FROM Funcionarios f
                     WHERE f.escola_id = %s
+                      AND (
+                          f.data_admissao IS NULL
+                          OR YEAR(f.data_admissao) < %s
+                          OR (YEAR(f.data_admissao) = %s AND MONTH(f.data_admissao) <= %s)
+                      )
                     ORDER BY f.nome
                     """,
-                    (self.escola_id,),
+                    (self.escola_id, self.ano.get(), self.ano.get(), self.mes.get()),
                 )
                 funcionarios = cur.fetchall()
                 self.funcionarios_data = funcionarios
@@ -296,11 +301,16 @@ class InterfaceCadastroEdicaoFaltas:
             self.criar_cabecalho_tabela()
             self.inputs_por_id.clear()
 
+            # Mês/ano selecionados (para comparação com data_admissao)
+            mes_sel = int(self.mes.get())
+            ano_sel = int(self.ano.get())
+
             # Inserir linhas para cada funcionário
             for idx, func in enumerate(funcionarios, start=1):
                 func_id = func["id"]
                 matricula = func.get("matricula", "")
                 nome = func["nome"]
+                data_admissao = func.get("data_admissao")  # date ou None
                 
                 # Obter dados existentes
                 reg = regs.get(func_id)
@@ -308,6 +318,16 @@ class InterfaceCadastroEdicaoFaltas:
                 f_val = str(reg.get("f", "")) if reg and reg.get("f") else ""
                 fj_val = str(reg.get("fj", "")) if reg and reg.get("fj") else ""
                 obs_val = str(reg.get("observacao", "")) if reg and reg.get("observacao") else ""
+
+                # Se o mês/ano selecionado for o mesmo da admissão e não houver obs salva,
+                # pré-preencher com "Apresentou-se no dia DD/MM/YYYY"
+                if (
+                    not obs_val
+                    and data_admissao is not None
+                    and data_admissao.month == mes_sel
+                    and data_admissao.year == ano_sel
+                ):
+                    obs_val = f"Apresentou-se no dia {data_admissao.strftime('%d/%m/%Y')}"
                 
                 row = idx  # Linha na grid (0 é o cabeçalho)
                 

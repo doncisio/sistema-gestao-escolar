@@ -49,7 +49,7 @@ def buscar_funcionarios_administrativos(escola_id: int = 60) -> List[Dict[str, A
         funcionarios f
     WHERE 
         f.escola_id = %s
-        AND f.cargo NOT IN ('Professor@', 'Tutor/Cuidador')
+        AND f.cargo NOT IN ('Professor@', 'Tutor')
     ORDER BY 
         f.nome
     """

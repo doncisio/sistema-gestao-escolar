@@ -59,9 +59,14 @@ def consultar_profissionais(conn, mes: int, ano: int):
             SELECT {select_campos}
             FROM Funcionarios
             WHERE escola_id = %s
+              AND (
+                  data_admissao IS NULL
+                  OR YEAR(data_admissao) < %s
+                  OR (YEAR(data_admissao) = %s AND MONTH(data_admissao) <= %s)
+              )
             ORDER BY nome
         """
-        cursor.execute(query, (60,))
+        cursor.execute(query, (60, ano, ano, mes))
         resultados = cursor.fetchall()
 
         # Buscar registros de faltas para o mês/ano
@@ -164,6 +169,8 @@ def desenhar_tabela_profissionais(can, profissionais, largura, altura, offset_y_
             return "Tec. Adm. Escolar"
         if chave in ("auxiliar servicos gerais", "auxiliar de servicos gerais"):
             return "Aux. Serv. Gerais"
+        if "atendimento educacional especializado" in chave or "docente de aee" in chave:
+            return "Professora de AEE"
         return texto
 
     def normalizar_turno(turno: str) -> str:
@@ -454,12 +461,17 @@ def _encontrar_arquivo_base(nome_sem_acento: str, nome_com_acento: str) -> str:
     except Exception:
         candidatos = []
         base_dir = os.path.dirname(os.path.abspath(__file__))
+        repo_root = os.path.abspath(os.path.join(base_dir, '..', '..', '..'))
         candidatos.append(os.path.join(base_dir, nome_sem_acento))
         candidatos.append(os.path.join(base_dir, "Modelos", nome_sem_acento))
         candidatos.append(os.path.join(base_dir, nome_com_acento))
         candidatos.append(os.path.join(base_dir, "Modelos", nome_com_acento))
         candidatos.append(os.path.join(os.getcwd(), "Modelos", nome_sem_acento))
         candidatos.append(os.path.join(os.getcwd(), "Modelos", nome_com_acento))
+        candidatos.append(os.path.join(repo_root, "assets", "templates", nome_sem_acento))
+        candidatos.append(os.path.join(repo_root, "assets", "templates", nome_com_acento))
+        candidatos.append(os.path.join(os.getcwd(), "assets", "templates", nome_sem_acento))
+        candidatos.append(os.path.join(os.getcwd(), "assets", "templates", nome_com_acento))
         for caminho in candidatos:
             if os.path.isfile(caminho):
                 return caminho

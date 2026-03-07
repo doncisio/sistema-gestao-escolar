@@ -687,9 +687,14 @@ def gerar_folhas_para_escola(escola_id, mes=None, ano=None, output_path=None, he
             SELECT f.id, f.nome
             FROM Funcionarios f
             WHERE f.escola_id = %s
+              AND (
+                  f.data_admissao IS NULL
+                  OR YEAR(f.data_admissao) < %s
+                  OR (YEAR(f.data_admissao) = %s AND MONTH(f.data_admissao) <= %s)
+              )
             ORDER BY f.nome
         """
-        cursor.execute(query, (escola_id,))
+        cursor.execute(query, (escola_id, ano, ano, mes))
         funcionarios = cursor.fetchall()
     except Exception as e:
         logger.exception(f"Erro ao buscar funcionários da escola {escola_id}: {e}")

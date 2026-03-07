@@ -118,7 +118,7 @@ def buscar_tutores(cursor, escola_id=60):
         funcionario_aluno_ano faa ON f.id = faa.funcionario_id
     WHERE 
         f.escola_id = %s
-        AND f.cargo = 'Tutor/Cuidador'
+        AND f.cargo = 'Tutor'
         AND (faa.data_fim IS NULL OR faa.data_fim > CURDATE())
     GROUP BY 
         f.id, f.nome, f.email, f.telefone

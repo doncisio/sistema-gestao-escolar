@@ -35,10 +35,13 @@ def find_template(name: str) -> str:
     candidates: List[str] = [
         os.path.join(repo_root, 'Modelos', name),
         os.path.join(repo_root, name),
+        os.path.join(repo_root, 'assets', 'templates', name),
         os.path.join(cwd, 'Modelos', name),
         os.path.join(cwd, name),
+        os.path.join(cwd, 'assets', 'templates', name),
         os.path.join(pkg_dir, '..', '..', 'Modelos', name),
         os.path.join(pkg_dir, '..', '..', name),
+        os.path.join(pkg_dir, '..', '..', 'assets', 'templates', name),
     ]
 
     for c in candidates:

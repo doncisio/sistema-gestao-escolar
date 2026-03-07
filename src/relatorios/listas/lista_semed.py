@@ -669,7 +669,7 @@ def buscar_tutores(cursor, escola_id=60):
         funcionarios f
     WHERE 
         f.escola_id = %s
-        AND f.cargo = 'Tutor/Cuidador'
+        AND f.cargo = 'Tutor'
     ORDER BY 
         f.nome
     """
@@ -689,7 +689,7 @@ def buscar_funcionarios_administrativos(cursor, escola_id=60):
         funcionarios f
     WHERE 
         f.escola_id = %s
-        AND f.cargo NOT IN ('Professor@', 'Tutor/Cuidador')
+        AND f.cargo NOT IN ('Professor@', 'Tutor')
     ORDER BY 
         f.cargo, f.nome
     """
@@ -701,7 +701,7 @@ def gerar_tabela_tutores(elements, tutores, titulo):
     styles = getSampleStyleSheet()
     
     if not tutores:
-        elements.append(Paragraph("Nenhum tutor/cuidador encontrado.", styles["Normal"]))
+        elements.append(Paragraph("Nenhum tutor encontrado.", styles["Normal"]))
         return
 
     # Adicionar título
@@ -715,10 +715,7 @@ def gerar_tabela_tutores(elements, tutores, titulo):
     data: list[list[Any]] = [headers]
     
     for tutor in tutores:
-        # Ajustar o cargo para mostrar "Tutor/Cuidador" corretamente
         cargo = tutor['cargo']
-        if cargo == 'Tutor/Cuidador':
-            cargo = 'Tutor/Cuidador'
         
         row = [
             tutor['nome'],

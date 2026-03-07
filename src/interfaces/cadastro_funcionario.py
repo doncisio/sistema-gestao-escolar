@@ -632,14 +632,20 @@ class InterfaceCadastroFuncionario:
     def on_canvas_disciplinas_configure(self, event):
         self.canvas_disciplinas.itemconfig(self.canvas_disciplinas_window, width=event.width)
 
+    # Cargos que exibem o frame de disciplinas/turmas regulares
+    CARGOS_PROFESSOR_REGULAR = {'Professor@'}
+
+    # Mapeamento de cargos para funções sugeridas
+    FUNCOES_SUGERIDAS = {
+        'Professora de Atendimento Educacional Especializado (AEE)': 'Docente de AEE - Sala de Recursos Multifuncionais (SRM)',
+    }
+
     def atualizar_interface_cargo(self, event=None):
         cargo = self.c_cargo.get()
         
-        # Mostrar ou ocultar o frame de professor (aceitar variações como 'Professor')
-        try:
-            is_prof = isinstance(cargo, str) and cargo.startswith('Professor')
-        except Exception:
-            is_prof = False
+        # Apenas 'Professor@' exibe o frame de turmas/disciplinas regulares.
+        # A Professora AEE atende na Sala de Recursos, não em turmas comuns.
+        is_prof = cargo in self.CARGOS_PROFESSOR_REGULAR
 
         if is_prof:
             self.frame_professor.pack(fill=BOTH, expand=True, pady=10)
@@ -656,6 +662,12 @@ class InterfaceCadastroFuncionario:
                     frame.destroy()
             self.lista_frames_disciplinas = []
             self.contador_disciplinas = 0
+
+        # Pré-preencher campo Função se o cargo tiver uma função sugerida
+        funcao_sugerida = self.FUNCOES_SUGERIDAS.get(cargo)
+        if funcao_sugerida and not self.e_funcao.get().strip():
+            self.e_funcao.delete(0, END)
+            self.e_funcao.insert(0, funcao_sugerida)
 
     def atualizar_interface_polivalente(self, event=None):
         polivalente = self.c_polivalente.get()
@@ -1130,10 +1142,11 @@ class InterfaceCadastroFuncionario:
     def obter_cargos(self):
         """Retorna a lista de cargos disponíveis"""
         return [
-            'Administrador do Sistemas', 'Gestor Escolar', 'Professor@', 
+            'Administrador do Sistemas', 'Gestor Escolar', 'Professor@',
+            'Professora de Atendimento Educacional Especializado (AEE)',
             'Auxiliar administrativo', 'Agente de Portaria', 'Merendeiro', 
             'Auxiliar de serviços gerais', 'Técnico em Administração Escolar', 
-            'Especialista (Coordenadora)', 'Tutor/Cuidador', 'Vigia Noturno', 
+            'Especialista (Coordenadora)', 'Tutor', 'Vigia Noturno', 
             'Interprete de Libras'
         ]
 

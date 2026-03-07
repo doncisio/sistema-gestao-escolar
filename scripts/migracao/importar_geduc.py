@@ -378,19 +378,58 @@ def obter_lista_turmas(driver) -> List[Dict]:
 
 
 def obter_lista_alunos_turma(driver, turma_url: str) -> List[Dict]:
-    """Obtém lista de alunos de uma turma"""
-    try:
-        driver.get(turma_url)
-        time.sleep(2)
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
-        links = soup.find_all('a', href=re.compile(r'class=AlunoForm.*key='))
+    """Obtém lista de alunos de uma turma (com suporte a paginação)"""
+    def _extrair_links_pagina(soup) -> List[Dict]:
+        """Extrai links de alunos de uma página — aceita qualquer ordem de parâmetros na URL"""
         alunos = []
-        for link in links:
-            match = re.search(r'key=(\d+)', link.get('href', ''))
-            if match:
-                href = link.get('href', '')
+        ids_vistos = set()
+        for link in soup.find_all('a', href=True):
+            href = link.get('href', '')
+            if 'AlunoForm' not in href:
+                continue
+            match = re.search(r'key=(\d+)', href)
+            if match and match.group(1) not in ids_vistos:
                 url = f"{GEDUC_URL}/{href}" if not href.startswith('http') else href
                 alunos.append({'id': match.group(1), 'url': url})
+                ids_vistos.add(match.group(1))
+        return alunos
+
+    try:
+        alunos = []
+        ids_coletados = set()
+        url_atual = turma_url
+        pagina = 1
+
+        while url_atual:
+            logger.info(f"  Página {pagina}: {url_atual}")
+            driver.get(url_atual)
+            time.sleep(2)
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
+
+            novos = _extrair_links_pagina(soup)
+            adicionados = 0
+            for a in novos:
+                if a['id'] not in ids_coletados:
+                    alunos.append(a)
+                    ids_coletados.add(a['id'])
+                    adicionados += 1
+            logger.info(f"    {adicionados} alunos encontrados nesta página")
+
+            # Verifica se há próxima página (link "Próximo", ">" ou similar)
+            prox = None
+            for link in soup.find_all('a', href=True):
+                texto = link.get_text(strip=True)
+                if texto in ('>', 'Próximo', 'Próxima', 'Next', '»'):
+                    href = link.get('href', '')
+                    prox = f"{GEDUC_URL}/{href}" if not href.startswith('http') else href
+                    break
+
+            # Se não achou link de próxima ou não trouxe alunos novos, encerra
+            if not prox or adicionados == 0:
+                break
+            url_atual = prox
+            pagina += 1
+
         return alunos
     except Exception as e:
         logger.error(f"Erro ao buscar alunos: {e}")
