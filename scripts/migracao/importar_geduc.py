@@ -57,6 +57,16 @@ MAPA_RACA = {
     '3': 'Parda', '4': 'Amarela', '5': 'Indígena'
 }
 
+# Mapa de código IBGE do estado (2 dígitos) → sigla UF
+MAPA_CODIGO_UF = {
+    '11': 'RO', '12': 'AC', '13': 'AM', '14': 'RR', '15': 'PA',
+    '16': 'AP', '17': 'TO', '21': 'MA', '22': 'PI', '23': 'CE',
+    '24': 'RN', '25': 'PB', '26': 'PE', '27': 'AL', '28': 'SE',
+    '29': 'BA', '31': 'MG', '32': 'ES', '33': 'RJ', '35': 'SP',
+    '41': 'PR', '42': 'SC', '43': 'RS', '50': 'MS', '51': 'MT',
+    '52': 'GO', '53': 'DF',
+}
+
 # Mapa de raça GEDUC → ENUM do banco local
 MAPA_RACA_ENUM = {
     'Branca': 'branco',
@@ -106,6 +116,65 @@ def formatar_cpf(cpf_raw: str) -> Optional[str]:
     return cpf_raw or None
 
 
+# Palavras com cedilha/acento que o GEDUC grava em CAIXA ALTA sem acento
+_PALAVRAS_MUNICIPIO: dict = {
+    # preposições (ficam minúsculas, exceto início da string)
+    'DE': 'de', 'DO': 'do', 'DA': 'da', 'DOS': 'dos', 'DAS': 'das', 'E': 'e',
+    # palavras que precisam de acento ou cedilha
+    'SAO': 'São', 'JOSE': 'José', 'JOAO': 'João',
+    'LUIS': 'Luís', 'LUIZ': 'Luiz',
+    'PACO': 'Paço', 'ACAILANDIA': 'Açailândia',
+    'GONCALO': 'Gonçalo', 'MARANHAO': 'Maranhão',
+    'BELEM': 'Belém', 'MACAPA': 'Macapá', 'AMAPA': 'Amapá',
+    'PARNAIBA': 'Parnaíba', 'TERESINA': 'Teresina',
+    'CODO': 'Codó', 'TURIACU': 'Turiaçu', 'ICATU': 'Icatu',
+    'ACAILANDIA': 'Açailândia', 'ACARA': 'Açará',
+    'BRASILIA': 'Brasília', 'GOIANIA': 'Goiânia',
+    'RIBEIRAO': 'Ribeirão', 'SERTAOZINHO': 'Sertãozinho',
+    'SANTAREM': 'Santarém', 'BRAGANCA': 'Bragança',
+    'INES': 'Inês', 'ALCANTARA': 'Alcântara',
+    'VARZEA': 'Várzea', 'CAUCAIA': 'Caucaia',
+    'PARAUAPEBAS': 'Parauapebas', 'TUCURUI': 'Tucuruí',
+    'FLORIANOPOLIS': 'Florianópolis', 'FORTALEZA': 'Fortaleza',
+    'SAO': 'São',  # variante sem til
+}
+
+
+def _sem_acento(texto: str) -> str:
+    """Remove acentos/cedilha para normalização de lookup."""
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', texto)
+        if unicodedata.category(c) != 'Mn'
+    )
+
+
+def _normalizar_municipio(texto: str) -> Optional[str]:
+    """Normaliza nome de município vindo do GEDUC:
+    - Descarta sufixo '- UF' (ex: 'PACO DO LUMIAR - MA' → 'Paço do Lumiar')
+    - Descarta valores inválidos ('00', '0', 'None')
+    - Aplica capitalização correta com acentos/cedilha
+    """
+    if not texto or str(texto).strip() in ('', 'None', '00', '0'):
+        return None
+    texto = str(texto).strip()
+    # Remover sufixo " - UF" (ex: "PACO DO LUMIAR - MA")
+    if ' - ' in texto:
+        texto = texto.split(' - ')[0].strip()
+    palavras = texto.split()
+    resultado = []
+    for i, palavra in enumerate(palavras):
+        chave = _sem_acento(palavra).upper()
+        if chave in _PALAVRAS_MUNICIPIO:
+            forma = _PALAVRAS_MUNICIPIO[chave]
+            # Primeira palavra nunca fica minúscula
+            if i == 0 and forma[0].islower():
+                forma = forma[0].upper() + forma[1:]
+            resultado.append(forma)
+        else:
+            resultado.append(palavra.capitalize())
+    return ' '.join(resultado)
+
+
 def extrair_valor_campo(html_content: str, campo: str) -> Optional[str]:
     """Extrai valor de um campo do HTML"""
     pattern = rf"tform_send_data\('form_Aluno',\s*'{campo}',\s*'([^']*)',"
@@ -115,6 +184,21 @@ def extrair_valor_campo(html_content: str, campo: str) -> Optional[str]:
     pattern = rf"tform_send_data_by_id\('form_Aluno',\s*'{campo}',\s*'([^']*)',"
     match = re.search(pattern, html_content)
     return match.group(1) if match else None
+
+
+def extrair_nome_select(html_content: str, soup, campo: str) -> Optional[str]:
+    """Retorna o texto visível da opção selecionada num <select>.
+    Combina o código do tform_send_data com as <option> do select para obter o nome real.
+    """
+    codigo = extrair_valor_campo(html_content, campo)
+    if not codigo:
+        return None
+    sel = soup.find('select', {'name': campo})
+    if sel:
+        opt = sel.find('option', value=codigo)
+        if opt:
+            return opt.text.strip() or None
+    return codigo or None  # fallback: retorna o próprio código
 
 
 def extrair_checkboxes(html_content: str, campo_prefix: str) -> List[str]:
@@ -172,12 +256,14 @@ def extrair_dados_aluno_html(html_content: str) -> Optional[Dict]:
             logger.error("Nome não encontrado")
             return None
         
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
         dados = {
             'nome': nome,
             'nome_normalizado': normalizar_nome(nome),
             'data_nascimento': converter_data_geduc(extrair_valor_campo(html_content, 'DT_NASCIMENTO')),
             'cpf': extrair_valor_campo(html_content, 'CPF'),
-            'sexo': '1',
+            'sexo': None,
             'mae': extrair_valor_campo(html_content, 'FILIACAO_MAE'),
             'pai': extrair_valor_campo(html_content, 'FILIACAO_PAI'),
             'responsavel_tipo': extrair_valor_campo(html_content, 'RESPONSAVEL'),
@@ -196,19 +282,32 @@ def extrair_dados_aluno_html(html_content: str) -> Optional[Dict]:
             'fone_comercial': extrair_valor_campo(html_content, 'FONE_COM'),
             'cor': extrair_valor_campo(html_content, 'COR'),
             'nacionalidade': extrair_valor_campo(html_content, 'NACIONALIDADE'),
+            # Naturalidade — nome real via <select>, código IBGE como fallback
             'codigo_naturalidade': extrair_valor_campo(html_content, 'NATURALIDADE'),
-            'codigo_estado': extrair_valor_campo(html_content, 'ESTADO'),
+            'local_nascimento':    _normalizar_municipio(extrair_nome_select(html_content, soup, 'NATURALIDADE')),
+            'codigo_estado':       MAPA_CODIGO_UF.get(str(extrair_valor_campo(html_content, 'ESTADO') or ''), None),
             'cid': extrair_valor_campo(html_content, 'CID'),
             'tgd': extrair_valor_campo(html_content, 'TGD'),
             'althab': extrair_valor_campo(html_content, 'ALTHAB'),
             'codigo_inep': extrair_valor_campo(html_content, 'CODIGOINEP'),
             'inep_escola': extrair_valor_campo(html_content, 'INEPESCOLA'),
+            # Endereço de residência (campos reais do GEDUC)
+            'cep':           extrair_valor_campo(html_content, 'CEP'),
+            'logradouro':    extrair_valor_campo(html_content, 'RUA'),
+            'numero_end':    extrair_valor_campo(html_content, 'N'),
+            'complemento':   extrair_valor_campo(html_content, 'COMPLEMENTO'),
+            'bairro':        extrair_valor_campo(html_content, 'BAIRRO'),
+            # nome real do município e estado de residência via <select>
+            'municipio_res': _normalizar_municipio(extrair_nome_select(html_content, soup, 'CIDADE')),
+            'uf_res':        extrair_nome_select(html_content, soup, 'ESTADOEND'),
         }
         
-        soup = BeautifulSoup(html_content, 'html.parser')
-        sexo_radio = soup.find('input', {'name': 'SEXO', 'checked': True})
-        if sexo_radio:
-            dados['sexo'] = 'M' if sexo_radio.get('value', '1') == '1' else 'F'
+        sexo_codigo = extrair_valor_campo(html_content, 'SEXO')
+        if sexo_codigo == '1':
+            dados['sexo'] = 'M'
+        elif sexo_codigo == '2':
+            dados['sexo'] = 'F'
+        # Se não encontrar, mantém None (campo não detectado no HTML)
         
         deficiencias = extrair_checkboxes(html_content, 'TIPODEF')
         transtornos = extrair_checkboxes(html_content, 'TGDEDU')
@@ -541,10 +640,15 @@ def inserir_aluno(cursor, dados: Dict, escola_id: int) -> int:
     """Insere aluno no banco"""
     query = """
         INSERT INTO alunos (nome, data_nascimento, sexo, cpf, raca,
-                           descricao_transtorno, escola_id, local_nascimento, UF_nascimento)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                           descricao_transtorno, escola_id,
+                           local_nascimento, UF_nascimento,
+                           endereco, bairro, cidade, estado, cep)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
     raca_enum = MAPA_RACA_ENUM.get(dados.get('raca', 'Não declarada'), 'pardo')
+    logradouro = dados.get('logradouro') or ''
+    numero = dados.get('numero_end') or ''
+    endereco = f"{logradouro}, {numero}" if logradouro and numero else (logradouro or None)
     valores = (
         capitalizar_nome(dados['nome']),
         dados['data_nascimento'],
@@ -553,7 +657,13 @@ def inserir_aluno(cursor, dados: Dict, escola_id: int) -> int:
         raca_enum,
         dados.get('descricao_transtorno', 'Nenhum'),
         escola_id,
-        None, None
+        dados.get('local_nascimento') or None,   # nome do município (via <select>)
+        dados.get('codigo_estado') or None,       # nome do estado (via <select>)
+        endereco,
+        dados.get('bairro') or None,
+        dados.get('municipio_res') or None,
+        dados.get('uf_res') or None,
+        dados.get('cep') or None,
     )
     cursor.execute(query, valores)
     return cursor.lastrowid

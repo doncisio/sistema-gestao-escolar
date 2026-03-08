@@ -1,12 +1,27 @@
 """
-Interface gráfica para comparação e importação de alunos do GEDUC.
+Interface gráfica para extração, comparação e importação de alunos do GEDUC.
 
 Fluxo:
-1. Lê o arquivo JSON gerado pelo scripts/migracao/importar_geduc.py
-2. Compara com matrículas ativas do ano letivo corrente (escola_id=60)
-3. Exibe lista de alunos presentes no GEDUC mas sem matrícula local
-4. Permite selecionar e inserir os alunos escolhidos no banco local
-   (com normalização de dados e responsáveis)
+1. (Etapa 1 — opcional) Usuário informa credenciais do GEDUC;
+   o Selenium abre o Chrome, faz login, coleta todas as turmas/alunos
+   e salva em 'alunos_geduc.json'. Logs são exibidos em tempo real.
+   Ao concluir, a comparação (Etapa 2) é iniciada automaticamente.
+
+2. (Etapa 2) Lê o arquivo JSON (gerado na Etapa 1 ou selecionado manualmente)
+   e compara com as matrículas ativas do ano letivo corrente (escola_id=60).
+
+3. Exibe em tabela os alunos presentes no GEDUC mas sem matrícula local,
+   com dados de nome, nascimento, sexo, CPF, raça, turma e responsáveis.
+
+4. Usuário seleciona os alunos desejados (individualmente ou todos),
+   escolhe a turma de destino e clica em "Inserir Selecionados".
+   Os dados são normalizados (capitalização, CPF, datas, raça→enum)
+   e os responsáveis são inseridos sem duplicatas (dedup por CPF e nome).
+
+5. Após a inserção, a comparação é refeita automaticamente para
+   atualizar a lista (alunos recém-inseridos somem da tabela).
+
+Acesso: Menu Principal → Serviços → 📥 Importar Alunos do GEDUC
 """
 
 import os
@@ -44,6 +59,34 @@ CO_LINHA_IMPAR = "#FFFFFF"
 # ─── mapeamentos ──────────────────────────────────────────────────────────────
 _PREPOSICOES = {'de', 'da', 'das', 'do', 'dos', 'e', 'em', 'a', 'o', 'ao'}
 
+# Mapa de nome completo do estado (conforme GEDUC) → sigla UF (char(2))
+_MAPA_NOME_SIGLA: Dict[str, str] = {
+    'Acre': 'AC', 'Alagoas': 'AL', 'Amapa': 'AP', 'Amazonas': 'AM',
+    'Bahia': 'BA', 'Ceara': 'CE', 'Distrito Federal': 'DF',
+    'Espirito Santo': 'ES', 'Goias': 'GO', 'Maranhao': 'MA',
+    'Mato Grosso': 'MT', 'Mato Grosso do Sul': 'MS', 'Minas Gerais': 'MG',
+    'Para': 'PA', 'Paraiba': 'PB', 'Parana': 'PR', 'Pernambuco': 'PE',
+    'Piaui': 'PI', 'Rio de Janeiro': 'RJ', 'Rio Grande do Norte': 'RN',
+    'Rio Grande do Sul': 'RS', 'Rondonia': 'RO', 'Roraima': 'RR',
+    'Santa Catarina': 'SC', 'Sao Paulo': 'SP', 'Sergipe': 'SE',
+    'Tocantins': 'TO',
+}
+
+
+def _estado_para_sigla(valor) -> Optional[str]:
+    """Converte nome completo de estado ou código IBGE para sigla UF de 2 chars."""
+    if not valor or str(valor).strip() in ('', 'None', '00', '0'):
+        return None
+    v = str(valor).strip()
+    if len(v) == 2 and v.isalpha():
+        return v.upper()  # já é sigla
+    # lookup por nome sem acento (uppercase)
+    sem_ac = ''.join(
+        c for c in unicodedata.normalize('NFD', v)
+        if unicodedata.category(c) != 'Mn'
+    ).title()
+    return _MAPA_NOME_SIGLA.get(sem_ac) or _MAPA_NOME_SIGLA.get(v) or None
+
 MAPA_SEXO = {'1': 'M', '2': 'F', 'M': 'M', 'F': 'F'}
 
 MAPA_RACA_ENUM = {
@@ -63,6 +106,50 @@ def _normalizar(nome: str) -> str:
         return ''
     nome = unicodedata.normalize('NFKD', str(nome)).encode('ascii', 'ignore').decode('ascii')
     return re.sub(r'\s+', ' ', nome.strip().upper())
+
+
+# Dicionário de palavras que precisam de acento/cedilha (chave = sem acento, CAPS)
+_PALAVRAS_MUNICIPIO: dict = {
+    'DE': 'de', 'DO': 'do', 'DA': 'da', 'DOS': 'dos', 'DAS': 'das', 'E': 'e',
+    'SAO': 'São', 'JOSE': 'José', 'JOAO': 'João',
+    'LUIS': 'Luís', 'LUIZ': 'Luiz',
+    'PACO': 'Paço', 'ACAILANDIA': 'Açailândia',
+    'GONCALO': 'Gonçalo', 'MARANHAO': 'Maranhão',
+    'BELEM': 'Belém', 'MACAPA': 'Macapá', 'AMAPA': 'Amapá',
+    'PARNAIBA': 'Parnaíba',
+    'CODO': 'Codó', 'TURIACU': 'Turiaçu', 'ICATU': 'Icatu',
+    'ACARA': 'Açará', 'BRASILIA': 'Brasília', 'GOIANIA': 'Goiânia',
+    'RIBEIRAO': 'Ribeirão', 'SANTAREM': 'Santarém', 'BRAGANCA': 'Bragança',
+    'INES': 'Inês', 'ALCANTARA': 'Alcântara', 'VARZEA': 'Várzea',
+    'FLORIANOPOLIS': 'Florianópolis', 'TUCURUI': 'Tucuruí',
+    'SERTAOZINHO': 'Sertãozinho', 'PARAUAPEBAS': 'Parauapebas',
+}
+
+
+def _normalizar_municipio(texto) -> Optional[str]:
+    """Normaliza nome de município: remove sufixo '- UF', descarta inválidos,
+    aplica capitalização correta com acentos/cedilha."""
+    if not texto or str(texto).strip() in ('', 'None', '00', '0'):
+        return None
+    texto = str(texto).strip()
+    if ' - ' in texto:
+        texto = texto.split(' - ')[0].strip()
+    palavras = texto.split()
+    resultado = []
+    for i, palavra in enumerate(palavras):
+        # normaliza para lookup: remove acentos, uppercase
+        chave = ''.join(
+            c for c in unicodedata.normalize('NFD', palavra)
+            if unicodedata.category(c) != 'Mn'
+        ).upper()
+        if chave in _PALAVRAS_MUNICIPIO:
+            forma = _PALAVRAS_MUNICIPIO[chave]
+            if i == 0 and forma[0].islower():
+                forma = forma[0].upper() + forma[1:]
+            resultado.append(forma)
+        else:
+            resultado.append(palavra.capitalize())
+    return ' '.join(resultado)
 
 
 def _capitalizar(nome: str) -> str:
@@ -151,6 +238,140 @@ def obter_alunos_locais_ativos(escola_id: int = 60) -> Dict[str, int]:
         conn.close()
 
 
+def obter_dados_locais_completos(escola_id: int = 60) -> Dict[str, Dict]:
+    """
+    Retorna {nome_normalizado: row_dict} para todos os alunos com matrícula ativa
+    no ano letivo corrente, incluindo campos de dados pessoais e endereço.
+    """
+    conn = conectar_bd()
+    cursor = conn.cursor(dictionary=True, buffered=True)
+    try:
+        cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
+        row = cursor.fetchone()
+        ano_letivo_id = row['id'] if row else None
+        if not ano_letivo_id:
+            return {}
+        cursor.execute("""
+            SELECT a.id, a.nome, a.data_nascimento, a.sexo, a.cpf, a.raca,
+                   a.local_nascimento, a.UF_nascimento,
+                   a.endereco, a.descricao_transtorno
+            FROM alunos a
+            INNER JOIN matriculas m ON m.aluno_id = a.id
+            WHERE m.status = 'Ativo' AND m.ano_letivo_id = %s AND a.escola_id = %s
+        """, (ano_letivo_id, escola_id))
+        return {_normalizar(r['nome']): r for r in cursor.fetchall()}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def comparar_divergencias_geduc_local(dados_json: Dict, escola_id: int = 60) -> List[Dict]:
+    """
+    Retorna lista de alunos presentes tanto no GEDUC quanto localmente,
+    mas com dados divergentes. Cada item indica quais campos diferem.
+    """
+    locais = obter_dados_locais_completos(escola_id)
+    divergencias = []
+
+    for turma in dados_json.get('turmas', []):
+        turma_id_geduc   = turma.get('id', '')
+        turma_nome_geduc = turma.get('nome', '')
+        for aluno in turma.get('alunos', []):
+            nome_norm = _normalizar(aluno.get('nome', ''))
+            if not nome_norm or nome_norm not in locais:
+                continue  # não existe localmente — tratado por comparar_geduc_local
+            local = locais[nome_norm]
+
+            # Valores GEDUC já convertidos para o mesmo formato do banco local
+            sexo_raw = aluno.get('sexo')
+            geduc_conv = {
+                'data_nascimento':    aluno.get('data_nascimento', ''),
+                'sexo':               MAPA_SEXO.get(str(sexo_raw), '') if sexo_raw else '',
+                'cpf':                _formatar_cpf(aluno.get('cpf', '')),
+                'raca':               MAPA_RACA_ENUM.get(aluno.get('raca', 'Não declarada'), 'pardo'),
+                'local_nascimento':   _normalizar_municipio(aluno.get('local_nascimento')),
+                'descricao_transtorno': aluno.get('descricao_transtorno', 'Nenhum'),
+            }
+
+            diffs = []
+            for campo, label in [
+                ('data_nascimento', 'Nascimento'),
+                ('sexo',            'Sexo ⚠️(pend.)'),
+                ('cpf',             'CPF'),
+                ('raca',            'Raça'),
+                ('local_nascimento','Naturalidade'),
+                ('descricao_transtorno', 'Transtorno'),
+            ]:
+                v_geduc = str(geduc_conv.get(campo, '') or '').strip().upper()
+                v_local = str(local.get(campo, '') or '').strip().upper()
+                if v_geduc and v_local != v_geduc:
+                    diffs.append(f"{label}: [{v_local or '—'}] → [{v_geduc}]")
+            if diffs:
+                divergencias.append({
+                    'aluno_id':          local['id'],
+                    'nome_fmt':          _capitalizar(aluno.get('nome', '')),
+                    'campos_diff':       ' | '.join(diffs),
+                    'num_diffs':         len(diffs),
+                    'turma_geduc_id':    turma_id_geduc,
+                    'turma_geduc_nome':  turma_nome_geduc,
+                    # campos GEDUC para atualização
+                    # sexo: visível na comparação mas NÃO atualizado no banco (possível erro no GEDUC)
+                    'data_nascimento':   aluno.get('data_nascimento', ''),
+                    'sexo':              None,  # pendente: não atualizar
+                    'cpf_fmt':           _formatar_cpf(aluno.get('cpf', '')),
+                    'raca_enum':         MAPA_RACA_ENUM.get(aluno.get('raca', 'Não declarada'), 'pardo'),
+                    'local_nascimento':  _normalizar_municipio(aluno.get('local_nascimento')),
+                    'codigo_estado':     _estado_para_sigla(aluno.get('codigo_estado')),
+                    'logradouro':        aluno.get('logradouro', ''),
+                    'numero_end':        aluno.get('numero_end', ''),
+                    'bairro':            aluno.get('bairro', ''),
+                    'municipio_res':     aluno.get('municipio_res', ''),
+                    'uf_res':            aluno.get('uf_res', ''),
+                    'cep':               aluno.get('cep', ''),
+                    'descricao_transtorno': aluno.get('descricao_transtorno', 'Nenhum'),
+                })
+
+    return divergencias
+
+
+def atualizar_aluno_geduc(aluno_id: int, dados: Dict) -> Dict:
+    """Atualiza dados de um aluno existente com as informações vindas do GEDUC."""
+    conn = conectar_bd()
+    cursor = conn.cursor(buffered=True)
+    try:
+        logradouro = dados.get('logradouro') or ''
+        numero     = dados.get('numero_end') or ''
+        endereco   = f"{logradouro}, {numero}" if logradouro and numero else (logradouro or None)
+        cursor.execute("""
+            UPDATE alunos SET
+                data_nascimento      = %s,
+                cpf                  = %s,
+                raca                 = %s,
+                local_nascimento     = %s,
+                UF_nascimento        = %s,
+                endereco             = %s,
+                descricao_transtorno = %s
+            WHERE id = %s
+        """, (
+            dados.get('data_nascimento') or None,
+            dados.get('cpf_fmt') or None,
+            dados.get('raca_enum'),
+            _normalizar_municipio(dados.get('local_nascimento')) or None,
+            _estado_para_sigla(dados.get('codigo_estado')) or None,
+            endereco,
+            dados.get('descricao_transtorno', 'Nenhum'),
+            aluno_id,
+        ))
+        conn.commit()
+        return {'sucesso': True, 'mensagem': f'Aluno ID {aluno_id} atualizado com sucesso'}
+    except Exception as e:
+        conn.rollback()
+        return {'sucesso': False, 'mensagem': str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def comparar_geduc_local(dados_json: Dict, escola_id: int = 60) -> List[Dict]:
     """
     Retorna lista de alunos presentes no GEDUC mas sem matrícula ativa local.
@@ -199,6 +420,21 @@ def comparar_geduc_local(dados_json: Dict, escola_id: int = 60) -> List[Dict]:
                 'inep_escola':       aluno.get('inep_escola', ''),
                 'turma_geduc_id':    turma_id_geduc,
                 'turma_geduc_nome':  turma_nome_geduc,
+                # Naturalidade (codigo_naturalidade = código IBGE do município de nasc.;
+                #               local_nascimento = nome real via <select>;
+                #               codigo_estado = nome do estado via <select>)
+                'codigo_naturalidade': aluno.get('codigo_naturalidade', ''),
+                'local_nascimento':    aluno.get('local_nascimento', ''),
+                'codigo_estado':     aluno.get('codigo_estado', ''),                # Endereço de residência
+                'cep':               aluno.get('cep', ''),
+                'logradouro':        aluno.get('logradouro', ''),
+                'numero_end':        aluno.get('numero_end', ''),
+                'complemento':       aluno.get('complemento', ''),
+                'bairro':            aluno.get('bairro', ''),
+                # municipio_res = código IBGE do município de residência
+                'municipio_res':     aluno.get('municipio_res', ''),
+                # uf_res = sigla UF já convertida
+                'uf_res':            aluno.get('uf_res', ''),
             })
 
     return apenas_geduc
@@ -258,11 +494,16 @@ def inserir_aluno_geduc(dados: Dict, escola_id: int = 60,
                 return {'sucesso': False, 'mensagem': 'Nenhum ano letivo cadastrado.'}
 
         # Inserir aluno
+        logradouro = dados.get('logradouro') or ''
+        numero = dados.get('numero_end') or ''
+        endereco = f"{logradouro}, {numero}" if logradouro and numero else (logradouro or None)
         cursor.execute("""
             INSERT INTO alunos
                 (nome, data_nascimento, sexo, cpf, raca,
-                 descricao_transtorno, escola_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                 descricao_transtorno, escola_id,
+                 local_nascimento, UF_nascimento,
+                 endereco)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             dados['nome_fmt'],
             dados['data_nascimento'] or None,
@@ -271,6 +512,9 @@ def inserir_aluno_geduc(dados: Dict, escola_id: int = 60,
             dados['raca_enum'],
             dados.get('descricao_transtorno', 'Nenhum'),
             escola_id,
+            dados.get('local_nascimento') or None,   # nome do município de nascimento
+            dados.get('codigo_estado') or None,      # nome do estado de nascimento
+            endereco,
         ))
         aluno_id = cursor.lastrowid
 
@@ -358,13 +602,13 @@ class InterfaceImportarAlunosGEDUC:
             self.janela = tk.Tk()
 
         self.janela.title("Importar Alunos do GEDUC")
-        self.janela.geometry("1100x760")
+        self.janela.geometry("1100x820")
         self.janela.configure(bg=CO0)
         self.janela.protocol("WM_DELETE_WINDOW", self._ao_fechar)
 
         # Centralizar
         self.janela.update_idletasks()
-        w, h = 1100, 760
+        w, h = 1100, 820
         x = (self.janela.winfo_screenwidth() - w) // 2
         y = (self.janela.winfo_screenheight() - h) // 2
         self.janela.geometry(f"{w}x{h}+{x}+{y}")
@@ -403,8 +647,9 @@ class InterfaceImportarAlunosGEDUC:
                 FROM turmas t
                 JOIN series s ON s.id = t.serie_id
                 WHERE t.escola_id = 60
+                  AND t.ano_letivo_id = %s
                 ORDER BY s.nome, t.nome, t.turno
-            """)
+            """, (self._ano_letivo_id,))
             self._turmas_locais = [{'id': tid, 'desc': desc} for tid, desc in cursor.fetchall()]
             cursor.close()
             conn.close()
@@ -508,18 +753,25 @@ class InterfaceImportarAlunosGEDUC:
         )
         self._lbl_status.pack(fill=tk.X, padx=15)
 
-        # ── tabela ──
-        frame_tabela = tk.Frame(self.janela, bg=CO0)
-        frame_tabela.pack(fill=tk.BOTH, expand=True, padx=15, pady=(4, 0))
+        # ── notebook com abas ──
+        self._notebook = ttk.Notebook(self.janela)
+        self._notebook.pack(fill=tk.BOTH, expand=True, padx=15, pady=(4, 0))
 
-        colunas = ("sel", "nome", "nasc", "sexo", "cpf", "raca", "turma_geduc", "mae", "pai", "transtorno")
+        # ── Aba 1: Ausentes no Sistema ──
+        frame_aba1 = tk.Frame(self._notebook, bg=CO0)
+        self._notebook.add(frame_aba1, text="📋 Ausentes no Sistema (0)")
+
+        colunas  = ("sel", "nome", "nasc", "sexo", "cpf", "raca", "turma_geduc", "mae", "pai", "transtorno")
         larguras = (30, 260, 90, 50, 110, 70, 150, 200, 200, 130)
         titulos  = (" ", "Nome", "Nascimento", "Sexo", "CPF", "Raça",
                     "Turma GEDUC", "Mãe", "Pai", "Transtorno")
 
+        frame_tabela = tk.Frame(frame_aba1, bg=CO0)
+        frame_tabela.pack(fill=tk.BOTH, expand=True)
+
         self._tree = ttk.Treeview(
             frame_tabela, columns=colunas, show="headings",
-            selectmode="browse", height=18
+            selectmode="browse", height=12
         )
         for col, larg, tit in zip(colunas, larguras, titulos):
             self._tree.heading(col, text=tit)
@@ -541,34 +793,97 @@ class InterfaceImportarAlunosGEDUC:
 
         self._tree.bind("<Button-1>", self._toggle_selecao)
 
-        # ── rodapé com botões ──
-        frame_botoes = tk.Frame(self.janela, bg=CO0, pady=8)
-        frame_botoes.pack(fill=tk.X, padx=15)
+        frame_botoes1 = tk.Frame(frame_aba1, bg=CO0, pady=6)
+        frame_botoes1.pack(fill=tk.X)
 
         self._lbl_contagem = tk.Label(
-            frame_botoes, text="", font=("Arial", 10), bg=CO0, fg=CO1
+            frame_botoes1, text="", font=("Arial", 10), bg=CO0, fg=CO1
         )
         self._lbl_contagem.pack(side=tk.LEFT)
 
         tk.Button(
-            frame_botoes, text="✅ Selecionar Todos", command=self._selecionar_todos,
+            frame_botoes1, text="✅ Selecionar Todos", command=self._selecionar_todos,
             bg=CO4, fg="white", font=("Arial", 9, "bold"), cursor="hand2"
         ).pack(side=tk.LEFT, padx=6)
 
         tk.Button(
-            frame_botoes, text="☐ Desmarcar Todos", command=self._desmarcar_todos,
+            frame_botoes1, text="☐ Desmarcar Todos", command=self._desmarcar_todos,
             bg="#95A5A6", fg="white", font=("Arial", 9, "bold"), cursor="hand2"
         ).pack(side=tk.LEFT, padx=2)
 
         tk.Button(
-            frame_botoes, text="📥 Inserir Selecionados no Sistema",
+            frame_botoes1, text="📥 Inserir Selecionados no Sistema",
             command=self._inserir_selecionados,
             bg=CO2, fg="white", font=("Arial", 11, "bold"),
             cursor="hand2", padx=12, pady=4
         ).pack(side=tk.RIGHT, padx=6)
 
+        # ── Aba 2: Divergências ──
+        frame_aba2 = tk.Frame(self._notebook, bg=CO0)
+        self._notebook.add(frame_aba2, text="⚠️ Divergências (0)")
+
+        colunas_div  = ("sel", "nome", "num", "campos_diff")
+        larguras_div = (30, 250, 45, 680)
+        titulos_div  = (" ", "Nome", "Qtd", "Campos divergentes (Valor Local → Valor GEDUC)")
+
+        frame_tabela_div = tk.Frame(frame_aba2, bg=CO0)
+        frame_tabela_div.pack(fill=tk.BOTH, expand=True)
+
+        self._tree_div = ttk.Treeview(
+            frame_tabela_div, columns=colunas_div, show="headings",
+            selectmode="browse", height=12
+        )
+        for col, larg, tit in zip(colunas_div, larguras_div, titulos_div):
+            self._tree_div.heading(col, text=tit)
+            self._tree_div.column(col, width=larg, minwidth=larg, anchor="w" if larg > 50 else "center")
+
+        self._tree_div.tag_configure("par",  background=CO_LINHA_PAR)
+        self._tree_div.tag_configure("impar", background=CO_LINHA_IMPAR)
+        self._tree_div.tag_configure("selecionado", background="#D4EDDA")
+
+        scroll_y2 = ttk.Scrollbar(frame_tabela_div, orient="vertical", command=self._tree_div.yview)
+        scroll_x2 = ttk.Scrollbar(frame_tabela_div, orient="horizontal", command=self._tree_div.xview)
+        self._tree_div.configure(yscrollcommand=scroll_y2.set, xscrollcommand=scroll_x2.set)
+
+        self._tree_div.grid(row=0, column=0, sticky="nsew")
+        scroll_y2.grid(row=0, column=1, sticky="ns")
+        scroll_x2.grid(row=1, column=0, sticky="ew")
+        frame_tabela_div.rowconfigure(0, weight=1)
+        frame_tabela_div.columnconfigure(0, weight=1)
+
+        self._tree_div.bind("<Button-1>", self._toggle_sel_div)
+
+        frame_botoes2 = tk.Frame(frame_aba2, bg=CO0, pady=6)
+        frame_botoes2.pack(fill=tk.X)
+
+        self._lbl_contagem_div = tk.Label(
+            frame_botoes2, text="", font=("Arial", 10), bg=CO0, fg=CO1
+        )
+        self._lbl_contagem_div.pack(side=tk.LEFT)
+
         tk.Button(
-            frame_botoes, text="Fechar", command=self._ao_fechar,
+            frame_botoes2, text="✅ Selecionar Todos", command=self._selecionar_todos_div,
+            bg=CO4, fg="white", font=("Arial", 9, "bold"), cursor="hand2"
+        ).pack(side=tk.LEFT, padx=6)
+
+        tk.Button(
+            frame_botoes2, text="☐ Desmarcar Todos", command=self._desmarcar_todos_div,
+            bg="#95A5A6", fg="white", font=("Arial", 9, "bold"), cursor="hand2"
+        ).pack(side=tk.LEFT, padx=2)
+
+        tk.Button(
+            frame_botoes2, text="🔄 Atualizar Selecionados",
+            command=self._atualizar_selecionados,
+            bg="#2980B9", fg="white", font=("Arial", 11, "bold"),
+            cursor="hand2", padx=12, pady=4
+        ).pack(side=tk.RIGHT, padx=6)
+
+        # ── botão fechar (fora das abas) ──
+        frame_fechar = tk.Frame(self.janela, bg=CO0, pady=4)
+        frame_fechar.pack(fill=tk.X, padx=15)
+
+        tk.Button(
+            frame_fechar, text="Fechar", command=self._ao_fechar,
             bg=CO3, fg="white", font=("Arial", 10, "bold"), cursor="hand2"
         ).pack(side=tk.RIGHT, padx=4)
 
@@ -676,14 +991,15 @@ class InterfaceImportarAlunosGEDUC:
             try:
                 dados = carregar_json_geduc(caminho)
                 alunos = comparar_geduc_local(dados, escola_id=60)
-                self.janela.after(0, lambda: self._exibir_resultado(alunos, dados))
+                divergencias = comparar_divergencias_geduc_local(dados, escola_id=60)
+                self.janela.after(0, lambda: self._exibir_resultado(alunos, dados, divergencias))
             except Exception as e:
                 self.janela.after(0, lambda: self._var_status.set(f"Erro: {e}"))
                 logger.exception(f"Erro na comparação: {e}")
 
         threading.Thread(target=executar, daemon=True).start()
 
-    def _exibir_resultado(self, alunos: List[Dict], dados_json: Dict):
+    def _exibir_resultado(self, alunos: List[Dict], dados_json: Dict, divergencias: List[Dict] = None):
         self._alunos = alunos
         self._selecionados = set()
 
@@ -710,6 +1026,7 @@ class InterfaceImportarAlunosGEDUC:
             ))
 
         n = len(alunos)
+        self._notebook.tab(0, text=f"📋 Ausentes no Sistema ({n})")
         self._lbl_contagem.config(
             text=f"{n} aluno{'s' if n != 1 else ''} no GEDUC sem matrícula local"
         )
@@ -719,6 +1036,9 @@ class InterfaceImportarAlunosGEDUC:
             f"Faltando no sistema: {n}"
         )
         self._log(f"Comparação concluída: {n} alunos faltando no sistema local.")
+
+        if divergencias is not None:
+            self._exibir_divergencias(divergencias)
 
     def _toggle_selecao(self, event):
         region = self._tree.identify("region", event.x, event.y)
@@ -837,6 +1157,140 @@ class InterfaceImportarAlunosGEDUC:
             messagebox.showinfo("Resultado", msg, parent=self.janela)
 
         # Recomparar para atualizar a lista
+        self._comparar()
+
+    # ─────────────────────── ABA DIVERGÊNCIAS ───────────────────────────────
+
+    def _exibir_divergencias(self, divergencias: List[Dict]):
+        self._divergencias = divergencias
+        self._selecionados_div: set = set()
+
+        for item in self._tree_div.get_children():
+            self._tree_div.delete(item)
+
+        for i, d in enumerate(divergencias):
+            tag = "par" if i % 2 == 0 else "impar"
+            self._tree_div.insert("", "end", iid=str(i), tags=(tag,), values=(
+                "☐",
+                d['nome_fmt'],
+                str(d['num_diffs']),
+                d['campos_diff'],
+            ))
+
+        n = len(divergencias)
+        self._notebook.tab(1, text=f"⚠️ Divergências ({n})")
+        self._lbl_contagem_div.config(
+            text=f"{n} aluno{'s' if n != 1 else ''} com dados divergentes"
+        )
+        self._log(f"Divergências encontradas: {n} alunos com dados diferentes localmente.")
+
+    def _toggle_sel_div(self, event):
+        region = self._tree_div.identify("region", event.x, event.y)
+        if region != "cell":
+            return
+        row_id = self._tree_div.identify_row(event.y)
+        if not row_id:
+            return
+        try:
+            idx = int(row_id)
+        except ValueError:
+            return
+
+        if not hasattr(self, '_selecionados_div'):
+            self._selecionados_div = set()
+
+        if idx in self._selecionados_div:
+            self._selecionados_div.discard(idx)
+            vals = list(self._tree_div.item(row_id, "values"))
+            vals[0] = "☐"
+            tag = "par" if idx % 2 == 0 else "impar"
+            self._tree_div.item(row_id, values=vals, tags=(tag,))
+        else:
+            self._selecionados_div.add(idx)
+            vals = list(self._tree_div.item(row_id, "values"))
+            vals[0] = "☑"
+            self._tree_div.item(row_id, values=vals, tags=("selecionado",))
+
+        self._lbl_contagem_div.config(
+            text=f"{len(self._divergencias)} com divergências | "
+                 f"{len(self._selecionados_div)} selecionados"
+        )
+
+    def _selecionar_todos_div(self):
+        if not hasattr(self, '_selecionados_div'):
+            self._selecionados_div = set()
+        for i in range(len(self._divergencias)):
+            self._selecionados_div.add(i)
+            vals = list(self._tree_div.item(str(i), "values"))
+            vals[0] = "☑"
+            self._tree_div.item(str(i), values=vals, tags=("selecionado",))
+        self._lbl_contagem_div.config(
+            text=f"{len(self._divergencias)} com divergências | "
+                 f"{len(self._selecionados_div)} selecionados"
+        )
+
+    def _desmarcar_todos_div(self):
+        if not hasattr(self, '_selecionados_div'):
+            self._selecionados_div = set()
+            return
+        for i in self._selecionados_div:
+            vals = list(self._tree_div.item(str(i), "values"))
+            vals[0] = "☐"
+            tag = "par" if i % 2 == 0 else "impar"
+            self._tree_div.item(str(i), values=vals, tags=(tag,))
+        self._selecionados_div.clear()
+        self._lbl_contagem_div.config(
+            text=f"{len(self._divergencias)} com divergências | 0 selecionados"
+        )
+
+    def _atualizar_selecionados(self):
+        if not hasattr(self, '_selecionados_div') or not self._selecionados_div:
+            messagebox.showwarning("Atenção", "Selecione ao menos um aluno.", parent=self.janela)
+            return
+
+        registros_sel = [self._divergencias[i] for i in sorted(self._selecionados_div)]
+        n = len(registros_sel)
+
+        confirmacao = messagebox.askyesno(
+            "Confirmar Atualização",
+            f"Atualizar dados de {n} aluno{'s' if n != 1 else ''} com os dados do GEDUC?\n\n"
+            "Os dados locais serão substituídos pelos dados do GEDUC.",
+            parent=self.janela,
+        )
+        if not confirmacao:
+            return
+
+        self._var_status.set("Atualizando alunos... aguarde.")
+        self.janela.update()
+
+        def executar():
+            ok, erros = 0, 0
+            for dados in registros_sel:
+                resultado = atualizar_aluno_geduc(dados['aluno_id'], dados)
+                if resultado['sucesso']:
+                    ok += 1
+                    self.janela.after(
+                        0, lambda d=dados, r=resultado:
+                        self._log(f"[OK] {d['nome_fmt']} — {r['mensagem']}")
+                    )
+                else:
+                    erros += 1
+                    self.janela.after(
+                        0, lambda d=dados, r=resultado:
+                        self._log(f"[ERRO] {d['nome_fmt']} — {r['mensagem']}")
+                    )
+            self.janela.after(0, lambda: self._pos_atualizacao(ok, erros))
+
+        threading.Thread(target=executar, daemon=True).start()
+
+    def _pos_atualizacao(self, ok: int, erros: int):
+        self._var_status.set(f"Atualização concluída: {ok} atualizados, {erros} erros.")
+        msg = f"Atualização concluída!\n\n✅ Atualizados: {ok}\n❌ Erros: {erros}"
+        if erros:
+            messagebox.showwarning("Resultado", msg, parent=self.janela)
+        else:
+            messagebox.showinfo("Resultado", msg, parent=self.janela)
+        # Recomparar para atualizar as listas
         self._comparar()
 
     def _log(self, msg: str):
