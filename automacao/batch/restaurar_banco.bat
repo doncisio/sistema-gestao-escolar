@@ -3,7 +3,7 @@ setlocal
 set MYSQL_USER=root
 set MYSQL_PASS=987412365
 set MYSQL_DB=redeescola
-set BACKUP_PATH="G:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql"
+set BACKUP_PATH="G:\Meu Drive\NADIR 2026\Backup\backup_redeescola.sql"
 
 echo ========================================
 echo    RESTAURACAO DO BANCO DE DADOS

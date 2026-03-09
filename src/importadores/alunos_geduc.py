@@ -27,10 +27,12 @@ Acesso: Menu Principal → Serviços → 📥 Importar Alunos do GEDUC
 import os
 import re
 import sys
+import io
 import json
 import logging
 import unicodedata
 import threading
+import datetime
 import queue as _queue_mod
 from pathlib import Path
 from typing import Optional, Dict, List
@@ -41,6 +43,8 @@ from tkinter import ttk, messagebox, filedialog
 # ─── caminho raiz ──────────────────────────────────────────────────────────────
 ROOT_DIR = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(ROOT_DIR))
+
+import mysql.connector
 
 from db.connection import conectar_bd
 from src.core.config_logs import get_logger
@@ -238,6 +242,37 @@ def obter_alunos_locais_ativos(escola_id: int = 60) -> Dict[str, int]:
         conn.close()
 
 
+def obter_turmas_alunos_locais(escola_id: int = 60) -> Dict[str, str]:
+    """
+    Retorna {nome_normalizado: descricao_turma} para todos os alunos
+    com matrícula ativa no ano letivo corrente.
+    descricao_turma = '{série} {nome_turma}'.strip(), ex: '3º Ano', '7º Ano A'.
+    """
+    conn = conectar_bd()
+    cursor = conn.cursor(buffered=True)
+    try:
+        cursor.execute("SELECT id FROM anosletivos ORDER BY ano_letivo DESC LIMIT 1")
+        row = cursor.fetchone()
+        ano_letivo_id = row[0] if row else None
+        if not ano_letivo_id:
+            return {}
+        cursor.execute("""
+            SELECT a.nome,
+                   TRIM(CONCAT(s.nome, IF(t.nome != '', CONCAT(' ', t.nome), '')))
+            FROM alunos a
+            INNER JOIN matriculas m ON m.aluno_id = a.id
+            INNER JOIN turmas t    ON t.id = m.turma_id
+            INNER JOIN series s    ON s.id = t.serie_id
+            WHERE m.status = 'Ativo'
+              AND m.ano_letivo_id = %s
+              AND a.escola_id = %s
+        """, (ano_letivo_id, escola_id))
+        return {_normalizar(nome): desc for nome, desc in cursor.fetchall()}
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def obter_dados_locais_completos(escola_id: int = 60) -> Dict[str, Dict]:
     """
     Retorna {nome_normalizado: row_dict} para todos os alunos com matrícula ativa
@@ -334,8 +369,148 @@ def comparar_divergencias_geduc_local(dados_json: Dict, escola_id: int = 60) -> 
     return divergencias
 
 
+def gerar_pdf_pendencias_geduc(pendencias: List[Dict]) -> None:
+    """Gera e abre um PDF com a lista de pendências do GEDUC no padrão das listas do sistema."""
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.lib.colors import black, white, grey, HexColor
+        from src.core.config import get_image_path
+    except Exception as e:
+        raise RuntimeError(f"ReportLab não disponível: {e}")
+
+    cabecalho = [
+        "SECRETARIA MUNICIPAL DE EDUCAÇÃO",
+        "<b>ESCOLA MUNICIPAL PROFª. NADIR NASCIMENTO MORAES</b>",
+        "<b>INEP: 21008485</b>",
+        "<b>CNPJ: 01.394.462/0001-01</b>"
+    ]
+    figura_inferior = str(get_image_path('logopaco.png'))
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        leftMargin=36, rightMargin=18, topMargin=10, bottomMargin=18
+    )
+    elements = []
+
+    # ── Cabeçalho ─────────────────────────────────────────────────────────
+    def _header_table():
+        import os as _os
+        img_cell = Image(figura_inferior, width=3 * inch, height=0.7 * inch) \
+            if figura_inferior and _os.path.exists(figura_inferior) else Spacer(1, 0.7 * inch)
+        data = [
+            [img_cell],
+            [Paragraph('<br/>'.join(cabecalho), ParagraphStyle(name='Header', fontSize=12, alignment=1))]
+        ]
+        t = Table(data, colWidths=[7.5 * inch])
+        t.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN',  (0, 0), (-1, -1), 'CENTER')
+        ]))
+        return t
+
+    # ── Capa ───────────────────────────────────────────────────────────────
+    elements.append(_header_table())
+    elements.append(Spacer(1, 2 * inch))
+    elements.append(Paragraph(
+        "<b>PENDÊNCIAS DE DADOS — GEDUC</b>",
+        ParagraphStyle(name='Capa', fontSize=22, alignment=1)
+    ))
+    elements.append(Spacer(1, 0.4 * inch))
+    elements.append(Paragraph(
+        f"Gerado em: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}  |  Total: {len(pendencias)} alunos",
+        ParagraphStyle(name='Sub', fontSize=11, alignment=1)
+    ))
+    elements.append(PageBreak())
+
+    # ── Tabela de pendências ───────────────────────────────────────────────
+    elements.append(_header_table())
+    elements.append(Spacer(1, 0.2 * inch))
+    elements.append(Paragraph(
+        f"<b>PENDÊNCIAS DE DADOS — GEDUC</b>",
+        ParagraphStyle(name='Titulo', fontSize=13, alignment=1, spaceAfter=6)
+    ))
+    elements.append(Spacer(1, 0.15 * inch))
+
+    # Estilos de célula
+    st_hdr = ParagraphStyle('th', fontSize=9,  fontName='Helvetica-Bold', textColor=white, alignment=1)
+    st_cel = ParagraphStyle('td', fontSize=8,  fontName='Helvetica', alignment=0, leading=10)
+    st_num = ParagraphStyle('tn', fontSize=8,  fontName='Helvetica', alignment=1)
+
+    COL_N   = 0.40 * inch
+    COL_NOM = 2.00 * inch
+    COL_TRM = 1.20 * inch
+    COL_QTD = 0.40 * inch
+    COL_CAM = 7.5 * inch - COL_N - COL_NOM - COL_TRM - COL_QTD
+
+    rows = [[
+        Paragraph("Nº",              st_hdr),
+        Paragraph("Nome do Aluno",   st_hdr),
+        Paragraph("Turma",           st_hdr),
+        Paragraph("Qtd",             st_hdr),
+        Paragraph("Campos Pendentes", st_hdr),
+    ]]
+    for i, p in enumerate(pendencias, 1):
+        rows.append([
+            Paragraph(str(i),                   st_num),
+            Paragraph(p['nome_fmt'],             st_cel),
+            Paragraph(p.get('turma_fmt', '—'),  st_cel),
+            Paragraph(str(p['num_pend']),        st_num),
+            Paragraph(p['campos_pend'].replace(' | ', '<br/>'), st_cel),
+        ])
+
+    tabela = Table(rows, colWidths=[COL_N, COL_NOM, COL_TRM, COL_QTD, COL_CAM], repeatRows=1)
+    tabela.setStyle(TableStyle([
+        # Cabeçalho
+        ('BACKGROUND',   (0, 0), (-1, 0), HexColor('#003A70')),
+        ('TEXTCOLOR',    (0, 0), (-1, 0), white),
+        ('FONTNAME',     (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE',     (0, 0), (-1, 0), 9),
+        ('ALIGN',        (0, 0), (-1, 0), 'CENTER'),
+        ('BOTTOMPADDING',(0, 0), (-1, 0), 5),
+        ('TOPPADDING',   (0, 0), (-1, 0), 5),
+        # Linhas de dados
+        ('FONTNAME',     (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE',     (0, 1), (-1, -1), 8),
+        ('VALIGN',       (0, 1), (-1, -1), 'TOP'),
+        ('TOPPADDING',   (0, 1), (-1, -1), 3),
+        ('BOTTOMPADDING',(0, 1), (-1, -1), 3),
+        # Zebra
+        *[('BACKGROUND', (0, r), (-1, r), HexColor('#EBF3FA'))
+          for r in range(1, len(rows)) if r % 2 == 0],
+        # Grade
+        ('GRID',         (0, 0), (-1, -1), 0.25, grey),
+        ('BOX',          (0, 0), (-1, -1), 0.5,  black),
+    ]))
+    elements.append(tabela)
+    elements.append(Spacer(1, 0.2 * inch))
+    elements.append(Paragraph(
+        f"Total de alunos com pendências: <b>{len(pendencias)}</b>",
+        ParagraphStyle(name='Rodape', fontSize=9, alignment=2)
+    ))
+
+    doc.build(elements)
+    buffer.seek(0)
+
+    try:
+        from src.relatorios.gerar_pdf import salvar_e_abrir_pdf as _salvar
+        _salvar(buffer)
+    except Exception:
+        import tempfile, subprocess
+        fd, path = tempfile.mkstemp(suffix='.pdf', prefix='pendencias_geduc_')
+        with open(path, 'wb') as f:
+            f.write(buffer.getvalue())
+        os.close(fd)
+        try:
+            os.startfile(path)
+        except Exception:
+            subprocess.Popen(['start', '', path], shell=True)
+
+
 def atualizar_aluno_geduc(aluno_id: int, dados: Dict) -> Dict:
-    """Atualiza dados de um aluno existente com as informações vindas do GEDUC."""
     conn = conectar_bd()
     cursor = conn.cursor(buffered=True)
     try:
@@ -370,6 +545,68 @@ def atualizar_aluno_geduc(aluno_id: int, dados: Dict) -> Dict:
     finally:
         cursor.close()
         conn.close()
+
+
+# Campos verificados na aba Pendências
+_CAMPOS_PENDENCIA = [
+    ('cpf',               'CPF do Aluno'),
+    ('data_nascimento',   'Nascimento do Aluno'),
+    ('sexo',              'Gênero do Aluno'),
+    ('raca',              'Cor do Aluno'),
+    ('local_nascimento',  'Naturalidade do Aluno'),
+    ('mae',               'Filiação Mãe'),
+    ('cpf_mae',           'CPF da Mãe'),
+    ('nascimento_mae',    'Nascimento da Mãe'),
+    ('celular',           'Celular do Responsável'),
+    ('responsavel_tipo',  'Quem é o Responsável'),
+    ('cep',               'CEP'),
+    ('bairro',            'Bairro'),
+    ('logradouro',        'Rua'),
+    ('numero_end',        'Número'),
+    ('codigo_estado',     'Estado'),
+    ('municipio_res',     'Cidade'),
+]
+
+# Campos com semântica especial: valor '0','1','2','3' são VÁLIDOS (não são pendentes)
+_CAMPOS_VALOR_ZERO_VALIDO = {'responsavel_tipo'}
+
+
+def verificar_pendencias_geduc(dados_json: Dict, escola_id: int = 60) -> List[Dict]:
+    """
+    Retorna lista de alunos do GEDUC com campos obrigatórios vazios/não preenchidos.
+    Cada item: nome_fmt, turma_fmt (do banco local), num_pend, campos_pend.
+    """
+    _VAZIOS = {'', '0', 'none', 'null', 'não declarada', 'nao declarada', 'nenhum'}
+
+    turmas_locais = obter_turmas_alunos_locais(escola_id)
+
+    resultado = []
+    for turma in dados_json.get('turmas', []):
+        turma_nome = str(turma.get('nome', '') or '').strip()
+        turma_id   = str(turma.get('id', '') or '').strip()
+        for aluno in turma.get('alunos', []):
+            pendentes = []
+            for campo, label in _CAMPOS_PENDENCIA:
+                val = aluno.get(campo)
+                val_str = str(val).strip().lower() if val is not None else ''
+                if campo in _CAMPOS_VALOR_ZERO_VALIDO:
+                    if val is None or val_str == '':
+                        pendentes.append(label)
+                elif val is None or val_str in _VAZIOS:
+                    pendentes.append(label)
+            if pendentes:
+                nome_norm = _normalizar(aluno.get('nome', ''))
+                turma_fmt = turmas_locais.get(nome_norm) or \
+                            turma_nome or \
+                            (f"ID {turma_id}" if turma_id else '—')
+                resultado.append({
+                    'nome_fmt':    _capitalizar(aluno.get('nome', '?')),
+                    'turma_fmt':   turma_fmt,
+                    'num_pend':    len(pendentes),
+                    'campos_pend': ' | '.join(pendentes),
+                })
+    resultado.sort(key=lambda x: (x['turma_fmt'], x['nome_fmt']))
+    return resultado
 
 
 def comparar_geduc_local(dados_json: Dict, escola_id: int = 60) -> List[Dict]:
@@ -573,9 +810,24 @@ def inserir_aluno_geduc(dados: Dict, escola_id: int = 60,
             'mensagem': f"Inserido com ID {aluno_id}" + (f", matrícula {mat_id}" if mat_id else ""),
         }
 
+    except mysql.connector.errors.IntegrityError as e:
+        conn.rollback()
+        msg = str(e)
+        if 'idx_cpf_unico' in msg or 'Duplicate entry' in msg:
+            cpf = dados.get('cpf_fmt', '')
+            logger.warning(
+                "CPF já cadastrado, aluno pulado: %s (CPF: %s)",
+                dados.get('nome_geduc', '?'), cpf
+            )
+            return {
+                'sucesso': False,
+                'mensagem': f"CPF {cpf} já existe no sistema — aluno não inserido.",
+            }
+        logger.exception("Erro de integridade ao inserir aluno %s: %s", dados.get('nome_geduc'), e)
+        return {'sucesso': False, 'mensagem': msg}
     except Exception as e:
         conn.rollback()
-        logger.exception(f"Erro ao inserir aluno {dados.get('nome_geduc')}: {e}")
+        logger.exception("Erro ao inserir aluno %s: %s", dados.get('nome_geduc'), e)
         return {'sucesso': False, 'mensagem': str(e)}
     finally:
         cursor.close()
@@ -618,6 +870,7 @@ class InterfaceImportarAlunosGEDUC:
         self._vars_sel: List[tk.BooleanVar] = []
         self._turmas_locais: List[Dict] = []
         self._ano_letivo_id: Optional[int] = None
+        self._pendencias: List[Dict] = []
         self._arquivo_json = tk.StringVar(value=JSON_PADRAO)
 
         self._carregar_turmas_locais()
@@ -878,6 +1131,52 @@ class InterfaceImportarAlunosGEDUC:
             cursor="hand2", padx=12, pady=4
         ).pack(side=tk.RIGHT, padx=6)
 
+        # ── Aba 3: Pendências ──
+        frame_aba3 = tk.Frame(self._notebook, bg=CO0)
+        self._notebook.add(frame_aba3, text="📋 Pendências (0)")
+
+        colunas_pend  = ("nome", "num", "campos_pend")
+        larguras_pend = (270, 45, 670)
+        titulos_pend  = ("Nome", "Qtd", "Campos pendentes")
+
+        frame_tabela_pend = tk.Frame(frame_aba3, bg=CO0)
+        frame_tabela_pend.pack(fill=tk.BOTH, expand=True)
+
+        self._tree_pend = ttk.Treeview(
+            frame_tabela_pend, columns=colunas_pend, show="headings",
+            selectmode="browse", height=12
+        )
+        for col, larg, tit in zip(colunas_pend, larguras_pend, titulos_pend):
+            self._tree_pend.heading(col, text=tit)
+            self._tree_pend.column(col, width=larg, minwidth=larg, anchor="w" if larg > 50 else "center")
+
+        self._tree_pend.tag_configure("par",  background=CO_LINHA_PAR)
+        self._tree_pend.tag_configure("impar", background=CO_LINHA_IMPAR)
+
+        scroll_y3 = ttk.Scrollbar(frame_tabela_pend, orient="vertical",  command=self._tree_pend.yview)
+        scroll_x3 = ttk.Scrollbar(frame_tabela_pend, orient="horizontal", command=self._tree_pend.xview)
+        self._tree_pend.configure(yscrollcommand=scroll_y3.set, xscrollcommand=scroll_x3.set)
+
+        self._tree_pend.grid(row=0, column=0, sticky="nsew")
+        scroll_y3.grid(row=0, column=1, sticky="ns")
+        scroll_x3.grid(row=1, column=0, sticky="ew")
+        frame_tabela_pend.rowconfigure(0, weight=1)
+        frame_tabela_pend.columnconfigure(0, weight=1)
+
+        frame_botoes3 = tk.Frame(frame_aba3, bg=CO0, pady=6)
+        frame_botoes3.pack(fill=tk.X)
+
+        self._lbl_contagem_pend = tk.Label(
+            frame_botoes3, text="", font=("Arial", 10), bg=CO0, fg=CO1
+        )
+        self._lbl_contagem_pend.pack(side=tk.LEFT)
+
+        tk.Button(
+            frame_botoes3, text="🖨️ Imprimir PDF",
+            command=self._imprimir_pendencias_pdf,
+            bg="#8E44AD", fg="white", font=("Arial", 9, "bold"), cursor="hand2"
+        ).pack(side=tk.RIGHT, padx=6)
+
         # ── botão fechar (fora das abas) ──
         frame_fechar = tk.Frame(self.janela, bg=CO0, pady=4)
         frame_fechar.pack(fill=tk.X, padx=15)
@@ -962,12 +1261,15 @@ class InterfaceImportarAlunosGEDUC:
 
     def _extracao_concluida(self, arquivo_saida: str):
         """Chamado quando a thread de extração termina."""
-        self._btn_extrair.config(state=tk.NORMAL, text="▶  Extrair do GEDUC")
-        self._arquivo_json.set(arquivo_saida)
-        self._log("=" * 60)
-        self._log("Extração concluída. Iniciando comparação automática…")
-        self._var_status.set("Extração concluída! Comparando com o sistema local…")
-        self._comparar()
+        try:
+            self._btn_extrair.config(state=tk.NORMAL, text="▶  Extrair do GEDUC")
+            self._arquivo_json.set(arquivo_saida)
+            self._log("=" * 60)
+            self._log("Extração concluída. Iniciando comparação automática…")
+            self._var_status.set("Extração concluída! Comparando com o sistema local…")
+            self._comparar()
+        except tk.TclError:
+            pass  # janela foi fechada antes da thread terminar
 
     def _selecionar_arquivo(self):
         path = filedialog.askopenfilename(
@@ -992,14 +1294,16 @@ class InterfaceImportarAlunosGEDUC:
                 dados = carregar_json_geduc(caminho)
                 alunos = comparar_geduc_local(dados, escola_id=60)
                 divergencias = comparar_divergencias_geduc_local(dados, escola_id=60)
-                self.janela.after(0, lambda: self._exibir_resultado(alunos, dados, divergencias))
+                pendencias = verificar_pendencias_geduc(dados)
+                self.janela.after(0, lambda a=alunos, d=dados, div=divergencias, pend=pendencias:
+                                  self._exibir_resultado(a, d, div, pend))
             except Exception as e:
                 self.janela.after(0, lambda: self._var_status.set(f"Erro: {e}"))
                 logger.exception(f"Erro na comparação: {e}")
 
         threading.Thread(target=executar, daemon=True).start()
 
-    def _exibir_resultado(self, alunos: List[Dict], dados_json: Dict, divergencias: List[Dict] = None):
+    def _exibir_resultado(self, alunos: List[Dict], dados_json: Dict, divergencias: List[Dict] = None, pendencias: List[Dict] = None):
         self._alunos = alunos
         self._selecionados = set()
 
@@ -1039,6 +1343,9 @@ class InterfaceImportarAlunosGEDUC:
 
         if divergencias is not None:
             self._exibir_divergencias(divergencias)
+
+        if pendencias is not None:
+            self._exibir_pendencias(pendencias)
 
     def _toggle_selecao(self, event):
         region = self._tree.identify("region", event.x, event.y)
@@ -1183,6 +1490,43 @@ class InterfaceImportarAlunosGEDUC:
             text=f"{n} aluno{'s' if n != 1 else ''} com dados divergentes"
         )
         self._log(f"Divergências encontradas: {n} alunos com dados diferentes localmente.")
+
+    def _imprimir_pendencias_pdf(self):
+        if not hasattr(self, '_pendencias') or not self._pendencias:
+            messagebox.showwarning("Atenção", "Nenhuma pendência para imprimir.", parent=self.janela)
+            return
+        self._var_status.set("Gerando PDF...")
+        self.janela.update()
+        def executar():
+            try:
+                gerar_pdf_pendencias_geduc(self._pendencias)
+                self.janela.after(0, lambda: self._var_status.set("PDF gerado e aberto com sucesso."))
+            except Exception as e:
+                logger.exception(f"Erro ao gerar PDF de pendências: {e}")
+                self.janela.after(0, lambda: messagebox.showerror("Erro", f"Falha ao gerar PDF:\n{e}", parent=self.janela))
+                self.janela.after(0, lambda: self._var_status.set("Erro ao gerar PDF."))
+        threading.Thread(target=executar, daemon=True).start()
+
+    def _exibir_pendencias(self, pendencias: List[Dict]):
+        self._pendencias = pendencias
+
+        for item in self._tree_pend.get_children():
+            self._tree_pend.delete(item)
+
+        for i, p in enumerate(pendencias):
+            tag = "par" if i % 2 == 0 else "impar"
+            self._tree_pend.insert("", "end", iid=str(i), tags=(tag,), values=(
+                p['nome_fmt'],
+                str(p['num_pend']),
+                p['campos_pend'],
+            ))
+
+        n = len(pendencias)
+        self._notebook.tab(2, text=f"📋 Pendências ({n})")
+        self._lbl_contagem_pend.config(
+            text=f"{n} aluno{'s' if n != 1 else ''} com campos pendentes no GEDUC"
+        )
+        self._log(f"Pendências: {n} alunos com dados incompletos no GEDUC.")
 
     def _toggle_sel_div(self, event):
         region = self._tree_div.identify("region", event.x, event.y)

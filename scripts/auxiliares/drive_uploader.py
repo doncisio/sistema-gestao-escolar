@@ -1,10 +1,13 @@
 import os
 import pickle
+import time
 from typing import Optional, Tuple, Any, Dict
 
+import httplib2
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from google_auth_httplib2 import AuthorizedHttp
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
@@ -14,6 +17,13 @@ logger = get_logger(__name__)
 
 # Escopo para criar/editar arquivos na conta do usuário
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
+
+# Timeout em segundos para chamadas HTTP ao Google Drive
+_HTTP_TIMEOUT = 15
+# Número de tentativas para upload em caso de falha de rede
+_MAX_RETRIES = 2
+# Pausa entre tentativas (segundos)
+_RETRY_DELAY = 3
 
 
 def _get_service(credentials_path: str = 'credentials.json', token_path: str = 'token_drive.pickle'):
@@ -44,8 +54,9 @@ def _get_service(credentials_path: str = 'credentials.json', token_path: str = '
             raise
 
     try:
-        service = build('drive', 'v3', credentials=creds)
-        logger.debug("_get_service: Drive service criado com sucesso")
+        authed_http = AuthorizedHttp(creds, http=httplib2.Http(timeout=_HTTP_TIMEOUT))
+        service = build('drive', 'v3', http=authed_http)
+        logger.debug("_get_service: Drive service criado com sucesso (timeout=%ss)", _HTTP_TIMEOUT)
         return service
     except Exception as e:
         logger.exception("_get_service: falha ao criar service Drive: %s", e)
@@ -86,45 +97,55 @@ def upload_file(filepath: str, parent_id: Optional[str] = None, name: Optional[s
         except Exception as e:
             logger.exception("upload_file: falha ao verificar pasta parent_id=%s: %s", parent_id, e)
 
-    # Se solicitado, procurar arquivo existente com mesmo nome na pasta e substituir
-    try:
-        if replace_existing:
-            # Montar query para procurar pelo nome e pasta (ou raiz)
-            q_parts = []
-            # name equality - escape single quotes by replacing with "'" is tricky; assume typical filenames
-            q_parts.append(f"name = '{name}'")
-            if parent_id:
-                q_parts.append(f"'{parent_id}' in parents")
-            else:
-                q_parts.append("'root' in parents")
+    last_error: Optional[Exception] = None
+    for attempt in range(1, _MAX_RETRIES + 2):  # tentativas: 1, 2, 3
+        try:
+            # Recriar MediaFileUpload a cada tentativa (não é reutilizável)
+            media = MediaFileUpload(filepath, mimetype=mime_type)
 
-            q = ' and '.join(q_parts) + " and trashed = false"
-            logger.debug("upload_file: procurando arquivos existentes com q=%s", q)
-            res = service.files().list(q=q, fields='files(id,name)', spaces='drive').execute()
-            files = res.get('files', []) if res else []
-            if files:
-                # Substituir o primeiro arquivo encontrado
-                existing = files[0]
-                existing_id = existing.get('id')
-                logger.info("upload_file: arquivo existente encontrado id=%s name=%s - substituindo", existing_id, existing.get('name'))
-                try:
+            if replace_existing:
+                # Montar query para procurar pelo nome e pasta (ou raiz)
+                q_parts = [f"name = '{name}'"]
+                if parent_id:
+                    q_parts.append(f"'{parent_id}' in parents")
+                else:
+                    q_parts.append("'root' in parents")
+                q = ' and '.join(q_parts) + " and trashed = false"
+                logger.debug("upload_file: procurando arquivos existentes (tentativa %d) q=%s", attempt, q)
+                res = service.files().list(q=q, fields='files(id,name)', spaces='drive').execute()
+                files = res.get('files', []) if res else []
+                if files:
+                    existing = files[0]
+                    existing_id = existing.get('id')
+                    logger.info("upload_file: arquivo existente id=%s - substituindo", existing_id)
                     updated = service.files().update(fileId=existing_id, media_body=media, fields='id, webViewLink').execute()
                     fid = updated.get('id')
                     web = updated.get('webViewLink')
                     logger.info("upload_file: arquivo substituído no Drive: %s (id=%s)", filepath, fid)
                     return fid, web
-                except Exception as e:
-                    logger.exception("upload_file: falha ao atualizar arquivo existente id=%s: %s", existing_id, e)
-                    # continuar para tentar criar novo arquivo
 
-        # Se não encontrou ou não substituiu, criar novo
-        created = service.files().create(body=body, media_body=media, fields='id, webViewLink').execute()
-        file_id = created.get('id')
-        web_view = created.get('webViewLink')
-        logger.info("Arquivo enviado para Drive: %s (id=%s)", filepath, file_id)
-        logger.debug("upload_file: response=%s", created)
-        return file_id, web_view
+            # Criar novo arquivo
+            created = service.files().create(body=body, media_body=media, fields='id, webViewLink').execute()
+            file_id = created.get('id')
+            web_view = created.get('webViewLink')
+            logger.info("Arquivo enviado para Drive: %s (id=%s)", filepath, file_id)
+            return file_id, web_view
 
-    except Exception as e:
-        logger.exception("Falha ao enviar/atualizar arquivo para Drive: %s", e)
-        return None, None
+        except (TimeoutError, OSError) as e:
+            last_error = e
+            if attempt <= _MAX_RETRIES:
+                logger.warning(
+                    "upload_file: falha de rede (tentativa %d/%d): %s — aguardando %ds para nova tentativa",
+                    attempt, _MAX_RETRIES + 1, e, _RETRY_DELAY
+                )
+                time.sleep(_RETRY_DELAY)
+            else:
+                logger.error("upload_file: todas as %d tentativas falharam por timeout/rede: %s", _MAX_RETRIES + 1, e)
+                return None, None
+        except Exception as e:
+            logger.exception("Falha ao enviar/atualizar arquivo para Drive: %s", e)
+            return None, None
+
+    # Nunca deveria chegar aqui, mas satisfaz o type checker
+    logger.error("upload_file: esgotadas as tentativas. Último erro: %s", last_error)
+    return None, None

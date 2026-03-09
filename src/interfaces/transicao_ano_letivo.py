@@ -558,10 +558,15 @@ class InterfaceTransicaoAnoLetivo:
         """
         import os
         from pathlib import Path
+        try:
+            from src.core.config import ANO_LETIVO_ATUAL as _ano
+        except ImportError:
+            from datetime import datetime as _dt
+            _ano = _dt.now().year
         
         caminhos_backup = [
             Path("migrations/backup_redeescola.sql"),
-            Path(r"G:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql")
+            Path(rf"G:\Meu Drive\NADIR {_ano}\Backup\backup_redeescola.sql")
         ]
         
         for caminho in caminhos_backup:

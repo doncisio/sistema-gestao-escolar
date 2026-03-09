@@ -2968,7 +2968,7 @@ Status: {questao.status.value if questao.status else ''}"""
         y_position -= h_p + gap
 
         # Adicionar '- MA' conforme documentação
-        info_text = 'PAÇO DO LUMIAR - MA, ______de___________________ de 2025.'
+        info_text = f'PAÇO DO LUMIAR - MA, ______de___________________ de {datetime.now().year}.'
         p2 = Paragraph(info_text, estilo_info)
         w2, h2 = p2.wrap(width - margin_left - margin_right, y_position)
         p2.drawOn(c, margin_left, y_position - h2)

@@ -484,7 +484,7 @@ def _encontrar_arquivo_base(nome_sem_acento: str, nome_com_acento: str) -> str:
 
 
 def gerar_resumo_ponto(mes: int, ano: int):
-    dir_saida = r"G:\\Meu Drive\\NADIR_2025\\Ficha de Ponto 2025"
+    dir_saida = rf"G:\Meu Drive\NADIR {ano}\Ficha de Ponto {ano}"
     os.makedirs(dir_saida, exist_ok=True)
 
     base2 = _encontrar_arquivo_base("Resumo de Frequencia2.pdf", "Resumo de Frequência2.pdf")

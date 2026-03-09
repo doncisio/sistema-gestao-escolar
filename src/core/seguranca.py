@@ -13,6 +13,12 @@ try:
 except ImportError:
     settings = None
 
+try:
+    from src.core.config import ANO_LETIVO_ATUAL
+except ImportError:
+    from datetime import datetime as _dt
+    ANO_LETIVO_ATUAL = _dt.now().year
+
 logger = get_logger(__name__)
 
 # Carregar variáveis de ambiente do arquivo .env
@@ -27,12 +33,12 @@ def fazer_backup():
     r"""
     Realiza o backup do banco de dados 'redeescola' e salva em dois locais:
     1. Pasta local do projeto
-    2. Google Drive (G:\Meu Drive\NADIR_2025\Backup)
+    2. Google Drive (G:\Meu Drive\NADIR {ano}\Backup)
     
     :return: True se o backup foi bem-sucedido, False caso contrário.
     """
     caminho_backup_local = "migrations/backup_redeescola.sql"
-    caminho_backup_drive = r"G:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql"
+    caminho_backup_drive = rf"G:\Meu Drive\NADIR {ANO_LETIVO_ATUAL}\Backup\backup_redeescola.sql"
     try:
         # Obter credenciais do arquivo .env
         usuario = os.getenv("DB_USER")
@@ -120,7 +126,7 @@ def restaurar_backup():
     :return: True se a restauração foi bem-sucedida, False caso contrário.
     """
     caminho_backup_local = "migrations/backup_redeescola.sql"
-    caminho_backup_drive = r"G:\Meu Drive\NADIR_2025\Backup\backup_redeescola.sql"
+    caminho_backup_drive = rf"G:\Meu Drive\NADIR {ANO_LETIVO_ATUAL}\Backup\backup_redeescola.sql"
     try:
         # Determinar qual arquivo de backup usar (prioridade: Drive > Local)
         if os.path.exists(caminho_backup_drive):

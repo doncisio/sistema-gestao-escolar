@@ -266,7 +266,7 @@ def extrair_dados_aluno_html(html_content: str) -> Optional[Dict]:
             'sexo': None,
             'mae': extrair_valor_campo(html_content, 'FILIACAO_MAE'),
             'pai': extrair_valor_campo(html_content, 'FILIACAO_PAI'),
-            'responsavel_tipo': extrair_valor_campo(html_content, 'RESPONSAVEL'),
+            'responsavel_tipo': None,  # preenchido abaixo com fallback
             'cpf_mae': extrair_valor_campo(html_content, 'CPFMAE'),
             'cpf_pai': extrair_valor_campo(html_content, 'CPFPAI'),
             'profissao_mae': extrair_valor_campo(html_content, 'PROFISSAO_MAE'),
@@ -308,6 +308,14 @@ def extrair_dados_aluno_html(html_content: str) -> Optional[Dict]:
         elif sexo_codigo == '2':
             dados['sexo'] = 'F'
         # Se não encontrar, mantém None (campo não detectado no HTML)
+
+        # RESPONSAVEL: tenta tform_send_data primeiro, depois radio button com checked
+        resp = extrair_valor_campo(html_content, 'RESPONSAVEL')
+        if not resp:
+            radio = soup.find('input', {'type': 'radio', 'name': 'RESPONSAVEL', 'checked': True})
+            if radio:
+                resp = radio.get('value', '') or None
+        dados['responsavel_tipo'] = resp
         
         deficiencias = extrair_checkboxes(html_content, 'TIPODEF')
         transtornos = extrair_checkboxes(html_content, 'TGDEDU')

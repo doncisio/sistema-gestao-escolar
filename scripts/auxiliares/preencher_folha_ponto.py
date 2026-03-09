@@ -229,12 +229,12 @@ def localizar_template_folha() -> str:
 if __name__ == "__main__":
     base = localizar_template_folha()
 
-    # Diretório de saída solicitado
-    dir_saida = r"G:\\Meu Drive\\NADIR_2025\\Ficha de Ponto 2025"
-    os.makedirs(dir_saida, exist_ok=True)
-
     hoje = datetime.today()
-    ano_alvo = 2025  # conforme solicitado no nome do arquivo
+    ano_alvo = hoje.year
+
+    # Diretório de saída solicitado
+    dir_saida = rf"G:\Meu Drive\NADIR {ano_alvo}\Ficha de Ponto {ano_alvo}"
+    os.makedirs(dir_saida, exist_ok=True)
 
     # Mês atual + próximos meses do ano atual
     meses_restantes = list(range(hoje.month, 13))
