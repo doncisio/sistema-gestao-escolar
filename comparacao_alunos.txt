@@ -2,42 +2,26 @@
 RELATÓRIO DE COMPARAÇÃO: SISTEMA LOCAL vs GEDUC
 ================================================================================
 
-Data: 25/02/2026 16:55:36
-Total de alunos no Sistema Local (matriculados 2026): 297
-Total de alunos no GEDUC: 295
-Alunos em ambos os sistemas: 293
-Apenas no Sistema Local: 4
-Apenas no GEDUC (novos): 2
+Data: 10/03/2026 09:45:00
+Total de alunos no Sistema Local (matriculados 2026): 302
+Total de alunos no GEDUC: 299
+Alunos em ambos os sistemas: 299
+Apenas no Sistema Local: 3
+Apenas no GEDUC (novos): 0
 
 ================================================================================
-APENAS NO GEDUC - NOVOS PARA IMPORTAR (2)
+APENAS NO SISTEMA LOCAL (3)
 ================================================================================
 
-🆕 KARLLOS AUGUSTO XIMENES DOS SANTOS
-   CPF: 61982585307
-   Data Nascimento: 2013-07-03
+⚠️  Lara Cecilia Mendes de Almeida
+   ID: 2856
+   CPF: 086.005.413-60
 
-🆕 SAYLLA VITORIA PEREIRA HENRIQUE
-   CPF: 61883467381
-   Data Nascimento: 2013-09-11
+⚠️  Maria Eduarda da Silva Bazola
+   ID: 2753
+   CPF: 072.072.333-70
 
-================================================================================
-APENAS NO SISTEMA LOCAL (4)
-================================================================================
-
-⚠️  Alícia Araújo do Nascimento
-   ID: 2655
-   CPF: 638.096.473-81
-
-⚠️  João Helio Goncalves Barros
-   ID: 2860
-   CPF: 628.922.383-66
-
-⚠️  Luis Carlos da Conceição Souza
-   ID: 927
-   CPF: SEM CPF
-
-⚠️  Saylla Vitória  Henrique  da Conceição
-   ID: 2761
-   CPF: 618.834.673-81
+⚠️  Mariah Claudia da Costa Marques
+   ID: 494
+   CPF: 628.301.273-66
 

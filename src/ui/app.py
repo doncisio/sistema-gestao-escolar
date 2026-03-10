@@ -90,6 +90,9 @@ class Application:
         # Frames da interface
         self.frames: Dict[str, Frame] = {}
         
+        # Cache do nome da escola
+        self._nome_escola: Optional[str] = None
+        
         # Setup da aplicação (sem inicializar pool ainda)
         self._setup_window()
         self._setup_colors()
@@ -134,10 +137,14 @@ class Application:
     def _get_school_name(self) -> str:
         """
         Obtém o nome da escola do banco de dados com modo degradado.
+        Usa cache para evitar consultas repetidas ao banco.
         
         Returns:
             str: Nome da escola ou "Escola" como fallback
         """
+        if self._nome_escola is not None:
+            return self._nome_escola
+        
         try:
             # Obter ID da escola da configuração
             escola_id = settings.app.escola_id if settings else 60
@@ -148,7 +155,8 @@ class Application:
                 result = cursor.fetchone()
                 
                 if result and result[0]:
-                    return str(result[0])
+                    self._nome_escola = str(result[0])
+                    return self._nome_escola
                 
                 cursor.close()
         except Exception as e:
@@ -171,7 +179,8 @@ class Application:
                 except Exception:
                     pass  # Evitar erro se tkinter não estiver pronto
         
-        return "Escola"
+        self._nome_escola = "Escola"
+        return self._nome_escola
     
     def _setup_colors(self):
         """Define a paleta de cores da aplicação."""

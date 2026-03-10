@@ -52,12 +52,15 @@ def fazer_backup():
 
         # Verificar se mysqldump está disponível
         try:
-            verificar = subprocess.run(["mysqldump", "--version"], capture_output=True, text=True)
+            verificar = subprocess.run(["mysqldump", "--version"], capture_output=True, text=True, timeout=10)
             if verificar.returncode != 0:
                 logger.error("mysqldump não está funcionando corretamente")
                 return False
         except FileNotFoundError:
             logger.error("mysqldump não encontrado. Verifique se o MySQL está instalado e no PATH do sistema.")
+            return False
+        except subprocess.TimeoutExpired:
+            logger.error("mysqldump --version excedeu o tempo limite")
             return False
 
         # Comando para fazer o backup usando mysqldump
@@ -71,8 +74,8 @@ def fazer_backup():
             database
         ]
 
-        # Executar o comando (resultado será salvo diretamente no arquivo)
-        resultado = subprocess.run(comando_backup, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        # Executar o comando com timeout de 120 segundos
+        resultado = subprocess.run(comando_backup, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=120)
         
         # Verificar se houve erro
         if resultado.returncode != 0:
@@ -110,6 +113,9 @@ def fazer_backup():
         logger.info("✓ Backup realizado com sucesso!")
         return True
 
+    except subprocess.TimeoutExpired:
+        logger.error("Backup excedeu o tempo limite de 120 segundos")
+        return False
     except subprocess.CalledProcessError as e:
         logger.exception("Erro ao realizar o backup: %s", e)
         return False
@@ -330,7 +336,7 @@ def parar_backup_automatico(executar_backup_final=True):
     """
     Para o sistema de backup automático.
     
-    :param executar_backup_final: Se True, executa um backup final antes de encerrar.
+    :param executar_backup_final: Se True, executa um backup final em background.
     """
     global _backup_running, _backup_initialized
     
@@ -341,23 +347,33 @@ def parar_backup_automatico(executar_backup_final=True):
     
     if executar_backup_final and _backup_running:
         try:
-            logger.info("\n" + "="*70)
-            logger.info("Executando backup final antes de encerrar o sistema...")
-            logger.info("="*70)
-            resultado = fazer_backup()
-            if resultado:
-                logger.info("[%s] Backup final concluído com sucesso!", datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
-            else:
-                logger.warning("[%s] Falha no backup final.", datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
-            logger.info("="*70 + "\n")
+            logger.info("Executando backup final em background...")
+            # Executar backup em thread separada com timeout para não travar a UI
+            backup_thread = threading.Thread(target=_executar_backup_final_thread, daemon=True)
+            backup_thread.start()
+            # Aguardar no máximo 15 segundos pelo backup
+            backup_thread.join(timeout=15)
+            if backup_thread.is_alive():
+                logger.warning("Backup final excedeu 15s - continuando fechamento sem aguardar")
         except Exception as e:
             logger.error(f"Erro ao executar backup final: {e}")
-            # Não propagar o erro - permitir que o sistema feche normalmente
     
     _backup_running = False
     _backup_initialized = False
     schedule.clear()
-    logger.info("\nSistema de backup automático encerrado.")
+    logger.info("Sistema de backup automático encerrado.")
+
+
+def _executar_backup_final_thread():
+    """Executa o backup final em uma thread separada."""
+    try:
+        resultado = fazer_backup()
+        if resultado:
+            logger.info("[%s] Backup final concluído com sucesso!", datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
+        else:
+            logger.warning("[%s] Falha no backup final.", datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
+    except Exception as e:
+        logger.error(f"Erro no backup final em background: {e}")
 
 
 def status_backup_automatico():
