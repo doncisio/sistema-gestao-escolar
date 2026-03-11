@@ -80,6 +80,20 @@ class ReportCallbacks:
         except Exception as e:
             logger.exception(f"Erro ao exportar funcionários para Excel: {e}")
             messagebox.showerror("Erro", f"Não foi possível exportar os dados: {e}")
+
+    def exportar_seletivados_excel(self):
+        """Exporta profissionais seletivados (professores, tutores e cuidadores) para Excel."""
+        try:
+            from src.relatorios.listas.seletivados_excel import gerar_excel_seletivados
+
+            from src.core.config.settings import settings
+            escola_id = settings.app.escola_id if settings else 60
+
+            gerar_excel_seletivados(escola_id=escola_id)
+
+        except Exception as e:
+            logger.exception(f"Erro ao exportar seletivados para Excel: {e}")
+            messagebox.showerror("Erro", f"Não foi possível exportar os dados: {e}")
     
     def lista_reuniao(self):
         """Gera lista de reunião."""
@@ -785,7 +799,11 @@ class ActionCallbacksManager:
     def exportar_funcionarios_excel(self):
         """Atalho para reports.exportar_funcionarios_excel()"""
         return self.reports.exportar_funcionarios_excel()
-    
+
+    def exportar_seletivados_excel(self):
+        """Atalho para reports.exportar_seletivados_excel()"""
+        return self.reports.exportar_seletivados_excel()
+
     def relatorio_movimentacao_mensal(self, numero_mes: int):
         """Atalho para reports.relatorio_movimentacao_mensal()"""
         return self.reports.relatorio_movimentacao_mensal(numero_mes)

@@ -317,6 +317,12 @@ class ButtonFactory:
                     font=menu_font
                 )
 
+                listas_menu.add_command(
+                    label="Profissionais Seletivados (Excel)",
+                    command=self.callbacks.exportar_seletivados_excel,
+                    font=menu_font
+                )
+
             # Lista de Reunião (Admin, Coordenador)
             if is_admin or is_coordenador:
                 listas_menu.add_command(
