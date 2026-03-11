@@ -239,14 +239,8 @@ def gerar_excel_funcionarios_administrativos(
         
         # Definir caminho de saída
         if not caminho_saida:
-            # Criar diretório se não existir
-            dir_documentos = os.path.join(os.getcwd(), 'documentos_gerados')
-            os.makedirs(dir_documentos, exist_ok=True)
-            
-            # Nome do arquivo com timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            nome_arquivo = f"funcionarios_administrativos_{timestamp}.xlsx"
-            caminho_saida = os.path.join(dir_documentos, nome_arquivo)
+            from src.services.utils.pdf import get_output_path
+            caminho_saida = get_output_path("Lista Funcionarios Administrativos", ".xlsx", "Listas")
         
         # Salvar arquivo
         wb.save(caminho_saida)

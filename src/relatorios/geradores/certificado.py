@@ -364,10 +364,8 @@ def gerar_certificado_pdf(aluno_id, arquivo_saida=None):
     
     # Definir nome do arquivo de saída
     if arquivo_saida is None:
-        pasta_certificados = "certificados"
-        os.makedirs(pasta_certificados, exist_ok=True)
-        nome_arquivo = f"certificado_aluno_{aluno_id}.pdf"
-        arquivo_saida = os.path.join(pasta_certificados, nome_arquivo)
+        from src.services.utils.pdf import get_output_path
+        arquivo_saida = get_output_path(f"Certificado Aluno {aluno_id}", ".pdf", "Outros")
     
     try:
         # Criar o PDF em formato paisagem

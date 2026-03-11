@@ -226,7 +226,7 @@ def _categoria_por_contexto(basename: str, caller: Optional[str] = None) -> str:
         return "Notas"
     if "lista" in d or "reuniao" in d:
         return "Listas"
-    if "frequência" in d or "frequencia" in d or "falt" in d:
+    if "frequência" in d or "frequencia" in d or "falt" in d or "ponto" in d or "folha" in d:
         return "Faltas"
     if "contato" in d or "contatos" in d:
         return "Contatos"
@@ -235,6 +235,56 @@ def _categoria_por_contexto(basename: str, caller: Optional[str] = None) -> str:
     if "geral" in d:
         return "Relatorios Gerais"
     return "Relatorios Gerais"
+
+
+def formatar_nome_arquivo(basename: str) -> str:
+    """Renomeia o arquivo incluindo a data atual no formato _DDMMAAAA antes da extensão.
+
+    Se o nome já terminar com esse padrão, retorna sem alteração::
+
+        formatar_nome_arquivo("Lista Atualizada.pdf")
+        # → "Lista Atualizada_11032026.pdf"
+    """
+    import re
+    from datetime import date
+    stem, ext = os.path.splitext(basename)
+    if re.search(r"_\d{8}$", stem):
+        return basename
+    sufixo = date.today().strftime("%d%m%Y")
+    return f"{stem}_{sufixo}{ext}"
+
+
+def get_docs_subpasta(categoria: str, ano: Optional[int] = None) -> str:
+    """Retorna o caminho completo da subpasta de destino no Google Drive.
+
+    Cria a árvore de diretórios se necessário::
+
+        path = get_docs_subpasta("Faltas")
+        # → G:\\Meu Drive\\Sistema Escolar - Documentos\\Documentos Secretaria 2026\\Faltas
+    """
+    pasta_ano = _ensure_docs_dirs(ano)
+    subpasta = os.path.join(pasta_ano, categoria)
+    os.makedirs(subpasta, exist_ok=True)
+    return subpasta
+
+
+def get_output_path(nome_base: str, extensao: str = ".pdf", categoria: Optional[str] = None) -> str:
+    """Retorna o caminho completo de saída no Google Drive com data _DDMMAAAA.
+
+    Uso::
+
+        path = get_output_path("Declaracoes 1ano", ".pdf", "Outros")
+        # → G:\\Meu Drive\\...\\Documentos Secretaria 2026\\Outros\\Declaracoes 1ano_11032026.pdf
+
+        path = get_output_path("Lista Funcionarios Administrativos", ".xlsx", "Listas")
+    """
+    if categoria is None:
+        categoria = _categoria_por_contexto(nome_base + extensao)
+    pasta = get_docs_subpasta(categoria)
+    from datetime import date
+    sufixo = date.today().strftime("%d%m%Y")
+    stem = nome_base.rstrip()
+    return os.path.join(pasta, f"{stem}_{sufixo}{extensao}")
 
 
 def _move_to_organized_folder(saved_path: str) -> str:
@@ -260,7 +310,8 @@ def _move_to_organized_folder(saved_path: str) -> str:
         categoria = _categoria_por_contexto(basename, caller)
         target_dir = os.path.join(pasta_ano, categoria)
         os.makedirs(target_dir, exist_ok=True)
-        target_path = os.path.join(target_dir, basename)
+        renamed = formatar_nome_arquivo(basename)
+        target_path = os.path.join(target_dir, renamed)
 
         try:
             shutil.move(saved_path, target_path)

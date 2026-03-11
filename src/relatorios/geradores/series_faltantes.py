@@ -38,7 +38,6 @@ def gerar_relatorio_series_faltantes():
 
     try:
         # Criar diretório se não existir
-        criar_diretorio_com_permissao('documentos_gerados')
 
         cursor = conn.cursor(dictionary=True)
         
@@ -131,7 +130,8 @@ def gerar_relatorio_series_faltantes():
 
         # Criar o documento PDF com nome único
         timestamp = int(time.time())
-        nome_arquivo = os.path.join('documentos_gerados', f"relatorio_series_faltantes_{timestamp}.pdf")
+        from src.services.utils.pdf import get_output_path
+        nome_arquivo = get_output_path("Relatorio Series Faltantes", ".pdf", "Relatorios Gerais")
         logger.info(f"Gerando PDF: {nome_arquivo}")
         
         doc = SimpleDocTemplate(nome_arquivo, pagesize=A4)

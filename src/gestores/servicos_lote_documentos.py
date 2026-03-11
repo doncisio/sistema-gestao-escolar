@@ -176,9 +176,9 @@ def gerar_declaracoes_1ano_combinadas(output_filename=None, ano_letivo=2025):
         logger.info("Nenhum aluno do 1º ano ativo encontrado para gerar declarações combinadas")
         return None
 
-    os.makedirs('documentos_gerados', exist_ok=True)
     if output_filename is None:
-        output_filename = f"documentos_gerados/Declaracoes_1ano_{ano_letivo}.pdf"
+        from src.services.utils.pdf import get_output_path
+        output_filename = get_output_path("Declaracoes 1ano", ".pdf", "Outros")
 
     doc = SimpleDocTemplate(output_filename, pagesize=letter, leftMargin=85, rightMargin=56, topMargin=60, bottomMargin=56)
     elements = []
@@ -379,9 +379,9 @@ def gerar_declaracoes_2ano_combinadas(output_filename=None, ano_letivo=2025):
         logger.info("Nenhum aluno do 2º ano ativo encontrado para gerar declarações combinadas")
         return None
 
-    os.makedirs('documentos_gerados', exist_ok=True)
     if output_filename is None:
-        output_filename = f"documentos_gerados/Declaracoes_2ano_{ano_letivo}.pdf"
+        from src.services.utils.pdf import get_output_path
+        output_filename = get_output_path("Declaracoes 2ano", ".pdf", "Outros")
 
     doc = SimpleDocTemplate(output_filename, pagesize=letter, leftMargin=85, rightMargin=56, topMargin=60, bottomMargin=56)
     elements = []
@@ -544,9 +544,9 @@ def gerar_declaracoes_3ano_combinadas(output_filename=None, ano_letivo=2025):
         logger.info("Nenhum aluno do 3º ano ativo encontrado")
         return None
 
-    os.makedirs('documentos_gerados', exist_ok=True)
     if output_filename is None:
-        output_filename = f"documentos_gerados/Declaracoes_3ano_{ano_letivo}.pdf"
+        from src.services.utils.pdf import get_output_path
+        output_filename = get_output_path("Declaracoes 3ano", ".pdf", "Outros")
 
     doc = SimpleDocTemplate(output_filename, pagesize=letter, leftMargin=85, rightMargin=56, topMargin=60, bottomMargin=56)
     elements = []
@@ -676,8 +676,9 @@ def gerar_declaracoes_7ano_combinadas(output_filename=None, ano_letivo=2025):
         logger.info("Nenhum aluno do 7º ano ativo")
         return None
 
-    os.makedirs('documentos_gerados', exist_ok=True)
-    output_filename = output_filename or f"documentos_gerados/Declaracoes_7ano_{ano_letivo}.pdf"
+    if not output_filename:
+        from src.services.utils.pdf import get_output_path
+        output_filename = get_output_path("Declaracoes 7ano", ".pdf", "Outros")
     doc = SimpleDocTemplate(output_filename, pagesize=letter, leftMargin=85, rightMargin=56, topMargin=60, bottomMargin=56)
     elements = []
     styles = getSampleStyleSheet()
@@ -796,8 +797,9 @@ def gerar_declaracoes_8ano_combinadas(output_filename=None, ano_letivo=2025):
         logger.info("Nenhum aluno do 8º ano ativo")
         return None
 
-    os.makedirs('documentos_gerados', exist_ok=True)
-    output_filename = output_filename or f"documentos_gerados/Declaracoes_8ano_{ano_letivo}.pdf"
+    if not output_filename:
+        from src.services.utils.pdf import get_output_path
+        output_filename = get_output_path("Declaracoes 8ano", ".pdf", "Outros")
     doc = SimpleDocTemplate(output_filename, pagesize=letter, leftMargin=85, rightMargin=56, topMargin=60, bottomMargin=56)
     elements = []
     data_documento = obter_data_impressao()
@@ -960,9 +962,9 @@ def gerar_declaracoes_9ano_combinadas(output_filename=None, ano_letivo=2025):
         return None
 
     # Preparar documento
-    os.makedirs('documentos_gerados', exist_ok=True)
     if output_filename is None:
-        output_filename = f"documentos_gerados/Declaracoes_9ano_{ano_letivo}.pdf"
+        from src.services.utils.pdf import get_output_path
+        output_filename = get_output_path("Declaracoes 9ano", ".pdf", "Outros")
 
     # Diminuir topMargin para subir o cabeçalho na página
     doc = SimpleDocTemplate(output_filename, pagesize=letter, leftMargin=85, rightMargin=56, topMargin=60, bottomMargin=56)
@@ -1199,9 +1201,9 @@ def gerar_declaracoes_5ano_combinadas(output_filename=None, ano_letivo=2025):
         return None
 
     # Preparar documento
-    os.makedirs('documentos_gerados', exist_ok=True)
     if output_filename is None:
-        output_filename = f"documentos_gerados/Declaracoes_5ano_{ano_letivo}.pdf"
+        from src.services.utils.pdf import get_output_path
+        output_filename = get_output_path("Declaracoes 5ano", ".pdf", "Outros")
 
     doc = SimpleDocTemplate(output_filename, pagesize=letter, leftMargin=85, rightMargin=56, topMargin=60, bottomMargin=56)
     elements = []
@@ -1417,9 +1419,9 @@ def gerar_declaracoes_4ano_combinadas(output_filename=None, ano_letivo=2025):
         return None
 
     # Preparar documento
-    os.makedirs('documentos_gerados', exist_ok=True)
     if output_filename is None:
-        output_filename = f"documentos_gerados/Declaracoes_4ano_{ano_letivo}.pdf"
+        from src.services.utils.pdf import get_output_path
+        output_filename = get_output_path("Declaracoes 4ano", ".pdf", "Outros")
 
     doc = SimpleDocTemplate(output_filename, pagesize=letter, leftMargin=85, rightMargin=56, topMargin=60, bottomMargin=56)
     elements = []
@@ -1635,9 +1637,9 @@ def gerar_declaracoes_6ano_combinadas(output_filename=None, ano_letivo=2025):
         return None
 
     # Preparar documento
-    os.makedirs('documentos_gerados', exist_ok=True)
     if output_filename is None:
-        output_filename = f"documentos_gerados/Declaracoes_6ano_{ano_letivo}.pdf"
+        from src.services.utils.pdf import get_output_path
+        output_filename = get_output_path("Declaracoes 6ano", ".pdf", "Outros")
 
     doc = SimpleDocTemplate(output_filename, pagesize=letter, leftMargin=85, rightMargin=56, topMargin=60, bottomMargin=56)
     elements = []
@@ -1847,9 +1849,9 @@ def gerar_certificados_9ano_combinados(output_filename=None, ano_letivo=2025):
         logger.info("Nenhum aluno do 9º ano ativo encontrado para gerar certificados combinados")
         return None
 
-    os.makedirs('documentos_gerados', exist_ok=True)
     if output_filename is None:
-        output_filename = f"documentos_gerados/Certificados_9ano_{ano_letivo}.pdf"
+        from src.services.utils.pdf import get_output_path
+        output_filename = get_output_path("Certificados 9ano", ".pdf", "Outros")
     
     # Importar função centralizada para renderizar certificados
     try:

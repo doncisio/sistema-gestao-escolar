@@ -462,12 +462,10 @@ class FolhaPontoGenerator:
         
         # Definir caminho de saída
         if output_path is None:
-            # Criar diretório de saída se não existir
-            output_dir = "Modelos"
-            os.makedirs(output_dir, exist_ok=True)
-            
-            # Nome do arquivo
-            nome_arquivo = f"folha_ponto_{funcionario['nome'].replace(' ', '_')}_{mes:02d}_{ano}.pdf"
+            from src.services.utils.pdf import get_docs_subpasta, formatar_nome_arquivo
+            output_dir = get_docs_subpasta("Faltas")
+            nome_base = f"Folha de Ponto_{funcionario['nome'].replace(' ', '_')}"
+            nome_arquivo = formatar_nome_arquivo(f"{nome_base}.pdf")
             output_path = os.path.join(output_dir, nome_arquivo)
         
         try:
@@ -546,6 +544,57 @@ class FolhaPontoGenerator:
         except Exception as e:
             logger.exception(f"Erro ao gerar folha de ponto: {e}")
             return None
+
+    def _gerar_folha_em_branco_bytes(self, mes, ano):
+        """Gera uma folha de ponto em branco (sem dados de funcionário) como bytes PDF."""
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=self.pagesize,
+            leftMargin=self.margin,
+            rightMargin=self.margin,
+            topMargin=6*cm,
+            bottomMargin=2.5*cm
+        )
+
+        story = [Spacer(1, 0.3*cm)]
+
+        funcionario_branco = {
+            'nome': None,
+            'matricula': None,
+            'data_admissao_formatada': None,
+            'cargo': None,
+            'carga_horaria': None,
+            'escola_nome': None,
+            'telefone': None,
+            'email': None,
+        }
+        story.extend(self._criar_secao_dados_funcionario(funcionario_branco))
+        story.append(self._criar_tabela_ponto(mes, ano))
+
+        start_day = 1
+        end_day = calendar.monthrange(ano, mes)[1]
+        periodo_text = f"{start_day:02d} à {end_day:02d}/{mes:02d}/{ano}"
+        info_lines = [
+            ("Prefeitura de Paço do Lumiar", True),
+            ("06.003.636/0001-73", False),
+            ("Centro Administrativo - Avenida 13, S/N - Maiobão - Paço do Lumiar", False),
+            ("Secretaria Municipal de Educação", True),
+            ("19.931.246/0001-05", False),
+            ("Avenida 09, 15, quadra 76 - Maiobão -Paço do Lumiar", False),
+        ]
+
+        def _pagina(canvas_obj, doc_obj):
+            canvas_obj.saveState()
+            self._desenhar_borda(canvas_obj)
+            y_cabecalho = self.height - 1*cm
+            self._desenhar_cabecalho(canvas_obj, y_cabecalho, "Folha de Ponto", periodo_text, info_lines)
+            self._adicionar_rodape(canvas_obj, 4.5*cm)
+            canvas_obj.restoreState()
+
+        doc.build(story, onFirstPage=_pagina, onLaterPages=_pagina)
+        buffer.seek(0)
+        return buffer.getvalue()
 
 
 def gerar_folha_ponto_funcionario(funcionario_id, mes=None, ano=None, output_path=None, header_font_size: int = None):
@@ -711,12 +760,16 @@ def gerar_folhas_para_escola(escola_id, mes=None, ano=None, output_path=None, he
 
     # caminho de saída padrão
     if output_path is None:
-        os.makedirs('Modelos', exist_ok=True)
-        nome_arquivo = f"Folhas_Escola_{escola_id}_{mes:02d}_{ano}.pdf"
-        output_path = os.path.join('Modelos', nome_arquivo)
+        from src.services.utils.pdf import get_docs_subpasta, formatar_nome_arquivo
+        output_dir = get_docs_subpasta("Faltas")
+        nome_base = f"Folhas de Ponto_Escola_{escola_id}"
+        nome_arquivo = formatar_nome_arquivo(f"{nome_base}.pdf")
+        output_path = os.path.join(output_dir, nome_arquivo)
 
-    # Caminho temporário para as folhas de ponto
-    temp_folhas_path = output_path.replace('.pdf', '_temp.pdf')
+    # Caminho temporário para as folhas de ponto (usa diretório temp do SO)
+    import tempfile
+    _tmp_fd, temp_folhas_path = tempfile.mkstemp(suffix="_temp.pdf", prefix="folhas_ponto_")
+    os.close(_tmp_fd)
 
     try:
         # 1. Gerar as folhas de ponto dos funcionários
@@ -793,18 +846,11 @@ def gerar_folhas_para_escola(escola_id, mes=None, ano=None, output_path=None, he
         for page in folhas_reader.pages:
             writer.add_page(page)
         
-        # Adicionar modelo de folha de ponto em branco (2 vezes)
-        modelo_path = os.path.join(os.getcwd(), "Modelos", "folha de ponto.pdf")
-        if os.path.isfile(modelo_path):
-            modelo_reader = PdfReader(modelo_path)
-            # Primeira cópia
-            for page in modelo_reader.pages:
-                writer.add_page(page)
-            # Segunda cópia
-            for page in modelo_reader.pages:
-                writer.add_page(page)
-        else:
-            logger.warning(f"Modelo de folha de ponto não encontrado em: {modelo_path}")
+        # Adicionar folha de ponto em branco ao final (para novos funcionários)
+        branco_bytes = gerador._gerar_folha_em_branco_bytes(mes, ano)
+        branco_reader = PdfReader(io.BytesIO(branco_bytes))
+        for page in branco_reader.pages:
+            writer.add_page(page)
         
         # Salvar o PDF final
         with open(output_path, 'wb') as output_file:

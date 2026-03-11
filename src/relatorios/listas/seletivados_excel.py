@@ -193,11 +193,8 @@ def gerar_excel_seletivados(
 
         # ── Salvar ──────────────────────────────────────────────────
         if not caminho_saida:
-            dir_documentos = os.path.join(os.getcwd(), "documentos_gerados")
-            os.makedirs(dir_documentos, exist_ok=True)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            nome_arquivo = f"profissionais_seletivados_{timestamp}.xlsx"
-            caminho_saida = os.path.join(dir_documentos, nome_arquivo)
+            from src.services.utils.pdf import get_output_path
+            caminho_saida = get_output_path("Lista Profissionais Seletivados", ".xlsx", "Listas")
 
         wb.save(caminho_saida)
         logger.info(f"Arquivo Excel de seletivados gerado: {caminho_saida}")
