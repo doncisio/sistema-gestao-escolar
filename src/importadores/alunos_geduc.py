@@ -48,6 +48,7 @@ import mysql.connector
 
 from db.connection import conectar_bd
 from src.core.config_logs import get_logger
+from src.utils.transtornos import montar_transtorno_geduc
 
 logger = get_logger(__name__)
 
@@ -325,7 +326,7 @@ def comparar_divergencias_geduc_local(dados_json: Dict, escola_id: int = 60) -> 
                 'cpf':                _formatar_cpf(aluno.get('cpf', '')),
                 'raca':               MAPA_RACA_ENUM.get(aluno.get('raca', 'Não declarada'), 'pardo'),
                 'local_nascimento':   _normalizar_municipio(aluno.get('local_nascimento')),
-                'descricao_transtorno': aluno.get('descricao_transtorno', 'Nenhum'),
+                'descricao_transtorno': montar_transtorno_geduc(aluno),
             }
 
             diffs = []
@@ -363,7 +364,7 @@ def comparar_divergencias_geduc_local(dados_json: Dict, escola_id: int = 60) -> 
                     'municipio_res':     aluno.get('municipio_res', ''),
                     'uf_res':            aluno.get('uf_res', ''),
                     'cep':               aluno.get('cep', ''),
-                    'descricao_transtorno': aluno.get('descricao_transtorno', 'Nenhum'),
+'descricao_transtorno': montar_transtorno_geduc(aluno),
                 })
 
     return divergencias
@@ -653,7 +654,7 @@ def comparar_geduc_local(dados_json: Dict, escola_id: int = 60) -> List[Dict]:
                 'cid':               aluno.get('cid', ''),
                 'tgd':               aluno.get('tgd', '0'),
                 'althab':            aluno.get('althab', '0'),
-                'descricao_transtorno': aluno.get('descricao_transtorno', 'Nenhum'),
+                'descricao_transtorno': montar_transtorno_geduc(aluno),
                 'inep_escola':       aluno.get('inep_escola', ''),
                 'turma_geduc_id':    turma_id_geduc,
                 'turma_geduc_nome':  turma_nome_geduc,
