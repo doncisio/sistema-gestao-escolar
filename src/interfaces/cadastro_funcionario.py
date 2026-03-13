@@ -17,7 +17,7 @@ from db.connection import get_cursor
 from tkcalendar import DateEntry
 from typing import Any, cast
 from src.utils.dates import aplicar_mascara_data
-from src.utils.formatador_cpf import aplicar_formatacao_cpf, obter_cpf_formatado
+from src.utils.formatador_cpf import aplicar_formatacao_cpf, obter_cpf_formatado, normalizar_matricula
 
 # Constante útil para `sticky` em grids (N, S, E, W concatenados)
 NSEW = N + E + S + W
@@ -921,8 +921,11 @@ class InterfaceCadastroFuncionario:
             # Coletar os dados do formulário
             nome = self.e_nome.get()
             matricula = self.e_matricula.get()
+            # Normalizar matrícula para o formato XXXXX-X (último dígito após hífen)
+            if matricula:
+                matricula = normalizar_matricula(matricula)
             # Se a matrícula estiver vazia, definir como None (NULL no banco de dados)
-            if matricula == "":
+            if not matricula:
                 matricula = None
                 
             # Converter datas de DD/MM/AAAA para YYYY-MM-DD

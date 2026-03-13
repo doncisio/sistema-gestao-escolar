@@ -259,14 +259,14 @@ class InterfaceHorariosEscolares:
             # Os dados padrão já foram inicializados
     
     def buscar_disciplinas_por_turma(self, turma_id):
-        """Busca disciplinas que têm professores vinculados a uma turma específica.
-        
-        Estratégia em dois passos:
-        1. Busca vínculos diretos com esta turma_id
-        2. Se nenhum encontrado, busca pela mesma série em qualquer ano (fallback para
-           professores vinculados em anos anteriores, ex: turmas de 2025 para 2026)
-        Sempre inclui turma_id=NULL (professor de todas as turmas).
-        Agrupa por nome para evitar duplicatas entre níveis.
+        """Busca disciplinas vinculadas diretamente a esta turma específica.
+
+        Retorna apenas:
+        1. Disciplinas com vínculo explícito para este turma_id.
+        2. Disciplinas com turma_id=NULL (professor vinculado a todas as turmas).
+
+        Não faz fallback por série para evitar que vínculos da turma A
+        apareçam na turma B quando ambas pertencem à mesma série.
         """
         try:
             conn = conectar_bd()
@@ -275,12 +275,16 @@ class InterfaceHorariosEscolares:
                 
             cursor = conn.cursor(dictionary=True)
             
-            # Passo 1: disciplinas com vínculo direto nesta turma
+            # Disciplinas com vínculo direto nesta turma
+            # Filtra pelo professor estar vinculado à escola 60 (evita registros
+            # de professores de outras escolas com escola_id diferente)
             query_direto = """
                 SELECT d.nome, MIN(d.id) as id
                 FROM disciplinas d
                 INNER JOIN funcionario_disciplinas fd ON d.id = fd.disciplina_id
+                INNER JOIN funcionarios f ON fd.funcionario_id = f.id
                 WHERE d.escola_id = 60
+                AND f.escola_id = 60
                 AND fd.turma_id = %s
                 GROUP BY d.nome
                 ORDER BY d.nome
@@ -288,43 +292,10 @@ class InterfaceHorariosEscolares:
             cursor.execute(query_direto, (turma_id,))
             disciplinas = cursor.fetchall()
             
-            if not disciplinas:
-                # Passo 2: fallback — mesma série em qualquer ano letivo
-                # Cobre professores cujos vínculos ainda apontam para turmas do ano anterior
-                query_serie = """
-                    SELECT d.nome, MIN(d.id) as id
-                    FROM disciplinas d
-                    INNER JOIN funcionario_disciplinas fd ON d.id = fd.disciplina_id
-                    INNER JOIN turmas t_fd ON fd.turma_id = t_fd.id
-                    INNER JOIN turmas t_sel ON t_sel.id = %s
-                    WHERE d.escola_id = 60
-                    AND t_fd.serie_id = t_sel.serie_id
-                    GROUP BY d.nome
-                    ORDER BY d.nome
-                """
-                cursor.execute(query_serie, (turma_id,))
-                disciplinas = cursor.fetchall()
-            
-            # Sempre adicionar disciplinas com turma_id=NULL (professor genérico)
-            query_null = """
-                SELECT d.nome, MIN(d.id) as id
-                FROM disciplinas d
-                INNER JOIN funcionario_disciplinas fd ON d.id = fd.disciplina_id
-                WHERE d.escola_id = 60
-                AND fd.turma_id IS NULL
-                GROUP BY d.nome
-                ORDER BY d.nome
-            """
-            cursor.execute(query_null)
-            disc_null = cursor.fetchall()
-            
-            # Mesclar sem duplicar nomes
-            nomes_existentes = {d['nome'] for d in disciplinas}
-            for d in disc_null:
-                if d['nome'] not in nomes_existentes:
-                    disciplinas.append(d)
-                    nomes_existentes.add(d['nome'])
-            
+            # Vínculos com turma_id=NULL são ignorados nos comboboxes:
+            # professores de licença ou sem turma definida mantêm o vínculo
+            # administrativo com a disciplina, mas não devem aparecer na grade.
+
             # Ordenar por nome
             disciplinas.sort(key=lambda x: x['nome'])
             

@@ -115,3 +115,25 @@ def obter_cpf_formatado(texto_cpf):
         return ""
     
     return f"{apenas_numeros[:3]}.{apenas_numeros[3:6]}.{apenas_numeros[6:9]}-{apenas_numeros[9:]}"
+
+
+def normalizar_matricula(matricula: str) -> str:
+    """
+    Normaliza a matrícula do funcionário para o formato XXXXX-X,
+    garantindo que o último dígito fique separado por hífen.
+
+    Exemplos:
+        '1167982'   → '116798-2'
+        '116798-2'  → '116798-2'  (já correto)
+        '67003879-4'→ '67003879-4' (já correto)
+    """
+    if not matricula:
+        return matricula
+    m = matricula.strip()
+    if not m:
+        return m
+    # Remove hífens existentes e redistribui corretamente
+    digits = m.replace('-', '')
+    if len(digits) < 2:
+        return m
+    return digits[:-1] + '-' + digits[-1]
