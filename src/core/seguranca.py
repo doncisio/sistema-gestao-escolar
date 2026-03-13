@@ -64,12 +64,16 @@ def fazer_backup():
             return False
 
         # Comando para fazer o backup usando mysqldump
+        # --single-transaction: garante snapshot consistente para tabelas InnoDB
+        # --skip-lock-tables: necessário em conjunto com --single-transaction
         comando_backup = [
             "mysqldump",
             f"--user={usuario}",
             f"--password={senha}",
             f"--host={host}",
             "--default-character-set=utf8mb4",
+            "--single-transaction",
+            "--skip-lock-tables",
             "--result-file=" + caminho_backup_local,
             database
         ]
@@ -157,16 +161,18 @@ def restaurar_backup():
             logger.error("Erro: Credenciais incompletas no arquivo .env.")
             return False
 
-        # Comando para restaurar o backup usando mysql
-        # Adicionando init-command para contornar o erro de privilégio SUPER
+        # Comando para restaurar o backup usando mysql.
+        # --force: continua a execução mesmo após erros não-críticos (ex: falha
+        #          na criação de TRIGGER/DEFINER), garantindo que todos os INSERTs
+        #          de dados sejam executados mesmo quando triggers não podem ser
+        #          recriados por falta de privilégio SUPER.
         comando_restauracao = [
             "mysql",
             f"--user={usuario}",
             f"--password={senha}",
             f"--host={host}",
             "--default-character-set=utf8mb4",
-            "--init-command=SET SESSION sql_log_bin=0;",
-            "--init-command=SET GLOBAL log_bin_trust_function_creators=1;",
+            "--force",
             database
         ]
 
@@ -174,53 +180,50 @@ def restaurar_backup():
         try:
             with open(caminho_backup, "r", encoding="utf-8") as arquivo_backup:
                 resultado = subprocess.run(
-                    comando_restauracao, 
+                    comando_restauracao,
                     stdin=arquivo_backup,
-                    capture_output=True, 
-                    text=True, 
+                    capture_output=True,
+                    text=True,
                     encoding='utf-8',
                     errors='replace'
                 )
-                
-                # Verificar se houve erros
-                if resultado.returncode != 0:
-                    stderr = resultado.stderr
-                    # Ignorar apenas o aviso de senha na linha de comando
-                    if "Using a password on the command line" in stderr:
-                        logger.warning("Aviso: Senha passou pela linha de comando (considere usar arquivo de configuração)")
-                    # Se houver erro 1419, tentar com comando alternativo
-                    elif "ERROR 1419" in stderr or "SUPER privilege" in stderr:
-                        logger.warning("Erro de privilégio SUPER detectado. Tentando método alternativo...")
-                        # Tentar sem as flags problemáticas
-                        comando_alternativo = [
-                            "mysql",
-                            f"--user={usuario}",
-                            f"--password={senha}",
-                            f"--host={host}",
-                            "--default-character-set=utf8mb4",
-                            database
-                        ]
-                        with open(caminho_backup, "r", encoding="utf-8") as arquivo_backup:
-                            resultado_alt = subprocess.run(
-                                comando_alternativo,
-                                stdin=arquivo_backup,
-                                capture_output=True,
-                                text=True,
-                                encoding='utf-8',
-                                errors='replace'
-                            )
-                            if resultado_alt.returncode != 0 and "ERROR 1419" in resultado_alt.stderr:
-                                logger.error("Erro persistente. O backup contém procedures/functions que requerem privilégios SUPER.")
-                                logger.info("Solução: Execute como administrador MySQL ou desabilite binary logging.")
-                                return False
-                    else:
-                        logger.error(f"Erro ao restaurar backup: {stderr}")
-                        return False
         except Exception as e:
-            logger.error(f"Erro ao abrir arquivo de backup: {e}")
+            logger.error("Erro ao abrir arquivo de backup: %s", e)
             return False
 
-        logger.info("Restauração realizada com sucesso a partir do arquivo: %s", caminho_backup)
+        stderr = resultado.stderr or ""
+
+        # Extrair linhas de erro reais (ignorar aviso de senha da linha de comando)
+        import re as _re
+        linhas_erro = [
+            l for l in stderr.splitlines()
+            if _re.search(r'ERROR\s+\d+', l)
+            and "Using a password on the command line" not in l
+        ]
+
+        if resultado.returncode != 0 or linhas_erro:
+            # Erros de DEFINER/TRIGGER (1218, 1227, 1418, 1419) são não-críticos:
+            # os dados são inseridos mesmo assim; apenas o trigger fica ausente.
+            codigos_nao_criticos = {'1227', '1418', '1419'}
+            erros_criticos = [
+                l for l in linhas_erro
+                if not any(f'ERROR {c}' in l for c in codigos_nao_criticos)
+            ]
+
+            if erros_criticos:
+                for linha in erros_criticos:
+                    logger.error("Erro crítico na restauração: %s", linha)
+                return False
+
+            if linhas_erro:
+                logger.warning(
+                    "⚠ Restauração concluída com avisos de privilégio DEFINER/TRIGGER "
+                    "(dados restaurados, triggers podem estar ausentes): %s",
+                    "; ".join(linhas_erro)
+                )
+        else:
+            logger.info("✓ Restauração realizada com sucesso a partir do arquivo: %s", caminho_backup)
+
         return True
 
     except subprocess.CalledProcessError as e:

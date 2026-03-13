@@ -255,12 +255,35 @@ class ButtonFactory:
     
     def _restaurar_backup(self):
         """Callback para o botão de restaurar."""
+        if not messagebox.askyesno(
+            "Restaurar Backup",
+            "Deseja restaurar o banco de dados a partir do backup?\n\n"
+            "Os dados atuais serão substituídos pelo conteúdo do backup."
+        ):
+            return
         try:
             from src.core import seguranca
-            seguranca.restaurar_backup()
+            ok = seguranca.restaurar_backup()
+            if ok:
+                messagebox.showinfo("Restauração", "Backup restaurado com sucesso!")
+                self._atualizar_dashboard_apos_restauracao()
+            else:
+                messagebox.showerror("Erro", "A restauração falhou. Verifique os logs.")
         except Exception as e:
             logger.exception(f"Erro ao restaurar backup: {e}")
             messagebox.showerror("Erro", f"Erro ao restaurar backup: {e}")
+
+    def _atualizar_dashboard_apos_restauracao(self):
+        """Atualiza o dashboard após restauração do backup, sem precisar reiniciar."""
+        try:
+            app = getattr(self.janela, '_app_instance', None)
+            if app and app.dashboard_manager:
+                self.janela.after(0, app.dashboard_manager.atualizar_dashboard)
+                logger.info("Dashboard atualizado após restauração do backup.")
+            else:
+                logger.warning("Dashboard manager não encontrado; dashboard não atualizado.")
+        except Exception as e:
+            logger.warning(f"Não foi possível atualizar o dashboard após restauração: {e}")
     
     def criar_menu_bar(self) -> Menu:
         """

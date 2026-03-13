@@ -1,27 +1,26 @@
 ================================================================================
-RELATÓRIO DE COMPARAÇÃO: SISTEMA LOCAL vs GEDUC
+RELATÓRIO DE COMPARAÇÃO: GEDUC (JSON) vs BANCO DE DADOS
 ================================================================================
+Data: 13/03/2026 07:49:42
+Total no GEDUC (JSON):        300
+Total no Banco de Dados:      303
+Alunos em ambos os sistemas:  300
+Apenas no GEDUC (sem cadastro no BD): 0
+Apenas no Banco de Dados (sem vínculo GEDUC): 3
+Nomes divergentes (mesmo CPF): 0
 
-Data: 10/03/2026 09:45:00
-Total de alunos no Sistema Local (matriculados 2026): 302
-Total de alunos no GEDUC: 299
-Alunos em ambos os sistemas: 299
-Apenas no Sistema Local: 3
-Apenas no GEDUC (novos): 0
+✓ Todos os alunos do GEDUC estão cadastrados no banco de dados.
 
 ================================================================================
-APENAS NO SISTEMA LOCAL (3)
+APENAS NO BANCO DE DADOS — não encontrados no GEDUC (3)
 ================================================================================
+  ⚠  Lara Cecilia Mendes de Almeida
+     ID: 2856  |  CPF: 08600541360  |  Nasc: 2016-06-08
+  ⚠  Maria Eduarda da Silva Bazola
+     ID: 2753  |  CPF: 07207233370  |  Nasc: 2013-04-28
+  ⚠  Mariah Claudia da Costa Marques
+     ID: 494  |  CPF: 62830127366  |  Nasc: 2017-02-05
 
-⚠️  Lara Cecilia Mendes de Almeida
-   ID: 2856
-   CPF: 086.005.413-60
-
-⚠️  Maria Eduarda da Silva Bazola
-   ID: 2753
-   CPF: 072.072.333-70
-
-⚠️  Mariah Claudia da Costa Marques
-   ID: 494
-   CPF: 628.301.273-66
-
+================================================================================
+FIM DO RELATÓRIO
+================================================================================
