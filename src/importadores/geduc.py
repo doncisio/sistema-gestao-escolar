@@ -40,7 +40,21 @@ class AutomacaoGEDUC:
     """
     Classe para automatizar extração de notas do GEDUC
     """
-    
+
+    # Mapeamento: número da série → IDCURSOORI no GEduc
+    # Fonte: opções do select#IDCURSOORI extraídas do DeclaracaoForm
+    _GEDUC_SERIE_IDS: dict = {
+        '1': '4',   # 1º ANO
+        '2': '7',   # 2º ANO
+        '3': '8',   # 3º ANO
+        '4': '10',  # 4º ANO
+        '5': '12',  # 5º ANO
+        '6': '13',  # 6º ANO
+        '7': '14',  # 7º ANO
+        '8': '15',  # 8º ANO
+        '9': '16',  # 9º ANO
+    }
+
     def __init__(self, headless=False):
         """
         Inicializa o navegador
@@ -175,12 +189,10 @@ class AutomacaoGEDUC:
     
     def fazer_login(self, usuario, senha, timeout_recaptcha=60):
         """
-        Faz login no sistema GEDUC
-        IMPORTANTE: Aguarda resolução manual do reCAPTCHA
-        
-        timeout_recaptcha: Tempo máximo (segundos) para aguardar resolução do reCAPTCHA
+        Faz login no sistema GEDUC.
+        Preenche credenciais e clica no botão de login automaticamente.
+        Se o reCAPTCHA bloquear, aguarda resolução manual e clica novamente.
         """
-        # Garantir que o navegador foi iniciado antes de usar o driver
         if self.driver is None:
             logger.error("✗ Erro: navegador não iniciado. Chame iniciar_navegador() antes de fazer login.")
             return False
@@ -188,62 +200,104 @@ class AutomacaoGEDUC:
         try:
             logger.info("→ Acessando página de login...")
             self.driver.get(f"{self.url_base}/index.php?class=LoginForm")
-            
-            # Aguardar carregamento da página
+
             wait = WebDriverWait(self.driver, 15)
-            
-            # Aguardar campo de usuário estar presente
             campo_usuario = wait.until(
                 EC.presence_of_element_located((By.NAME, "login"))
             )
-            
-            # Preencher usuário
+
             campo_usuario.clear()
             campo_usuario.send_keys(usuario)
             logger.info("  ✓ Usuário preenchido: %s", usuario)
-            
-            # Preencher senha
+
             campo_senha = self.driver.find_element(By.NAME, "password")
             campo_senha.clear()
             campo_senha.send_keys(senha)
             logger.info("  ✓ Senha preenchida")
-            
-            # Verificar se há reCAPTCHA na página
+
+            # ── Clicar no botão de login automaticamente ──────────────────
+            def _clicar_botao_login():
+                """Tenta clicar no botão de submit do formulário de login."""
+                seletores = [
+                    (By.CSS_SELECTOR, "button[type='submit']"),
+                    (By.CSS_SELECTOR, "input[type='submit']"),
+                    (By.CSS_SELECTOR, "button.btn-primary"),
+                    (By.XPATH, "//button[contains(translate(text(),'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'ENTRAR') or contains(translate(text(),'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'LOGIN')]"),
+                    (By.XPATH, "//input[@type='submit']"),
+                    (By.CSS_SELECTOR, "form button"),
+                ]
+                for by, sel in seletores:
+                    try:
+                        btn = self.driver.find_element(by, sel)
+                        if btn.is_displayed() and btn.is_enabled():
+                            btn.click()
+                            return True
+                    except Exception:
+                        continue
+                # Fallback: submit via JS no primeiro formulário
+                try:
+                    self.driver.execute_script(
+                        "document.querySelector('form').submit();"
+                    )
+                    return True
+                except Exception:
+                    pass
+                return False
+
+            clicou = _clicar_botao_login()
+            if clicou:
+                logger.info("  ✓ Botão de login clicado automaticamente")
+            else:
+                logger.warning("  ⚠ Não foi possível clicar no botão de login automaticamente")
+
+            # ── Aguardar resultado: login ok ou reCAPTCHA pendente ────────
+            time.sleep(2)
+            if "LoginForm" not in self.driver.current_url:
+                logger.info("✓ Login realizado com sucesso!")
+                return True
+
+            # reCAPTCHA provavelmente apareceu — aguardar resolução manual
             logger.info("\n%s", "="*60)
-            logger.info("⚠️  ATENÇÃO: reCAPTCHA DETECTADO!")
-            logger.info("%s", "="*60)
-            logger.info("→ Por favor, resolva o reCAPTCHA manualmente no navegador")
-            logger.info("→ Marque a caixa 'Não sou um robô'")
-            logger.info("→ Você tem %s segundos para resolver", timeout_recaptcha)
-            logger.info("→ Após resolver o reCAPTCHA, clique no botão de LOGIN")
-            logger.info("→ Aguardando...")
+            logger.info("⚠️  reCAPTCHA detectado — resolva manualmente no navegador")
+            logger.info("→ Marque 'Não sou um robô' e, se necessário, complete o desafio")
+            logger.info("→ O sistema clicará em Login automaticamente após a resolução")
+            logger.info("→ Você tem %s segundos", timeout_recaptcha)
             logger.info("%s\n", "="*60)
-            
-            # Aguardar usuário resolver o reCAPTCHA e fazer login manualmente
-            # Monitora se a URL mudou (saiu da página de login)
-            url_login = self.driver.current_url
+
             tempo_inicio = time.time()
-            
             while True:
-                time.sleep(2)  # Verifica a cada 2 segundos
-                
-                # Verificar se saiu da página de login (login bem-sucedido)
+                time.sleep(1.5)
+
+                # Saiu da página de login → sucesso
                 if "LoginForm" not in self.driver.current_url:
                     logger.info("✓ Login realizado com sucesso!")
                     return True
-                
-                # Verificar timeout
+
+                # Verificar se o reCAPTCHA foi resolvido (token disponível)
+                try:
+                    token = self.driver.execute_script(
+                        "return (typeof grecaptcha !== 'undefined' && grecaptcha.getResponse) "
+                        "? grecaptcha.getResponse() : '';"
+                    )
+                    if token:
+                        logger.info("  ✓ reCAPTCHA resolvido — clicando em login...")
+                        _clicar_botao_login()
+                        time.sleep(2)
+                        if "LoginForm" not in self.driver.current_url:
+                            logger.info("✓ Login realizado com sucesso!")
+                            return True
+                except Exception:
+                    pass
+
                 tempo_decorrido = time.time() - tempo_inicio
                 if tempo_decorrido > timeout_recaptcha:
-                    logger.error("✗ Timeout de %s s expirado", timeout_recaptcha)
-                    logger.error("  O reCAPTCHA não foi resolvido a tempo")
+                    logger.error("✗ Timeout de %ds expirado sem login concluído", timeout_recaptcha)
                     return False
-                
-                # Mostrar progresso
+
                 tempo_restante = int(timeout_recaptcha - tempo_decorrido)
-                if tempo_restante % 10 == 0:  # Mostrar a cada 10 segundos
-                    logger.info("  ⏳ Aguardando... (%s s restantes)", tempo_restante)
-            
+                if tempo_restante % 10 == 0:
+                    logger.info("  ⏳ Aguardando reCAPTCHA... (%ds restantes)", tempo_restante)
+
         except TimeoutException:
             logger.error("✗ Timeout ao carregar página de login")
             return False
@@ -1685,7 +1739,527 @@ class AutomacaoGEDUC:
             logger.exception("✗ Erro ao listar turmas: %s", e)
             return []
 
-    
+    # =========================================================================
+    # GERAÇÃO DE DECLARAÇÕES NO GEDUC
+    # =========================================================================
+
+    def _obter_serie_id_geduc(self, nome_serie: str) -> Optional[str]:
+        """
+        Converte o nome da série local para o IDCURSOORI correspondente no GEduc.
+        Ex: '9º Ano' ou '9º ANO' → '16'
+        """
+        import re as _re
+        match = _re.search(r'(\d+)', nome_serie)
+        if match:
+            return self._GEDUC_SERIE_IDS.get(match.group(1))
+        return None
+
+    def _construir_texto_declaracao_html(
+        self,
+        nome_aluno: str,
+        sexo: str,
+        data_nasc_formatada: str,
+        naturalidade: str,
+        matricula: str,
+        responsaveis: list,
+        nome_escola: str,
+        municipio_escola: str,
+        nome_serie: str,
+        nivel_ensino: str,
+        turno: str,
+        tipo_declaracao: str,
+        motivo_outros: str = '',
+        ano_letivo: int = 2026,
+        data_documento: str = '',
+    ) -> str:
+        """
+        Constrói o HTML da declaração com texto correto para injetar no Summernote.
+
+        Corrige em relação ao texto padrão do GEduc:
+        - Concordância de gênero (nascido/nascida, filho/filha, matriculado/matriculada)
+        - Filiação com 0, 1 ou 2 responsáveis
+        - Bloco "Declaração para fins de:" com tipo (Bolsa Família, Trabalho, Outros)
+        - Assinatura como GESTOR(A) em vez do nome da gestora
+        - Data e município corretos
+        """
+        gen = 'a' if (sexo or 'M').upper() == 'F' else 'o'
+
+        # --- Filiação (dados em CAIXA ALTA, sem negrito) ---
+        resp1 = responsaveis[0][0] if len(responsaveis) > 0 and responsaveis[0] else None
+        resp2 = responsaveis[1][0] if len(responsaveis) > 1 and responsaveis[1] else None
+        _r1 = resp1.upper() if resp1 else None
+        _r2 = resp2.upper() if resp2 else None
+        if _r1 and _r2:
+            filiacao = f"filh{gen} de {_r1} e {_r2}"
+        elif _r1:
+            filiacao = f"filh{gen} de {_r1}"
+        elif _r2:
+            filiacao = f"filh{gen} de {_r2}"
+        else:
+            filiacao = f"filh{gen} de pais não cadastrados"
+
+        # --- Turno ---
+        turno_upper = (turno or '').upper()
+        if 'MAT' in turno_upper:
+            turno_texto = 'Matutino'
+        elif 'VES' in turno_upper or 'VESP' in turno_upper:
+            turno_texto = 'Vespertino'
+        else:
+            turno_texto = turno.capitalize() if turno else ''
+
+        # --- Tipo de declaração (caixa alta, sem negrito) ---
+        if tipo_declaracao == 'Outros' and motivo_outros:
+            tipo_texto = f'OUTROS: {motivo_outros.upper()}'
+        else:
+            tipo_texto = tipo_declaracao.upper()
+
+        # --- Complementos opcionais (caixa alta, sem negrito) ---
+        natural_bloco = (
+            f', natural de {naturalidade.upper()}'
+            if naturalidade else ''
+        )
+        matricula_bloco = (
+            f', com matrícula {matricula}'
+            if matricula else ''
+        )
+
+        # --- Data do documento ---
+        if not data_documento:
+            from src.utils.dates import formatar_data_extenso as _formatar_data
+            import datetime as _dt
+            data_documento = _formatar_data(_dt.datetime.now())
+
+        municipio_doc = municipio_escola if municipio_escola else 'PAÇO DO LUMIAR / MA'
+
+        # {QRCODE} é um token processado pelo servidor GEduc ao gerar o PDF.
+        # Deve ser mantido no final do HTML para o QR code de autenticação aparecer.
+        _s = 'font-family:Arial;font-size:12pt'
+        html = (
+            '<p><br></p>'
+            '<p style="font-family:Arial;font-size:18pt;text-align:center"><strong>DECLARAÇÃO</strong></p>'
+            '<p><br></p>'
+            '<p><br></p>'
+            f'<p style="{_s};text-align:justify">'
+            f'Declaro para os devidos fins de direito, que {nome_aluno.upper()}'
+            f'{matricula_bloco}, nascid{gen} no dia {data_nasc_formatada}'
+            f'{natural_bloco}, {filiacao}, está regularmente matriculad{gen} na '
+            f'{nome_escola.upper()}, cursando o {nome_serie.upper()} '
+            f'DO {nivel_ensino.upper()}, no ano letivo de {ano_letivo}, '
+            f'no turno {turno_texto}.'
+            '</p>'
+            f'<p style="{_s};text-align:justify">'
+            'Situação Acadêmica: Cursando'
+            '</p>'
+            '<p><br></p>'
+            f'<p style="{_s};text-align:justify">'
+            f'Declaração para fins de: {tipo_texto}'
+            '</p>'
+            f'<p style="{_s};text-align:justify">'
+            'Por ser a expressão da verdade, dato e assino a presente declaração, '
+            'para que surta os devidos efeitos legais.'
+            '</p>'
+            '<p><br></p>'
+            f'<p style="{_s};text-align:right">{municipio_doc}, {data_documento}</p>'
+            '<p><br></p>'
+            f'<p style="{_s};text-align:center">___________________________________</p>'
+            f'<p style="{_s};text-align:center">GESTOR(A)</p>'
+            '<p><br></p>'
+            '<p><br></p>'
+            '<p>{QRCODE}</p>'
+        )
+        return html
+
+    def gerar_declaracao(
+        self,
+        aluno_id: int,
+        tipo_declaracao: str = 'Bolsa Família',
+        motivo_outros: str = '',
+    ) -> bool:
+        """
+        Gera uma declaração autenticada no GEduc para o aluno especificado.
+
+        Fluxo:
+          1. Consulta dados do aluno no BD local (nome, sexo, série, turma, responsáveis)
+          2. Navega para DeclaracaoForm no GEduc
+          3. Seleciona série → turma → aluno → modelo "Declaração Escolar"
+          4. Clica "Carregar Dados" para obter o texto padrão do GEduc
+          5. Extrai matrícula e naturalidade do texto carregado
+          6. Substitui o conteúdo do editor Summernote com texto corrigido
+          7. Clica "Gerar Declaração" para obter o PDF autenticado com QR code
+
+        Args:
+            aluno_id:        ID do aluno no banco local
+            tipo_declaracao: 'Bolsa Família' | 'Trabalho' | 'Outros'
+                             (Transferência não é suportada via este fluxo)
+            motivo_outros:   Descrição do motivo quando tipo_declaracao='Outros'
+
+        Returns:
+            True se a declaração foi enviada ao GEduc com sucesso
+        """
+        if self.driver is None:
+            logger.error(
+                "✗ Navegador não iniciado. Chame iniciar_navegador() e fazer_login() primeiro."
+            )
+            return False
+
+        import re as _re
+        import json as _json
+        import datetime as _dt
+        import pandas as _pd
+        from src.core.conexao import conectar_bd
+        from src.core.config import ANO_LETIVO_ATUAL
+        from src.relatorios.declaracao_aluno import (
+            obter_dados_escola,
+            obter_dados_aluno,
+            obter_responsaveis,
+        )
+        from src.utils.dates import formatar_data_extenso as formatar_data
+
+        # ── 1. Buscar dados do aluno no BD local ──────────────────────────
+        logger.info("→ Consultando dados do aluno #%s no banco local...", aluno_id)
+        conn = conectar_bd()
+        if conn is None:
+            logger.error("✗ Não foi possível conectar ao banco de dados.")
+            return False
+        cursor = conn.cursor()
+        try:
+            dados_escola = obter_dados_escola(cursor, 60)
+            dados_aluno = obter_dados_aluno(cursor, aluno_id)
+            responsaveis = obter_responsaveis(cursor, aluno_id)
+        finally:
+            cursor.close()
+            conn.close()
+
+        if not dados_aluno:
+            logger.error("✗ Aluno #%s não encontrado no banco.", aluno_id)
+            return False
+
+        nome_aluno, nascimento, sexo, nome_serie, nome_turma, turno, nivel_ensino = dados_aluno
+        nome_escola = dados_escola[1] if dados_escola else "ESCOLA"
+        municipio_escola = dados_escola[5] if dados_escola else "PAÇO DO LUMIAR / MA"
+
+        data_nasc_formatada = (
+            _pd.to_datetime(nascimento).strftime("%d/%m/%Y")
+            if nascimento and _pd.notnull(nascimento) else ""
+        )
+        serie_turma_str = f"{nome_serie} {nome_turma}".strip() if nome_serie else ""
+        nivel_str = nivel_ensino or "ENSINO FUNDAMENTAL"
+
+        logger.info(
+            "  ✓ Aluno: %s | Série: %s | Turma: %s | Sexo: %s",
+            nome_aluno, nome_serie, nome_turma, sexo
+        )
+
+        # ── 2. Navegar para DeclaracaoForm ────────────────────────────────
+        logger.info("→ Acessando formulário de declaração no GEduc...")
+        assert self.driver is not None
+        self.driver.get(f"{self.url_base}/index.php?class=DeclaracaoForm")
+        wait = WebDriverWait(self.driver, 20)
+        try:
+            wait.until(EC.presence_of_element_located((By.NAME, "IDCURSOORI")))
+        except TimeoutException:
+            logger.error("✗ Formulário DeclaracaoForm não carregou.")
+            return False
+        time.sleep(1)
+
+        # ── 3a. Selecionar Série ──────────────────────────────────────────
+        id_geduc_serie = self._obter_serie_id_geduc(nome_serie or "")
+        if not id_geduc_serie:
+            logger.error(
+                "✗ Não foi possível mapear a série '%s' para um ID GEduc. "
+                "Verifique _GEDUC_SERIE_IDS.",
+                nome_serie,
+            )
+            return False
+
+        logger.info("→ Selecionando série '%s' (ID GEduc: %s)...", nome_serie, id_geduc_serie)
+        try:
+            Select(self.driver.find_element(By.NAME, "IDCURSOORI")).select_by_value(id_geduc_serie)
+        except Exception as e:
+            logger.exception("✗ Erro ao selecionar série: %s", e)
+            return False
+
+        # Aguardar AJAX carregar as turmas
+        logger.info("→ Aguardando carregamento das turmas via AJAX...")
+        try:
+            wait.until(
+                lambda d: len(Select(d.find_element(By.NAME, "IDTURMAORI")).options) > 1
+            )
+        except TimeoutException:
+            logger.warning("⚠ Timeout aguardando turmas. Continuando mesmo assim...")
+        time.sleep(0.8)
+
+        # ── 3b. Selecionar Turma ──────────────────────────────────────────
+        # Montar nome esperado no GEduc: "{serie}{turma}-{turno}" ou "{serie}-{turno}"
+        # Exemplos: "8º ANO A-VESP", "8º ANO-VESP", "1º ANO B-MAT"
+        _turno_upper = (turno or '').upper()
+        _sufixo_turno = 'VESP' if 'VES' in _turno_upper else 'MAT'
+        _serie_upper = (nome_serie or '').upper()
+        if nome_turma and nome_turma.strip():
+            _nome_turma_geduc = f"{_serie_upper} {nome_turma.strip().upper()}-{_sufixo_turno}"
+        else:
+            _nome_turma_geduc = f"{_serie_upper}-{_sufixo_turno}"
+
+        logger.info("→ Selecionando turma (esperado: '%s')...", _nome_turma_geduc)
+        try:
+            select_turma = Select(self.driver.find_element(By.NAME, "IDTURMAORI"))
+            # Opções reais = opções com value não-vazio (exclui placeholder)
+            opcoes_reais = [
+                o for o in select_turma.options if o.get_attribute("value")
+            ]
+            turma_selecionada = False
+
+            # Normaliza espaços ao redor do traço para comparação tolerante
+            # ex: "7º ANO A -VESP" e "7º ANO A-VESP" → ambos viram "7º ANO A-VESP"
+            import re as _re_local
+            def _normalizar(s: str) -> str:
+                return _re_local.sub(r'\s*-\s*', '-', s.strip().upper())
+
+            _nome_esperado_norm = _normalizar(_nome_turma_geduc)
+
+            # Tentativa 1: match normalizado
+            for option in opcoes_reais:
+                if _nome_esperado_norm in _normalizar(option.text):
+                    select_turma.select_by_value(option.get_attribute("value"))
+                    turma_selecionada = True
+                    logger.info("  ✓ Turma selecionada por nome: %s", option.text.strip())
+                    break
+
+            # Tentativa 2: turma vazia no banco local + só uma turma no GEduc → seleciona automaticamente
+            if not turma_selecionada and len(opcoes_reais) == 1:
+                option = opcoes_reais[0]
+                select_turma.select_by_value(option.get_attribute("value"))
+                turma_selecionada = True
+                logger.info(
+                    "  ✓ Turma selecionada automaticamente (única disponível): %s",
+                    option.text.strip()
+                )
+
+            if not turma_selecionada:
+                nomes_opcoes = [o.text.strip() for o in opcoes_reais]
+                logger.error(
+                    "✗ Turma '%s' não encontrada. Opções disponíveis: %s",
+                    _nome_turma_geduc, nomes_opcoes
+                )
+                return False
+        except Exception as e:
+            logger.exception("✗ Erro ao selecionar turma: %s", e)
+            return False
+
+        # Aguardar AJAX carregar alunos
+        logger.info("→ Aguardando carregamento dos alunos via AJAX...")
+        try:
+            wait.until(
+                lambda d: len(Select(d.find_element(By.NAME, "IDALUNO")).options) > 1
+            )
+        except TimeoutException:
+            logger.warning("⚠ Timeout aguardando alunos. Continuando mesmo assim...")
+        time.sleep(0.8)
+
+        # ── 3c. Selecionar Aluno (Select2) ────────────────────────────────
+        logger.info("→ Selecionando aluno '%s'...", nome_aluno)
+        aluno_selecionado = False
+
+        import unicodedata as _ucd
+
+        def _sem_acento(s: str) -> str:
+            """Remove acentos e converte para maiúsculas — GEduc não usa acentuação."""
+            return ''.join(
+                c for c in _ucd.normalize('NFD', (s or '').upper())
+                if _ucd.category(c) != 'Mn'
+            )
+
+        nome_busca = _sem_acento(nome_aluno)
+        # Primeiro nome sem acento para digitar no campo de busca do Select2
+        primeiro_nome_busca = _sem_acento(nome_aluno.split()[0]) if nome_aluno else ""
+
+        # Tentativa 1: pelo select nativo (quando já carregado)
+        try:
+            select_aluno_elem = self.driver.find_element(By.NAME, "IDALUNO")
+            select_aluno = Select(select_aluno_elem)
+            for option in select_aluno.options:
+                if option.get_attribute("value") and nome_busca in _sem_acento(option.text):
+                    select_aluno.select_by_value(option.get_attribute("value"))
+                    # Disparar evento change para o Select2 reconhecer a seleção
+                    self.driver.execute_script(
+                        "arguments[0].dispatchEvent(new Event('change', {bubbles:true}));",
+                        select_aluno_elem,
+                    )
+                    aluno_selecionado = True
+                    logger.info("  ✓ Aluno selecionado (select nativo): %s", option.text.strip())
+                    break
+        except Exception as e:
+            logger.warning("  ⚠ Seleção nativa falhou: %s", e)
+
+        # Tentativa 2: via Select2 (busca por texto)
+        if not aluno_selecionado:
+            try:
+                select2_container = self.driver.find_element(By.CSS_SELECTOR, ".select2-container")
+                select2_container.click()
+                time.sleep(0.5)
+                search_input = wait.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, ".select2-search__field"))
+                )
+                # Digitar o primeiro nome (sem acento) para filtrar
+                search_input.send_keys(primeiro_nome_busca)
+                time.sleep(1.5)
+                resultados = self.driver.find_elements(
+                    By.CSS_SELECTOR, ".select2-results__option"
+                )
+                for resultado in resultados:
+                    if nome_busca in _sem_acento(resultado.text):
+                        resultado.click()
+                        aluno_selecionado = True
+                        logger.info("  ✓ Aluno selecionado (Select2): %s", resultado.text)
+                        break
+            except Exception as e:
+                logger.exception("  ✗ Seleção via Select2 falhou: %s", e)
+
+        if not aluno_selecionado:
+            logger.error("✗ Não foi possível selecionar o aluno '%s'.", nome_aluno)
+            return False
+
+        # ── 3d. Selecionar modelo "Declaração Escolar" (value=4) ──────────
+        logger.info("→ Selecionando modelo 'DECLARAÇÃO ESCOLAR'...")
+        try:
+            Select(self.driver.find_element(By.NAME, "IDMODELODOC")).select_by_value("4")
+            logger.info("  ✓ Modelo selecionado")
+        except Exception as e:
+            logger.exception("✗ Erro ao selecionar modelo: %s", e)
+            return False
+
+        # ── 4. Clicar "Carregar Dados" ────────────────────────────────────
+        logger.info("→ Clicando em 'Carregar Dados'...")
+        try:
+            btn_carregar = self.driver.find_element(By.NAME, "BtnCarrAlunos")
+            self.driver.execute_script("arguments[0].click();", btn_carregar)
+        except Exception as e:
+            logger.exception("✗ Botão 'Carregar Dados' não encontrado: %s", e)
+            return False
+
+        # Aguardar o editor Summernote ser preenchido (pelo menos 50 chars)
+        logger.info("→ Aguardando preenchimento do editor Summernote...")
+        try:
+            wait.until(lambda d: len(
+                d.execute_script(
+                    "return document.querySelector('.note-editable') "
+                    "&& document.querySelector('.note-editable').innerText || '';"
+                ).strip()
+            ) > 50)
+        except TimeoutException:
+            logger.warning("⚠ Timeout aguardando editor. Verificando conteúdo mesmo assim...")
+        time.sleep(2)
+
+        # ── 5. Extrair matrícula e naturalidade do texto do GEduc ─────────
+        logger.info("→ Extraindo matrícula e naturalidade do texto gerado pelo GEduc...")
+        texto_geduc = ""
+        try:
+            texto_geduc = self.driver.execute_script(
+                "var el = document.querySelector('.note-editable');"
+                "return el ? el.innerText : '';"
+            ) or ""
+        except Exception as e:
+            logger.warning("⚠ Não foi possível ler o texto do GEduc: %s", e)
+
+        matricula_str = ""
+        match_mat = _re.search(r'matr[íi]cula[^\d]*(\d+)', texto_geduc, _re.IGNORECASE)
+        if match_mat:
+            matricula_str = match_mat.group(1)
+            logger.info("  ✓ Matrícula GEduc extraída: %s", matricula_str)
+
+        naturalidade_str = ""
+        match_nat = _re.search(r'natural de ([^,\n<]+)', texto_geduc, _re.IGNORECASE)
+        if match_nat:
+            naturalidade_str = match_nat.group(1).strip()
+            logger.info("  ✓ Naturalidade extraída: %s", naturalidade_str)
+
+        # ── 6. Construir e injetar texto corrigido no Summernote ──────────
+        logger.info("→ Construindo HTML da declaração corrigida...")
+
+        # Preservar o cabeçalho original do GEduc (tabela com logotipo e nome da escola)
+        html_atual = ""
+        try:
+            html_atual = self.driver.execute_script(
+                "return $('[name=\"TEXTO\"]').summernote('code') || '';"
+            ) or ""
+        except Exception as _e:
+            logger.warning("⚠ Não foi possível extrair HTML atual do editor: %s", _e)
+
+        # Ponto de corte: fim da última </table> (contém imagem e cabeçalho)
+        prefixo_html = ""
+        _match_tabela = list(_re.finditer(r'</table>', html_atual, _re.IGNORECASE))
+        if _match_tabela:
+            prefixo_html = html_atual[:_match_tabela[-1].end()]
+            logger.info("  ✓ Cabeçalho preservado (%d chars)", len(prefixo_html))
+        else:
+            # Fallback: tudo antes do parágrafo que inicia com DECLARAÇÃO
+            _match_decl = _re.search(
+                r'<p[^>]*>(?:<[^>]+>)*\s*DECLARA', html_atual, _re.IGNORECASE
+            )
+            if _match_decl:
+                prefixo_html = html_atual[:_match_decl.start()]
+                logger.info("  ✓ Cabeçalho preservado via fallback (%d chars)", len(prefixo_html))
+
+        html_declaracao = self._construir_texto_declaracao_html(
+            nome_aluno=nome_aluno or "",
+            sexo=sexo or "M",
+            data_nasc_formatada=data_nasc_formatada,
+            naturalidade=naturalidade_str,
+            matricula=matricula_str,
+            responsaveis=list(responsaveis),
+            nome_escola=nome_escola,
+            municipio_escola=municipio_escola,
+            nome_serie=nome_serie or "",
+            nivel_ensino=nivel_str,
+            turno=turno or "",
+            tipo_declaracao=tipo_declaracao,
+            motivo_outros=motivo_outros,
+            ano_letivo=ANO_LETIVO_ATUAL,
+            data_documento=formatar_data(_dt.datetime.now()),
+        )
+
+        html_completo = prefixo_html + html_declaracao
+
+        logger.info("→ Injetando texto corrigido no Summernote...")
+        try:
+            # json.dumps garante escape correto de aspas e caracteres especiais
+            html_json = _json.dumps(html_completo)
+            self.driver.execute_script(
+                f"$('[name=\"TEXTO\"]').summernote('code', {html_json});"
+            )
+            time.sleep(0.5)
+            logger.info("  ✓ Texto injetado com sucesso")
+        except Exception as e:
+            logger.exception("✗ Erro ao injetar texto no Summernote: %s", e)
+            return False
+
+        # ── 7. Clicar "Gerar Declaração" ──────────────────────────────────
+        logger.info("→ Clicando em 'Gerar Declaração'...")
+        try:
+            # Tenta localizar pelo nome (pode conter ã); fallback pelo texto do botão
+            btn_gerar = None
+            try:
+                btn_gerar = self.driver.find_element(By.NAME, "btn_gerar_declaração")
+            except NoSuchElementException:
+                botoes = self.driver.find_elements(By.TAG_NAME, "button")
+                for b in botoes:
+                    if "GERAR DECLARA" in (b.text or "").upper():
+                        btn_gerar = b
+                        break
+
+            if btn_gerar is None:
+                logger.error("✗ Botão 'Gerar Declaração' não encontrado na página.")
+                return False
+
+            self.driver.execute_script("arguments[0].click();", btn_gerar)
+            logger.info("  ✓ Declaração enviada ao GEduc para geração!")
+            time.sleep(3)
+            return True
+
+        except Exception as e:
+            logger.exception("✗ Erro ao clicar em 'Gerar Declaração': %s", e)
+            return False
+
     def fechar(self):
         """
         Fecha o navegador

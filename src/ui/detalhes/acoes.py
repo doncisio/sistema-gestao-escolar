@@ -266,7 +266,6 @@ def abrir_historico_wrapper(aluno_id):
 def gerar_declaracao_wrapper(aluno_id):
     """Wrapper para gerar declaração do aluno — abre diálogo de seleção."""
     try:
-        import tkinter as tk
         from tkinter import StringVar, Toplevel, Label, OptionMenu, Entry, Button, Frame
         from src.ui.colors import get_colors_dict
 
@@ -283,87 +282,223 @@ def gerar_declaracao_wrapper(aluno_id):
 
         dialog = Toplevel(root)
         dialog.title("Tipo de Declaração")
-        dialog.geometry("380x170")
+        dialog.geometry("420x230")
+        dialog.resizable(False, False)
         dialog.transient(root)
         dialog.focus_force()
         dialog.grab_set()
         dialog.configure(bg=co0)
 
         opcao = StringVar(dialog)
-        opcao.set("Transferência")
-
+        opcao.set("Bolsa Família")
         opcoes = ["Transferência", "Bolsa Família", "Trabalho", "Outros"]
 
-        Label(dialog, text="Selecione o tipo de declaração:", font=("Ivy", 12), bg=co0, fg=co7).pack(pady=10)
+        Label(dialog, text="Selecione o tipo de declaração:", font=("Ivy", 12),
+              bg=co0, fg=co7).pack(pady=(14, 4))
 
         option_menu = OptionMenu(dialog, opcao, *opcoes)
-        option_menu.config(bg=co0, fg=co7, font=("Ivy", 11))
-        option_menu.pack(pady=5)
+        option_menu.config(bg=co0, fg=co7, font=("Ivy", 11), width=22)
+        option_menu.pack(pady=4)
 
         motivo_frame = Frame(dialog, bg=co0)
-        motivo_frame.pack(pady=5, fill='x', padx=20)
-
         Label(motivo_frame, text="Especifique o motivo:", font=("Ivy", 11), bg=co0, fg=co7).pack(anchor='w')
         motivo_entry = Entry(motivo_frame, width=40, font=("Ivy", 11))
-        motivo_entry.pack(fill='x', pady=5)
+        motivo_entry.pack(fill='x', pady=4)
 
-        motivo_frame.pack_forget()
+        btn_geduc_ref: list = []
 
         def atualizar_interface(*args):
-            if opcao.get() == "Outros":
-                motivo_frame.pack(pady=5, fill='x', padx=20)
-                dialog.geometry("380x270")
+            selecionado = opcao.get()
+            if selecionado == "Outros":
+                motivo_frame.pack(pady=4, fill='x', padx=20)
+                dialog.geometry("420x290")
                 motivo_entry.focus_set()
             else:
                 motivo_frame.pack_forget()
-                dialog.geometry("380x170")
+                dialog.geometry("420x230")
+            if btn_geduc_ref:
+                state = "disabled" if selecionado == "Transferência" else "normal"
+                btn_geduc_ref[0].config(state=state)
 
         opcao.trace_add("write", atualizar_interface)
 
-        def confirmar():
+        def _validar():
             opcao_selecionada = opcao.get()
+            motivo_outros = ""
+            if opcao_selecionada == "Outros":
+                motivo_outros = motivo_entry.get().strip()
+                if not motivo_outros:
+                    messagebox.showwarning("Aviso", "Por favor, especifique o motivo.")
+                    return None
+            return opcao_selecionada, motivo_outros
+
+        # ── Gerar Local (PDF) ─────────────────────────────────────────
+        def gerar_local():
+            res = _validar()
+            if res is None:
+                return
+            opcao_selecionada, motivo_outros = res
+            dialog.destroy()
 
             marcacoes = [[False, False, False, False]]
             if opcao_selecionada in opcoes:
-                index = opcoes.index(opcao_selecionada)
-                marcacoes[0][index] = True
-
-            motivo_outros_texto = ""
-            if opcao_selecionada == "Outros":
-                motivo_outros_texto = motivo_entry.get().strip()
-                if not motivo_outros_texto:
-                    messagebox.showwarning("Aviso", "Por favor, especifique o motivo.")
-                    return
-
-            dialog.destroy()
+                marcacoes[0][opcoes.index(opcao_selecionada)] = True
 
             def _worker():
                 from src.relatorios.declaracao_aluno import gerar_declaracao_aluno
-                return gerar_declaracao_aluno(aluno_id, marcacoes, motivo_outros_texto)
+                return gerar_declaracao_aluno(aluno_id, marcacoes, motivo_outros)
 
-            def _on_done(resultado):
-                try:
-                    messagebox.showinfo("Concluído", "Declaração gerada com sucesso.")
-                except Exception:
-                    pass
-
-            from utils import executor
+            def _on_done(_resultado):
+                messagebox.showinfo("Concluído", "Declaração gerada com sucesso.")
 
             def _on_error(exc):
+                messagebox.showerror("Erro", f"Falha ao gerar declaração: {exc}")
+
+            try:
+                from utils import executor
+                executor.submit_background(_worker, on_done=_on_done, on_error=_on_error, janela=root)
+            except Exception:
+                from threading import Thread
+                def _t():
+                    try:
+                        r = _worker()
+                        root.after(0, lambda: _on_done(r))
+                    except Exception as e:
+                        root.after(0, lambda: _on_error(e))
+                Thread(target=_t, daemon=True).start()
+
+        # ── Pedir credenciais GEduc ───────────────────────────────────
+        def _pedir_credenciais():
+            import os
+            try:
+                from src.core.config import GEDUC_DEFAULT_USER, GEDUC_DEFAULT_PASS
+                usuario_salvo = os.environ.get("GEDUC_USER", GEDUC_DEFAULT_USER)
+                senha_salva = os.environ.get("GEDUC_PASS", GEDUC_DEFAULT_PASS)
+            except Exception:
+                usuario_salvo = os.environ.get("GEDUC_USER", "")
+                senha_salva = os.environ.get("GEDUC_PASS", "")
+
+            cred = Toplevel(root)
+            cred.title("Credenciais do GEduc")
+            cred.geometry("340x220")
+            cred.resizable(False, False)
+            cred.transient(root)
+            cred.grab_set()
+            cred.focus_force()
+            cred.configure(bg=co0)
+
+            Label(cred, text="Login do GEduc", font=("Ivy", 12, "bold"),
+                  bg=co0, fg=co7).pack(pady=(14, 8))
+
+            f = Frame(cred, bg=co0)
+            f.pack(padx=20, fill='x')
+
+            Label(f, text="Usuário:", font=("Ivy", 11), bg=co0, fg=co7).grid(row=0, column=0, sticky='w', pady=4)
+            eu = Entry(f, font=("Ivy", 11), width=24)
+            eu.insert(0, usuario_salvo)
+            eu.grid(row=0, column=1, pady=4, padx=(8, 0))
+
+            Label(f, text="Senha:", font=("Ivy", 11), bg=co0, fg=co7).grid(row=1, column=0, sticky='w', pady=4)
+            ep = Entry(f, font=("Ivy", 11), width=24, show="*")
+            ep.insert(0, senha_salva)
+            ep.grid(row=1, column=1, pady=4, padx=(8, 0))
+
+            resultado_cred: list = [None]
+
+            def confirmar_cred():
+                u = eu.get().strip()
+                p = ep.get().strip()
+                if not u or not p:
+                    messagebox.showwarning("Aviso", "Preencha usuário e senha.", parent=cred)
+                    return
+                resultado_cred[0] = (u, p)
+                cred.destroy()
+
+            eu.bind("<Return>", lambda _: ep.focus_set())
+            ep.bind("<Return>", lambda _: confirmar_cred())
+
+            bf = Frame(cred, bg=co0)
+            bf.pack(pady=14)
+            Button(bf, text="Entrar", command=confirmar_cred,
+                   bg=co2, fg=co0, font=("Ivy", 11), width=10).pack(side='left', padx=6)
+            Button(bf, text="Cancelar", command=cred.destroy,
+                   bg=co0, fg=co7, font=("Ivy", 11), width=10).pack(side='left', padx=6)
+
+            cred.wait_window()
+            return resultado_cred[0]
+
+        # ── Gerar no GEduc (autenticado) ──────────────────────────────
+        def gerar_geduc():
+            res = _validar()
+            if res is None:
+                return
+            opcao_selecionada, motivo_outros = res
+
+            credenciais = _pedir_credenciais()
+            if credenciais is None:
+                return
+            usuario_geduc, senha_geduc = credenciais
+
+            dialog.destroy()
+
+            def _worker_geduc():
+                from src.importadores.geduc import AutomacaoGEDUC
+                automacao = AutomacaoGEDUC(headless=False)
                 try:
-                    messagebox.showerror("Erro", f"Falha ao gerar declaração: {exc}")
-                except Exception:
-                    pass
+                    if not automacao.iniciar_navegador():
+                        return False
+                    if not automacao.fazer_login(usuario_geduc, senha_geduc):
+                        return False
+                    return automacao.gerar_declaracao(
+                        aluno_id=aluno_id,
+                        tipo_declaracao=opcao_selecionada,
+                        motivo_outros=motivo_outros,
+                    )
+                finally:
+                    pass  # navegador permanece aberto para o usuário salvar/imprimir
 
-            executor.submit_background(_worker, on_done=_on_done, on_error=_on_error, janela=root)
+            def _on_done_geduc(sucesso):
+                if sucesso:
+                    messagebox.showinfo("GEduc",
+                        "Declaração gerada no GEduc!\n"
+                        "O PDF autenticado está disponível no navegador.")
+                else:
+                    messagebox.showerror("GEduc",
+                        "Não foi possível gerar a declaração no GEduc.\n"
+                        "Verifique o navegador e os logs.")
 
+            def _on_error_geduc(exc):
+                messagebox.showerror("Erro GEduc", f"Falha na automação:\n{exc}")
+
+            try:
+                from utils import executor
+                executor.submit_background(
+                    _worker_geduc,
+                    on_done=_on_done_geduc,
+                    on_error=_on_error_geduc,
+                    janela=root
+                )
+            except Exception:
+                from threading import Thread
+                def _t():
+                    try:
+                        r = _worker_geduc()
+                        root.after(0, lambda: _on_done_geduc(r))
+                    except Exception as e:
+                        root.after(0, lambda: _on_error_geduc(e))
+                Thread(target=_t, daemon=True).start()
+
+        # ── Botões ────────────────────────────────────────────────────
         btn_frame = Frame(dialog, bg=co0)
-        btn_frame.pack(pady=10)
+        btn_frame.pack(pady=14)
 
-        Button(btn_frame, text="Confirmar", command=confirmar, bg=co2, fg=co0,
-               font=("Ivy", 11, "bold"), relief=tk.RAISED, overrelief=tk.RIDGE).pack(side=tk.LEFT, padx=5)
-        Button(btn_frame, text="Cancelar", command=dialog.destroy, bg=co3, fg=co0,
-               font=("Ivy", 11, "bold"), relief=tk.RAISED, overrelief=tk.RIDGE).pack(side=tk.LEFT, padx=5)
+        Button(btn_frame, text="Gerar Local (PDF)", command=gerar_local,
+               bg=co2, fg=co0, font=("Ivy", 11), width=18).grid(row=0, column=0, padx=8)
+
+        btn_geduc = Button(btn_frame, text="Gerar no GEduc", command=gerar_geduc,
+                           bg='#1565C0', fg='white', font=("Ivy", 11), width=18)
+        btn_geduc.grid(row=0, column=1, padx=8)
+        btn_geduc_ref.append(btn_geduc)
 
     except Exception as e:
         logger.exception(f"Erro ao abrir diálogo de declaração: {e}")
